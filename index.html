@@ -345,7 +345,6 @@ async function renderClientForm(el){
         <div class="field sm:col-span-2"><label>Email</label>${fieldWrap('✉️',`<input id="clEmail" type="email" placeholder="Adresse e-mail" value="${escapeHtml(c.email||'')}">`)}</div>
         <div class="field"><label>Pays</label>${fieldWrap('🌐',`<input id="clPays" value="${escapeHtml(c.pays||"Côte d'Ivoire")}">`)}</div>
         <div class="field sm:col-span-2"><label>Commune / Villes</label>${fieldWrap('🏙️',`<input id="clCommune" value="${escapeHtml(c.commune||'')}">`)}</div>
-        <div class="field sm:col-span-3"><label>Quartier</label>${fieldWrap('📍',`<input id="clQuartier" value="${escapeHtml(c.quartier||'')}">`)}</div>
         <div class="field"><label>Catégorie client</label>${fieldWrap('🏷️',`<select id="clCategorie">${catOptions}</select>`)}</div>
         <div class="field sm:col-span-2"><label>Adresse</label>${fieldWrap('📍',`<input id="clAdresse" value="${escapeHtml(c.adresse||'')}">`)}</div>
         <div class="field sm:col-span-2"><label>Source - Lieu d'affaire</label>${fieldWrap('🌐',`<input id="clSource" value="${escapeHtml(c.source||'')}">`)}</div>
@@ -357,7 +356,7 @@ async function renderClientForm(el){
     </div>`;
   document.getElementById('clientForm').onsubmit=async (e)=>{
     e.preventDefault();
-    const rec={civilite:val('clCivilite'),nom:val('clNom'),prenoms:val('clPrenoms'),entreprise:val('clEntreprise'),telephone:val('clTelephone'),email:val('clEmail'),pays:val('clPays'),commune:val('clCommune'),quartier:val('clQuartier'),categorie:val('clCategorie'),adresse:val('clAdresse'),source:val('clSource'),commercial:val('clCommercial')};
+    const rec={civilite:val('clCivilite'),nom:val('clNom'),prenoms:val('clPrenoms'),entreprise:val('clEntreprise'),telephone:val('clTelephone'),email:val('clEmail'),pays:val('clPays'),commune:val('clCommune'),categorie:val('clCategorie'),adresse:val('clAdresse'),source:val('clSource'),commercial:val('clCommercial')};
     const id=val('clId');
     let error;
     if(id){ ({error}=await sb.from('clients').update(rec).eq('id',id)); }
