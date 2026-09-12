@@ -720,7 +720,7 @@ const CONFIG_TYPES=['Fenêtre coulissante','Porte à la française','Porte couli
 function configCalculerBOM(type,w,h,leaves,qty,opts){
   opts=opts||{};
   const perimeter=2*(w+h);
-  let rows=[], alu=0, glassArea=0;
+  let rows=[], alu=0, glassArea=0, glassPanels=[];
   if(type==='Garde-corps inox'){
     const spacing=Math.max(500,+opts.spacing||1500);
     const infill=opts.infill||'cable';
@@ -742,6 +742,7 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
         ['PIN-GI-001','Pince de fixation verre inox',4*nPanels*qty,0,4*nPanels*qty*2400]
       ])
     ];
+    if(infill==='verre') glassPanels=[{w:Math.round(w/nPanels),h,qty:nPanels*qty}];
   } else if(type==='Moustiquaire fixe' || type==='Moustiquaire coulissante'){
     const isCoul=type==='Moustiquaire coulissante';
     const ouvrantW=isCoul?Math.max(0,w/leaves):w;
@@ -769,6 +770,7 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
       ['MEC-FJ-001','Mécanisme à manivelle',qty,0,qty*6500],
       ['CLI-FJ-001','Clip de fixation lame',nLames*2*qty,0,nLames*2*qty*350]
     ];
+    glassPanels=[{w,h:Math.round(h/nLames),qty:nLames*qty}];
   } else {
     const jointType=opts.jointType||'onglet';
     const gap=+opts.gap||5;
@@ -806,9 +808,10 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
         return [code,label,n,0,n*unit];
       })()
     ];
+    glassPanels=[{w:Math.round(glassW),h:Math.round(glassH),qty:leaves*qty}];
   }
   const coutMateriel=rows.reduce((s,r)=>s+r[4],0);
-  return {rows,alu,glassArea,coutMateriel,surface:w*h/1000000};
+  return {rows,alu,glassArea,coutMateriel,surface:w*h/1000000,glassPanels};
 }
 /* ---------- Classification BOM (structure/mobile/vitrage/quincaillerie), portée de Sanix ---------- */
 const BOM_L1_CATEGORIES=[
@@ -859,12 +862,14 @@ let configState=null;
 async function renderConfigurateur(el){
   configState={type:CONFIG_TYPES[0],w:1200,h:1200,leaves:2,qty:1,serie:'STD120',jointType:'onglet',gap:5,spacing:1500,infill:'cable',
     barLen:6000,kerf:3,laborRate:3500,poseForfait:0,tauxEnergie:2,tauxAmortissement:3,tauxTransport:2,tauxFraisAtelier:5,tauxFraisAdmin:5,margin:25,remise:0,
+    sheetW:3210,sheetH:2250,glassKerf:5,
     activeTab:'config'};
   el.innerHTML=`
     <div class="flex flex-wrap gap-2 mb-4 border-b pb-2">
       <button class="etude-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white" data-etudetab="config" onclick="showEtudeTab('config')">🧩 Configurateur</button>
       <button class="etude-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-etudetab="bom" onclick="showEtudeTab('bom')">📋 BOM</button>
       <button class="etude-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-etudetab="cut" onclick="showEtudeTab('cut')">✂️ Débit</button>
+      <button class="etude-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-etudetab="vitre" onclick="showEtudeTab('vitre')">🪟 Vitrage</button>
       <button class="etude-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-etudetab="cost" onclick="showEtudeTab('cost')">💰 Chiffrage</button>
     </div>
     <div id="etudeTabContent"></div>`;
@@ -873,7 +878,7 @@ async function renderConfigurateur(el){
 function showEtudeTab(tab){
   configState.activeTab=tab;
   document.querySelectorAll('.etude-tab-btn').forEach(b=>{ const on=b.dataset.etudetab===tab; b.classList.toggle('bg-indigo-600',on); b.classList.toggle('text-white',on); });
-  const renderers={config:renderTabConfig,bom:renderTabBOM,cut:renderTabDebit,cost:renderTabChiffrage};
+  const renderers={config:renderTabConfig,bom:renderTabBOM,cut:renderTabDebit,vitre:renderTabVitrage,cost:renderTabChiffrage};
   renderers[tab]();
 }
 function configUpdate(field,value){ configState[field]=value; showEtudeTab(configState.activeTab); }
@@ -1134,6 +1139,92 @@ function renderTabDebit(){
           <div class="flex justify-between"><span>Matière consommée</span><b>${Math.round(consommee).toLocaleString('fr-FR')} mm</b></div>
           <div class="flex justify-between"><span>Taux d'utilisation</span><b>${consommee?(theorique/consommee*100).toFixed(1):'0'} %</b></div>
           <div class="flex justify-between"><span>Chute totale</span><b>${Math.round(totalChute).toLocaleString('fr-FR')} mm</b></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ---------- Optimisation de vitrage — bin-packing 2D par étagères (shelf FFDH, rotation 90° autorisée) ---------- */
+function packGlassSheets(panels,sheetW,sheetH,kerf){
+  let pieces=[];
+  panels.forEach(p=>{ for(let i=0;i<p.qty;i++) pieces.push({w:p.w,h:p.h}); });
+  pieces.sort((a,b)=>Math.max(b.w,b.h)-Math.max(a.w,a.h));
+  const sheets=[];
+  let sheet=null;
+  function newSheet(){ sheet={shelves:[],usedHeight:0}; sheets.push(sheet); }
+  newSheet();
+  pieces.forEach(p=>{
+    const orients=[[p.w,p.h],[p.h,p.w]];
+    let placed=false;
+    for(const shelf of sheet.shelves){
+      for(const [pw,ph] of orients){
+        if(ph<=shelf.height+0.01 && shelf.usedWidth+pw+kerf<=sheetW+0.01){
+          shelf.items.push({x:shelf.usedWidth,y:shelf.y,w:pw,h:ph});
+          shelf.usedWidth+=pw+kerf;
+          placed=true; break;
+        }
+      }
+      if(placed) break;
+    }
+    if(!placed){
+      for(const [pw,ph] of orients){
+        if(pw<=sheetW+0.01 && sheet.usedHeight+ph+kerf<=sheetH+0.01){
+          sheet.shelves.push({y:sheet.usedHeight,height:ph,usedWidth:pw+kerf,items:[{x:0,y:sheet.usedHeight,w:pw,h:ph}]});
+          sheet.usedHeight+=ph+kerf;
+          placed=true; break;
+        }
+      }
+    }
+    if(!placed){
+      newSheet();
+      const orient=(p.w<=sheetW && p.h<=sheetH)?[p.w,p.h]:[p.h,p.w];
+      sheet.shelves.push({y:0,height:orient[1],usedWidth:orient[0]+kerf,items:[{x:0,y:0,w:orient[0],h:orient[1]}]});
+      sheet.usedHeight=orient[1]+kerf;
+    }
+  });
+  return sheets;
+}
+function renderTabVitrage(){
+  const c=configState;
+  const res=configResultat();
+  const panels=res.glassPanels||[];
+  if(!panels.length){
+    document.getElementById('etudeTabContent').innerHTML=`<div class="page-card"><h2>🪟 Optimisation de vitrage</h2><p class="text-sm text-gray-400 mt-3">Aucun panneau de vitrage pour cette configuration (${escapeHtml(c.type)}).</p></div>`;
+    return;
+  }
+  const sheets=packGlassSheets(panels,c.sheetW,c.sheetH,c.glassKerf);
+  const surfaceTheorique=panels.reduce((s,p)=>s+p.w*p.h*p.qty,0)/1e6;
+  const surfaceFeuilles=sheets.length*c.sheetW*c.sheetH/1e6;
+  const tauxUtil=surfaceFeuilles?surfaceTheorique/surfaceFeuilles*100:0;
+  const nbPieces=panels.reduce((s,p)=>s+p.qty,0);
+  const scale=560/c.sheetW;
+  const sheetsHtml=sheets.map((s,i)=>{
+    const itemsHtml=s.shelves.flatMap(sh=>sh.items).map(it=>`
+      <div style="position:absolute;left:${it.x*scale}px;top:${it.y*scale}px;width:${it.w*scale}px;height:${it.h*scale}px;background:#dbeafe;border:1px solid #2563eb;display:flex;align-items:center;justify-content:center;font-size:10px;color:#1e3a8a;overflow:hidden">${it.w}×${it.h}</div>`).join('');
+    return `<div class="mb-4">
+      <div class="text-xs font-semibold text-gray-600 mb-1">Feuille ${i+1} — ${c.sheetW}×${c.sheetH} mm</div>
+      <div style="position:relative;width:${c.sheetW*scale}px;height:${c.sheetH*scale}px;background:#f8fafc;border:2px solid #0f172a">${itemsHtml}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('etudeTabContent').innerHTML=`
+    <div class="grid lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2 page-card">
+        <div class="flex justify-between items-center"><h2>🪟 Optimisation de vitrage — plan de découpe</h2><span class="badge bg-emerald-50 text-emerald-700">${tauxUtil.toFixed(1)}% utilisation</span></div>
+        <p class="text-xs text-gray-500 mb-3">Imbrication 2D par étagères (rotation 90° autorisée), calculée depuis les panneaux de vitrage de la configuration.</p>
+        <div class="divider"></div>
+        <div class="overflow-x-auto">${sheetsHtml}</div>
+      </div>
+      <div class="page-card h-fit">
+        <h3 class="font-bold text-sm mb-3">Paramètres</h3>
+        <div class="field mb-2"><label>Largeur feuille (mm)</label>${fieldWrap('↔️',`<input type="number" min="500" value="${c.sheetW}" onchange="configUpdate('sheetW',+this.value||3210)">`)}</div>
+        <div class="field mb-2"><label>Hauteur feuille (mm)</label>${fieldWrap('↕️',`<input type="number" min="500" value="${c.sheetH}" onchange="configUpdate('sheetH',+this.value||2250)">`)}</div>
+        <div class="field mb-4"><label>Joint de découpe (mm)</label>${fieldWrap('🪚',`<input type="number" min="0" value="${c.glassKerf}" onchange="configUpdate('glassKerf',+this.value||5)">`)}</div>
+        <div class="space-y-2 text-sm border-t pt-3">
+          <div class="flex justify-between"><span>Panneaux à découper</span><b>${nbPieces}</b></div>
+          <div class="flex justify-between"><span>Feuilles nécessaires</span><b>${sheets.length}</b></div>
+          <div class="flex justify-between"><span>Surface théorique</span><b>${surfaceTheorique.toFixed(2)} m²</b></div>
+          <div class="flex justify-between"><span>Surface feuilles</span><b>${surfaceFeuilles.toFixed(2)} m²</b></div>
+          <div class="flex justify-between"><span>Chute</span><b>${(surfaceFeuilles-surfaceTheorique).toFixed(2)} m²</b></div>
         </div>
       </div>
     </div>`;
