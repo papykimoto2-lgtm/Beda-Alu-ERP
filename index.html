@@ -207,7 +207,7 @@ window.SB_CFG = {
       <button class="nav-parent" data-toggle="produits-g">🏠 <span>Produits</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="produits-g">
         <button class="nav-child" data-page="produits-add">→ Ajouter un produit</button>
-        <button class="nav-child" data-page="produits-config">→ Configurateur d'ouvrage</button>
+        <button class="nav-child" data-page="produits-config" onclick="window._configEditId=null">→ Configurateur d'ouvrage</button>
         <button class="nav-child" data-page="produits">→ Liste des produits</button>
       </div>
 
@@ -953,7 +953,10 @@ async function renderProduits(el){
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
       <p class="text-sm text-gray-500 max-w-lg">Catalogue de référence utilisé dans les devis. Le % coût matériel sert à l'estimation financière prévisionnelle (approximatif).</p>
-      <button class="btn btn-primary" onclick="window._editId=null;showPage('produits-add')">+ Ajouter</button>
+      <div class="flex gap-2">
+        <button class="btn btn-dark" onclick="window._configEditId=null;showPage('produits-config')">🧩 Créer via Configurateur</button>
+        <button class="btn btn-primary" onclick="window._editId=null;showPage('produits-add')">+ Ajouter</button>
+      </div>
     </div>
     <div class="card mb-3">
       <div class="flex items-center gap-2 mb-3" style="overflow-x:auto">${chips}</div>
@@ -1019,10 +1022,10 @@ function filterProduitsCatalogue(){
                 <div class="produit-icon">${FAMILLE_ICONS[f]||'📦'}</div>
                 <span class="produit-pct">${p.cout_materiel_pct}%</span>
               </div>
-              <div class="pname">${escapeHtml(p.nom)}</div>
+              <div class="pname">${escapeHtml(p.nom)}${p.config_json?' <span title="Créé via le Configurateur">🧩</span>':''}</div>
               <div class="punite">${escapeHtml(p.unite)}</div>
               <div class="pactions">
-                <button style="color:${fc}" onclick="window._editId='${p.id}';showPage('produits-add')">✏️ Modifier</button>
+                ${p.config_json?`<button style="color:${fc}" onclick="configurerProduitExistant('${p.id}')">🧩 Reconfigurer</button>`:`<button style="color:${fc}" onclick="window._editId='${p.id}';showPage('produits-add')">✏️ Modifier</button>`}
                 <button class="text-gray-500" onclick="dupliquerProduit('${p.id}')">⧉ Dupliquer</button>
                 <button class="text-red-500" onclick="deleteRow('produits','${p.id}','produits')">🗑️ Suppr.</button>
               </div>
@@ -1030,8 +1033,8 @@ function filterProduitsCatalogue(){
         </div>` : `
         <div class="card overflow-x-auto">
           <table><thead><tr><th>Désignation</th><th>Unité</th><th class="text-right">% coût matériel</th><th></th></tr></thead>
-          <tbody>${groups[f].map(p=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(p.nom)}</td><td>${escapeHtml(p.unite)}</td><td class="text-right"><span class="produit-pct" style="--fc:${fc}">${p.cout_materiel_pct}%</span></td>
-          <td class="text-right whitespace-nowrap"><button class="text-xs font-semibold mr-3" style="color:${fc}" onclick="window._editId='${p.id}';showPage('produits-add')">✏️ Modifier</button>
+          <tbody>${groups[f].map(p=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(p.nom)}${p.config_json?' 🧩':''}</td><td>${escapeHtml(p.unite)}</td><td class="text-right"><span class="produit-pct" style="--fc:${fc}">${p.cout_materiel_pct}%</span></td>
+          <td class="text-right whitespace-nowrap">${p.config_json?`<button class="text-xs font-semibold mr-3" style="color:${fc}" onclick="configurerProduitExistant('${p.id}')">🧩 Reconfigurer</button>`:`<button class="text-xs font-semibold mr-3" style="color:${fc}" onclick="window._editId='${p.id}';showPage('produits-add')">✏️ Modifier</button>`}
           <button class="text-gray-500 text-xs font-semibold mr-3" onclick="dupliquerProduit('${p.id}')">⧉ Dupliquer</button>
           <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('produits','${p.id}','produits')">🗑️ Suppr.</button></td></tr>`).join('')}</tbody></table>
         </div>`}
@@ -1219,7 +1222,16 @@ async function renderConfigurateur(el){
     barLen:6000,kerf:3,laborRate:3500,poseForfait:0,tauxEnergie:2,tauxAmortissement:3,tauxTransport:2,tauxFraisAtelier:5,tauxFraisAdmin:5,margin:25,remise:0,
     sheetW:3210,sheetH:2250,glassKerf:5,chuteMinReutilisable:500,chuteMinReutilisableVitrage:300,
     activeTab:'config'};
+  let editBanner='';
+  if(window._configEditId){
+    const {data:p}=await sb.from('produits').select('*').eq('id',window._configEditId).single();
+    if(p?.config_json){
+      Object.assign(configState,p.config_json,{activeTab:'config'});
+      editBanner=`<div class="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg px-3 py-2 mb-3">🧩 Reconfiguration de « ${escapeHtml(p.nom)} » — « Enregistrer » mettra à jour ce produit. <button class="underline font-semibold ml-2" onclick="window._configEditId=null;showPage('produits-config')">Créer un nouveau produit à la place</button></div>`;
+    } else { window._configEditId=null; }
+  }
   el.innerHTML=`
+    ${editBanner}
     <div class="flex flex-wrap gap-2 mb-4 border-b pb-2">
       <button class="etude-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white" data-etudetab="config" onclick="showEtudeTab('config')">🧩 Configurateur</button>
       <button class="etude-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-etudetab="bom" onclick="showEtudeTab('bom')">📋 BOM</button>
@@ -1704,10 +1716,22 @@ async function enregistrerProduitConfigure(){
   const pctCout=sale?Math.round(res.coutMateriel/sale*100):60;
   const showLeaves=!c.type.startsWith('Moustiquaire')&&c.type!=='Fenêtre jalousie'&&c.type!=='Garde-corps inox';
   const nom=`${c.type} ${c.w}×${c.h}mm${showLeaves&&c.leaves>1?' — '+c.leaves+' vantaux':''} (${c.serie})`;
-  const rec={nom,unite:'unite',prix_vente:sale,cout_materiel:res.coutMateriel,cout_materiel_pct:pctCout,alu_ml:res.alu,glass_m2:res.glassArea,config_json:c};
-  const {error}=await sb.from('produits').insert(rec);
+  const famille=PRODUIT_FAMILLES.includes(c.type)?c.type:'Autre';
+  const rec={nom,famille,unite:'unite',prix_vente:sale,cout_materiel:res.coutMateriel,cout_materiel_pct:pctCout,alu_ml:res.alu,glass_m2:res.glassArea,config_json:c};
+  let error;
+  if(window._configEditId){
+    ({error}=await sb.from('produits').update(rec).eq('id',window._configEditId));
+  } else {
+    ({error}=await sb.from('produits').insert(rec));
+  }
   if(error){ toast(error.message,'error'); return; }
-  toast('Produit créé depuis le Bureau d\'études.'); showPage('produits');
+  toast(window._configEditId?'Produit mis à jour depuis le Bureau d\'études.':'Produit créé depuis le Bureau d\'études.');
+  window._configEditId=null;
+  showPage('produits');
+}
+function configurerProduitExistant(id){
+  window._configEditId=id;
+  showPage('produits-config');
 }
 
 /* ============================== DEVIS ============================== */
