@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BEDA ALU ERP</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+window.SB_CFG = {
+  SUPABASE_URL: 'https://snphfuygvllbioaoyfkm.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNucGhmdXlndmxsYmlvYW95ZmttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxODY5NjgsImV4cCI6MjEwNDc2Mjk2OH0.DCX9OO8aTwWLFGEWPDS9jESrnAPKDjhMSq10SEM1FBs'
+};
+</script>
+<style>
+  :root{ --navy:#111a2e; --navy-2:#0c1424; --accent:#6d28d9; --accent-2:#5b21b6; }
+  *{box-sizing:border-box}
+  body{background:#f3f4f6;color:#111827;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif}
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700}
+  .hidden{display:none!important}
+  .nav-item{color:#cbd5e1;transition:background .12s}
+  .nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+  .nav-item.active{background:var(--accent);color:#fff}
+  .btn{padding:8px 16px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;border:0;white-space:nowrap}
+  .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-2)}
+  .btn-green{background:#059669;color:#fff}.btn-green:hover{background:#047857}
+  .btn-pink{background:#db2777;color:#fff}.btn-pink:hover{background:#be185d}
+  .btn-dark{background:#111a2e;color:#fff}.btn-dark:hover{background:#0c1424}
+  .btn-outline{background:#fff;border:1px solid #d1d5db;color:#374151}.btn-outline:hover{background:#f9fafb}
+  .btn-amber{background:#f59e0b;color:#fff}.btn-amber:hover{background:#d97706}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px}
+  input,select,textarea{border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:13px;width:100%}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(109,40,217,.12)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px 10px;text-align:left}
+  thead th{background:#f9fafb;font-size:11px;text-transform:uppercase;color:#6b7280;letter-spacing:.03em;border-bottom:1px solid #e5e7eb}
+  tbody tr{border-bottom:1px solid #f1f5f9}
+  tbody tr:hover{background:#fafafa}
+  .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
+  .modal-box{background:#fff;border-radius:16px;padding:24px;max-width:900px;width:100%;max-height:92vh;overflow-y:auto}
+  @media (max-width:900px){#sidebar{position:fixed;inset:0 20% 0 0;z-index:40;transform:translateX(-100%);transition:transform .2s;max-width:260px}#sidebar.open{transform:translateX(0)}#overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:35;opacity:0;pointer-events:none}#overlay.open{opacity:1;pointer-events:auto}}
+</style>
+</head>
+<body>
+
+<!-- ===== AUTH SCREEN ===== -->
+<div id="authScreen" class="min-h-screen flex items-center justify-center px-4">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-6">
+      <div class="text-2xl font-black">BEDA<span style="color:var(--accent)">ALU</span></div>
+      <p class="text-sm text-gray-500 mt-1">Gestion menuiserie aluminium</p>
+    </div>
+    <div class="card p-6">
+      <div id="authMsg" class="hidden text-sm rounded-lg px-3 py-2 mb-3"></div>
+      <form id="loginForm" class="space-y-3">
+        <input id="authEmail" type="email" required placeholder="Email" autocomplete="username">
+        <input id="authPassword" type="password" required placeholder="Mot de passe" autocomplete="current-password">
+        <button type="submit" class="btn btn-primary w-full py-2.5">Se connecter</button>
+      </form>
+      <button id="toggleSignup" class="text-xs text-gray-400 hover:text-gray-600 w-full text-center mt-4">Première connexion ? Créer un compte administrateur</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== APP SHELL ===== -->
+<div id="appScreen" class="hidden min-h-screen flex">
+  <div id="overlay" onclick="closeSidebar()"></div>
+  <aside id="sidebar" class="w-64 shrink-0 flex flex-col md:sticky md:top-0 md:h-screen" style="background:var(--navy)">
+    <div class="px-5 py-5 flex items-center justify-between">
+      <div class="text-white text-lg font-black">BEDA<span style="color:#a78bfa">ALU</span></div>
+      <button onclick="closeSidebar()" class="md:hidden text-slate-400 text-2xl leading-none">×</button>
+    </div>
+    <nav class="flex-1 px-3 space-y-1 overflow-y-auto text-sm">
+      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="dashboard">🏠 Accueil</button>
+      <div class="text-[10px] uppercase text-slate-500 font-bold px-3 pt-4 pb-1">Clients</div>
+      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="clients">👤 Clients</button>
+      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="projets">🏗️ Projets / Chantiers</button>
+      <div class="text-[10px] uppercase text-slate-500 font-bold px-3 pt-4 pb-1">Commercial</div>
+      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="devis">📄 Devis</button>
+      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="factures">🧾 Factures</button>
+      <div class="text-[10px] uppercase text-slate-500 font-bold px-3 pt-4 pb-1">Chantier</div>
+      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="fiches">🛠️ Fiches d'exécution</button>
+      <div class="text-[10px] uppercase text-slate-500 font-bold px-3 pt-4 pb-1">Réglages</div>
+      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="produits">📦 Produits</button>
+    </nav>
+    <div class="px-4 py-4 border-t border-white/10">
+      <div id="sbUserEmail" class="text-xs text-slate-400 truncate mb-2"></div>
+      <button onclick="handleLogout()" class="w-full text-left text-sm text-slate-300 hover:text-white">⏻ Déconnexion</button>
+    </div>
+  </aside>
+
+  <main class="flex-1 min-w-0">
+    <header class="bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2 sticky top-0 z-20">
+      <div class="flex items-center gap-2 min-w-0">
+        <button onclick="openSidebar()" class="md:hidden border rounded-lg px-2.5 py-1.5">☰</button>
+        <h1 id="pageTitle" class="text-base sm:text-lg font-bold truncate">Accueil</h1>
+      </div>
+    </header>
+    <div id="pageContent" class="p-4 sm:p-6"></div>
+  </main>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+/* ============================== CORE / UTILS ============================== */
+const { createClient } = supabase;
+const sb = createClient(window.SB_CFG.SUPABASE_URL, window.SB_CFG.SUPABASE_ANON_KEY);
+let CURRENT_USER = null;
+function money(n){ return new Intl.NumberFormat('fr-FR').format(Math.round(n||0)) + ' FCFA'; }
+function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDate(d){ return d ? new Date(d).toLocaleDateString('fr-FR') : '—'; }
+function uid(){ return 'id_'+Date.now()+'_'+Math.random().toString(36).slice(2,8); }
+function toast(msg, kind){
+  const el=document.createElement('div');
+  el.className='fixed bottom-5 right-5 z-[100] px-4 py-3 rounded-lg text-sm font-semibold shadow-lg '+(kind==='error'?'bg-red-600 text-white':'bg-gray-900 text-white');
+  el.textContent=msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),3200);
+}
+function openSidebar(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('overlay').classList.add('open'); }
+function closeSidebar(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('open'); }
+function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
+function openModal(html){ document.getElementById('modalRoot').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal-box">${html}</div></div>`; }
+
+const STATUT_DEVIS = {en_attente:{label:'En attente',color:'bg-blue-50 text-blue-700'},en_cours:{label:'En cours',color:'bg-amber-50 text-amber-700'},accepte:{label:'Accepté',color:'bg-emerald-50 text-emerald-700'},refuse:{label:'Refusé',color:'bg-red-50 text-red-700'},annule:{label:'Annulé',color:'bg-gray-100 text-gray-500'}};
+const STATUT_FACTURE = {en_attente:{label:'En attente',color:'bg-blue-50 text-blue-700'},payee_partielle:{label:'Payée partielle',color:'bg-amber-50 text-amber-700'},payee:{label:'Payée',color:'bg-emerald-50 text-emerald-700'},annulee:{label:'Annulée',color:'bg-gray-100 text-gray-500'}};
+const STATUT_FICHE = {en_attente:{label:'En attente',color:'bg-blue-50 text-blue-700'},en_cours:{label:'En cours',color:'bg-amber-50 text-amber-700'},termine:{label:'Terminé',color:'bg-emerald-50 text-emerald-700'}};
+function badge(map,key){ const m=map[key]||{label:key,color:'bg-gray-100 text-gray-500'}; return `<span class="badge ${m.color}">${escapeHtml(m.label)}</span>`; }
+
+/* ============================== AUTH ============================== */
+let authMode='login';
+document.getElementById('toggleSignup').onclick=()=>{
+  authMode = authMode==='login' ? 'signup' : 'login';
+  document.getElementById('toggleSignup').textContent = authMode==='login' ? 'Première connexion ? Créer un compte administrateur' : '← Retour à la connexion';
+  document.querySelector('#loginForm button[type=submit]').textContent = authMode==='login' ? 'Se connecter' : 'Créer le compte';
+};
+function showAuthMsg(msg,isError){
+  const el=document.getElementById('authMsg');
+  el.textContent=msg; el.classList.remove('hidden');
+  el.className='text-sm rounded-lg px-3 py-2 mb-3 '+(isError?'bg-red-50 text-red-700':'bg-blue-50 text-blue-700');
+}
+document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const email=document.getElementById('authEmail').value.trim();
+  const password=document.getElementById('authPassword').value;
+  const btn=e.target.querySelector('button[type=submit]'); btn.disabled=true;
+  try{
+    if(authMode==='signup'){
+      const {error}=await sb.auth.signUp({email,password});
+      if(error) throw error;
+      showAuthMsg('Compte créé. Connectez-vous.', false);
+      authMode='login'; document.getElementById('toggleSignup').click(); document.getElementById('toggleSignup').click();
+    } else {
+      const {error}=await sb.auth.signInWithPassword({email,password});
+      if(error) throw error;
+      await enterApp();
+    }
+  }catch(err){ showAuthMsg(err.message||'Erreur', true); }
+  finally{ btn.disabled=false; }
+});
+async function handleLogout(){ await sb.auth.signOut(); CURRENT_USER=null; document.getElementById('appScreen').classList.add('hidden'); document.getElementById('authScreen').classList.remove('hidden'); }
+async function enterApp(){
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user) return;
+  CURRENT_USER=user;
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('appScreen').classList.remove('hidden');
+  document.getElementById('sbUserEmail').textContent=user.email;
+  showPage('dashboard');
+}
+(async function boot(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session) await enterApp();
+})();
+
+/* ============================== ROUTING ============================== */
+const PAGE_TITLES={dashboard:'Accueil',clients:'Clients',projets:'Projets / Chantiers',devis:'Devis',factures:'Factures',fiches:"Fiches d'exécution",produits:'Produits'};
+const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,projets:renderProjets,devis:renderDevis,factures:renderFactures,fiches:renderFiches,produits:renderProduits};
+async function showPage(page){
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
+  document.getElementById('pageTitle').textContent=PAGE_TITLES[page]||'';
+  const el=document.getElementById('pageContent');
+  el.innerHTML='<div class="text-sm text-gray-400 p-8 text-center">Chargement…</div>';
+  closeSidebar();
+  try{ await PAGE_RENDERERS[page](el); }
+  catch(err){ el.innerHTML=`<div class="text-sm text-red-600">${escapeHtml(err.message||String(err))}</div>`; }
+}
+document.querySelectorAll('.nav-item[data-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+
+/* ============================== DASHBOARD ============================== */
+async function renderDashboard(el){
+  const [{count:nbClients},{count:nbDevisEnCours},{count:nbChantiers},facturesRes]=await Promise.all([
+    sb.from('clients').select('*',{count:'exact',head:true}),
+    sb.from('devis').select('*',{count:'exact',head:true}).in('statut',['en_attente','en_cours']),
+    sb.from('projets').select('*',{count:'exact',head:true}),
+    sb.from('factures').select('total,statut').neq('statut','payee')
+  ]);
+  const enAttente=(facturesRes.data||[]).reduce((s,f)=>s+(+f.total||0),0);
+  el.innerHTML=`
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="card p-5"><div class="text-gray-400 text-xs">Clients</div><div class="text-2xl font-black mt-2">${nbClients||0}</div></div>
+      <div class="card p-5"><div class="text-gray-400 text-xs">Devis en cours</div><div class="text-2xl font-black mt-2">${nbDevisEnCours||0}</div></div>
+      <div class="card p-5"><div class="text-gray-400 text-xs">Projets / chantiers</div><div class="text-2xl font-black mt-2">${nbChantiers||0}</div></div>
+      <div class="card p-5"><div class="text-gray-400 text-xs">Factures impayées</div><div class="text-2xl font-black mt-2 text-red-600">${money(enAttente)}</div></div>
+    </div>
+    <div class="card p-6">
+      <h2 class="font-bold mb-1">Bienvenue, ${escapeHtml(CURRENT_USER?.email||'')} 👋</h2>
+      <p class="text-sm text-gray-500">Créez un client, un devis, puis générez la fiche d'exécution et l'estimation financière depuis la fiche du devis.</p>
+    </div>`;
+}
+
+/* ============================== CLIENTS ============================== */
+async function renderClients(el){
+  const {data,error}=await sb.from('clients').select('*').order('created_at',{ascending:false});
+  if(error) throw error;
+  el.innerHTML=`
+    <div class="flex justify-between items-center mb-4">
+      <div class="text-sm text-gray-500">${data.length} client(s)</div>
+      <button class="btn btn-primary" onclick="openClientForm()">+ Ajouter un client</button>
+    </div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Code</th><th>Nom</th><th>Téléphone</th><th>Email</th><th>Ville</th><th>Catégorie</th><th></th></tr></thead>
+      <tbody>${data.map(c=>`<tr>
+        <td class="font-semibold">${escapeHtml(c.code)}</td>
+        <td>${escapeHtml([c.civilite,c.nom,c.prenoms].filter(Boolean).join(' '))}${c.entreprise?`<div class="text-xs text-gray-400">${escapeHtml(c.entreprise)}</div>`:''}</td>
+        <td>${escapeHtml(c.telephone||'—')}</td><td>${escapeHtml(c.email||'—')}</td><td>${escapeHtml(c.commune||'—')}</td>
+        <td>${escapeHtml(c.categorie||'—')}</td>
+        <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick='openClientForm(${JSON.stringify(c).replace(/'/g,"&#39;")})'>Modifier</button>
+        <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('clients','${c.id}','clients')">Suppr.</button></td>
+      </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun client.</td></tr>'}</tbody></table>
+    </div>`;
+}
+function openClientForm(c){
+  c=c||{};
+  openModal(`
+    <div class="flex justify-between items-start mb-4"><h2 class="text-lg font-bold">${c.id?'Modifier':'Ajouter'} un client</h2><button onclick="closeModal()" class="text-gray-400 text-xl leading-none">×</button></div>
+    <form id="clientForm" class="grid sm:grid-cols-2 gap-3">
+      <input type="hidden" id="clId" value="${c.id||''}">
+      <select id="clCivilite"><option ${c.civilite==='Monsieur'?'selected':''}>Monsieur</option><option ${c.civilite==='Madame'?'selected':''}>Madame</option><option ${c.civilite==='Entreprise'?'selected':''}>Entreprise</option></select>
+      <input id="clNom" placeholder="Nom" required value="${escapeHtml(c.nom||'')}">
+      <input id="clPrenoms" placeholder="Prénoms" value="${escapeHtml(c.prenoms||'')}">
+      <input id="clEntreprise" placeholder="Nom de l'entreprise" value="${escapeHtml(c.entreprise||'')}">
+      <input id="clTelephone" placeholder="Téléphone" value="${escapeHtml(c.telephone||'')}">
+      <input id="clEmail" type="email" placeholder="Email" value="${escapeHtml(c.email||'')}">
+      <input id="clPays" placeholder="Pays" value="${escapeHtml(c.pays||"Côte d'Ivoire")}">
+      <input id="clCommune" placeholder="Commune / Ville" value="${escapeHtml(c.commune||'')}">
+      <input id="clQuartier" placeholder="Quartier" value="${escapeHtml(c.quartier||'')}">
+      <select id="clCategorie"><option ${c.categorie==='Particulier'?'selected':''}>Particulier</option><option ${c.categorie==='Entreprise'?'selected':''}>Entreprise</option></select>
+      <input id="clAdresse" placeholder="Adresse" class="sm:col-span-2" value="${escapeHtml(c.adresse||'')}">
+      <input id="clSource" placeholder="Source / Lieu d'affaire" value="${escapeHtml(c.source||'')}">
+      <input id="clCommercial" placeholder="Commercial" value="${escapeHtml(c.commercial||'')}">
+      <button type="submit" class="btn btn-primary sm:col-span-2 py-2.5">Sauvegarder</button>
+    </form>`);
+  document.getElementById('clientForm').onsubmit=async (e)=>{
+    e.preventDefault();
+    const rec={civilite:val('clCivilite'),nom:val('clNom'),prenoms:val('clPrenoms'),entreprise:val('clEntreprise'),telephone:val('clTelephone'),email:val('clEmail'),pays:val('clPays'),commune:val('clCommune'),quartier:val('clQuartier'),categorie:val('clCategorie'),adresse:val('clAdresse'),source:val('clSource'),commercial:val('clCommercial')};
+    const id=val('clId');
+    let error;
+    if(id){ ({error}=await sb.from('clients').update(rec).eq('id',id)); }
+    else { rec.created_by=CURRENT_USER.id; ({error}=await sb.from('clients').insert(rec)); }
+    if(error){ toast(error.message,'error'); return; }
+    closeModal(); toast('Client enregistré.'); showPage('clients');
+  };
+}
+function val(id){ return document.getElementById(id).value.trim(); }
+async function deleteRow(table,id,page){
+  if(!confirm('Supprimer cet élément ?')) return;
+  const {error}=await sb.from(table).delete().eq('id',id);
+  if(error){ toast(error.message,'error'); return; }
+  toast('Supprimé.'); showPage(page);
+}
+
+/* ============================== PROJETS / CHANTIERS ============================== */
+async function renderProjets(el){
+  const [{data,error}, clientsRes]=await Promise.all([
+    sb.from('projets').select('*, clients(nom,prenoms)').order('created_at',{ascending:false}),
+    sb.from('clients').select('id,nom,prenoms').order('nom')
+  ]);
+  if(error) throw error;
+  window._clientsCache=clientsRes.data||[];
+  el.innerHTML=`
+    <div class="flex justify-between items-center mb-4">
+      <div class="text-sm text-gray-500">${data.length} projet(s)</div>
+      <button class="btn btn-primary" onclick="openProjetForm()">+ Ajouter un projet</button>
+    </div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Code</th><th>Libellé</th><th>Client</th><th>Début</th><th>Fin</th><th>Catégorie</th><th></th></tr></thead>
+      <tbody>${data.map(p=>`<tr>
+        <td class="font-semibold">${escapeHtml(p.code)}</td><td>${escapeHtml(p.libelle)}</td>
+        <td>${escapeHtml(p.clients?[p.clients.nom,p.clients.prenoms].filter(Boolean).join(' '):'—')}</td>
+        <td>${fmtDate(p.date_debut)}</td><td>${fmtDate(p.date_fin)}</td><td>${escapeHtml(p.categorie||'—')}</td>
+        <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick='openProjetForm(${JSON.stringify(p).replace(/'/g,"&#39;")})'>Modifier</button>
+        <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('projets','${p.id}','projets')">Suppr.</button></td>
+      </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun projet.</td></tr>'}</tbody></table>
+    </div>`;
+}
+function clientOptions(selectedId){
+  return (window._clientsCache||[]).map(c=>`<option value="${c.id}" ${c.id===selectedId?'selected':''}>${escapeHtml([c.nom,c.prenoms].filter(Boolean).join(' '))}</option>`).join('');
+}
+function openProjetForm(p){
+  p=p||{};
+  openModal(`
+    <div class="flex justify-between items-start mb-4"><h2 class="text-lg font-bold">${p.id?'Modifier':'Ajouter'} un projet</h2><button onclick="closeModal()" class="text-gray-400 text-xl leading-none">×</button></div>
+    <form id="projetForm" class="grid sm:grid-cols-2 gap-3">
+      <input type="hidden" id="pjId" value="${p.id||''}">
+      <input id="pjLibelle" placeholder="Libellé du projet" required class="sm:col-span-2" value="${escapeHtml(p.libelle||'')}">
+      <select id="pjClient" required><option value="">Sélectionner un client…</option>${clientOptions(p.client_id)}</select>
+      <select id="pjCategorie"><option ${p.categorie==='Habitation'?'selected':''}>Habitation</option><option ${p.categorie==='Bureau'?'selected':''}>Bureau</option><option ${p.categorie==='Commerce'?'selected':''}>Commerce</option><option ${p.categorie==='Industriel'?'selected':''}>Industriel</option></select>
+      <label class="text-xs font-semibold block">Date début<input id="pjDateDebut" type="date" value="${p.date_debut||''}"></label>
+      <label class="text-xs font-semibold block">Date fin<input id="pjDateFin" type="date" value="${p.date_fin||''}"></label>
+      <input id="pjPays" placeholder="Pays" value="${escapeHtml(p.pays||"Côte d'Ivoire")}">
+      <input id="pjCommune" placeholder="Commune / Ville" value="${escapeHtml(p.commune||'')}">
+      <input id="pjQuartier" placeholder="Quartier (lieu précis)" value="${escapeHtml(p.quartier||'')}">
+      <input id="pjSource" placeholder="Source / Lieu d'affaire" value="${escapeHtml(p.source||'')}">
+      <input id="pjResponsable" placeholder="Responsable chantier" value="${escapeHtml(p.responsable||'')}">
+      <textarea id="pjDescription" placeholder="Description" class="sm:col-span-2" rows="2">${escapeHtml(p.description||'')}</textarea>
+      <button type="submit" class="btn btn-primary sm:col-span-2 py-2.5">Sauvegarder</button>
+    </form>`);
+  document.getElementById('projetForm').onsubmit=async (e)=>{
+    e.preventDefault();
+    const rec={libelle:val('pjLibelle'),client_id:val('pjClient'),categorie:val('pjCategorie'),date_debut:val('pjDateDebut')||null,date_fin:val('pjDateFin')||null,pays:val('pjPays'),commune:val('pjCommune'),quartier:val('pjQuartier'),source:val('pjSource'),responsable:val('pjResponsable'),description:val('pjDescription')};
+    const id=val('pjId');
+    let error;
+    if(id){ ({error}=await sb.from('projets').update(rec).eq('id',id)); }
+    else { rec.created_by=CURRENT_USER.id; ({error}=await sb.from('projets').insert(rec)); }
+    if(error){ toast(error.message,'error'); return; }
+    closeModal(); toast('Projet enregistré.'); showPage('projets');
+  };
+}
+
+/* ============================== PRODUITS ============================== */
+async function renderProduits(el){
+  const {data,error}=await sb.from('produits').select('*').order('nom');
+  if(error) throw error;
+  window._produitsCache=data;
+  el.innerHTML=`
+    <div class="flex justify-between items-center mb-4">
+      <p class="text-sm text-gray-500 max-w-lg">Catalogue de référence utilisé dans les devis. Le % coût matériel sert à l'estimation financière prévisionnelle (approximatif).</p>
+      <button class="btn btn-primary" onclick="openProduitForm()">+ Ajouter</button>
+    </div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Désignation</th><th>Unité</th><th class="text-right">% coût matériel</th><th></th></tr></thead>
+      <tbody>${data.map(p=>`<tr><td>${escapeHtml(p.nom)}</td><td>${escapeHtml(p.unite)}</td><td class="text-right">${p.cout_materiel_pct}%</td>
+      <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick='openProduitForm(${JSON.stringify(p).replace(/'/g,"&#39;")})'>Modifier</button>
+      <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('produits','${p.id}','produits')">Suppr.</button></td></tr>`).join('')}</tbody></table>
+    </div>`;
+}
+function openProduitForm(p){
+  p=p||{};
+  openModal(`
+    <div class="flex justify-between items-start mb-4"><h2 class="text-lg font-bold">${p.id?'Modifier':'Ajouter'} un produit</h2><button onclick="closeModal()" class="text-gray-400 text-xl leading-none">×</button></div>
+    <form id="prodForm" class="grid sm:grid-cols-2 gap-3">
+      <input type="hidden" id="prId" value="${p.id||''}">
+      <input id="prNom" placeholder="Désignation" required class="sm:col-span-2" value="${escapeHtml(p.nom||'')}">
+      <select id="prUnite"><option value="unite" ${p.unite==='unite'?'selected':''}>Unité</option><option value="m2" ${p.unite==='m2'?'selected':''}>m²</option><option value="ml" ${p.unite==='ml'?'selected':''}>ml</option></select>
+      <label class="text-xs font-semibold block">% coût matériel estimé<input id="prPct" type="number" min="0" max="100" value="${p.cout_materiel_pct??60}"></label>
+      <button type="submit" class="btn btn-primary sm:col-span-2 py-2.5">Sauvegarder</button>
+    </form>`);
+  document.getElementById('prodForm').onsubmit=async (e)=>{
+    e.preventDefault();
+    const rec={nom:val('prNom'),unite:val('prUnite'),cout_materiel_pct:+val('prPct')||60};
+    const id=val('prId');
+    let error;
+    if(id){ ({error}=await sb.from('produits').update(rec).eq('id',id)); }
+    else { ({error}=await sb.from('produits').insert(rec)); }
+    if(error){ toast(error.message,'error'); return; }
+    closeModal(); toast('Produit enregistré.'); showPage('produits');
+  };
+}
+
+/* ============================== DEVIS ============================== */
+async function renderDevis(el){
+  const {data,error}=await sb.from('devis').select('*, clients(nom,prenoms), projets(libelle)').order('created_at',{ascending:false});
+  if(error) throw error;
+  el.innerHTML=`
+    <div class="flex justify-between items-center mb-4">
+      <div class="text-sm text-gray-500">${data.length} devis</div>
+      <button class="btn btn-primary" onclick="openDevisEditor()">+ Ajouter un devis</button>
+    </div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Code</th><th>Client</th><th>Projet</th><th>Date</th><th class="text-right">Total</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${data.map(d=>`<tr>
+        <td class="font-semibold">${escapeHtml(d.code)}</td>
+        <td>${escapeHtml(d.clients?[d.clients.nom,d.clients.prenoms].filter(Boolean).join(' '):'—')}</td>
+        <td>${escapeHtml(d.projets?.libelle||'—')}</td><td>${fmtDate(d.date_creation)}</td>
+        <td class="text-right">${money(d.total)}</td><td>${badge(STATUT_DEVIS,d.statut)}</td>
+        <td class="text-right whitespace-nowrap">
+          <button class="text-indigo-600 text-xs font-semibold mr-2" onclick="openDevisEditor('${d.id}')">Modifier</button>
+          <button class="text-teal-600 text-xs font-semibold mr-2" onclick="printDevis('${d.id}')">🖨</button>
+          <button class="text-purple-600 text-xs font-semibold mr-2" onclick="openEstimation('${d.id}')">📊</button>
+          <button class="text-amber-600 text-xs font-semibold mr-2" onclick="genererFicheExecution('${d.id}')">🛠️</button>
+          <button class="text-emerald-600 text-xs font-semibold mr-2" onclick="convertirEnFacture('${d.id}')">🧾</button>
+          <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('devis','${d.id}','devis')">Suppr.</button>
+        </td>
+      </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun devis.</td></tr>'}</tbody></table>
+    </div>`;
+}
+
+let devisEditorState=null;
+async function openDevisEditor(devisId){
+  const [clientsRes, projetsRes, produitsRes] = await Promise.all([
+    sb.from('clients').select('id,nom,prenoms').order('nom'),
+    sb.from('projets').select('id,libelle,client_id').order('libelle'),
+    sb.from('produits').select('*').order('nom')
+  ]);
+  window._clientsCache=clientsRes.data||[];
+  window._projetsCache=projetsRes.data||[];
+  window._produitsCache=produitsRes.data||[];
+  let devis={statut:'en_attente',date_creation:new Date().toISOString().slice(0,10),pays:"Côte d'Ivoire"}, lignes=[];
+  if(devisId){
+    const {data:d}=await sb.from('devis').select('*').eq('id',devisId).single();
+    const {data:l}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
+    devis=d; lignes=l||[];
+  }
+  devisEditorState={devis,lignes};
+  renderDevisEditorModal();
+}
+function renderDevisEditorModal(){
+  const {devis:d,lignes}=devisEditorState;
+  const total=lignes.reduce((s,l)=>s+ligneTotal(l),0);
+  openModal(`
+    <div class="flex justify-between items-start mb-4"><h2 class="text-lg font-bold">${d.id?'Modifier le devis '+escapeHtml(d.code):'Ajouter un Devis'}</h2><button onclick="closeModal()" class="text-gray-400 text-xl leading-none">×</button></div>
+    <form id="devisHeaderForm" class="grid sm:grid-cols-3 gap-3 mb-5 pb-5 border-b">
+      <input id="dvLibelle" placeholder="Libellé du devis" class="sm:col-span-3" value="${escapeHtml(d.libelle||'')}">
+      <select id="dvClient" required><option value="">Client…</option>${clientOptions(d.client_id)}</select>
+      <select id="dvProjet"><option value="">Aucun projet lié</option>${(window._projetsCache||[]).map(p=>`<option value="${p.id}" ${p.id===d.projet_id?'selected':''}>${escapeHtml(p.libelle)}</option>`).join('')}</select>
+      <select id="dvStatut">${Object.entries(STATUT_DEVIS).map(([k,v])=>`<option value="${k}" ${k===d.statut?'selected':''}>${v.label}</option>`).join('')}</select>
+      <label class="text-xs font-semibold block">Date création<input id="dvDate" type="date" value="${d.date_creation||''}"></label>
+      <label class="text-xs font-semibold block">Date échéance<input id="dvEcheance" type="date" value="${d.date_echeance||''}"></label>
+      <input id="dvCommercial" placeholder="Commercial(e)" value="${escapeHtml(d.commercial||'')}">
+      <input id="dvLieuAffaire" placeholder="Lieu d'affaire" value="${escapeHtml(d.lieu_affaire||'')}">
+      <input id="dvCommune" placeholder="Commune / Ville" value="${escapeHtml(d.commune||'')}">
+      <input id="dvQuartier" placeholder="Quartier" value="${escapeHtml(d.quartier||'')}">
+    </form>
+    <div class="flex justify-between items-center mb-2">
+      <h3 class="font-bold text-sm">Lignes du devis</h3>
+      <button type="button" class="btn btn-outline text-xs" onclick="addLigne()">+ Ajouter une ligne</button>
+    </div>
+    <div class="overflow-x-auto mb-3"><table id="lignesTable"><thead><tr><th>Pièce</th><th>Produit / Titre</th><th>L (cm)</th><th>H (cm)</th><th>Qté</th><th>Remise %</th><th>Prix</th><th class="text-right">Total</th><th></th></tr></thead>
+    <tbody>${lignes.map((l,i)=>ligneRowHtml(l,i)).join('')}</tbody></table></div>
+    <div class="flex justify-end gap-6 text-sm mb-5">
+      <div>Sous-total : <b>${money(total)}</b></div>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary flex-1 py-2.5" onclick="saveDevis()">Sauvegarder le devis</button>
+    </div>`);
+}
+function ligneRowHtml(l,i){
+  return `<tr data-idx="${i}">
+    <td><input value="${escapeHtml(l.piece||'')}" placeholder="Ex: Salon" oninput="updateLigne(${i},'piece',this.value)" style="min-width:100px"></td>
+    <td>
+      <select onchange="onProduitSelect(${i},this.value)" style="min-width:150px">
+        <option value="">— Produit / titre libre —</option>
+        ${(window._produitsCache||[]).map(p=>`<option value="${p.id}" ${p.id===l.produit_id?'selected':''}>${escapeHtml(p.nom)}</option>`).join('')}
+      </select>
+      <input value="${escapeHtml(l.titre||'')}" placeholder="Titre / détail" oninput="updateLigne(${i},'titre',this.value)" class="mt-1" style="min-width:150px">
+    </td>
+    <td><input type="number" step="0.1" value="${l.largeur||0}" oninput="updateLigne(${i},'largeur',+this.value)" style="width:70px"></td>
+    <td><input type="number" step="0.1" value="${l.hauteur||0}" oninput="updateLigne(${i},'hauteur',+this.value)" style="width:70px"></td>
+    <td><input type="number" step="1" value="${l.quantite||1}" oninput="updateLigne(${i},'quantite',+this.value)" style="width:60px"></td>
+    <td><input type="number" step="1" value="${l.remise_pct||0}" oninput="updateLigne(${i},'remise_pct',+this.value)" style="width:60px"></td>
+    <td><input type="number" step="1" value="${l.prix_unitaire||0}" oninput="updateLigne(${i},'prix_unitaire',+this.value)" style="width:100px"></td>
+    <td class="text-right font-semibold" id="ligneTotal${i}">${money(ligneTotal(l))}</td>
+    <td><button type="button" class="text-red-500 text-xs font-semibold" onclick="removeLigne(${i})">✕</button></td>
+  </tr>`;
+}
+function ligneTotal(l){ return (+l.quantite||0) * (+l.prix_unitaire||0) * (1-(+l.remise_pct||0)/100); }
+function addLigne(){ devisEditorState.lignes.push({piece:'',titre:'',largeur:0,hauteur:0,quantite:1,remise_pct:0,prix_unitaire:0,cout_materiel_pct:60,ordre:devisEditorState.lignes.length}); renderDevisEditorModal(); }
+function removeLigne(i){ devisEditorState.lignes.splice(i,1); renderDevisEditorModal(); }
+function updateLigne(i,field,value){
+  devisEditorState.lignes[i][field]=value;
+  document.getElementById('ligneTotal'+i).textContent=money(ligneTotal(devisEditorState.lignes[i]));
+}
+function onProduitSelect(i,produitId){
+  const p=(window._produitsCache||[]).find(x=>x.id===produitId);
+  devisEditorState.lignes[i].produit_id=produitId||null;
+  if(p){ devisEditorState.lignes[i].titre=p.nom; devisEditorState.lignes[i].cout_materiel_pct=p.cout_materiel_pct; }
+  renderDevisEditorModal();
+}
+async function saveDevis(){
+  const header={libelle:val('dvLibelle'),client_id:val('dvClient'),projet_id:val('dvProjet')||null,statut:val('dvStatut'),date_creation:val('dvDate')||null,date_echeance:val('dvEcheance')||null,commercial:val('dvCommercial'),lieu_affaire:val('dvLieuAffaire'),commune:val('dvCommune'),quartier:val('dvQuartier')};
+  if(!header.client_id){ toast('Sélectionnez un client.','error'); return; }
+  const lignes=devisEditorState.lignes;
+  header.total=lignes.reduce((s,l)=>s+ligneTotal(l),0);
+  let devisId=devisEditorState.devis.id;
+  let error;
+  if(devisId){ ({error}=await sb.from('devis').update(header).eq('id',devisId)); }
+  else { header.created_by=CURRENT_USER.id; const res=await sb.from('devis').insert(header).select().single(); error=res.error; devisId=res.data?.id; }
+  if(error){ toast(error.message,'error'); return; }
+  await sb.from('devis_lignes').delete().eq('devis_id',devisId);
+  if(lignes.length){
+    const rows=lignes.map((l,i)=>({devis_id:devisId,piece:l.piece||'Non renseigné',produit_id:l.produit_id||null,titre:l.titre||'Sans titre',largeur:+l.largeur||0,hauteur:+l.hauteur||0,quantite:+l.quantite||1,remise_pct:+l.remise_pct||0,prix_unitaire:+l.prix_unitaire||0,total:ligneTotal(l),cout_materiel_pct:+l.cout_materiel_pct||60,ordre:i}));
+    const {error:e2}=await sb.from('devis_lignes').insert(rows);
+    if(e2){ toast(e2.message,'error'); return; }
+  }
+  closeModal(); toast('Devis enregistré.'); showPage('devis');
+}
+
+async function printDevis(devisId){
+  const [{data:d},{data:lignes},{data:client}]=await Promise.all([
+    sb.from('devis').select('*, clients(*), projets(*)').eq('id',devisId).single().then(r=>r),
+    sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre'),
+    Promise.resolve({data:null})
+  ]);
+  const groupes={};
+  (lignes||[]).forEach(l=>{ (groupes[l.piece||'Non renseigné']=groupes[l.piece||'Non renseigné']||[]).push(l); });
+  let rowsHtml='';
+  Object.entries(groupes).forEach(([piece,rows])=>{
+    rowsHtml+=`<tr><td colspan="7" style="background:#f1f5f9;font-weight:700;padding:6px 10px">${escapeHtml(piece.toUpperCase())}</td></tr>`;
+    rows.forEach((l,i)=>{ rowsHtml+=`<tr><td>${i+1}</td><td>${escapeHtml(l.titre)}</td><td class="tc">${l.largeur}</td><td class="tc">${l.hauteur}</td><td class="tc">${l.quantite}</td><td class="tr">${money(l.prix_unitaire)}</td><td class="tr">${money(l.total)}</td></tr>`; });
+  });
+  const win=window.open('','_blank','width=900,height=1100'); if(!win) return;
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Devis ${escapeHtml(d.code)}</title>
+    <style>body{font-family:Arial,sans-serif;padding:30px;color:#111827;font-size:13px}h1{font-size:18px;margin:0 0 4px}
+    .sub{color:#6b7280;font-size:12px;margin-bottom:16px}table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border:1px solid #d1d5db;padding:7px 9px}th{background:#f1f5f9;text-align:left}.tc{text-align:center}.tr{text-align:right}
+    tfoot td{font-weight:800;border-top:2px solid #111827}</style></head><body>
+    <div class="noprint" style="text-align:right"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700">🖨 Imprimer</button></div>
+    <h1>DEVIS ${escapeHtml(d.code)}</h1>
+    <div class="sub">Client : ${escapeHtml([d.clients?.nom,d.clients?.prenoms].filter(Boolean).join(' '))} — ${escapeHtml(d.clients?.telephone||'')} — Projet : ${escapeHtml(d.projets?.libelle||'—')} — Date : ${fmtDate(d.date_creation)}</div>
+    <table><thead><tr><th>#</th><th>Désignation</th><th class="tc">L</th><th class="tc">H</th><th class="tc">Qté</th><th class="tr">P.U.</th><th class="tr">Total</th></tr></thead>
+    <tbody>${rowsHtml}</tbody><tfoot><tr><td colspan="6">TOTAL</td><td class="tr">${money(d.total)}</td></tr></tfoot></table>
+    </body></html>`);
+  win.document.close(); win.focus();
+}
+
+async function convertirEnFacture(devisId){
+  const {data:d}=await sb.from('devis').select('*').eq('id',devisId).single();
+  if(!confirm(`Générer la facture pour le devis ${d.code} (${money(d.total)}) ?`)) return;
+  const {error}=await sb.from('factures').insert({devis_id:devisId,client_id:d.client_id,total:d.total,created_by:CURRENT_USER.id});
+  if(error){ toast(error.message,'error'); return; }
+  await sb.from('devis').update({statut:'accepte'}).eq('id',devisId);
+  toast('Facture générée.'); showPage('devis');
+}
+
+/* ============================== FACTURES ============================== */
+async function renderFactures(el){
+  const {data,error}=await sb.from('factures').select('*, clients(nom,prenoms), devis(code)').order('created_at',{ascending:false});
+  if(error) throw error;
+  el.innerHTML=`
+    <div class="text-sm text-gray-500 mb-4">${data.length} facture(s)</div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Code</th><th>Devis</th><th>Client</th><th>Date</th><th class="text-right">Total</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${data.map(f=>`<tr>
+        <td class="font-semibold">${escapeHtml(f.code)}</td><td>${escapeHtml(f.devis?.code||'—')}</td>
+        <td>${escapeHtml(f.clients?[f.clients.nom,f.clients.prenoms].filter(Boolean).join(' '):'—')}</td>
+        <td>${fmtDate(f.date_facture)}</td><td class="text-right">${money(f.total)}</td><td>${badge(STATUT_FACTURE,f.statut)}</td>
+        <td class="text-right whitespace-nowrap">
+          <select onchange="updateFactureStatut('${f.id}',this.value)" class="text-xs">
+            ${Object.entries(STATUT_FACTURE).map(([k,v])=>`<option value="${k}" ${k===f.statut?'selected':''}>${v.label}</option>`).join('')}
+          </select>
+        </td>
+      </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucune facture.</td></tr>'}</tbody></table>
+    </div>`;
+}
+async function updateFactureStatut(id,statut){
+  const {error}=await sb.from('factures').update({statut}).eq('id',id);
+  if(error){ toast(error.message,'error'); return; }
+  toast('Statut mis à jour.');
+}
+
+/* ============================== FICHES D'EXÉCUTION ============================== */
+async function genererFicheExecution(devisId){
+  const {data:existing}=await sb.from('fiches_execution').select('id').eq('devis_id',devisId).maybeSingle();
+  if(existing){ openFicheExecution(existing.id); return; }
+  const {data:d}=await sb.from('devis').select('*').eq('id',devisId).single();
+  const {data:lignes}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
+  const {data:fiche,error}=await sb.from('fiches_execution').insert({devis_id:devisId,projet_id:d.projet_id,commercial:d.commercial,lieu_affaire:d.lieu_affaire,created_by:CURRENT_USER.id}).select().single();
+  if(error){ toast(error.message,'error'); return; }
+  if(lignes?.length){
+    const rows=lignes.map((l,i)=>({fiche_id:fiche.id,devis_ligne_id:l.id,piece:l.piece,produit:l.titre,largeur_commande:l.largeur,hauteur_commande:l.hauteur,ordre:i}));
+    await sb.from('fiche_execution_lignes').insert(rows);
+  }
+  toast('Fiche d\'exécution générée.');
+  openFicheExecution(fiche.id);
+}
+async function renderFiches(el){
+  const {data,error}=await sb.from('fiches_execution').select('*, devis(code), clients:devis(client_id)').order('created_at',{ascending:false});
+  if(error) throw error;
+  el.innerHTML=`
+    <div class="text-sm text-gray-500 mb-4">${data.length} fiche(s) d'exécution — générées depuis un devis (bouton 🛠️).</div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Code</th><th>Devis</th><th>Responsable</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${data.map(f=>`<tr><td class="font-semibold">${escapeHtml(f.code)}</td><td>${escapeHtml(f.devis?.code||'—')}</td><td>${escapeHtml(f.responsable_chantier||'—')}</td><td>${badge(STATUT_FICHE,f.statut)}</td>
+      <td class="text-right"><button class="text-indigo-600 text-xs font-semibold" onclick="openFicheExecution('${f.id}')">Ouvrir</button></td></tr>`).join('')||'<tr><td colspan="5" class="text-gray-400 p-4">Aucune fiche.</td></tr>'}</tbody></table>
+    </div>`;
+}
+async function openFicheExecution(ficheId){
+  const {data:f}=await sb.from('fiches_execution').select('*, devis(*, clients(*), projets(*))').eq('id',ficheId).single();
+  const {data:lignes}=await sb.from('fiche_execution_lignes').select('*').eq('fiche_id',ficheId).order('ordre');
+  window._ficheCurrent={f,lignes};
+  const groupes={};
+  lignes.forEach(l=>{ (groupes[l.piece||'Non renseigné']=groupes[l.piece||'Non renseigné']||[]).push(l); });
+  let num=0, rowsHtml='';
+  Object.entries(groupes).forEach(([piece,rows])=>{
+    rowsHtml+=`<tr><td colspan="12" style="background:#111a2e;color:#fff;font-weight:700;padding:6px 10px">${escapeHtml(piece.toUpperCase())}</td></tr>`;
+    rows.forEach(l=>{
+      num++;
+      rowsHtml+=`<tr data-line="${l.id}">
+        <td>${num}</td><td>${escapeHtml(l.produit)}</td><td class="tc">${l.largeur_commande||''}</td><td class="tc">${l.hauteur_commande||''}</td>
+        <td><input type="number" step="0.1" value="${l.largeur_mesuree??''}" style="width:60px" onchange="updateFicheLigne('${l.id}','largeur_mesuree',+this.value)"></td>
+        <td><input type="number" step="0.1" value="${l.hauteur_mesuree??''}" style="width:60px" onchange="updateFicheLigne('${l.id}','hauteur_mesuree',+this.value)"></td>
+        <td>${etatSelect(l.id,'fabrication_alu',l.fabrication_alu)}</td><td>${etatSelect(l.id,'fabrication_vitrage',l.fabrication_vitrage)}</td>
+        <td>${etatSelect(l.id,'pose_alu',l.pose_alu)}</td><td>${etatSelect(l.id,'pose_vitrage',l.pose_vitrage)}</td>
+        <td>${etatSelect(l.id,'controle_re',l.controle_re)}</td><td>${etatSelect(l.id,'controle_termine',l.controle_termine)}</td>
+      </tr>`;
+    });
+  });
+  openModal(`
+    <div class="flex justify-between items-start mb-4">
+      <div><h2 class="text-lg font-bold">Fiche d'exécution chantier ${escapeHtml(f.code)}</h2><p class="text-xs text-gray-400">Devis ${escapeHtml(f.devis.code)} — ${escapeHtml([f.devis.clients?.nom,f.devis.clients?.prenoms].filter(Boolean).join(' '))}</p></div>
+      <button onclick="closeModal()" class="text-gray-400 text-xl leading-none">×</button>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-3 mb-4 text-sm">
+      <input id="feCommercial" placeholder="Commercial(e)" value="${escapeHtml(f.commercial||'')}" onchange="updateFicheHeader('commercial',this.value)">
+      <label class="text-xs font-semibold block">Date de visite<input id="feDateVisite" type="date" value="${f.date_visite||''}" onchange="updateFicheHeader('date_visite',this.value)"></label>
+      <input id="feResponsable" placeholder="Responsable chantier (chef d'équipe)" value="${escapeHtml(f.responsable_chantier||'')}" onchange="updateFicheHeader('responsable_chantier',this.value)">
+    </div>
+    <div class="overflow-x-auto"><table style="font-size:11px">
+      <thead><tr><th rowspan="2">#</th><th rowspan="2">Produits</th><th colspan="2">Commande</th><th colspan="2">Mesure F</th><th colspan="2">Fabrication</th><th colspan="2">Pose</th><th colspan="2">Contrôle</th></tr>
+      <tr><th>L</th><th>H</th><th>L</th><th>H</th><th>Alu&Acc</th><th>Vitrage</th><th>Alu</th><th>Vitrage</th><th>R.E</th><th>Terminé</th></tr></thead>
+      <tbody>${rowsHtml||'<tr><td colspan="12">Aucune ligne.</td></tr>'}</tbody>
+    </table></div>
+    <div class="flex gap-2 mt-5">
+      <select onchange="updateFicheHeader('statut',this.value)" class="w-40">${Object.entries(STATUT_FICHE).map(([k,v])=>`<option value="${k}" ${k===f.statut?'selected':''}>${v.label}</option>`).join('')}</select>
+      <button class="btn btn-amber flex-1" onclick="printFicheExecution()">🖨 Imprimer la fiche d'exécution</button>
+    </div>`);
+}
+function etatSelect(lineId,field,value){
+  return `<select onchange="updateFicheLigne('${lineId}','${field}',this.value)" style="width:64px">
+    <option value="" ${!value?'selected':''}></option>
+    <option value="oui" ${value==='oui'?'selected':''}>✔ Oui</option>
+    <option value="non" ${value==='non'?'selected':''}>X Non</option>
+    <option value="neant" ${value==='neant'?'selected':''}>-- Néant</option>
+  </select>`;
+}
+async function updateFicheLigne(lineId,field,value){
+  const {error}=await sb.from('fiche_execution_lignes').update({[field]:value}).eq('id',lineId);
+  if(error) toast(error.message,'error');
+  const l=window._ficheCurrent.lignes.find(x=>x.id===lineId); if(l) l[field]=value;
+}
+async function updateFicheHeader(field,value){
+  const {error}=await sb.from('fiches_execution').update({[field]:value}).eq('id',window._ficheCurrent.f.id);
+  if(error) toast(error.message,'error');
+  window._ficheCurrent.f[field]=value;
+}
+function printFicheExecution(){
+  const {f,lignes}=window._ficheCurrent;
+  const groupes={};
+  lignes.forEach(l=>{ (groupes[l.piece||'Non renseigné']=groupes[l.piece||'Non renseigné']||[]).push(l); });
+  const etatLabel={oui:'✔ Oui',non:'X Non',neant:'-- Néant','':''};
+  let num=0, rowsHtml='';
+  Object.entries(groupes).forEach(([piece,rows])=>{
+    rowsHtml+=`<tr><td colspan="13" class="grp">${escapeHtml(piece.toUpperCase())}</td></tr>`;
+    rows.forEach(l=>{ num++; rowsHtml+=`<tr><td>${num}</td><td class="tl">${escapeHtml(l.produit)}</td><td>${l.largeur_commande||''}</td><td>${l.hauteur_commande||''}</td>
+      <td>${l.largeur_mesuree??''}</td><td>${l.hauteur_mesuree??''}</td>
+      <td>${etatLabel[l.fabrication_alu]||''}</td><td>${etatLabel[l.fabrication_vitrage]||''}</td>
+      <td>${etatLabel[l.pose_alu]||''}</td><td>${etatLabel[l.pose_vitrage]||''}</td>
+      <td>${etatLabel[l.controle_re]||''}</td><td>${etatLabel[l.controle_termine]||''}</td><td></td></tr>`; });
+  });
+  const win=window.open('','_blank','width=1000,height=1200'); if(!win) return;
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fiche d'exécution — ${escapeHtml(f.code)}</title>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111827;padding:28px;font-size:11.5px}
+    h1{font-size:17px;margin:0 0 14px}.hdr{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #111827;padding-bottom:10px;margin-bottom:14px}
+    table{width:100%;border-collapse:collapse;margin-top:6px}th,td{border:1px solid #94a3b8;padding:5px 6px;text-align:center}
+    th{background:#e2e8f0;font-size:9.5px;text-transform:uppercase}.tl{text-align:left}.grp{background:#111a2e;color:#fff;font-weight:700;text-align:left;padding:6px 8px}
+    .foot{margin-top:20px;font-size:10.5px;color:#334155}.legend{display:flex;gap:20px;margin-top:10px}
+    .sig{display:flex;justify-content:space-between;margin-top:50px}.sig div{width:45%;border-top:1px solid #334155;padding-top:4px}
+    @media print{.noprint{display:none}}@page{size:A4 landscape;margin:12mm}</style></head><body>
+    <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700">🖨 Imprimer</button></div>
+    <div class="hdr">
+      <div><p><b>Client :</b> ${escapeHtml([f.devis.clients?.nom,f.devis.clients?.prenoms].filter(Boolean).join(' '))}</p><p><b>Tel :</b> ${escapeHtml(f.devis.clients?.telephone||'')}</p><p><b>Email :</b> ${escapeHtml(f.devis.clients?.email||'')}</p></div>
+      <div><p><b>Projet :</b> ${escapeHtml(f.devis.projets?.libelle||'')}</p><p><b>N° devis :</b> ${escapeHtml(f.devis.code)}</p><p><b>Lieu d'affaire :</b> ${escapeHtml(f.lieu_affaire||'')}</p></div>
+      <div><p><b>Commercial(e) :</b> ${escapeHtml(f.commercial||'.......................')}</p><p><b>Date de visite :</b> ${fmtDate(f.date_visite)||'.......................'}</p><p><b>Responsable chantier :</b> ${escapeHtml(f.responsable_chantier||'.......................')}</p></div>
+    </div>
+    <h1>FICHE D'EXÉCUTION CHANTIER — ${escapeHtml(f.code)}</h1>
+    <table><thead><tr><th rowspan="2">#</th><th rowspan="2">Produits</th><th colspan="2">Commande</th><th colspan="2">Mesure F</th><th colspan="2">Fabrication</th><th colspan="2">Pose</th><th colspan="2">Contrôle</th><th rowspan="2">Commentaires</th></tr>
+    <tr><th>L</th><th>H</th><th>L</th><th>H</th><th>Alu&Acc</th><th>Vitrage</th><th>Alu</th><th>Vitrage</th><th>R.E</th><th>Terminé</th></tr></thead>
+    <tbody>${rowsHtml}</tbody></table>
+    <div class="foot"><p><b>NB :</b></p><p>- La préparation du chantier (à la charge du client) doit se faire dans le respect strict des consignes laissées dans le tableau ci-dessus.</p>
+    <p>- Le délai d'exécution des travaux vous sera communiqué après la préparation définitive du chantier.</p>
+    <div class="legend"><span>✔ Oui</span><span>X Non</span><span>-- Néant</span></div></div>
+    <div class="sig"><div>Signature Client ou représentant</div><div>Technicien Contrôleur</div></div>
+    </body></html>`);
+  win.document.close(); win.focus();
+}
+
+/* ============================== ESTIMATION FINANCIÈRE ============================== */
+let estimChart=null;
+async function openEstimation(devisId){
+  const {data:d}=await sb.from('devis').select('*, clients(nom,prenoms)').eq('id',devisId).single();
+  const {data:lignes}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
+  const montantFacture=+d.total||0;
+  const coutMateriel=(lignes||[]).reduce((s,l)=>s+(+l.total||0)*(+l.cout_materiel_pct||60)/100,0);
+  const margeBrute=montantFacture-coutMateriel;
+  const pctMat=montantFacture?coutMateriel/montantFacture*100:0;
+  const pctMarge=montantFacture?margeBrute/montantFacture*100:0;
+  window._estimCurrent={d,lignes,montantFacture,coutMateriel,margeBrute};
+  openModal(`
+    <div class="flex justify-between items-start mb-4"><div><h2 class="text-lg font-bold">Estimation financière de la commande</h2><p class="text-xs text-gray-400">Devis ${escapeHtml(d.code)}</p></div><button onclick="closeModal()" class="text-gray-400 text-xl leading-none">×</button></div>
+    <div class="text-xs bg-red-50 text-red-700 border border-red-200 rounded-lg px-3 py-2 mb-4">⚠️ Attention ! Chiffres approximatifs — coût matériel estimé via le % défini par produit (catalogue), pas un chiffrage BOM détaillé.</div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+      <div class="card p-4"><div class="text-gray-400 text-xs">Code</div><div class="font-black mt-1">${escapeHtml(d.code)}</div></div>
+      <div class="card p-4"><div class="text-gray-400 text-xs">Montant facturé</div><div class="font-black mt-1">${money(montantFacture)}</div></div>
+      <div class="card p-4"><div class="text-gray-400 text-xs">Coût du matériel</div><div class="font-black mt-1 text-red-600">${money(coutMateriel)}</div></div>
+      <div class="card p-4"><div class="text-gray-400 text-xs">Marge brute</div><div class="font-black mt-1 ${margeBrute<0?'text-red-600':'text-emerald-600'}">${money(margeBrute)}</div></div>
+    </div>
+    <div class="card p-4 mb-5">
+      <h3 class="font-bold mb-3">Parité</h3>
+      <canvas id="estimChartCanvas" height="90"></canvas>
+      <div class="grid sm:grid-cols-3 gap-2 mt-4 text-sm">
+        <div class="flex justify-between border-b pb-1"><span>Matériel</span><b class="text-red-600">${pctMat.toFixed(1)}%</b></div>
+        <div class="flex justify-between border-b pb-1"><span>Marge brute</span><b class="${pctMarge<0?'text-red-600':'text-indigo-600'}">${pctMarge.toFixed(1)}%</b></div>
+        <div class="flex justify-between border-b pb-1"><span>Facture</span><b class="text-amber-600">100%</b></div>
+      </div>
+    </div>
+    <div class="overflow-x-auto mb-5"><table><thead><tr><th>Désignation</th><th>Pièce</th><th class="text-right">Qté</th><th class="text-right">Total</th><th class="text-right">Coût matériel</th></tr></thead>
+    <tbody>${(lignes||[]).map(l=>`<tr><td>${escapeHtml(l.titre)}</td><td class="text-xs text-gray-500">${escapeHtml(l.piece)}</td><td class="text-right">${l.quantite}</td><td class="text-right">${money(l.total)}</td><td class="text-right">${money((+l.total||0)*(+l.cout_materiel_pct||60)/100)}</td></tr>`).join('')||'<tr><td colspan="5" class="text-gray-400 p-3">Aucune ligne.</td></tr>'}</tbody></table></div>
+    <button class="btn btn-amber w-full py-3" onclick="printEstimation()">IMPRIMER FICHE DE PRÉVISUALISATION CHANTIER</button>`);
+  const ctx=document.getElementById('estimChartCanvas').getContext('2d');
+  if(estimChart) estimChart.destroy();
+  let running=0;
+  const cumul=(lignes||[]).map(l=>running+=(+l.total||0));
+  estimChart=new Chart(ctx,{type:'line',data:{labels:(lignes||[]).map((l,i)=>'L'+(i+1)),datasets:[{label:'Montant cumulé',data:cumul.length?cumul:[0],borderColor:'#6d28d9',backgroundColor:'rgba(109,40,217,.08)',tension:.35,fill:true,pointRadius:2}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:v=>(v/1000).toFixed(0)+'k'}}}}});
+}
+function printEstimation(){
+  const {d,lignes,montantFacture,coutMateriel,margeBrute}=window._estimCurrent;
+  const win=window.open('','_blank','width=900,height=1100'); if(!win) return;
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Estimation — ${escapeHtml(d.code)}</title>
+    <style>body{font-family:Arial,sans-serif;padding:30px;color:#111827;font-size:13px}table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border:1px solid #d1d5db;padding:7px 10px}th{background:#f1f5f9;text-align:left}.kpi{display:flex;gap:16px;margin:16px 0}
+    .kpi div{flex:1;border:1px solid #d1d5db;border-radius:8px;padding:10px}.kpi b{display:block;font-size:16px;margin-top:4px}
+    tfoot td{font-weight:800;border-top:2px solid #111827}</style></head><body>
+    <h1>Estimation financière de la commande</h1>
+    <p style="color:#6b7280;font-size:12px">Devis ${escapeHtml(d.code)} — ${escapeHtml([d.clients?.nom,d.clients?.prenoms].filter(Boolean).join(' '))} — édité le ${new Date().toLocaleDateString('fr-FR')}</p>
+    <p style="font-size:11px;color:#dc2626">⚠️ Chiffres approximatifs — coût matériel estimé par % catalogue produit.</p>
+    <div class="kpi"><div>Montant facturé<b>${money(montantFacture)}</b></div><div>Coût du matériel<b>${money(coutMateriel)}</b></div><div>Marge brute<b>${money(margeBrute)}</b></div></div>
+    <table><thead><tr><th>Désignation</th><th style="text-align:right">Qté</th><th style="text-align:right">Total</th></tr></thead>
+    <tbody>${(lignes||[]).map(l=>`<tr><td>${escapeHtml(l.titre)}</td><td style="text-align:right">${l.quantite}</td><td style="text-align:right">${money(l.total)}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td colspan="2">Total</td><td style="text-align:right">${money(montantFacture)}</td></tr></tfoot></table>
+    </body></html>`);
+  win.document.close(); win.focus();
+}
+</script>
+</body>
+</html>
