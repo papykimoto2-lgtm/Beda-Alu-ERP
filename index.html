@@ -130,6 +130,7 @@ window.SB_CFG = {
   .produit-card .pactions button{font-size:11.5px;font-weight:700}
   .view-toggle-btn{background:#fff;color:#6b7280;transition:background .15s,color .15s}
   .view-toggle-btn.active{background:var(--accent);color:#fff}
+  .entity-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
   @media (max-width:900px){#sidebar{position:fixed;inset:0 20% 0 0;z-index:40;transform:translateX(-100%);transition:transform .2s;max-width:260px}#sidebar.open{transform:translateX(0)}#overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:35;opacity:0;pointer-events:none}#overlay.open{opacity:1;pointer-events:auto}}
 </style>
 </head>
@@ -426,16 +427,14 @@ async function renderClients(el){
       <button class="btn btn-primary" onclick="window._editId=null;showPage('clients-add')">+ Ajouter un client</button>
     </div>
     <div class="card mb-3">
-      <div class="grid sm:grid-cols-4 gap-3">
+      <div class="grid sm:grid-cols-4 gap-3 mb-3">
         <div class="sm:col-span-2">${fieldWrap('🔎',`<input id="clFilterQ" placeholder="Rechercher : nom, entreprise, téléphone, email…" oninput="filterClientsTable()">`)}</div>
         ${fieldWrap('🏷️',`<select id="clFilterCat" onchange="filterClientsTable()"><option value="">Toutes catégories</option>${catOptions}</select>`)}
         ${fieldWrap('🏙️',`<input id="clFilterVille" placeholder="Ville / commune" oninput="filterClientsTable()">`)}
       </div>
+      ${listViewToggleHtml('clients','filterClientsTable')}
     </div>
-    <div class="card overflow-x-auto">
-      <table><thead><tr><th>Code</th><th>Nom</th><th>Téléphone</th><th>Email</th><th>Ville</th><th>Catégorie</th><th></th></tr></thead>
-      <tbody id="clientsTbody"></tbody></table>
-    </div>`;
+    <div id="clientsList"></div>`;
   filterClientsTable();
 }
 function filterClientsTable(){
@@ -452,23 +451,34 @@ function filterClientsTable(){
     }
     return true;
   });
-  const tbody=document.getElementById('clientsTbody'); if(!tbody) return;
-  tbody.innerHTML=filtered.map(c=>`<tr>
-    <td class="font-semibold">${escapeHtml(c.code)}</td>
-    <td>${escapeHtml([c.civilite,c.nom,c.prenoms].filter(Boolean).join(' '))}${c.entreprise?`<div class="text-xs text-gray-400">${escapeHtml(c.entreprise)}</div>`:''}</td>
-    <td>${escapeHtml(c.telephone||'—')}</td><td>${escapeHtml(c.email||'—')}</td><td>${escapeHtml(c.commune||'—')}</td>
-    <td>${escapeHtml(c.categorie||'—')}</td>
-    <td class="text-right whitespace-nowrap">
-      <div class="dropdown">
-        <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
-        <div class="dropdown-menu hidden">
-          <button style="color:#6b7280" onclick="printClientFiche('${c.id}')">🖨 Imprimer la fiche</button>
-          <button style="color:#4f46e5" onclick="window._editId='${c.id}';showPage('clients-add')">✏️ Modifier</button>
-          <button style="color:#dc2626" onclick="deleteRow('clients','${c.id}','clients')">🗑️ Supprimer</button>
-        </div>
+  const host=document.getElementById('clientsList'); if(!host) return;
+  const actionsHtml=c=>`<div class="dropdown">
+      <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
+      <div class="dropdown-menu hidden">
+        <button style="color:#6b7280" onclick="printClientFiche('${c.id}')">🖨 Imprimer la fiche</button>
+        <button style="color:#4f46e5" onclick="window._editId='${c.id}';showPage('clients-add')">✏️ Modifier</button>
+        <button style="color:#dc2626" onclick="deleteRow('clients','${c.id}','clients')">🗑️ Supprimer</button>
       </div>
-    </td>
-  </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun client.</td></tr>';
+    </div>`;
+  if(getListView('clients')==='grille'){
+    host.innerHTML=filtered.length?`<div class="entity-grid">${filtered.map(c=>entityCardHtml({
+      icon:'👤',title:escapeHtml([c.civilite,c.nom,c.prenoms].filter(Boolean).join(' ')),
+      subtitle:escapeHtml(c.entreprise||c.code),
+      lines:[escapeHtml(c.telephone||'—'),escapeHtml(c.email||'—'),escapeHtml(c.commune||'—'),c.categorie?`<span class="badge bg-gray-100 text-gray-600">${escapeHtml(c.categorie)}</span>`:''],
+      actionsHtml:actionsHtml(c)
+    })).join('')}</div>`:'<div class="card text-center text-gray-400 p-8">Aucun client.</div>';
+  } else {
+    host.innerHTML=`<div class="card overflow-x-auto">
+      <table><thead><tr><th>Code</th><th>Nom</th><th>Téléphone</th><th>Email</th><th>Ville</th><th>Catégorie</th><th></th></tr></thead>
+      <tbody>${filtered.map(c=>`<tr>
+        <td class="font-semibold">${escapeHtml(c.code)}</td>
+        <td>${escapeHtml([c.civilite,c.nom,c.prenoms].filter(Boolean).join(' '))}${c.entreprise?`<div class="text-xs text-gray-400">${escapeHtml(c.entreprise)}</div>`:''}</td>
+        <td>${escapeHtml(c.telephone||'—')}</td><td>${escapeHtml(c.email||'—')}</td><td>${escapeHtml(c.commune||'—')}</td>
+        <td>${escapeHtml(c.categorie||'—')}</td>
+        <td class="text-right whitespace-nowrap">${actionsHtml(c)}</td>
+      </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun client.</td></tr>'}</tbody></table>
+    </div>`;
+  }
   const countEl=document.getElementById('clientsCount'); if(countEl) countEl.textContent=`${filtered.length} client(s)`+(filtered.length!==data.length?` sur ${data.length}`:'');
 }
 async function printClientFiche(id){
@@ -503,6 +513,37 @@ async function printClientFiche(id){
   win.document.close(); win.focus();
 }
 function fieldWrap(icon,inputHtml){ return `<div class="field-input"><span class="fi">${icon}</span>${inputHtml}</div>`; }
+/* ---------- Bascule Grille/Liste générique, réutilisée par toutes les listes ---------- */
+window._listViews=window._listViews||{};
+function getListView(key){ return window._listViews[key]||'liste'; }
+function setListView(key,v,rerenderFn){
+  window._listViews[key]=v;
+  document.getElementById(key+'ViewGrille')?.classList.toggle('active',v==='grille');
+  document.getElementById(key+'ViewListe')?.classList.toggle('active',v==='liste');
+  rerenderFn();
+}
+function listViewToggleHtml(key,rerenderFnName){
+  const v=getListView(key);
+  return `<div class="flex rounded-lg border overflow-hidden shrink-0">
+    <button id="${key}ViewGrille" class="view-toggle-btn px-3 py-2 text-sm font-semibold${v==='grille'?' active':''}" onclick="setListView('${key}','grille',${rerenderFnName})">▦ Grille</button>
+    <button id="${key}ViewListe" class="view-toggle-btn px-3 py-2 text-sm font-semibold border-l${v==='liste'?' active':''}" onclick="setListView('${key}','liste',${rerenderFnName})">☰ Liste</button>
+  </div>`;
+}
+/* Carte générique pour les vues Grille des listes simples (Clients, Prospects, Fournisseurs,
+   Projets, Devis, Factures, Fiches) — même habillage visuel que les catalogues Produits/
+   Composants (.produit-card), sans regroupement par famille. */
+function entityCardHtml({color,icon,badge,title,subtitle,lines,actionsHtml}){
+  return `<div class="produit-card" style="--fc:${color||'#6d28d9'}">
+    <div class="flex justify-between items-start">
+      <div class="produit-icon">${icon||'📄'}</div>
+      ${badge||''}
+    </div>
+    <div class="pname">${title}</div>
+    ${subtitle?`<div class="punite">${subtitle}</div>`:''}
+    ${(lines||[]).filter(Boolean).map(l=>`<div class="text-xs text-gray-500 mt-1.5">${l}</div>`).join('')}
+    <div class="pactions">${actionsHtml||''}</div>
+  </div>`;
+}
 window._smartSelectData=window._smartSelectData||{};
 function smartSelect(id,items,selectedId,opts={}){
   window._smartSelectData[id]=items||[];
@@ -753,28 +794,47 @@ const STATUT_PROSPECT={nouveau:{label:'Nouveau',color:'bg-blue-50 text-blue-700'
 async function renderProspects(el){
   const {data,error}=await sb.from('prospects').select('*').order('created_at',{ascending:false});
   if(error) throw error;
+  window._prospectsCache=data;
   el.innerHTML=`
-    <div class="flex justify-between items-center mb-4">
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
       <div class="text-sm text-gray-500">${data.length} prospect(s)</div>
-      <button class="btn btn-primary" onclick="window._editId=null;showPage('prospects-add')">+ Ajouter un prospect</button>
+      <div class="flex items-center gap-2">
+        ${listViewToggleHtml('prospects','renderProspectsBody')}
+        <button class="btn btn-primary" onclick="window._editId=null;showPage('prospects-add')">+ Ajouter un prospect</button>
+      </div>
     </div>
-    <div class="card overflow-x-auto">
+    <div id="prospectsList"></div>`;
+  renderProspectsBody();
+}
+function renderProspectsBody(){
+  const data=window._prospectsCache||[];
+  const host=document.getElementById('prospectsList'); if(!host) return;
+  const actionsHtml=p=>`<div class="dropdown">
+      <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
+      <div class="dropdown-menu hidden">
+        <button style="color:#4f46e5" onclick="window._editId='${p.id}';showPage('prospects-add')">✏️ Modifier</button>
+        <button style="color:#dc2626" onclick="deleteRow('prospects','${p.id}','prospects')">🗑️ Supprimer</button>
+      </div>
+    </div>`;
+  if(getListView('prospects')==='grille'){
+    host.innerHTML=data.length?`<div class="entity-grid">${data.map(p=>entityCardHtml({
+      icon:'🎯',title:escapeHtml([p.civilite,p.nom,p.prenoms].filter(Boolean).join(' ')),
+      subtitle:escapeHtml(p.entreprise||p.code),
+      badge:badge(STATUT_PROSPECT,p.statut),
+      lines:[escapeHtml(p.telephone||'—'),escapeHtml(p.email||'—')],
+      actionsHtml:actionsHtml(p)
+    })).join('')}</div>`:'<div class="card text-center text-gray-400 p-8">Aucun prospect.</div>';
+  } else {
+    host.innerHTML=`<div class="card overflow-x-auto">
       <table><thead><tr><th>Code</th><th>Nom</th><th>Téléphone</th><th>Email</th><th>Statut</th><th></th></tr></thead>
       <tbody>${data.map(p=>`<tr>
         <td class="font-semibold">${escapeHtml(p.code)}</td>
         <td>${escapeHtml([p.civilite,p.nom,p.prenoms].filter(Boolean).join(' '))}${p.entreprise?`<div class="text-xs text-gray-400">${escapeHtml(p.entreprise)}</div>`:''}</td>
         <td>${escapeHtml(p.telephone||'—')}</td><td>${escapeHtml(p.email||'—')}</td><td>${badge(STATUT_PROSPECT,p.statut)}</td>
-        <td class="text-right whitespace-nowrap">
-          <div class="dropdown">
-            <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
-            <div class="dropdown-menu hidden">
-              <button style="color:#4f46e5" onclick="window._editId='${p.id}';showPage('prospects-add')">✏️ Modifier</button>
-              <button style="color:#dc2626" onclick="deleteRow('prospects','${p.id}','prospects')">🗑️ Supprimer</button>
-            </div>
-          </div>
-        </td>
+        <td class="text-right whitespace-nowrap">${actionsHtml(p)}</td>
       </tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 p-4">Aucun prospect.</td></tr>'}</tbody></table>
     </div>`;
+  }
 }
 async function renderProspectForm(el){
   let p={};
@@ -825,15 +885,13 @@ async function renderFournisseurs(el){
       <button class="btn btn-primary" onclick="window._editId=null;showPage('fournisseurs-add')">+ Ajouter un fournisseur</button>
     </div>
     <div class="card mb-3">
-      <div class="grid sm:grid-cols-3 gap-3">
+      <div class="grid sm:grid-cols-3 gap-3 mb-3">
         <div class="sm:col-span-2">${fieldWrap('🔎',`<input id="foFilterQ" placeholder="Rechercher : nom, contact, téléphone…" oninput="filterFournisseursTable()">`)}</div>
         ${fieldWrap('🏷️',`<select id="foFilterCat" onchange="filterFournisseursTable()"><option value="">Toutes catégories</option>${catOptions}</select>`)}
       </div>
+      ${listViewToggleHtml('fournisseurs','filterFournisseursTable')}
     </div>
-    <div class="card overflow-x-auto">
-      <table><thead><tr><th>Code</th><th>Nom</th><th>Contact</th><th>Téléphone</th><th>Catégorie</th><th></th></tr></thead>
-      <tbody id="fournisseursTbody"></tbody></table>
-    </div>`;
+    <div id="fournisseursList"></div>`;
   filterFournisseursTable();
 }
 function filterFournisseursTable(){
@@ -848,21 +906,31 @@ function filterFournisseursTable(){
     }
     return true;
   });
-  const tbody=document.getElementById('fournisseursTbody'); if(!tbody) return;
-  tbody.innerHTML=filtered.map(f=>`<tr>
-    <td class="font-semibold">${escapeHtml(f.code)}</td><td>${escapeHtml(f.nom)}</td>
-    <td>${escapeHtml(f.contact_principal||'—')}</td><td>${escapeHtml(f.telephone||'—')}</td><td>${escapeHtml(f.categorie||'—')}</td>
-    <td class="text-right whitespace-nowrap">
-      <div class="dropdown">
-        <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
-        <div class="dropdown-menu hidden">
-          <button style="color:#6b7280" onclick="printFournisseurFiche('${f.id}')">🖨 Imprimer la fiche</button>
-          <button style="color:#4f46e5" onclick="window._editId='${f.id}';showPage('fournisseurs-add')">✏️ Modifier</button>
-          <button style="color:#dc2626" onclick="deleteRow('fournisseurs','${f.id}','fournisseurs')">🗑️ Supprimer</button>
-        </div>
+  const host=document.getElementById('fournisseursList'); if(!host) return;
+  const actionsHtml=f=>`<div class="dropdown">
+      <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
+      <div class="dropdown-menu hidden">
+        <button style="color:#6b7280" onclick="printFournisseurFiche('${f.id}')">🖨 Imprimer la fiche</button>
+        <button style="color:#4f46e5" onclick="window._editId='${f.id}';showPage('fournisseurs-add')">✏️ Modifier</button>
+        <button style="color:#dc2626" onclick="deleteRow('fournisseurs','${f.id}','fournisseurs')">🗑️ Supprimer</button>
       </div>
-    </td>
-  </tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 p-4">Aucun fournisseur.</td></tr>';
+    </div>`;
+  if(getListView('fournisseurs')==='grille'){
+    host.innerHTML=filtered.length?`<div class="entity-grid">${filtered.map(f=>entityCardHtml({
+      icon:'🏭',title:escapeHtml(f.nom),subtitle:escapeHtml(f.code),
+      lines:[escapeHtml(f.contact_principal||'—'),escapeHtml(f.telephone||'—'),f.categorie?`<span class="badge bg-gray-100 text-gray-600">${escapeHtml(f.categorie)}</span>`:''],
+      actionsHtml:actionsHtml(f)
+    })).join('')}</div>`:'<div class="card text-center text-gray-400 p-8">Aucun fournisseur.</div>';
+  } else {
+    host.innerHTML=`<div class="card overflow-x-auto">
+      <table><thead><tr><th>Code</th><th>Nom</th><th>Contact</th><th>Téléphone</th><th>Catégorie</th><th></th></tr></thead>
+      <tbody>${filtered.map(f=>`<tr>
+        <td class="font-semibold">${escapeHtml(f.code)}</td><td>${escapeHtml(f.nom)}</td>
+        <td>${escapeHtml(f.contact_principal||'—')}</td><td>${escapeHtml(f.telephone||'—')}</td><td>${escapeHtml(f.categorie||'—')}</td>
+        <td class="text-right whitespace-nowrap">${actionsHtml(f)}</td>
+      </tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 p-4">Aucun fournisseur.</td></tr>'}</tbody></table>
+    </div>`;
+  }
   const countEl=document.getElementById('fournisseursCount'); if(countEl) countEl.textContent=`${filtered.length} fournisseur(s)`+(filtered.length!==data.length?` sur ${data.length}`:'');
 }
 async function printFournisseurFiche(id){
@@ -969,30 +1037,49 @@ async function renderProjets(el,filterEtape){
   const [{data,error}, clientsRes]=await Promise.all([q, sb.from('clients').select('id,nom,prenoms').order('nom')]);
   if(error) throw error;
   window._clientsCache=clientsRes.data||[];
+  window._projetsListCache=data;
   refreshProjetsBadges();
   el.innerHTML=`
-    <div class="flex justify-between items-center mb-4">
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
       <div class="text-sm text-gray-500">${data.length} projet(s)</div>
-      <button class="btn btn-primary" onclick="window._editId=null;showPage('projets-add')">+ Ajouter un projet</button>
+      <div class="flex items-center gap-2">
+        ${listViewToggleHtml('projets','renderProjetsBody')}
+        <button class="btn btn-primary" onclick="window._editId=null;showPage('projets-add')">+ Ajouter un projet</button>
+      </div>
     </div>
-    <div class="card overflow-x-auto">
+    <div id="projetsList"></div>`;
+  renderProjetsBody();
+}
+function renderProjetsBody(){
+  const data=window._projetsListCache||[];
+  const host=document.getElementById('projetsList'); if(!host) return;
+  const etapeSelect=p=>`<select onchange="updateProjetEtape('${p.id}',this.value)" class="text-xs">${Object.entries(STATUT_PROJET).map(([k,v])=>`<option value="${k}" ${k===p.etape?'selected':''}>${v.label}</option>`).join('')}</select>`;
+  const actionsHtml=p=>`<div class="dropdown">
+      <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
+      <div class="dropdown-menu hidden">
+        <button style="color:#4f46e5" onclick="window._editId='${p.id}';showPage('projets-add')">✏️ Modifier</button>
+        <button style="color:#dc2626" onclick="deleteRow('projets','${p.id}','projets')">🗑️ Supprimer</button>
+      </div>
+    </div>`;
+  if(getListView('projets')==='grille'){
+    host.innerHTML=data.length?`<div class="entity-grid">${data.map(p=>entityCardHtml({
+      icon:'🏗️',title:escapeHtml(p.libelle),subtitle:escapeHtml(p.code),
+      badge:badge(STATUT_PROJET,p.etape),
+      lines:[escapeHtml(p.clients?[p.clients.nom,p.clients.prenoms].filter(Boolean).join(' '):'—'),`${fmtDate(p.date_debut)} → ${fmtDate(p.date_fin)}`,etapeSelect(p)],
+      actionsHtml:actionsHtml(p)
+    })).join('')}</div>`:'<div class="card text-center text-gray-400 p-8">Aucun projet.</div>';
+  } else {
+    host.innerHTML=`<div class="card overflow-x-auto">
       <table><thead><tr><th>Code</th><th>Libellé</th><th>Client</th><th>Début</th><th>Fin</th><th>Étape</th><th></th></tr></thead>
       <tbody>${data.map(p=>`<tr>
         <td class="font-semibold">${escapeHtml(p.code)}</td><td>${escapeHtml(p.libelle)}</td>
         <td>${escapeHtml(p.clients?[p.clients.nom,p.clients.prenoms].filter(Boolean).join(' '):'—')}</td>
         <td>${fmtDate(p.date_debut)}</td><td>${fmtDate(p.date_fin)}</td>
-        <td><select onchange="updateProjetEtape('${p.id}',this.value)" class="text-xs">${Object.entries(STATUT_PROJET).map(([k,v])=>`<option value="${k}" ${k===p.etape?'selected':''}>${v.label}</option>`).join('')}</select></td>
-        <td class="text-right whitespace-nowrap">
-          <div class="dropdown">
-            <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
-            <div class="dropdown-menu hidden">
-              <button style="color:#4f46e5" onclick="window._editId='${p.id}';showPage('projets-add')">✏️ Modifier</button>
-              <button style="color:#dc2626" onclick="deleteRow('projets','${p.id}','projets')">🗑️ Supprimer</button>
-            </div>
-          </div>
-        </td>
+        <td>${etapeSelect(p)}</td>
+        <td class="text-right whitespace-nowrap">${actionsHtml(p)}</td>
       </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun projet.</td></tr>'}</tbody></table>
     </div>`;
+  }
 }
 async function updateProjetEtape(id,etape){
   const {error}=await sb.from('projets').update({etape}).eq('id',id);
@@ -2735,36 +2822,55 @@ async function renderDevis(el,filterStatut){
   const {data,error}=await q;
   if(error) throw error;
   refreshDevisBadges();
+  window._devisListCache=data;
   const filterLabels={en_attente:{text:'Devis en attente',color:'text-blue-700'},en_cours:{text:'Devis en cours',color:'text-amber-700'},annule:{text:'Devis annulés',color:'text-red-700'}};
   const fl=filterStatut?filterLabels[filterStatut]:null;
   el.innerHTML=`
-    <div class="flex justify-between items-center mb-4">
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
       <div class="text-sm text-gray-500">${fl?`<span class="font-bold ${fl.color}">${fl.text}</span> — `:''}${data.length} devis</div>
-      <button class="btn btn-primary" onclick="window._editId=null;showPage('devis-add')">+ Ajouter un devis</button>
+      <div class="flex items-center gap-2">
+        ${listViewToggleHtml('devis','renderDevisBody')}
+        <button class="btn btn-primary" onclick="window._editId=null;showPage('devis-add')">+ Ajouter un devis</button>
+      </div>
     </div>
-    <div class="card overflow-x-auto">
+    <div id="devisList"></div>`;
+  renderDevisBody();
+}
+function renderDevisBody(){
+  const data=window._devisListCache||[];
+  const host=document.getElementById('devisList'); if(!host) return;
+  const actionsHtml=d=>`<div class="dropdown">
+      <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
+      <div class="dropdown-menu hidden">
+        <button style="color:#4f46e5" onclick="window._editId='${d.id}';showPage('devis-add')">✏️ Modifier</button>
+        <button style="color:#4338ca" onclick="reviserDevis('${d.id}')">↻ Réviser (nouvelle version)</button>
+        <button style="color:#0d9488" onclick="printDevis('${d.id}')">🖨 Imprimer</button>
+        <button style="color:#7c3aed" onclick="openEstimation('${d.id}')">📊 Estimation</button>
+        <button style="color:#d97706" onclick="genererFicheExecution('${d.id}')">🛠️ Fiche d'exécution</button>
+        <button style="color:#059669" onclick="convertirEnFacture('${d.id}')">🧾 Convertir en facture</button>
+        <button style="color:#dc2626" onclick="deleteRow('devis','${d.id}','devis')">🗑️ Supprimer</button>
+      </div>
+    </div>`;
+  if(getListView('devis')==='grille'){
+    host.innerHTML=data.length?`<div class="entity-grid">${data.map(d=>entityCardHtml({
+      icon:'📄',title:`<button class="text-indigo-600 hover:underline text-left" onclick="window._editId='${d.id}';showPage('devis-view')">${escapeHtml(d.code)}</button>`,
+      subtitle:escapeHtml(d.clients?[d.clients.nom,d.clients.prenoms].filter(Boolean).join(' '):'—'),
+      badge:badge(STATUT_DEVIS,d.statut),
+      lines:[escapeHtml(d.projets?.libelle||'—'),fmtDate(d.date_creation),`<b class="text-sm" style="color:var(--accent)">${money(d.total)}</b>`],
+      actionsHtml:actionsHtml(d)
+    })).join('')}</div>`:'<div class="card text-center text-gray-400 p-8">Aucun devis.</div>';
+  } else {
+    host.innerHTML=`<div class="card overflow-x-auto">
       <table><thead><tr><th>Code</th><th>Client</th><th>Projet</th><th>Date</th><th class="text-right">Total</th><th>Statut</th><th></th></tr></thead>
       <tbody>${data.map(d=>`<tr>
         <td class="font-semibold"><button class="text-indigo-600 hover:underline" onclick="window._editId='${d.id}';showPage('devis-view')">${escapeHtml(d.code)}</button></td>
         <td>${escapeHtml(d.clients?[d.clients.nom,d.clients.prenoms].filter(Boolean).join(' '):'—')}</td>
         <td>${escapeHtml(d.projets?.libelle||'—')}</td><td>${fmtDate(d.date_creation)}</td>
         <td class="text-right">${money(d.total)}</td><td>${badge(STATUT_DEVIS,d.statut)}</td>
-        <td class="text-right whitespace-nowrap">
-          <div class="dropdown">
-            <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
-            <div class="dropdown-menu hidden">
-              <button style="color:#4f46e5" onclick="window._editId='${d.id}';showPage('devis-add')">✏️ Modifier</button>
-              <button style="color:#4338ca" onclick="reviserDevis('${d.id}')">↻ Réviser (nouvelle version)</button>
-              <button style="color:#0d9488" onclick="printDevis('${d.id}')">🖨 Imprimer</button>
-              <button style="color:#7c3aed" onclick="openEstimation('${d.id}')">📊 Estimation</button>
-              <button style="color:#d97706" onclick="genererFicheExecution('${d.id}')">🛠️ Fiche d'exécution</button>
-              <button style="color:#059669" onclick="convertirEnFacture('${d.id}')">🧾 Convertir en facture</button>
-              <button style="color:#dc2626" onclick="deleteRow('devis','${d.id}','devis')">🗑️ Supprimer</button>
-            </div>
-          </div>
-        </td>
+        <td class="text-right whitespace-nowrap">${actionsHtml(d)}</td>
       </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun devis.</td></tr>'}</tbody></table>
     </div>`;
+  }
 }
 
 async function refreshDevisBadges(){
@@ -3223,24 +3329,44 @@ async function certifierFacturefne(devis,client){
 async function renderFactures(el){
   const {data,error}=await sb.from('factures').select('*, clients(nom,prenoms), devis(code)').order('created_at',{ascending:false});
   if(error) throw error;
+  window._facturesListCache=data;
   el.innerHTML=`
-    <div class="text-sm text-gray-500 mb-4">${data.length} facture(s)</div>
-    <div class="card overflow-x-auto">
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div class="text-sm text-gray-500">${data.length} facture(s)</div>
+      ${listViewToggleHtml('factures','renderFacturesBody')}
+    </div>
+    <div id="facturesList"></div>`;
+  renderFacturesBody();
+}
+function renderFacturesBody(){
+  const data=window._facturesListCache||[];
+  const host=document.getElementById('facturesList'); if(!host) return;
+  const typeHtml=f=>f.type_facture==='fne'?`<span class="badge ${f.fne_statut==='certifiee'?'bg-emerald-50 text-emerald-700':'bg-amber-50 text-amber-700'}">FNE${f.fne_reference?' · '+escapeHtml(f.fne_reference):''}</span>`:'<span class="badge bg-gray-100 text-gray-600">Simple</span>';
+  const statutSelect=f=>`<select onchange="updateFactureStatut('${f.id}',this.value)" class="text-xs">${Object.entries(STATUT_FACTURE).map(([k,v])=>`<option value="${k}" ${k===f.statut?'selected':''}>${v.label}</option>`).join('')}</select>`;
+  if(getListView('factures')==='grille'){
+    host.innerHTML=data.length?`<div class="entity-grid">${data.map(f=>entityCardHtml({
+      icon:'🧾',title:`<button class="text-indigo-600 hover:underline text-left" onclick="window._editId='${f.id}';showPage('facture-view')">${escapeHtml(f.code)}</button>`,
+      subtitle:escapeHtml(f.clients?[f.clients.nom,f.clients.prenoms].filter(Boolean).join(' '):'—'),
+      badge:badge(STATUT_FACTURE,f.statut),
+      lines:[escapeHtml(f.devis?.code||'—'),fmtDate(f.date_facture),`<b class="text-sm" style="color:var(--accent)">${money(f.total)}</b>`,typeHtml(f),statutSelect(f)],
+      actionsHtml:`<button class="btn-icon-menu" onclick="printFacture('${f.id}')" title="Imprimer">🖨</button>`
+    })).join('')}</div>`:'<div class="card text-center text-gray-400 p-8">Aucune facture.</div>';
+  } else {
+    host.innerHTML=`<div class="card overflow-x-auto">
       <table><thead><tr><th>Code</th><th>Devis</th><th>Client</th><th>Date</th><th class="text-right">Total</th><th>Type</th><th>Statut</th><th></th></tr></thead>
       <tbody>${data.map(f=>`<tr>
         <td class="font-semibold"><button class="text-indigo-600 hover:underline" onclick="window._editId='${f.id}';showPage('facture-view')">${escapeHtml(f.code)}</button></td><td>${escapeHtml(f.devis?.code||'—')}</td>
         <td>${escapeHtml(f.clients?[f.clients.nom,f.clients.prenoms].filter(Boolean).join(' '):'—')}</td>
         <td>${fmtDate(f.date_facture)}</td><td class="text-right">${money(f.total)}</td>
-        <td>${f.type_facture==='fne'?`<span class="badge ${f.fne_statut==='certifiee'?'bg-emerald-50 text-emerald-700':'bg-amber-50 text-amber-700'}">FNE${f.fne_reference?' · '+escapeHtml(f.fne_reference):''}</span>`:'<span class="badge bg-gray-100 text-gray-600">Simple</span>'}</td>
+        <td>${typeHtml(f)}</td>
         <td>${badge(STATUT_FACTURE,f.statut)}</td>
         <td class="text-right whitespace-nowrap">
           <button class="text-dark text-xs font-semibold mr-2" onclick="printFacture('${f.id}')">🖨</button>
-          <select onchange="updateFactureStatut('${f.id}',this.value)" class="text-xs">
-            ${Object.entries(STATUT_FACTURE).map(([k,v])=>`<option value="${k}" ${k===f.statut?'selected':''}>${v.label}</option>`).join('')}
-          </select>
+          ${statutSelect(f)}
         </td>
       </tr>`).join('')||'<tr><td colspan="8" class="text-gray-400 p-4">Aucune facture.</td></tr>'}</tbody></table>
     </div>`;
+  }
 }
 async function updateFactureStatut(id,statut){
   const {error}=await sb.from('factures').update({statut}).eq('id',id);
@@ -3319,13 +3445,32 @@ async function deleteFiche(id){
 async function renderFiches(el){
   const {data,error}=await sb.from('fiches_execution').select('*, devis(code), clients:devis(client_id)').order('created_at',{ascending:false});
   if(error) throw error;
+  window._fichesListCache=data;
   el.innerHTML=`
-    <div class="text-sm text-gray-500 mb-4">${data.length} fiche(s) d'exécution — générées depuis un devis.</div>
-    <div class="card overflow-x-auto">
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div class="text-sm text-gray-500">${data.length} fiche(s) d'exécution — générées depuis un devis.</div>
+      ${listViewToggleHtml('fiches','renderFichesBody')}
+    </div>
+    <div id="fichesList"></div>`;
+  renderFichesBody();
+}
+function renderFichesBody(){
+  const data=window._fichesListCache||[];
+  const host=document.getElementById('fichesList'); if(!host) return;
+  if(getListView('fiches')==='grille'){
+    host.innerHTML=data.length?`<div class="entity-grid">${data.map(f=>entityCardHtml({
+      icon:'🛠️',title:escapeHtml(f.code),subtitle:escapeHtml(f.devis?.code||'—'),
+      badge:badge(STATUT_FICHE,f.statut),
+      lines:[escapeHtml(f.responsable_chantier||'—')],
+      actionsHtml:`<button class="btn-icon-menu" onclick="openFicheExecution('${f.id}')" title="Ouvrir">⚙</button>`
+    })).join('')}</div>`:'<div class="card text-center text-gray-400 p-8">Aucune fiche.</div>';
+  } else {
+    host.innerHTML=`<div class="card overflow-x-auto">
       <table><thead><tr><th>Code</th><th>Devis</th><th>Responsable</th><th>Statut</th><th></th></tr></thead>
       <tbody>${data.map(f=>`<tr><td class="font-semibold">${escapeHtml(f.code)}</td><td>${escapeHtml(f.devis?.code||'—')}</td><td>${escapeHtml(f.responsable_chantier||'—')}</td><td>${badge(STATUT_FICHE,f.statut)}</td>
       <td class="text-right"><button class="text-indigo-600 text-xs font-semibold" onclick="openFicheExecution('${f.id}')">Ouvrir</button></td></tr>`).join('')||'<tr><td colspan="5" class="text-gray-400 p-4">Aucune fiche.</td></tr>'}</tbody></table>
     </div>`;
+  }
 }
 async function fichesExecutionSectionHtml(devisId){
   const {data:fiches}=await sb.from('fiches_execution').select('*').eq('devis_id',devisId).order('created_at',{ascending:false});
