@@ -230,6 +230,7 @@ window.SB_CFG = {
         <button class="nav-child" data-page="stock-mouvements">→ Mouvements</button>
         <button class="nav-child" data-page="stock-alertes">→ Alertes <span class="nav-badge nav-badge-red" id="badgeStockAlertes">0</span></button>
         <button class="nav-child" data-page="stock-inventaire">→ Inventaire</button>
+        <button class="nav-child" data-page="stock-simulateur">→ Simulateur multi-chantiers</button>
       </div>
 
       <div class="sidebar-group-title">Réglages</div>
@@ -347,9 +348,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients & Chantiers','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients & Chantiers','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-simulateur':'stock-g'};
 window._editId=null;
 async function showPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -1579,6 +1580,164 @@ async function confirmerDechargeStock(items,ficheCode){
   }
   toast(`Stock déchargé (${n} composant(s)).`);
   closeModal(); refreshStockAlertesBadge();
+}
+
+/* ---------- Simulateur de débit multi-chantiers (optimisation groupée des découpes) ---------- */
+const SIM_DEVIS_COLORS=['#6d28d9','#0891b2','#d97706','#dc2626','#059669','#4f46e5','#db2777','#65a30d','#0369a1','#c026d3'];
+async function renderStockSimulateur(el){
+  const {data:priceRows}=await sb.from('composants').select('code,prix_unitaire').not('code','is',null);
+  window._composantsPriceMap=Object.fromEntries((priceRows||[]).map(r=>[r.code,+r.prix_unitaire]));
+  const {data:devisList}=await sb.from('devis').select('id,libelle,client_id,statut,total,date_creation').in('statut',['en_attente','en_cours','accepte']).order('date_creation',{ascending:false});
+  const {data:clients}=await sb.from('clients').select('id,nom,prenoms');
+  window._simDevisCache=devisList||[];
+  window._simClientMap=Object.fromEntries((clients||[]).map(c=>[c.id,[c.nom,c.prenoms].filter(Boolean).join(' ')]));
+  const state=window._simDebit=window._simDebit||{selected:new Set(),barLen:6000,kerf:3,result:null};
+  el.innerHTML=`
+    <div class="page-card mb-4">
+      <h2>✂️ Simulateur de débit — Optimisation multi-chantiers</h2>
+      <p class="text-xs text-gray-500 mt-1 mb-3">Sélectionnez plusieurs devis à regrouper pour estimer l'économie de barres aluminium et de chutes réalisée en lançant ces chantiers ensemble plutôt que séparément.</p>
+      <div class="divider"></div>
+      <div class="grid sm:grid-cols-3 gap-4 mb-4">
+        <div class="field"><label>Longueur de barre (mm)</label>${fieldWrap('📏',`<input type="number" id="simBarLen" value="${state.barLen}" step="100" min="1000">`)}</div>
+        <div class="field"><label>Trait de scie / kerf (mm)</label>${fieldWrap('🪚',`<input type="number" id="simKerf" value="${state.kerf}" step="1" min="0">`)}</div>
+        <div class="field flex items-end"><button class="btn btn-primary w-full" onclick="lancerSimulationDebit()">▶ Lancer la simulation</button></div>
+      </div>
+      <div class="overflow-x-auto"><table><thead><tr><th></th><th>Devis</th><th>Client</th><th>Statut</th><th class="text-right">Montant</th></tr></thead>
+      <tbody>${(devisList||[]).map(d=>`<tr>
+        <td><input type="checkbox" class="simDevisCk" ${state.selected.has(d.id)?'checked':''} onchange="toggleSimDevis('${d.id}',this.checked)"></td>
+        <td class="font-semibold">${escapeHtml(d.libelle)}</td>
+        <td>${escapeHtml(window._simClientMap[d.client_id]||'—')}</td>
+        <td>${badge(STATUT_DEVIS,d.statut)}</td>
+        <td class="text-right">${money(d.total)}</td>
+      </tr>`).join('')||'<tr><td colspan="5" class="text-center text-gray-400 py-6">Aucun devis en attente, en cours ou accepté.</td></tr>'}</tbody></table></div>
+    </div>
+    <div id="simDebitResult"></div>`;
+  if(state.result) renderSimDebitResult();
+}
+function toggleSimDevis(id,checked){
+  const state=window._simDebit; if(!state) return;
+  if(checked) state.selected.add(id); else state.selected.delete(id);
+}
+function packStrategyTagged(sorted,barLen,kerf,mode){
+  let remaining=[], barCuts=[];
+  sorted.forEach(item=>{
+    const cLen=item.len;
+    let i=-1;
+    if(mode==='best'){
+      let bestSlack=Infinity;
+      remaining.forEach((r,idx)=>{ if(r>=cLen+kerf){ const slack=r-(cLen+kerf); if(slack<bestSlack){ bestSlack=slack; i=idx; } } });
+    } else {
+      i=remaining.findIndex(r=>r>=cLen+kerf);
+    }
+    if(i<0){ remaining.push(barLen-cLen-kerf); barCuts.push([item]); }
+    else{ barCuts[i].push(item); remaining[i]-=cLen+kerf; }
+  });
+  const bars=barCuts.map((cuts,i)=>({cuts,used:cuts.reduce((a,b)=>a+b.len+kerf,0),chute:remaining[i]}));
+  return {bars,nbBarres:bars.length,chuteTotale:bars.reduce((s,b)=>s+b.chute,0)};
+}
+function binPackCutsTagged(items,barLen,kerf){
+  const sorted=[...items].sort((a,b)=>b.len-a.len);
+  const best=packStrategyTagged(sorted,barLen,kerf,'best');
+  const first=packStrategyTagged(sorted,barLen,kerf,'first');
+  return (best.nbBarres<first.nbBarres) ? best.bars : (first.nbBarres<best.nbBarres) ? first.bars : (best.chuteTotale<=first.chuteTotale?best.bars:first.bars);
+}
+async function lancerSimulationDebit(){
+  const state=window._simDebit;
+  state.barLen=+val('simBarLen')||6000;
+  state.kerf=+val('simKerf')||0;
+  const ids=[...state.selected];
+  if(ids.length<2){ toast('Sélectionnez au moins 2 devis à combiner.','error'); return; }
+  const {data:lignes}=await sb.from('devis_lignes').select('id,devis_id,largeur,hauteur,quantite,produit_id').in('devis_id',ids);
+  const produitIds=[...new Set((lignes||[]).map(l=>l.produit_id).filter(Boolean))];
+  const {data:produits}=produitIds.length?await sb.from('produits').select('id,config_json').in('id',produitIds):{data:[]};
+  const produitMap=Object.fromEntries((produits||[]).map(p=>[p.id,p]));
+
+  const cutsByCode={}; // code -> {label, cuts:[{len,devisId}]}
+  const cutsByDevisByCode={}; // devisId -> code -> [len,...]
+  (lignes||[]).forEach(l=>{
+    const p=produitMap[l.produit_id];
+    if(!p?.config_json) return;
+    const c=p.config_json;
+    const res=configCalculerBOM(c.type,+l.largeur||0,+l.hauteur||0,c.leaves||1,+l.quantite||1,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill});
+    res.rows.forEach(r=>{
+      const [code,label,qty,longueur]=r;
+      if(!(longueur>0) || classifyBOMLine(label)==='remplissage') return;
+      const q=Math.max(1,Math.round(qty));
+      cutsByCode[code]=cutsByCode[code]||{label,cuts:[]};
+      cutsByDevisByCode[l.devis_id]=cutsByDevisByCode[l.devis_id]||{};
+      cutsByDevisByCode[l.devis_id][code]=cutsByDevisByCode[l.devis_id][code]||[];
+      for(let i=0;i<q;i++){
+        cutsByCode[code].cuts.push({len:Math.round(longueur),devisId:l.devis_id});
+        cutsByDevisByCode[l.devis_id][code].push(Math.round(longueur));
+      }
+    });
+  });
+
+  const codes=Object.keys(cutsByCode);
+  if(!codes.length){ toast('Aucun profil linéaire à débiter pour ces devis.','error'); return; }
+
+  const detail=codes.map(code=>{
+    const g=cutsByCode[code];
+    const groupedBars=binPackCutsTagged(g.cuts,state.barLen,state.kerf);
+    let sepBars=[];
+    ids.forEach(did=>{
+      const cuts=(cutsByDevisByCode[did]&&cutsByDevisByCode[did][code])||[];
+      if(cuts.length) sepBars=sepBars.concat(binPackCuts(cuts,state.barLen,state.kerf));
+    });
+    const nbGroupe=groupedBars.length, nbSepare=sepBars.length;
+    const chuteGroupe=groupedBars.reduce((s,b)=>s+b.chute,0);
+    const chuteSepare=sepBars.reduce((s,b)=>s+b.chute,0);
+    const coutBarre=getPrix(code,0)*(state.barLen/1000);
+    const barresEconomisees=nbSepare-nbGroupe;
+    return {code,label:g.label,nbPieces:g.cuts.length,nbGroupe,nbSepare,chuteGroupe,chuteSepare,barresEconomisees,economieFcfa:barresEconomisees*coutBarre,groupedBars};
+  }).sort((a,b)=>b.economieFcfa-a.economieFcfa);
+
+  window._simDebit.result={
+    detail,
+    totNbGroupe:detail.reduce((s,d)=>s+d.nbGroupe,0),
+    totNbSepare:detail.reduce((s,d)=>s+d.nbSepare,0),
+    totChuteGroupe:detail.reduce((s,d)=>s+d.chuteGroupe,0),
+    totChuteSepare:detail.reduce((s,d)=>s+d.chuteSepare,0),
+    totEconomie:detail.reduce((s,d)=>s+d.economieFcfa,0),
+    ids, barLen:state.barLen, kerf:state.kerf
+  };
+  renderSimDebitResult();
+}
+function renderSimDebitResult(){
+  const r=window._simDebit.result;
+  const box=document.getElementById('simDebitResult');
+  if(!r||!box) return;
+  const barresEco=r.totNbSepare-r.totNbGroupe;
+  const pctEco=r.totNbSepare?((barresEco/r.totNbSepare)*100).toFixed(1):'0.0';
+  const pctChute=r.totChuteSepare?(((r.totChuteSepare-r.totChuteGroupe)/r.totChuteSepare)*100).toFixed(1):'0.0';
+  const devisMap=window._simDevisCache?Object.fromEntries(window._simDevisCache.map(d=>[d.id,d])):{};
+  const colorForDevis=(id)=>SIM_DEVIS_COLORS[r.ids.indexOf(id)%SIM_DEVIS_COLORS.length];
+  const legend=r.ids.map(id=>`<span class="inline-flex items-center gap-1 text-xs mr-3 mb-1"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${colorForDevis(id)}"></span>${escapeHtml(devisMap[id]?.libelle||'')}</span>`).join('');
+  box.innerHTML=`
+    <div class="grid sm:grid-cols-4 gap-4 mb-4">
+      <div class="page-card"><div class="text-xs text-gray-500">Barres groupé / séparé</div><div class="text-2xl font-bold">${r.totNbGroupe} <span class="text-sm text-gray-400 font-normal">/ ${r.totNbSepare}</span></div></div>
+      <div class="page-card"><div class="text-xs text-gray-500">Barres économisées</div><div class="text-2xl font-bold text-emerald-600">${barresEco} <span class="text-sm font-normal">(${pctEco}%)</span></div></div>
+      <div class="page-card"><div class="text-xs text-gray-500">Réduction de chute</div><div class="text-2xl font-bold text-emerald-600">${pctChute}%</div></div>
+      <div class="page-card"><div class="text-xs text-gray-500">Économie estimée</div><div class="text-2xl font-bold text-emerald-600">${money(r.totEconomie)}</div></div>
+    </div>
+    ${barresEco>0?`<div class="page-card mb-4" style="border-color:#a7f3d0;background:#ecfdf5"><b class="text-emerald-700">✔ Ces chantiers gagnent à être lancés ensemble</b><span class="text-sm text-emerald-700"> — ${barresEco} barre${barresEco>1?'s':''} et ${money(r.totEconomie)} économisées en regroupant leur découpe.</span></div>`:`<div class="page-card mb-4" style="border-color:#fde68a;background:#fffbeb"><b class="text-amber-700">Pas de gain significatif</b><span class="text-sm text-amber-700"> sur ce regroupement — essayez une autre combinaison de devis.</span></div>`}
+    <div class="page-card mb-4">
+      <h3 class="font-bold text-sm mb-2">Détail par profil</h3>
+      <div class="overflow-x-auto"><table><thead><tr><th>Profil</th><th class="text-right">Pièces</th><th class="text-right">Barres séparé</th><th class="text-right">Barres groupé</th><th class="text-right">Économisées</th><th class="text-right">Chute groupée</th><th class="text-right">Économie</th></tr></thead>
+      <tbody>${r.detail.map(d=>`<tr><td class="font-semibold">${escapeHtml(d.code)} — ${escapeHtml(d.label)}</td><td class="text-right">${d.nbPieces}</td><td class="text-right">${d.nbSepare}</td><td class="text-right">${d.nbGroupe}</td><td class="text-right ${d.barresEconomisees>0?'text-emerald-600 font-semibold':''}">${d.barresEconomisees}</td><td class="text-right">${Math.round(d.chuteGroupe).toLocaleString('fr-FR')} mm</td><td class="text-right">${money(d.economieFcfa)}</td></tr>`).join('')}</tbody></table></div>
+    </div>
+    <div class="page-card">
+      <h3 class="font-bold text-sm mb-2">Plan de débit groupé (couleur = chantier d'origine)</h3>
+      <div class="mb-3">${legend}</div>
+      ${r.detail.map(d=>`<div class="mb-4">
+        <div class="flex justify-between items-center mb-2"><b class="text-sm">${escapeHtml(d.code)} — ${escapeHtml(d.label)}</b><span class="text-xs text-gray-500">${d.nbGroupe} barre${d.nbGroupe>1?'s':''} de ${r.barLen.toLocaleString('fr-FR')} mm</span></div>
+        <div class="space-y-1.5">${d.groupedBars.map((b,i)=>`
+          <div class="border rounded-lg p-2">
+            <div class="flex justify-between text-xs text-gray-500 mb-1"><span>Barre ${i+1}</span><span>Chute ${Math.round(b.chute)} mm</span></div>
+            <div class="h-6 bg-slate-100 rounded flex overflow-hidden">${b.cuts.map(cut=>`<div style="width:${(cut.len/r.barLen*100).toFixed(2)}%;background:${colorForDevis(cut.devisId)}" class="text-white text-[9px] flex items-center justify-center border-r border-white" title="${escapeHtml(devisMap[cut.devisId]?.libelle||'')}">${cut.len}</div>`).join('')}</div>
+          </div>`).join('')}</div>
+      </div>`).join('')}
+    </div>`;
 }
 
 /* ============================== CONFIGURATEUR D'OUVRAGE ============================== */
