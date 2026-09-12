@@ -120,7 +120,7 @@ window.SB_CFG = {
   <div id="overlay" onclick="closeSidebar()"></div>
   <aside id="sidebar" class="w-64 shrink-0 flex flex-col md:sticky md:top-0 md:h-screen" style="background:var(--navy)">
     <div class="px-5 py-5 flex items-center justify-between">
-      <div class="text-white text-lg font-black">BEDA<span style="color:#a78bfa">ALU</span></div>
+      <div class="text-white text-lg font-black" id="sidebarBrand">BEDA<span style="color:#a78bfa">ALU</span></div>
       <button onclick="closeSidebar()" class="md:hidden text-slate-400 text-2xl leading-none">×</button>
     </div>
     <nav class="flex-1 px-3 pb-4 overflow-y-auto text-sm" id="sidebarNav">
@@ -184,6 +184,9 @@ window.SB_CFG = {
         <button class="nav-child" data-page="produits-add">→ Ajouter un produit</button>
         <button class="nav-child" data-page="produits">→ Liste des produits</button>
       </div>
+
+      <div class="sidebar-group-title">Réglages</div>
+      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="parametres">⚙️ <span>Paramètres</span></button>
     </nav>
     <div class="px-4 py-4 border-t border-white/10">
       <div id="sbUserEmail" class="text-xs text-slate-400 truncate mb-2"></div>
@@ -287,6 +290,7 @@ async function enterApp(){
   if(nbAttente){ bell.textContent=nbAttente; bell.classList.remove('hidden'); }
   refreshDevisBadges();
   refreshProjetsBadges();
+  loadAppParams();
   showPage('dashboard');
 }
 (async function boot(){
@@ -295,8 +299,8 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit'};
-const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm};
+const PAGE_TITLES={dashboard:'Accueil',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,parametres:renderParametres};
 const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g',produits:'produits-g'};
 window._editId=null;
 async function showPage(page){
@@ -1037,6 +1041,7 @@ function printDocHtml(type,code,client,meta,libelle,lignes,sousTotal,reduction,a
       @media print{.noprint{display:none}}@page{size:A4;margin:16mm}
     </style></head><body>
     <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+    ${window.APP_PARAMS?.logo_base64?`<img src="${window.APP_PARAMS.logo_base64}" style="max-height:56px;max-width:220px;object-fit:contain;margin-bottom:10px">`:''}
     ${docHeaderHtml(client,{code,...meta})}
     <h3>${type} : ${escapeHtml(libelle||'—')}</h3>
     <table><thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
@@ -1288,6 +1293,7 @@ async function buildAndOpenFicheExecutionPrint(f,lignes){
     .sig{display:flex;justify-content:space-between;margin-top:50px}.sig div{width:45%;border-top:1px solid #334155;padding-top:4px}
     @media print{.noprint{display:none}}@page{size:A4 landscape;margin:12mm}</style></head><body>
     <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700">🖨 Imprimer</button></div>
+    ${window.APP_PARAMS?.logo_base64?`<img src="${window.APP_PARAMS.logo_base64}" style="max-height:50px;max-width:200px;object-fit:contain;margin-bottom:8px">`:''}
     <div class="hdr">
       <div>
         <p><b>Client :</b> ${escapeHtml([f.devis.clients?.nom,f.devis.clients?.prenoms].filter(Boolean).join(' '))}</p>
@@ -1374,6 +1380,203 @@ function printEstimation(){
     <tfoot><tr><td colspan="2">Total</td><td style="text-align:right">${money(montantFacture)}</td></tr></tfoot></table>
     </body></html>`);
   win.document.close(); win.focus();
+}
+
+/* ============================== PARAMÉTRAGE : SOCIÉTÉ / LOGO / SUPABASE / SYNCHRO / SAUVEGARDE ============================== */
+const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','parametres'];
+async function loadAppParams(){
+  let {data}=await sb.from('parametres').select('*').limit(1).maybeSingle();
+  if(!data){ const res=await sb.from('parametres').insert({}).select().single(); data=res.data; }
+  window.APP_PARAMS=data;
+  applyLogoToSidebar();
+  return data;
+}
+function applyLogoToSidebar(){
+  const logo=window.APP_PARAMS?.logo_base64;
+  const brandEl=document.getElementById('sidebarBrand');
+  if(!brandEl) return;
+  brandEl.innerHTML=logo?`<img src="${logo}" style="max-height:32px;max-width:170px;object-fit:contain">`:`BEDA<span style="color:#a78bfa">ALU</span>`;
+}
+async function renderParametres(el){
+  const p=window.APP_PARAMS || await loadAppParams();
+  el.innerHTML=`
+    <div class="flex flex-wrap gap-2 mb-4 border-b pb-2">
+      <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white" data-paramtab="societe" onclick="switchParamTab('societe')">🏢 Société</button>
+      <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="supabase" onclick="switchParamTab('supabase')">☁️ Supabase</button>
+      <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="synchro" onclick="switchParamTab('synchro')">🔄 Synchro</button>
+      <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="sauvegarde" onclick="switchParamTab('sauvegarde')">💾 Sauvegarde</button>
+    </div>
+
+    <div id="paramTab-societe" class="param-tab">
+      <div class="page-card mb-4">
+        <h2>🖼️ Logo de l'entreprise</h2>
+        <div class="divider"></div>
+        <div class="flex items-start gap-6 flex-wrap">
+          <div id="logoPreviewZone" onclick="document.getElementById('logoFileInput').click()" style="width:160px;height:120px;border:2px dashed #d1d5db;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#f9fafb;cursor:pointer;overflow:hidden">
+            ${p.logo_base64?`<img src="${p.logo_base64}" style="max-width:100%;max-height:100%;object-fit:contain">`:`<div class="text-center text-gray-400"><div style="font-size:28px">🏢</div><div style="font-size:11px;margin-top:4px">Cliquer pour<br>importer</div></div>`}
+          </div>
+          <div class="flex-1" style="min-width:220px">
+            <p class="text-xs text-gray-500 mb-3">PNG/JPG, fond transparent recommandé, min. 200×100 px. Affiché dans la sidebar et les documents imprimés (devis, factures, fiches).</p>
+            <div class="flex gap-2">
+              <button class="btn btn-primary" onclick="document.getElementById('logoFileInput').click()">📁 Importer</button>
+              <button class="btn btn-outline" onclick="supprimerLogo()">🗑️ Supprimer</button>
+            </div>
+            <input type="file" id="logoFileInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="hidden" onchange="handleLogoUpload(event)">
+          </div>
+        </div>
+      </div>
+      <div class="page-card">
+        <h2>🏢 Identité de la société</h2>
+        <div class="divider"></div>
+        <form id="societeForm" class="grid sm:grid-cols-2 gap-4">
+          <div class="field sm:col-span-2"><label>Raison sociale</label>${fieldWrap('🏢',`<input id="psRaisonSociale" required value="${escapeHtml(p.raison_sociale||'')}">`)}</div>
+          <div class="field"><label>RCCM</label>${fieldWrap('📋',`<input id="psRccm" value="${escapeHtml(p.rccm||'')}">`)}</div>
+          <div class="field"><label>NCC</label>${fieldWrap('📋',`<input id="psNcc" value="${escapeHtml(p.ncc||'')}">`)}</div>
+          <div class="field"><label>Régime fiscal</label>${fieldWrap('🧾',`<select id="psRegime"><option value="reel_normal" ${p.regime_fiscal==='reel_normal'?'selected':''}>Réel normal (RNI)</option><option value="reel_simplifie" ${p.regime_fiscal==='reel_simplifie'?'selected':''}>Réel simplifié (RSI)</option><option value="micro" ${p.regime_fiscal==='micro'?'selected':''}>Micro-entreprise</option></select>`)}</div>
+          <div class="field"><label>TVA (%)</label>${fieldWrap('%',`<input id="psTva" type="number" step="0.5" value="${p.tva_pct??18}">`)}</div>
+          <div class="field sm:col-span-2"><label>Adresse</label>${fieldWrap('📍',`<input id="psAdresse" value="${escapeHtml(p.adresse||'')}">`)}</div>
+          <div class="field"><label>Email</label>${fieldWrap('✉️',`<input id="psEmail" type="email" value="${escapeHtml(p.email||'')}">`)}</div>
+          <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input id="psTelephone" value="${escapeHtml(p.telephone||'')}">`)}</div>
+          <div class="field"><label>Site web</label>${fieldWrap('🌐',`<input id="psSite" value="${escapeHtml(p.site_web||'')}">`)}</div>
+          <div class="field"><label>WhatsApp</label>${fieldWrap('💬',`<input id="psWhatsapp" value="${escapeHtml(p.whatsapp||'')}">`)}</div>
+          <div class="sm:col-span-2 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
+        </form>
+      </div>
+    </div>
+
+    <div id="paramTab-supabase" class="param-tab hidden">
+      <div class="page-card max-w-2xl">
+        <h2>☁️ Connexion Supabase</h2>
+        <div class="divider"></div>
+        <p class="text-xs text-gray-500 mb-4">Cette application fonctionne exclusivement en direct sur Supabase (aucun mode local) : ces informations sont en lecture seule pour éviter de casser la connexion en cours.</p>
+        <div class="field mb-3"><label>URL du projet</label>${fieldWrap('🔗',`<input value="${escapeHtml(window.SB_CFG.SUPABASE_URL)}" readonly>`)}</div>
+        <div class="field mb-4"><label>Clé publique (anon)</label>${fieldWrap('🔑',`<input value="${escapeHtml(window.SB_CFG.SUPABASE_ANON_KEY.slice(0,16))}...${escapeHtml(window.SB_CFG.SUPABASE_ANON_KEY.slice(-8))}" readonly>`)}</div>
+        <button class="btn btn-primary" onclick="testerConnexionSupabase()">🔌 Tester la connexion</button>
+        <div id="sbTestResult" class="text-sm mt-3"></div>
+      </div>
+    </div>
+
+    <div id="paramTab-synchro" class="param-tab hidden">
+      <div class="page-card">
+        <div class="flex justify-between items-center mb-3">
+          <h2>🔄 État de la synchronisation</h2>
+          <button class="btn btn-outline text-xs" onclick="refreshSyncCounts()">↻ Actualiser</button>
+        </div>
+        <div class="divider"></div>
+        <p class="text-xs text-gray-500 mb-3">Aucune copie locale : chaque écran lit et écrit directement sur Supabase. Ce panneau confirme que la connexion est active et affiche le volume de données par module.</p>
+        <div id="syncStatusPanel" class="text-sm text-gray-400">Chargement…</div>
+      </div>
+    </div>
+
+    <div id="paramTab-sauvegarde" class="param-tab hidden">
+      <div class="page-card max-w-2xl">
+        <h2>💾 Export / Import de sauvegarde</h2>
+        <div class="divider"></div>
+        <p class="text-xs text-gray-500 mb-4">Export JSON complet de toutes les tables (Clients, Devis, Factures, Projets…). L'import restaure les enregistrements par identifiant (écrase les doublons).</p>
+        <div class="flex gap-2 flex-wrap mb-4">
+          <button class="btn btn-primary" onclick="exporterSauvegarde()">⬇ Exporter tout (JSON)</button>
+          <button class="btn btn-outline" onclick="document.getElementById('importFileInput').click()">⬆ Importer un fichier JSON</button>
+          <input type="file" id="importFileInput" accept=".json" class="hidden" onchange="importerSauvegarde(event)">
+        </div>
+        <div class="text-xs text-gray-500">Dernière sauvegarde exportée : <b id="lastBackupLabel">${p.derniere_sauvegarde?fmtDate(p.derniere_sauvegarde):'—'}</b></div>
+        <div id="backupResult" class="text-sm mt-3"></div>
+      </div>
+    </div>`;
+  document.getElementById('societeForm').onsubmit=async(e)=>{
+    e.preventDefault();
+    const rec={raison_sociale:val('psRaisonSociale'),rccm:val('psRccm'),ncc:val('psNcc'),regime_fiscal:val('psRegime'),tva_pct:+val('psTva')||0,adresse:val('psAdresse'),email:val('psEmail'),telephone:val('psTelephone'),site_web:val('psSite'),whatsapp:val('psWhatsapp')};
+    const {error}=await sb.from('parametres').update(rec).eq('id',p.id);
+    if(error){ toast(error.message,'error'); return; }
+    toast('Paramètres société enregistrés.'); await loadAppParams();
+  };
+}
+function switchParamTab(tab){
+  document.querySelectorAll('.param-tab-btn').forEach(b=>{ const on=b.dataset.paramtab===tab; b.classList.toggle('bg-indigo-600',on); b.classList.toggle('text-white',on); });
+  document.querySelectorAll('.param-tab').forEach(t=>t.classList.toggle('hidden',t.id!=='paramTab-'+tab));
+  if(tab==='synchro') refreshSyncCounts();
+}
+function handleLogoUpload(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    const dataUrl=reader.result;
+    const {error}=await sb.from('parametres').update({logo_base64:dataUrl}).eq('id',window.APP_PARAMS.id);
+    if(error){ toast(error.message,'error'); return; }
+    toast('Logo mis à jour.'); await loadAppParams(); showPage('parametres');
+  };
+  reader.readAsDataURL(file);
+}
+async function supprimerLogo(){
+  if(!confirm('Supprimer le logo ?')) return;
+  const {error}=await sb.from('parametres').update({logo_base64:null}).eq('id',window.APP_PARAMS.id);
+  if(error){ toast(error.message,'error'); return; }
+  toast('Logo supprimé.'); await loadAppParams(); showPage('parametres');
+}
+async function testerConnexionSupabase(){
+  const el=document.getElementById('sbTestResult');
+  el.textContent='Test en cours…'; el.className='text-sm mt-3 text-gray-500';
+  const t0=performance.now();
+  const {error}=await sb.from('parametres').select('id',{count:'exact',head:true});
+  const ms=Math.round(performance.now()-t0);
+  if(error){ el.textContent='❌ Échec : '+error.message; el.className='text-sm mt-3 text-red-600'; }
+  else { el.textContent=`✅ Connexion OK (${ms} ms)`; el.className='text-sm mt-3 text-emerald-600'; }
+}
+async function refreshSyncCounts(){
+  const el=document.getElementById('syncStatusPanel'); if(!el) return;
+  const modules=[['Clients','clients'],['Prospects','prospects'],['Fournisseurs','fournisseurs'],['Projets','projets'],['Devis','devis'],['Factures','factures'],['Produits','produits'],["Fiches d'exécution",'fiches_execution']];
+  const t0=performance.now();
+  let online=true;
+  const rows=await Promise.all(modules.map(async([label,table])=>{
+    const {count,error}=await sb.from(table).select('*',{count:'exact',head:true});
+    if(error) online=false;
+    return {label,count:error?'—':count};
+  }));
+  const ms=Math.round(performance.now()-t0);
+  el.innerHTML=`
+    <div class="mb-3">${online?`<span class="text-emerald-600 font-semibold">🟢 En ligne</span> — vérifié en ${ms} ms`:'<span class="text-red-600 font-semibold">🔴 Connexion perturbée</span>'}</div>
+    <table><thead><tr><th>Module</th><th class="text-right">Enregistrements</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td><td class="text-right font-semibold">${r.count}</td></tr>`).join('')}</tbody></table>
+    <div class="text-xs text-gray-400 mt-2">Dernière vérification : ${new Date().toLocaleTimeString('fr-FR')}</div>`;
+}
+async function exporterSauvegarde(){
+  const resEl=document.getElementById('backupResult');
+  resEl.textContent='Export en cours…'; resEl.className='text-sm mt-3 text-gray-500';
+  try{
+    const backup={exported_at:new Date().toISOString(),tables:{}};
+    for(const table of BACKUP_TABLES){
+      const {data,error}=await sb.from(table).select('*');
+      if(error) throw error;
+      backup.tables[table]=data;
+    }
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`beda-alu-sauvegarde-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    await sb.from('parametres').update({derniere_sauvegarde:new Date().toISOString()}).eq('id',window.APP_PARAMS.id);
+    await loadAppParams();
+    document.getElementById('lastBackupLabel').textContent=fmtDate(window.APP_PARAMS.derniere_sauvegarde);
+    resEl.textContent='✅ Export terminé.'; resEl.className='text-sm mt-3 text-emerald-600';
+  }catch(err){ resEl.textContent='❌ '+(err.message||err); resEl.className='text-sm mt-3 text-red-600'; }
+}
+async function importerSauvegarde(e){
+  const file=e.target.files[0]; if(!file) return;
+  if(!confirm("Importer ce fichier ? Les enregistrements existants portant le même identifiant seront écrasés.")) { e.target.value=''; return; }
+  const resEl=document.getElementById('backupResult');
+  resEl.textContent='Import en cours…'; resEl.className='text-sm mt-3 text-gray-500';
+  try{
+    const text=await file.text();
+    const backup=JSON.parse(text);
+    for(const table of BACKUP_TABLES){
+      const rows=backup.tables?.[table];
+      if(!rows || !rows.length) continue;
+      const {error}=await sb.from(table).upsert(rows,{onConflict:'id'});
+      if(error) throw new Error(table+' : '+error.message);
+    }
+    resEl.textContent='✅ Import terminé.'; resEl.className='text-sm mt-3 text-emerald-600';
+  }catch(err){ resEl.textContent='❌ '+(err.message||err); resEl.className='text-sm mt-3 text-red-600'; }
+  e.target.value='';
 }
 </script>
 </body>
