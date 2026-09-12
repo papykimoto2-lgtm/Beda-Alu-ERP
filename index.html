@@ -931,6 +931,44 @@ function docTotalsHtml(sousTotal,reduction,autreFrais){
     <div class="doc-total-final"><span>Montant total à payer</span><b>${money(total)}</b></div>
   </div>`;
 }
+/* ============================== ENTÊTE SOCIÉTÉ + PIED DE PAGE QR (impression) ============================== */
+function printCompanyHeaderHtml(){
+  const p=window.APP_PARAMS||{};
+  const logo=p.logo_base64?`<img src="${p.logo_base64}" style="max-height:60px;max-width:220px;object-fit:contain">`:`<div style="font-size:18px;font-weight:800">${escapeHtml(p.raison_sociale||'BEDA ALU')}</div>`;
+  const infos=[
+    p.logo_base64?p.raison_sociale:null,
+    [p.rccm?'RCCM '+p.rccm:'',p.ncc?'NCC '+p.ncc:''].filter(Boolean).join(' — ')||null,
+    p.adresse||null,
+    [p.telephone,p.email].filter(Boolean).join(' · ')||null,
+    p.site_web||null
+  ].filter(Boolean);
+  if(!infos.length) return '';
+  return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;border-bottom:2px solid #111827;padding-bottom:12px;margin-bottom:16px">
+    <div>${logo}</div>
+    <div style="text-align:right;font-size:10.5px;color:#374151;line-height:1.7">${infos.map(i=>`<div>${escapeHtml(i)}</div>`).join('')}</div>
+  </div>`;
+}
+function simpleHash(str){
+  let h=0;
+  for(let i=0;i<str.length;i++){ h=(h*31+str.charCodeAt(i))>>>0; }
+  return h.toString(16);
+}
+function printFooterQrHtml(type,code,montant){
+  const date=new Date().toISOString();
+  const sig=simpleHash([type,code,montant,date.slice(0,10)].join('|'));
+  const payload=`${type} ${code} — ${money(montant)} — édité le ${new Date().toLocaleDateString('fr-FR')} — réf. ${sig}`;
+  const qrId='qr_'+Math.random().toString(36).slice(2,9);
+  return `
+    <div style="margin-top:36px;padding-top:14px;border-top:1px solid #d1d5db;display:flex;justify-content:space-between;align-items:center;gap:16px">
+      <div style="font-size:9.5px;color:#9ca3af;max-width:70%">Document généré électroniquement le ${new Date().toLocaleString('fr-FR')}. Le QR code permet de vérifier son intégrité (type, code, montant, référence).</div>
+      <div style="text-align:center;flex-shrink:0">
+        <div id="${qrId}"></div>
+        <div style="font-size:8.5px;color:#9ca3af;margin-top:4px">Réf. ${sig}</div>
+      </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+    <script>try{ new QRCode(document.getElementById('${qrId}'), {text:${JSON.stringify(payload)}, width:76, height:76, correctLevel:QRCode.CorrectLevel.M}); }catch(e){ document.getElementById('${qrId}').textContent='QR indisponible'; }<\/script>`;
+}
 function docHeaderHtml(client,meta){
   const nomClient=[client?.civilite,client?.nom,client?.prenoms].filter(Boolean).join(' ')||client?.entreprise||'—';
   return `<div class="doc-header">
@@ -1042,13 +1080,14 @@ function printDocHtml(type,code,client,meta,libelle,lignes,sousTotal,reduction,a
       @media print{.noprint{display:none}}@page{size:A4;margin:16mm}
     </style></head><body>
     <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
-    ${window.APP_PARAMS?.logo_base64?`<img src="${window.APP_PARAMS.logo_base64}" style="max-height:56px;max-width:220px;object-fit:contain;margin-bottom:10px">`:''}
+    ${printCompanyHeaderHtml()}
     ${docHeaderHtml(client,{code,...meta})}
     <h3>${type} : ${escapeHtml(libelle||'—')}</h3>
     <table><thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
     <tbody>${docLignesRows(lignes)}</tbody></table>
     ${docTotalsHtml(sousTotal,reduction,autreFrais)}
     ${DOC_NOTES_HTML}
+    ${printFooterQrHtml(type,code,sousTotal-reduction+autreFrais)}
     </body></html>`;
 }
 
@@ -1317,7 +1356,7 @@ async function buildAndOpenFicheExecutionPrint(f,lignes){
     .sig{display:flex;justify-content:space-between;margin-top:50px}.sig div{width:45%;border-top:1px solid #334155;padding-top:4px}
     @media print{.noprint{display:none}}@page{size:A4 landscape;margin:12mm}</style></head><body>
     <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700">🖨 Imprimer</button></div>
-    ${window.APP_PARAMS?.logo_base64?`<img src="${window.APP_PARAMS.logo_base64}" style="max-height:50px;max-width:200px;object-fit:contain;margin-bottom:8px">`:''}
+    ${printCompanyHeaderHtml()}
     <div class="hdr">
       <div>
         <p><b>Client :</b> ${escapeHtml([f.devis.clients?.nom,f.devis.clients?.prenoms].filter(Boolean).join(' '))}</p>
@@ -1345,6 +1384,7 @@ async function buildAndOpenFicheExecutionPrint(f,lignes){
     <p>- Le délai d'exécution des travaux vous sera communiqué après la préparation définitive du chantier.</p>
     <div class="legend"><span>✔ Oui</span><span>X Non</span><span>-- Néant</span></div></div>
     <div class="sig"><div>Signature Client ou représentant</div><div>Technicien Contrôleur</div></div>
+    ${printFooterQrHtml('FICHE EXÉCUTION',f.code,0)}
     </body></html>`);
   win.document.close(); win.focus();
 }
@@ -1394,7 +1434,10 @@ function printEstimation(){
     <style>body{font-family:Arial,sans-serif;padding:30px;color:#111827;font-size:13px}table{width:100%;border-collapse:collapse;margin-top:10px}
     th,td{border:1px solid #d1d5db;padding:7px 10px}th{background:#f1f5f9;text-align:left}.kpi{display:flex;gap:16px;margin:16px 0}
     .kpi div{flex:1;border:1px solid #d1d5db;border-radius:8px;padding:10px}.kpi b{display:block;font-size:16px;margin-top:4px}
-    tfoot td{font-weight:800;border-top:2px solid #111827}</style></head><body>
+    tfoot td{font-weight:800;border-top:2px solid #111827}
+    @media print{.noprint{display:none}}</style></head><body>
+    <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+    ${printCompanyHeaderHtml()}
     <h1>Estimation financière de la commande</h1>
     <p style="color:#6b7280;font-size:12px">Devis ${escapeHtml(d.code)} — ${escapeHtml([d.clients?.nom,d.clients?.prenoms].filter(Boolean).join(' '))} — édité le ${new Date().toLocaleDateString('fr-FR')}</p>
     <p style="font-size:11px;color:#dc2626">⚠️ Chiffres approximatifs — coût matériel estimé par % catalogue produit.</p>
@@ -1402,6 +1445,7 @@ function printEstimation(){
     <table><thead><tr><th>Désignation</th><th style="text-align:right">Qté</th><th style="text-align:right">Total</th></tr></thead>
     <tbody>${(lignes||[]).map(l=>`<tr><td>${escapeHtml(l.titre)}</td><td style="text-align:right">${l.quantite}</td><td style="text-align:right">${money(l.total)}</td></tr>`).join('')}</tbody>
     <tfoot><tr><td colspan="2">Total</td><td style="text-align:right">${money(montantFacture)}</td></tr></tfoot></table>
+    ${printFooterQrHtml('ESTIMATION',d.code,montantFacture)}
     </body></html>`);
   win.document.close(); win.focus();
 }
