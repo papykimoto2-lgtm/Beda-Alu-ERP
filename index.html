@@ -1723,34 +1723,34 @@ async function lancerSimulationDebit(){
   const detail=codes.map(code=>{
     const g=cutsByCode[code];
     const groupedBars=binPackCutsTagged(g.cuts,state.barLen,state.kerf);
-    let sepBars=[];
+    let sepBars=[]; const sepBarsByDevis={};
     ids.forEach(did=>{
       const cuts=(cutsByDevisByCode[did]&&cutsByDevisByCode[did][code])||[];
-      if(cuts.length) sepBars=sepBars.concat(binPackCuts(cuts,state.barLen,state.kerf));
+      if(cuts.length){ const bars=binPackCuts(cuts,state.barLen,state.kerf); sepBarsByDevis[did]=bars; sepBars=sepBars.concat(bars); }
     });
     const nbGroupe=groupedBars.length, nbSepare=sepBars.length;
     const chuteGroupe=groupedBars.reduce((s,b)=>s+b.chute,0);
     const chuteSepare=sepBars.reduce((s,b)=>s+b.chute,0);
     const coutBarre=getPrix(code,'standard',0)*(state.barLen/1000);
     const barresEconomisees=nbSepare-nbGroupe;
-    return {code,label:g.label,nbPieces:g.cuts.length,nbGroupe,nbSepare,chuteGroupe,chuteSepare,barresEconomisees,economieFcfa:barresEconomisees*coutBarre,groupedBars};
+    return {code,label:g.label,nbPieces:g.cuts.length,nbGroupe,nbSepare,chuteGroupe,chuteSepare,barresEconomisees,economieFcfa:barresEconomisees*coutBarre,groupedBars,sepBarsByDevis};
   }).sort((a,b)=>b.economieFcfa-a.economieFcfa);
 
   const surfaceFeuille=state.sheetW*state.sheetH/1e6;
   const glassDetail=glassCodes.map(code=>{
     const g=panelsByCode[code];
     const groupedSheets=packGlassSheetsTagged(g.panels,state.sheetW,state.sheetH,state.glassKerf);
-    let sepSheets=[];
+    let sepSheets=[]; const sepSheetsByDevis={};
     ids.forEach(did=>{
       const panels=(panelsByDevisByCode[did]&&panelsByDevisByCode[did][code])||[];
-      if(panels.length) sepSheets=sepSheets.concat(packGlassSheets(panels.map(p=>({w:p.w,h:p.h,qty:1})),state.sheetW,state.sheetH,state.glassKerf));
+      if(panels.length){ const sheets=packGlassSheets(panels.map(p=>({w:p.w,h:p.h,qty:1})),state.sheetW,state.sheetH,state.glassKerf); sepSheetsByDevis[did]=sheets; sepSheets=sepSheets.concat(sheets); }
     });
     const nbGroupe=groupedSheets.length, nbSepare=sepSheets.length;
     const surfacePieces=g.panels.reduce((s,p)=>s+p.w*p.h/1e6,0);
     const surfaceGroupe=nbGroupe*surfaceFeuille, surfaceSepare=nbSepare*surfaceFeuille;
     const coutFeuille=getPrix(code,'standard',0)*surfaceFeuille;
     const feuillesEconomisees=nbSepare-nbGroupe;
-    return {code,label:g.label,nbPieces:g.panels.length,surfacePieces,nbGroupe,nbSepare,surfaceGroupe,surfaceSepare,feuillesEconomisees,economieFcfa:feuillesEconomisees*coutFeuille,groupedSheets};
+    return {code,label:g.label,nbPieces:g.panels.length,surfacePieces,nbGroupe,nbSepare,surfaceGroupe,surfaceSepare,feuillesEconomisees,economieFcfa:feuillesEconomisees*coutFeuille,groupedSheets,sepSheetsByDevis};
   }).sort((a,b)=>b.economieFcfa-a.economieFcfa);
 
   window._simDebit.result={
@@ -1799,8 +1799,20 @@ function renderSimDebitResult(){
       <div class="overflow-x-auto"><table><thead><tr><th>Profil</th><th class="text-right">Pièces</th><th class="text-right">Barres séparé</th><th class="text-right">Barres groupé</th><th class="text-right">Économisées</th><th class="text-right">Chute groupée</th><th class="text-right">Économie</th></tr></thead>
       <tbody>${r.detail.map(d=>`<tr><td class="font-semibold">${escapeHtml(d.code)} — ${escapeHtml(d.label)}</td><td class="text-right">${d.nbPieces}</td><td class="text-right">${d.nbSepare}</td><td class="text-right">${d.nbGroupe}</td><td class="text-right ${d.barresEconomisees>0?'text-emerald-600 font-semibold':''}">${d.barresEconomisees}</td><td class="text-right">${Math.round(d.chuteGroupe).toLocaleString('fr-FR')} mm</td><td class="text-right">${money(d.economieFcfa)}</td></tr>`).join('')}</tbody></table></div>
     </div>
+    <div class="page-card mb-3">
+      <h3 class="font-bold text-sm mb-2">Plan séparé — chantier par chantier (avant regroupement)</h3>
+      <div class="mb-3">${legend}</div>
+      ${r.detail.map(d=>`<div class="mb-4">
+        <div class="flex justify-between items-center mb-2"><b class="text-sm">${escapeHtml(d.code)} — ${escapeHtml(d.label)}</b><span class="text-xs text-gray-500">${d.nbSepare} barre${d.nbSepare>1?'s':''} au total</span></div>
+        <div class="space-y-1.5">${r.ids.filter(did=>d.sepBarsByDevis[did]?.length).map(did=>(d.sepBarsByDevis[did]||[]).map((b,i)=>`
+          <div class="border rounded-lg p-2" style="border-left:4px solid ${colorForDevis(did)}">
+            <div class="flex justify-between text-xs text-gray-500 mb-1"><span>${escapeHtml(devisMap[did]?.libelle||'')} — barre ${i+1}</span><span>Chute ${Math.round(b.chute)} mm</span></div>
+            <div class="h-6 bg-slate-100 rounded flex overflow-hidden">${b.cuts.map(cut=>`<div style="width:${(cut/r.barLen*100).toFixed(2)}%;background:${colorForDevis(did)}" class="text-white text-[9px] flex items-center justify-center border-r border-white">${cut}</div>`).join('')}</div>
+          </div>`).join('')).join('')}</div>
+      </div>`).join('')}
+    </div>
     <div class="page-card mb-5">
-      <h3 class="font-bold text-sm mb-2">Plan de débit groupé (couleur = chantier d'origine)</h3>
+      <h3 class="font-bold text-sm mb-2">Plan groupé — mutualisé (couleur = chantier d'origine de chaque pièce)</h3>
       <div class="mb-3">${legend}</div>
       ${r.detail.map(d=>`<div class="mb-4">
         <div class="flex justify-between items-center mb-2"><b class="text-sm">${escapeHtml(d.code)} — ${escapeHtml(d.label)}</b><span class="text-xs text-gray-500">${d.nbGroupe} barre${d.nbGroupe>1?'s':''} de ${r.barLen.toLocaleString('fr-FR')} mm</span></div>
@@ -1822,6 +1834,25 @@ function renderSimDebitResult(){
       <h3 class="font-bold text-sm mb-2">Détail par type de vitrage</h3>
       <div class="overflow-x-auto"><table><thead><tr><th>Vitrage</th><th class="text-right">Panneaux</th><th class="text-right">Feuilles séparé</th><th class="text-right">Feuilles groupé</th><th class="text-right">Économisées</th><th class="text-right">Surface groupée</th><th class="text-right">Économie</th></tr></thead>
       <tbody>${r.glassDetail.map(d=>`<tr><td class="font-semibold">${escapeHtml(d.code)} — ${escapeHtml(d.label)}</td><td class="text-right">${d.nbPieces}</td><td class="text-right">${d.nbSepare}</td><td class="text-right">${d.nbGroupe}</td><td class="text-right ${d.feuillesEconomisees>0?'text-emerald-600 font-semibold':''}">${d.feuillesEconomisees}</td><td class="text-right">${d.surfaceGroupe.toFixed(2)} m²</td><td class="text-right">${money(d.economieFcfa)}</td></tr>`).join('')}</tbody></table></div>
+    </div>
+    <div class="page-card mb-3">
+      <h3 class="font-bold text-sm mb-2">Plan séparé — chantier par chantier (avant regroupement)</h3>
+      <div class="mb-3">${legend}</div>
+      ${r.glassDetail.map(d=>{
+        const scale=380/r.sheetW;
+        const blocks=r.ids.filter(did=>d.sepSheetsByDevis[did]?.length).map(did=>(d.sepSheetsByDevis[did]||[]).map((s,i)=>{
+          const itemsHtml=s.shelves.flatMap(sh=>sh.items).map(it=>`<div style="position:absolute;left:${it.x*scale}px;top:${it.y*scale}px;width:${it.w*scale}px;height:${it.h*scale}px;background:${colorForDevis(did)};opacity:.85;border:1px solid #fff;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;overflow:hidden">${it.w}×${it.h}</div>`).join('');
+          const chutesHtml=(s.chutes||[]).map(ch=>`<div style="position:absolute;left:${ch.x*scale}px;top:${ch.y*scale}px;width:${ch.w*scale}px;height:${ch.h*scale}px;background:rgba(148,163,184,.25);border:1px dashed #94a3b8"></div>`).join('');
+          return `<div>
+            <div style="position:relative;width:${r.sheetW*scale}px;height:${r.sheetH*scale}px;background:#f8fafc;border:2px solid ${colorForDevis(did)}">${itemsHtml}${chutesHtml}</div>
+            <div class="text-center text-[10px] text-gray-500 mt-1">${escapeHtml(devisMap[did]?.libelle||'')} — feuille ${i+1}</div>
+          </div>`;
+        }).join('')).join('');
+        return `<div class="mb-5">
+          <div class="flex justify-between items-center mb-2"><b class="text-sm">${escapeHtml(d.code)} — ${escapeHtml(d.label)}</b><span class="text-xs text-gray-500">${d.nbSepare} feuille${d.nbSepare>1?'s':''} au total</span></div>
+          <div class="flex flex-wrap gap-3 overflow-x-auto">${blocks}</div>
+        </div>`;
+      }).join('')}
     </div>
     <div class="page-card">
       <h3 class="font-bold text-sm mb-2">Schéma d'imbrication groupée (2D, couleur = chantier d'origine)</h3>
