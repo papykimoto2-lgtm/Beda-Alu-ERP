@@ -397,6 +397,12 @@ async function renderClientForm(el){
         <div class="field sm:col-span-2"><label>Adresse</label>${fieldWrap('📍',`<input id="clAdresse" value="${escapeHtml(c.adresse||'')}">`)}</div>
         <div class="field sm:col-span-2"><label>Source - Lieu d'affaire</label>${fieldWrap('🌐',`<input id="clSource" value="${escapeHtml(c.source||'')}">`)}</div>
         <div class="field"><label>Commercial</label>${fieldWrap('👤',`<input id="clCommercial" value="${escapeHtml(c.commercial||'')}">`)}</div>
+        <div class="sm:col-span-3 border-t pt-3 mt-1">
+          <div class="text-xs font-bold text-gray-500 uppercase mb-2">Informations légales — facturation normalisée (FNE)</div>
+        </div>
+        <div class="field"><label>NCC (n° contribuable)</label>${fieldWrap('🧾',`<input id="clNcc" placeholder="Requis pour facture FNE (client entreprise)" value="${escapeHtml(c.ncc||'')}">`)}</div>
+        <div class="field"><label>RCCM</label>${fieldWrap('📋',`<input id="clRccm" placeholder="CI-ABJ-2024-B-XXXX" value="${escapeHtml(c.rccm||'')}">`)}</div>
+        <div class="field"><label>Régime fiscal</label>${fieldWrap('⚖️',`<select id="clRegimeFiscal"><option value="">—</option><option value="reel_normal" ${c.regime_fiscal==='reel_normal'?'selected':''}>Réel normal (RNI)</option><option value="reel_simplifie" ${c.regime_fiscal==='reel_simplifie'?'selected':''}>Réel simplifié (RSI)</option><option value="micro" ${c.regime_fiscal==='micro'?'selected':''}>Micro-entreprise</option><option value="particulier" ${c.regime_fiscal==='particulier'?'selected':''}>Particulier (non assujetti)</option></select>`)}</div>
         <div class="sm:col-span-3 flex justify-end pt-2">
           <button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button>
         </div>
@@ -404,7 +410,7 @@ async function renderClientForm(el){
     </div>`;
   document.getElementById('clientForm').onsubmit=async (e)=>{
     e.preventDefault();
-    const rec={civilite:val('clCivilite'),nom:val('clNom'),prenoms:val('clPrenoms'),entreprise:val('clEntreprise'),telephone:val('clTelephone'),email:val('clEmail'),pays:val('clPays'),commune:val('clCommune'),categorie:val('clCategorie'),adresse:val('clAdresse'),source:val('clSource'),commercial:val('clCommercial')};
+    const rec={civilite:val('clCivilite'),nom:val('clNom'),prenoms:val('clPrenoms'),entreprise:val('clEntreprise'),telephone:val('clTelephone'),email:val('clEmail'),pays:val('clPays'),commune:val('clCommune'),categorie:val('clCategorie'),adresse:val('clAdresse'),source:val('clSource'),commercial:val('clCommercial'),ncc:val('clNcc'),rccm:val('clRccm'),regime_fiscal:val('clRegimeFiscal')||null};
     const id=val('clId');
     let error;
     if(id){ ({error}=await sb.from('clients').update(rec).eq('id',id)); }
@@ -540,12 +546,18 @@ async function renderFournisseurForm(el){
         <div class="field"><label>Commune / Villes</label>${fieldWrap('🏙️',`<input id="foCommune" value="${escapeHtml(f.commune||'')}">`)}</div>
         <div class="field"><label>Quartier</label>${fieldWrap('📍',`<input id="foQuartier" value="${escapeHtml(f.quartier||'')}">`)}</div>
         <div class="field sm:col-span-3"><label>Adresse</label>${fieldWrap('📍',`<input id="foAdresse" value="${escapeHtml(f.adresse||'')}">`)}</div>
+        <div class="sm:col-span-3 border-t pt-3 mt-1">
+          <div class="text-xs font-bold text-gray-500 uppercase mb-2">Informations légales — facturation normalisée (FNE)</div>
+        </div>
+        <div class="field"><label>NCC (n° contribuable)</label>${fieldWrap('🧾',`<input id="foNcc" value="${escapeHtml(f.ncc||'')}">`)}</div>
+        <div class="field"><label>RCCM</label>${fieldWrap('📋',`<input id="foRccm" placeholder="CI-ABJ-2024-B-XXXX" value="${escapeHtml(f.rccm||'')}">`)}</div>
+        <div class="field"><label>Régime fiscal</label>${fieldWrap('⚖️',`<select id="foRegimeFiscal"><option value="">—</option><option value="reel_normal" ${f.regime_fiscal==='reel_normal'?'selected':''}>Réel normal (RNI)</option><option value="reel_simplifie" ${f.regime_fiscal==='reel_simplifie'?'selected':''}>Réel simplifié (RSI)</option><option value="micro" ${f.regime_fiscal==='micro'?'selected':''}>Micro-entreprise</option></select>`)}</div>
         <div class="sm:col-span-3 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
       </form>
     </div>`;
   document.getElementById('fournisseurForm').onsubmit=async (e)=>{
     e.preventDefault();
-    const rec={nom:val('foNom'),categorie:val('foCategorie'),contact_principal:val('foContact'),telephone:val('foTelephone'),email:val('foEmail'),pays:val('foPays'),commune:val('foCommune'),quartier:val('foQuartier'),adresse:val('foAdresse')};
+    const rec={nom:val('foNom'),categorie:val('foCategorie'),contact_principal:val('foContact'),telephone:val('foTelephone'),email:val('foEmail'),pays:val('foPays'),commune:val('foCommune'),quartier:val('foQuartier'),adresse:val('foAdresse'),ncc:val('foNcc'),rccm:val('foRccm'),regime_fiscal:val('foRegimeFiscal')||null};
     const id=val('foId');
     let error;
     if(id){ ({error}=await sb.from('fournisseurs').update(rec).eq('id',id)); }
@@ -976,6 +988,7 @@ function docHeaderHtml(client,meta){
       <div class="doc-client-name">${escapeHtml(nomClient)}</div>
       ${client?.telephone?`<p>${escapeHtml(client.telephone)}</p>`:''}
       ${client?.email?`<p><a href="mailto:${escapeHtml(client.email)}">${escapeHtml(client.email)}</a></p>`:''}
+      ${(client?.ncc||client?.rccm)?`<p>${[client?.ncc?'NCC '+client.ncc:'',client?.rccm?'RCCM '+client.rccm:''].filter(Boolean).map(escapeHtml).join(' — ')}</p>`:''}
       <p>Lieu d'affaire : ${escapeHtml(meta.lieuAffaire||'—')}</p>
       ${meta.projet?`<p>Projet : ${escapeHtml(meta.projet)}</p>`:''}
       ${meta.categorie?`<p>Categorie : ${escapeHtml(meta.categorie)}</p>`:''}
@@ -1098,7 +1111,11 @@ async function convertirEnFacture(devisId,type){
   if(!confirm(`Générer une ${label} pour le devis ${d.code} (${money(d.total)}) ?`)) return;
   const rec={devis_id:devisId,client_id:d.client_id,total:d.total,created_by:CURRENT_USER.id,type_facture:type};
   if(type==='fne'){
-    const cert=await certifierFacturefne(d);
+    const {data:client}=await sb.from('clients').select('ncc,rccm,regime_fiscal').eq('id',d.client_id).single();
+    if(!client?.ncc && client?.regime_fiscal!=='particulier'){
+      if(!confirm("Ce client n'a pas de NCC renseigné (requis par la DGI pour un client entreprise). Continuer avec une référence provisoire ?")) return;
+    }
+    const cert=await certifierFacturefne(d,client);
     rec.fne_reference=cert.reference; rec.fne_statut=cert.statut;
   }
   const {error}=await sb.from('factures').insert(rec);
@@ -1106,13 +1123,13 @@ async function convertirEnFacture(devisId,type){
   await sb.from('devis').update({statut:'accepte'}).eq('id',devisId);
   toast(label+' générée'+(type==='fne'?' ('+rec.fne_statut+').':'.')); showPage('devis');
 }
-async function certifierFacturefne(devis){
+async function certifierFacturefne(devis,client){
   const p=window.APP_PARAMS||await loadAppParams();
   if(!p.fne_actif){ return {reference:'PROV-'+Date.now(),statut:'provisoire'}; }
   const url=p.fne_environnement==='production'?p.fne_url_prod:p.fne_url_test;
   if(!url||!p.fne_api_key) return {reference:'PROV-'+Date.now(),statut:'provisoire'};
   try{
-    const res=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+p.fne_api_key,'Content-Type':'application/json'},body:JSON.stringify({pointVente:p.fne_point_vente,etablissement:p.fne_etablissement,montant:devis.total,client:devis.client_id})});
+    const res=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+p.fne_api_key,'Content-Type':'application/json'},body:JSON.stringify({pointVente:p.fne_point_vente,etablissement:p.fne_etablissement,montant:devis.total,client:{id:devis.client_id,ncc:client?.ncc||null,rccm:client?.rccm||null}})});
     if(!res.ok) throw new Error('HTTP '+res.status);
     const json=await res.json().catch(()=>({}));
     return {reference:json.reference||json.ncc||('FNE-'+Date.now()),statut:'certifiee'};
