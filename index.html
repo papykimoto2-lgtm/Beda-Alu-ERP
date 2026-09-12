@@ -216,6 +216,15 @@ window.SB_CFG = {
         <button class="nav-child" data-page="composants">→ Catalogue composants & consommables</button>
       </div>
 
+      <div class="sidebar-group-title">Stock</div>
+      <button class="nav-parent" data-toggle="stock-g">🏠 <span>Stock</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="stock-g">
+        <button class="nav-child" data-page="stock-dashboard">→ Tableau de bord</button>
+        <button class="nav-child" data-page="stock-mouvements">→ Mouvements</button>
+        <button class="nav-child" data-page="stock-alertes">→ Alertes <span class="nav-badge nav-badge-red" id="badgeStockAlertes">0</span></button>
+        <button class="nav-child" data-page="stock-inventaire">→ Inventaire</button>
+      </div>
+
       <div class="sidebar-group-title">Réglages</div>
       <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="parametres">⚙️ <span>Paramètres</span></button>
     </nav>
@@ -321,6 +330,7 @@ async function enterApp(){
   if(nbAttente){ bell.textContent=nbAttente; bell.classList.remove('hidden'); }
   refreshDevisBadges();
   refreshProjetsBadges();
+  refreshStockAlertesBadge();
   loadAppParams();
   showPage('dashboard');
 }
@@ -330,9 +340,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients & Chantiers','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients & Chantiers','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g'};
 window._editId=null;
 async function showPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -1161,8 +1171,8 @@ function filterComposantsCatalogue(){
                 <div class="produit-icon">${COMPOSANT_FAM_ICONS[f]||'📦'}</div>
                 <span class="produit-pct" style="--fc:${c.type==='Consommable'?'#d97706':'#2563eb'}">${escapeHtml(c.type)}</span>
               </div>
-              <div class="pname">${escapeHtml(c.nom)}${c.code?' <span title="Utilisé par le Configurateur ('+escapeHtml(c.code)+')">🧩</span>':''}</div>
-              <div class="punite">${escapeHtml(c.unite)} · ${money(c.prix_unitaire)}</div>
+              <div class="pname">${escapeHtml(c.nom)}${c.code?' <span title="Utilisé par le Configurateur ('+escapeHtml(c.code)+')">🧩</span>':''}${(+c.stock_actuel||0)<(+c.stock_min||0)?' <span title="Sous le seuil minimum">🔴</span>':''}</div>
+              <div class="punite">${escapeHtml(c.unite)} · ${money(c.prix_unitaire)} · Stock : ${(+c.stock_actuel||0).toFixed(1)}</div>
               <div class="pactions">
                 <button style="color:${fc}" onclick="window._editId='${c.id}';showPage('composants-add')">✏️ Modifier</button>
                 <button class="text-gray-500" onclick="dupliquerComposant('${c.id}')">⧉ Dupliquer</button>
@@ -1207,12 +1217,21 @@ async function renderComposantForm(el){
         ${c.code?`<div class="field sm:col-span-2"><label>Code technique (Configurateur)</label>${fieldWrap('🧩',`<input value="${escapeHtml(c.code)}" readonly style="background:#f9fafb;color:#6b7280">`)}</div>
         <div class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 sm:col-span-2">🧩 Ce composant alimente directement le calcul du BOM dans le Configurateur d'ouvrage (code <b>${escapeHtml(c.code)}</b>). Modifier son prix ici change le chiffrage de tous les produits configurés qui l'utilisent.</div>`:''}
         <div class="field sm:col-span-2"><label>Référence fournisseur (optionnel)</label>${fieldWrap('🏷️',`<input id="coRef" value="${escapeHtml(c.reference||'')}">`)}</div>
+        <div class="sm:col-span-2 border-t pt-3 mt-1">
+          <div class="text-xs font-bold text-gray-500 uppercase mb-2">📦 Gestion de stock</div>
+        </div>
+        ${c.id?`<div class="field"><label>Stock actuel</label>${fieldWrap('📦',`<input value="${(+c.stock_actuel||0).toFixed(2)} ${escapeHtml(c.unite)}" readonly style="background:#f9fafb;color:#6b7280;font-weight:700">`)}</div>
+        <div class="field"><label>CMUP (coût moyen pondéré)</label>${fieldWrap('💰',`<input value="${money(c.cmup||0)}" readonly style="background:#f9fafb;color:#6b7280">`)}</div>
+        <div class="sm:col-span-2 text-xs text-gray-400">Le stock ne se modifie pas ici — passez par Stock → Mouvements (entrée/sortie/ajustement) ou Inventaire.</div>`:''}
+        <div class="field"><label>Stock minimum (seuil rupture)</label>${fieldWrap('⚠️',`<input id="coStockMin" type="number" min="0" step="0.1" value="${c.stock_min??0}">`)}</div>
+        <div class="field"><label>Stock maximum (seuil surstock)</label>${fieldWrap('📈',`<input id="coStockMax" type="number" min="0" step="0.1" value="${c.stock_max??''}" placeholder="Optionnel">`)}</div>
+        <div class="field sm:col-span-2"><label>Emplacement</label>${fieldWrap('📍',`<input id="coEmplacement" placeholder="Ex : Atelier A - Rayon 3" value="${escapeHtml(c.emplacement||'')}">`)}</div>
         <div class="sm:col-span-2 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
       </form>
     </div>`;
   document.getElementById('composantForm').onsubmit=async (e)=>{
     e.preventDefault();
-    const rec={nom:val('coNom'),type:val('coType'),famille:val('coFamille'),unite:val('coUnite'),prix_unitaire:+val('coPrix')||0,reference:val('coRef')||null};
+    const rec={nom:val('coNom'),type:val('coType'),famille:val('coFamille'),unite:val('coUnite'),prix_unitaire:+val('coPrix')||0,reference:val('coRef')||null,stock_min:+val('coStockMin')||0,stock_max:val('coStockMax')?+val('coStockMax'):null,emplacement:val('coEmplacement')||null};
     const id=val('coId');
     let error;
     if(id){ ({error}=await sb.from('composants').update(rec).eq('id',id)); }
@@ -1220,6 +1239,288 @@ async function renderComposantForm(el){
     if(error){ toast(error.message,'error'); return; }
     toast('Composant enregistré.'); window._editId=null; showPage('composants');
   };
+}
+
+/* ============================== STOCK ============================== */
+const STOCK_TYPE_LABELS={entree:{label:'Entrée',color:'#059669',icon:'⬇️'},sortie:{label:'Sortie',color:'#dc2626',icon:'⬆️'},ajustement:{label:'Ajustement',color:'#7c3aed',icon:'⚖️'},inventaire:{label:'Inventaire',color:'#2563eb',icon:'🧮'}};
+async function refreshStockAlertesBadge(){
+  const {data}=await sb.from('composants').select('stock_actuel,stock_min,stock_max');
+  const n=(data||[]).filter(c=>(+c.stock_actuel||0)<(+c.stock_min||0)||(c.stock_max!=null&&(+c.stock_actuel||0)>(+c.stock_max))).length;
+  const el=document.getElementById('badgeStockAlertes'); if(el) el.textContent=n;
+}
+function stockValeur(c){ return (+c.stock_actuel||0)*(+c.cmup||0); }
+async function renderStockDashboard(el){
+  const [{data:composants},{data:mouvements}]=await Promise.all([
+    sb.from('composants').select('*'),
+    sb.from('mouvements_stock').select('*, composants(nom,famille)').order('created_at',{ascending:true})
+  ]);
+  const valeurTotale=composants.reduce((s,c)=>s+stockValeur(c),0);
+  const ruptures=composants.filter(c=>(+c.stock_actuel||0)<(+c.stock_min||0));
+  const surstocks=composants.filter(c=>c.stock_max!=null&&(+c.stock_actuel||0)>(+c.stock_max));
+  const il30j=new Date(Date.now()-30*86400000);
+  const mvt30j=mouvements.filter(m=>new Date(m.created_at)>=il30j);
+  el.innerHTML=`
+    <div class="grid sm:grid-cols-4 gap-3 mb-4">
+      <div class="card p-4"><div class="text-xs text-gray-400 font-semibold uppercase">Valeur totale du stock</div><div class="text-2xl font-black mt-1" style="color:var(--accent)">${money(valeurTotale)}</div></div>
+      <div class="card p-4"><div class="text-xs text-gray-400 font-semibold uppercase">Ruptures (sous seuil min)</div><div class="text-2xl font-black mt-1" style="color:#dc2626">${ruptures.length}</div></div>
+      <div class="card p-4"><div class="text-xs text-gray-400 font-semibold uppercase">Surstocks (au-dessus max)</div><div class="text-2xl font-black mt-1" style="color:#d97706">${surstocks.length}</div></div>
+      <div class="card p-4"><div class="text-xs text-gray-400 font-semibold uppercase">Mouvements (30 derniers jours)</div><div class="text-2xl font-black mt-1" style="color:#2563eb">${mvt30j.length}</div></div>
+    </div>
+    <div class="grid lg:grid-cols-2 gap-3 mb-3">
+      <div class="card p-4"><h3 class="text-sm font-bold mb-2">📈 Évolution de la valeur du stock</h3><div style="height:260px"><canvas id="chartStockValeur"></canvas></div></div>
+      <div class="card p-4"><h3 class="text-sm font-bold mb-2">🥯 Valeur du stock par famille</h3><div style="height:260px"><canvas id="chartStockFamille"></canvas></div></div>
+    </div>
+    <div class="grid lg:grid-cols-2 gap-3 mb-3">
+      <div class="card p-4"><h3 class="text-sm font-bold mb-2">🔥 Top 5 consommations (30j)</h3><div style="height:260px"><canvas id="chartStockTop"></canvas></div></div>
+      <div class="card p-4"><h3 class="text-sm font-bold mb-2">🔄 Entrées / Sorties par jour (14j)</h3><div style="height:260px"><canvas id="chartStockFlux"></canvas></div></div>
+    </div>
+    ${ruptures.length?`<div class="card p-4">
+      <h3 class="text-sm font-bold mb-2 text-red-600">🔴 En rupture — action requise</h3>
+      <table><thead><tr><th>Composant</th><th class="text-right">Stock</th><th class="text-right">Seuil min</th><th></th></tr></thead>
+      <tbody>${ruptures.map(c=>`<tr><td>${escapeHtml(c.nom)}</td><td class="text-right">${(+c.stock_actuel).toFixed(1)} ${escapeHtml(c.unite)}</td><td class="text-right">${(+c.stock_min).toFixed(1)}</td>
+      <td class="text-right"><button class="text-xs font-semibold text-emerald-600" onclick="openMouvementModal('entree','${c.id}')">⬇️ Réapprovisionner</button></td></tr>`).join('')}</tbody></table>
+    </div>`:''}`;
+
+  // --- Chart 1 : évolution valeur du stock (replay chronologique des mouvements) ---
+  const running={}; let total=0; const points=[];
+  mouvements.forEach(m=>{
+    const prev=running[m.composant_id]||0;
+    const now=(+m.stock_apres||0)*(+m.cmup_apres||0);
+    total+=(now-prev);
+    running[m.composant_id]=now;
+    points.push({date:new Date(m.created_at).toLocaleDateString('fr-FR'),total});
+  });
+  const byDay={}; points.forEach(p=>{ byDay[p.date]=p.total; });
+  const labels1=Object.keys(byDay);
+  const data1=Object.values(byDay);
+  if(!labels1.length){ labels1.push("Aujourd'hui"); data1.push(valeurTotale); }
+  renderStockChart('chartStockValeur','line',{labels:labels1,datasets:[{label:'Valeur du stock (FCFA)',data:data1,borderColor:'#6d28d9',backgroundColor:'rgba(109,40,217,.12)',fill:true,tension:.25}]});
+
+  // --- Chart 2 : valeur par famille (donut) ---
+  const parFamille={};
+  composants.forEach(c=>{ const f=c.famille||'Autre'; parFamille[f]=(parFamille[f]||0)+stockValeur(c); });
+  const famEntries=Object.entries(parFamille).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  renderStockChart('chartStockFamille','doughnut',{labels:famEntries.map(e=>e[0]),datasets:[{data:famEntries.map(e=>e[1]),backgroundColor:famEntries.map(e=>COMPOSANT_FAM_COLORS[e[0]]||'#6b7280')}]});
+
+  // --- Chart 3 : top 5 consommations 30j ---
+  const consoParComposant={};
+  mvt30j.filter(m=>m.type==='sortie').forEach(m=>{ const nom=m.composants?.nom||'—'; consoParComposant[nom]=(consoParComposant[nom]||0)+Math.abs(+m.quantite); });
+  const top5=Object.entries(consoParComposant).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  renderStockChart('chartStockTop','bar',{labels:top5.map(e=>e[0]),datasets:[{label:'Quantité sortie',data:top5.map(e=>e[1]),backgroundColor:'#dc2626'}]},{indexAxis:'y'});
+
+  // --- Chart 4 : flux entrées/sorties 14 derniers jours (valorisés) ---
+  const jours=[]; for(let i=13;i>=0;i--){ const d=new Date(Date.now()-i*86400000); jours.push(d.toLocaleDateString('fr-FR')); }
+  const entreesParJour=Object.fromEntries(jours.map(j=>[j,0])), sortiesParJour=Object.fromEntries(jours.map(j=>[j,0]));
+  mouvements.forEach(m=>{
+    const j=new Date(m.created_at).toLocaleDateString('fr-FR');
+    if(!(j in entreesParJour)) return;
+    if(m.type==='entree') entreesParJour[j]+=(+m.quantite)*(+(m.prix_unitaire??m.cmup_apres)||0);
+    else if(m.type==='sortie') sortiesParJour[j]+=Math.abs(+m.quantite)*(+m.cmup_apres||0);
+  });
+  renderStockChart('chartStockFlux','bar',{labels:jours,datasets:[
+    {label:'Entrées',data:jours.map(j=>entreesParJour[j]),backgroundColor:'#059669'},
+    {label:'Sorties',data:jours.map(j=>sortiesParJour[j]),backgroundColor:'#dc2626'}
+  ]});
+}
+window._stockCharts=window._stockCharts||{};
+function renderStockChart(canvasId,type,data,extraOptions){
+  const el=document.getElementById(canvasId); if(!el) return;
+  if(window._stockCharts[canvasId]){ window._stockCharts[canvasId].destroy(); }
+  window._stockCharts[canvasId]=new Chart(el,{type,data,options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:type!=='bar'||data.datasets.length>1}},...extraOptions}});
+}
+
+async function renderStockMouvements(el){
+  const {data:composants}=await sb.from('composants').select('id,nom').order('nom');
+  window._stockComposantsCache=composants||[];
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div class="flex flex-wrap gap-2">
+        <select id="smFilterComposant" onchange="filterStockMouvements()"><option value="">Tous les composants</option>${composants.map(c=>`<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('')}</select>
+        <select id="smFilterType" onchange="filterStockMouvements()"><option value="">Tous types</option>${Object.entries(STOCK_TYPE_LABELS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select>
+      </div>
+      <button class="btn btn-primary" onclick="openMouvementModal()">+ Nouveau mouvement</button>
+    </div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Date</th><th>Composant</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Stock après</th><th>Motif</th><th>Référence</th></tr></thead>
+      <tbody id="smTbody"></tbody></table>
+    </div>`;
+  const {data:mouvements}=await sb.from('mouvements_stock').select('*, composants(nom,unite)').order('created_at',{ascending:false}).limit(500);
+  window._stockMouvementsCache=mouvements||[];
+  filterStockMouvements();
+}
+function filterStockMouvements(){
+  const compId=document.getElementById('smFilterComposant')?.value||'';
+  const type=document.getElementById('smFilterType')?.value||'';
+  const filtered=(window._stockMouvementsCache||[]).filter(m=>(!compId||m.composant_id===compId)&&(!type||m.type===type));
+  const tbody=document.getElementById('smTbody'); if(!tbody) return;
+  tbody.innerHTML=filtered.map(m=>{
+    const t=STOCK_TYPE_LABELS[m.type];
+    return `<tr><td class="text-xs">${new Date(m.created_at).toLocaleString('fr-FR')}</td><td>${escapeHtml(m.composants?.nom||'—')}</td>
+    <td><span class="pill" style="color:${t.color};border-color:${t.color}">${t.icon} ${t.label}</span></td>
+    <td class="text-right" style="color:${m.quantite<0?'#dc2626':'#059669'}">${m.quantite>0?'+':''}${(+m.quantite).toFixed(2)} ${escapeHtml(m.composants?.unite||'')}</td>
+    <td class="text-right">${(+m.stock_apres).toFixed(2)}</td>
+    <td>${escapeHtml(m.motif||'—')}</td><td>${escapeHtml(m.reference||'—')}</td></tr>`;
+  }).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun mouvement.</td></tr>';
+}
+async function openMouvementModal(presetType,presetComposantId){
+  let composants=window._stockComposantsCache;
+  if(!composants){ const {data}=await sb.from('composants').select('id,nom').order('nom'); composants=data||[]; }
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">📦 Nouveau mouvement de stock</h2>
+    <div class="divider"></div>
+    <form id="mouvementForm" class="grid sm:grid-cols-2 gap-4">
+      <div class="field sm:col-span-2"><label>Composant</label>${fieldWrap('🔩',`<select id="mvComposant" required>${composants.map(c=>`<option value="${c.id}" ${c.id===presetComposantId?'selected':''}>${escapeHtml(c.nom)}</option>`).join('')}</select>`)}</div>
+      <div class="field"><label>Type</label>${fieldWrap('🗂️',`<select id="mvType" onchange="updateMouvementFormFields()">${Object.entries(STOCK_TYPE_LABELS).map(([k,v])=>`<option value="${k}" ${k===presetType?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select>`)}</div>
+      <div class="field"><label id="mvQtyLabel">Quantité</label>${fieldWrap('#️⃣',`<input id="mvQuantite" type="number" step="0.01" required>`)}</div>
+      <div class="field sm:col-span-2" id="mvPrixField"><label>Prix unitaire d'achat (FCFA)</label>${fieldWrap('💰',`<input id="mvPrix" type="number" step="0.01" min="0">`)}</div>
+      <div class="field sm:col-span-2"><label>Motif</label>${fieldWrap('📝',`<input id="mvMotif" placeholder="Ex : Achat fournisseur, casse, correction…">`)}</div>
+      <div class="field sm:col-span-2"><label>Référence (optionnel)</label>${fieldWrap('🔗',`<input id="mvRef" placeholder="N° BL, code projet…">`)}</div>
+      <div class="sm:col-span-2 flex justify-end gap-2 pt-2">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button>
+        <button type="submit" class="btn btn-primary px-8">Enregistrer</button>
+      </div>
+    </form>`);
+  updateMouvementFormFields();
+  document.getElementById('mouvementForm').onsubmit=async (e)=>{
+    e.preventDefault();
+    const type=val('mvType');
+    const composantId=val('mvComposant');
+    const quantite=+val('mvQuantite');
+    const prix=val('mvPrix')?+val('mvPrix'):null;
+    if(!quantite && type!=='inventaire'){ toast('Quantité requise.','error'); return; }
+    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:val('mvRef')||null,p_prix_unitaire:prix});
+    if(error){ toast(error.message,'error'); return; }
+    toast('Mouvement enregistré.'); closeModal(); refreshStockAlertesBadge();
+    showPage(PAGE_RENDERERS[currentPageKey()]?currentPageKey():'stock-mouvements');
+  };
+}
+function currentPageKey(){
+  const active=document.querySelector('.nav-child.active,.nav-item.active');
+  return active?active.dataset.page:'stock-mouvements';
+}
+function updateMouvementFormFields(){
+  const type=val('mvType');
+  document.getElementById('mvPrixField').style.display=type==='entree'?'':'none';
+  document.getElementById('mvQtyLabel').textContent=type==='inventaire'?'Quantité comptée (valeur totale)':type==='ajustement'?'Écart (+/-)':'Quantité';
+}
+
+async function renderStockAlertes(el){
+  const {data}=await sb.from('composants').select('*').order('nom');
+  const ruptures=(data||[]).filter(c=>(+c.stock_actuel||0)<(+c.stock_min||0));
+  const surstocks=(data||[]).filter(c=>c.stock_max!=null&&(+c.stock_actuel||0)>(+c.stock_max));
+  refreshStockAlertesBadge();
+  const rowHtml=(c,kind)=>`<tr><td>${escapeHtml(c.nom)}</td><td>${escapeHtml(c.famille||'—')}</td>
+    <td class="text-right">${(+c.stock_actuel).toFixed(1)} ${escapeHtml(c.unite)}</td>
+    <td class="text-right">${kind==='rupture'?(+c.stock_min).toFixed(1):(+c.stock_max).toFixed(1)}</td>
+    <td class="text-right"><button class="text-xs font-semibold text-emerald-600" onclick="openMouvementModal('entree','${c.id}')">⬇️ Réapprovisionner</button></td></tr>`;
+  el.innerHTML=`
+    <div class="card p-4 mb-4">
+      <h3 class="text-sm font-bold mb-2 text-red-600">🔴 Ruptures — stock sous le seuil minimum (${ruptures.length})</h3>
+      <table><thead><tr><th>Composant</th><th>Famille</th><th class="text-right">Stock</th><th class="text-right">Seuil min</th><th></th></tr></thead>
+      <tbody>${ruptures.map(c=>rowHtml(c,'rupture')).join('')||'<tr><td colspan="5" class="text-gray-400 p-3">Aucune rupture 🎉</td></tr>'}</tbody></table>
+    </div>
+    <div class="card p-4">
+      <h3 class="text-sm font-bold mb-2 text-amber-600">📈 Surstocks — au-dessus du seuil maximum (${surstocks.length})</h3>
+      <table><thead><tr><th>Composant</th><th>Famille</th><th class="text-right">Stock</th><th class="text-right">Seuil max</th><th></th></tr></thead>
+      <tbody>${surstocks.map(c=>rowHtml(c,'surstock')).join('')||'<tr><td colspan="5" class="text-gray-400 p-3">Aucun surstock.</td></tr>'}</tbody></table>
+    </div>`;
+}
+
+async function renderStockInventaire(el){
+  const {data}=await sb.from('composants').select('*').order('famille,nom');
+  window._inventaireCache=data||[];
+  el.innerHTML=`
+    <div class="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-3 py-2 mb-4">🧮 Saisissez la quantité réellement comptée pour chaque composant. Seuls les écarts génèrent un mouvement d'inventaire — le reste n'est pas touché.</div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Composant</th><th>Famille</th><th class="text-right">Stock système</th><th class="text-right">Quantité comptée</th><th class="text-right">Écart</th></tr></thead>
+      <tbody>${data.map(c=>`<tr data-comp="${c.id}">
+        <td>${escapeHtml(c.nom)}</td><td>${escapeHtml(c.famille||'—')}</td>
+        <td class="text-right">${(+c.stock_actuel).toFixed(2)} ${escapeHtml(c.unite)}</td>
+        <td class="text-right"><input type="number" step="0.01" style="width:100px;text-align:right" value="${(+c.stock_actuel).toFixed(2)}" id="inv_${c.id}" oninput="updateEcartInventaire('${c.id}')"></td>
+        <td class="text-right font-semibold" id="ecart_${c.id}">0</td>
+      </tr>`).join('')}</tbody></table>
+    </div>
+    <div class="flex justify-end mt-4"><button class="btn btn-primary px-8 py-2.5" onclick="validerInventaire()">✔ Valider l'inventaire</button></div>`;
+}
+function updateEcartInventaire(compId){
+  const c=(window._inventaireCache||[]).find(x=>x.id===compId); if(!c) return;
+  const compte=+document.getElementById('inv_'+compId).value||0;
+  const ecart=compte-(+c.stock_actuel||0);
+  const elE=document.getElementById('ecart_'+compId);
+  elE.textContent=(ecart>0?'+':'')+ecart.toFixed(2);
+  elE.style.color=ecart===0?'#9ca3af':ecart>0?'#059669':'#dc2626';
+}
+async function validerInventaire(){
+  const data=window._inventaireCache||[];
+  const aTraiter=data.filter(c=>{ const compte=+document.getElementById('inv_'+c.id).value; return Math.abs(compte-(+c.stock_actuel||0))>0.0001; });
+  if(!aTraiter.length){ toast('Aucun écart à enregistrer.'); return; }
+  if(!confirm(`${aTraiter.length} écart(s) détecté(s). Enregistrer l'inventaire ?`)) return;
+  for(const c of aTraiter){
+    const compte=+document.getElementById('inv_'+c.id).value;
+    await sb.rpc('stock_mouvement',{p_composant_id:c.id,p_type:'inventaire',p_quantite:compte,p_motif:'Inventaire physique',p_reference:null,p_prix_unitaire:null});
+  }
+  toast(`Inventaire enregistré : ${aTraiter.length} écart(s).`);
+  refreshStockAlertesBadge();
+  showPage('stock-inventaire');
+}
+
+/* ---------- Décharge de stock depuis une Fiche d'exécution terminée ---------- */
+async function proposerDechargeStock(ficheId){
+  const {data:fiche}=await sb.from('fiches_execution').select('id,code,devis_id').eq('id',ficheId).single();
+  if(!fiche) return;
+  const {data:lignesFiche}=await sb.from('fiche_execution_lignes').select('devis_ligne_id').eq('fiche_id',ficheId);
+  const devisLigneIds=(lignesFiche||[]).map(l=>l.devis_ligne_id).filter(Boolean);
+  if(!devisLigneIds.length) return;
+  const {data:devisLignes}=await sb.from('devis_lignes').select('id,largeur,hauteur,quantite,produit_id').in('id',devisLigneIds);
+  const produitIds=[...new Set((devisLignes||[]).map(l=>l.produit_id).filter(Boolean))];
+  if(!produitIds.length) return;
+  const {data:produits}=await sb.from('produits').select('id,nom,config_json').in('id',produitIds);
+  const produitMap=Object.fromEntries((produits||[]).map(p=>[p.id,p]));
+  const {data:composants}=await sb.from('composants').select('id,nom,code,unite').not('code','is',null);
+  const composantByCode=Object.fromEntries((composants||[]).map(c=>[c.code,c]));
+  window._composantsPriceMap=window._composantsPriceMap||{};
+
+  const besoins={}; // code -> {qty, composant}
+  (devisLignes||[]).forEach(l=>{
+    const produit=produitMap[l.produit_id];
+    if(!produit?.config_json) return;
+    const c=produit.config_json;
+    const res=configCalculerBOM(c.type,+l.largeur||0,+l.hauteur||0,c.leaves||1,+l.quantite||1,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill});
+    res.rows.forEach(r=>{
+      const composant=composantByCode[r[0]];
+      if(!composant) return;
+      besoins[r[0]]=besoins[r[0]]||{composant,qty:0};
+      besoins[r[0]].qty+=+r[2]||0;
+    });
+  });
+  const items=Object.values(besoins).filter(b=>b.qty>0);
+  if(!items.length) return;
+
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">📦 Décharger le stock — Fiche ${escapeHtml(fiche.code)}</h2>
+    <div class="divider"></div>
+    <p class="text-xs text-gray-500 mb-3">D'après la nomenclature (BOM) des produits configurés de cette fiche. Décochez ce qui ne doit pas être décompté.</p>
+    <div class="overflow-x-auto mb-4"><table><thead><tr><th></th><th>Composant</th><th class="text-right">Quantité à sortir</th></tr></thead>
+    <tbody>${items.map((it,i)=>`<tr>
+      <td><input type="checkbox" checked id="dc_${i}"></td>
+      <td>${escapeHtml(it.composant.nom)}</td>
+      <td class="text-right">${it.qty.toFixed(2)} ${escapeHtml(it.composant.unite)}</td>
+    </tr>`).join('')}</tbody></table></div>
+    <div class="flex justify-end gap-2">
+      <button class="btn btn-outline" onclick="closeModal()">Ignorer</button>
+      <button class="btn btn-primary px-8" onclick='confirmerDechargeStock(${JSON.stringify(items.map(it=>({id:it.composant.id,qty:it.qty})))},"${escapeHtml(fiche.code)}")'>✔ Décharger le stock</button>
+    </div>`);
+  window._dechargeItems=items;
+}
+async function confirmerDechargeStock(items,ficheCode){
+  let n=0;
+  for(let i=0;i<items.length;i++){
+    if(!document.getElementById('dc_'+i)?.checked) continue;
+    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:items[i].id,p_type:'sortie',p_quantite:items[i].qty,p_motif:"Fiche d'exécution",p_reference:ficheCode,p_prix_unitaire:null});
+    if(!error) n++;
+  }
+  toast(`Stock déchargé (${n} composant(s)).`);
+  closeModal(); refreshStockAlertesBadge();
 }
 
 /* ============================== CONFIGURATEUR D'OUVRAGE ============================== */
@@ -2522,6 +2823,7 @@ async function updateFicheHeader(field,value){
   const {error}=await sb.from('fiches_execution').update({[field]:value}).eq('id',window._ficheCurrent.f.id);
   if(error) toast(error.message,'error');
   window._ficheCurrent.f[field]=value;
+  if(field==='statut' && value==='termine'){ proposerDechargeStock(window._ficheCurrent.f.id); }
 }
 function printFicheExecution(){
   const {f,lignes}=window._ficheCurrent;
@@ -2656,7 +2958,7 @@ function printEstimation(){
 }
 
 /* ============================== PARAMÉTRAGE : SOCIÉTÉ / LOGO / SUPABASE / SYNCHRO / SAUVEGARDE ============================== */
-const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','parametres'];
+const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','parametres'];
 async function loadAppParams(){
   let {data}=await sb.from('parametres').select('*').limit(1).maybeSingle();
   if(!data){ const res=await sb.from('parametres').insert({}).select().single(); data=res.data; }
