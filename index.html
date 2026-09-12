@@ -104,9 +104,11 @@ window.SB_CFG = {
   .doc-total-final span{color:var(--accent)!important}
   .pill{display:inline-flex;align-items:center;padding:4px 14px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid currentColor}
   .dropdown{position:relative;display:inline-block}
-  .dropdown-menu{position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:180px;z-index:30;overflow:hidden}
-  .dropdown-menu button{width:100%;text-align:left;padding:9px 14px;font-size:13px;background:#fff;border:0;cursor:pointer;color:#374151}
+  .dropdown-menu{position:fixed;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);min-width:190px;z-index:200;overflow:hidden}
+  .dropdown-menu button{width:100%;text-align:left;padding:9px 14px;font-size:13px;background:#fff;border:0;cursor:pointer;color:#374151;display:flex;align-items:center;gap:6px}
   .dropdown-menu button:hover{background:#f3f4f6}
+  .btn-icon-menu{width:30px;height:30px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-weight:900;font-size:15px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+  .btn-icon-menu:hover{background:#f3f4f6;color:#374151;border-color:#d1d5db}
   .fam-section-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
   .fam-section-head .bar{width:5px;height:20px;border-radius:3px}
   .fam-section-head h3{font-size:13px;font-weight:800;color:#111827;text-transform:none;letter-spacing:0}
@@ -457,9 +459,14 @@ function filterClientsTable(){
     <td>${escapeHtml(c.telephone||'—')}</td><td>${escapeHtml(c.email||'—')}</td><td>${escapeHtml(c.commune||'—')}</td>
     <td>${escapeHtml(c.categorie||'—')}</td>
     <td class="text-right whitespace-nowrap">
-      <button class="text-gray-500 text-xs font-semibold mr-2" onclick="printClientFiche('${c.id}')">🖨 Imprimer</button>
-      <button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${c.id}';showPage('clients-add')">Modifier</button>
-      <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('clients','${c.id}','clients')">Suppr.</button>
+      <div class="dropdown">
+        <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+        <div class="dropdown-menu hidden">
+          <button style="color:#6b7280" onclick="printClientFiche('${c.id}')">🖨 Imprimer la fiche</button>
+          <button style="color:#4f46e5" onclick="window._editId='${c.id}';showPage('clients-add')">✏️ Modifier</button>
+          <button style="color:#dc2626" onclick="deleteRow('clients','${c.id}','clients')">🗑️ Supprimer</button>
+        </div>
+      </div>
     </td>
   </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun client.</td></tr>';
   const countEl=document.getElementById('clientsCount'); if(countEl) countEl.textContent=`${filtered.length} client(s)`+(filtered.length!==data.length?` sur ${data.length}`:'');
@@ -757,8 +764,15 @@ async function renderProspects(el){
         <td class="font-semibold">${escapeHtml(p.code)}</td>
         <td>${escapeHtml([p.civilite,p.nom,p.prenoms].filter(Boolean).join(' '))}${p.entreprise?`<div class="text-xs text-gray-400">${escapeHtml(p.entreprise)}</div>`:''}</td>
         <td>${escapeHtml(p.telephone||'—')}</td><td>${escapeHtml(p.email||'—')}</td><td>${badge(STATUT_PROSPECT,p.statut)}</td>
-        <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${p.id}';showPage('prospects-add')">Modifier</button>
-        <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('prospects','${p.id}','prospects')">Suppr.</button></td>
+        <td class="text-right whitespace-nowrap">
+          <div class="dropdown">
+            <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+            <div class="dropdown-menu hidden">
+              <button style="color:#4f46e5" onclick="window._editId='${p.id}';showPage('prospects-add')">✏️ Modifier</button>
+              <button style="color:#dc2626" onclick="deleteRow('prospects','${p.id}','prospects')">🗑️ Supprimer</button>
+            </div>
+          </div>
+        </td>
       </tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 p-4">Aucun prospect.</td></tr>'}</tbody></table>
     </div>`;
 }
@@ -839,9 +853,14 @@ function filterFournisseursTable(){
     <td class="font-semibold">${escapeHtml(f.code)}</td><td>${escapeHtml(f.nom)}</td>
     <td>${escapeHtml(f.contact_principal||'—')}</td><td>${escapeHtml(f.telephone||'—')}</td><td>${escapeHtml(f.categorie||'—')}</td>
     <td class="text-right whitespace-nowrap">
-      <button class="text-gray-500 text-xs font-semibold mr-2" onclick="printFournisseurFiche('${f.id}')">🖨 Imprimer</button>
-      <button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${f.id}';showPage('fournisseurs-add')">Modifier</button>
-      <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('fournisseurs','${f.id}','fournisseurs')">Suppr.</button>
+      <div class="dropdown">
+        <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+        <div class="dropdown-menu hidden">
+          <button style="color:#6b7280" onclick="printFournisseurFiche('${f.id}')">🖨 Imprimer la fiche</button>
+          <button style="color:#4f46e5" onclick="window._editId='${f.id}';showPage('fournisseurs-add')">✏️ Modifier</button>
+          <button style="color:#dc2626" onclick="deleteRow('fournisseurs','${f.id}','fournisseurs')">🗑️ Supprimer</button>
+        </div>
+      </div>
     </td>
   </tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 p-4">Aucun fournisseur.</td></tr>';
   const countEl=document.getElementById('fournisseursCount'); if(countEl) countEl.textContent=`${filtered.length} fournisseur(s)`+(filtered.length!==data.length?` sur ${data.length}`:'');
@@ -963,8 +982,15 @@ async function renderProjets(el,filterEtape){
         <td>${escapeHtml(p.clients?[p.clients.nom,p.clients.prenoms].filter(Boolean).join(' '):'—')}</td>
         <td>${fmtDate(p.date_debut)}</td><td>${fmtDate(p.date_fin)}</td>
         <td><select onchange="updateProjetEtape('${p.id}',this.value)" class="text-xs">${Object.entries(STATUT_PROJET).map(([k,v])=>`<option value="${k}" ${k===p.etape?'selected':''}>${v.label}</option>`).join('')}</select></td>
-        <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${p.id}';showPage('projets-add')">Modifier</button>
-        <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('projets','${p.id}','projets')">Suppr.</button></td>
+        <td class="text-right whitespace-nowrap">
+          <div class="dropdown">
+            <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+            <div class="dropdown-menu hidden">
+              <button style="color:#4f46e5" onclick="window._editId='${p.id}';showPage('projets-add')">✏️ Modifier</button>
+              <button style="color:#dc2626" onclick="deleteRow('projets','${p.id}','projets')">🗑️ Supprimer</button>
+            </div>
+          </div>
+        </td>
       </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun projet.</td></tr>'}</tbody></table>
     </div>`;
 }
@@ -1107,18 +1133,30 @@ function filterProduitsCatalogue(){
               <div class="pname">${escapeHtml(p.nom)}${p.config_json?' <span title="Créé via le Configurateur">🧩</span>':''}</div>
               <div class="punite">${escapeHtml(p.unite)}</div>
               <div class="pactions">
-                ${p.config_json?`<button style="color:${fc}" onclick="configurerProduitExistant('${p.id}')">🧩 Reconfigurer</button>`:`<button style="color:${fc}" onclick="window._editId='${p.id}';showPage('produits-add')">✏️ Modifier</button>`}
-                <button class="text-gray-500" onclick="dupliquerProduit('${p.id}')">⧉ Dupliquer</button>
-                <button class="text-red-500" onclick="deleteRow('produits','${p.id}','produits')">🗑️ Suppr.</button>
+                <div class="dropdown">
+                  <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+                  <div class="dropdown-menu hidden">
+                    ${p.config_json?`<button style="color:${fc}" onclick="configurerProduitExistant('${p.id}')">🧩 Reconfigurer</button>`:`<button style="color:${fc}" onclick="window._editId='${p.id}';showPage('produits-add')">✏️ Modifier</button>`}
+                    <button style="color:#6b7280" onclick="dupliquerProduit('${p.id}')">⧉ Dupliquer</button>
+                    <button style="color:#dc2626" onclick="deleteRow('produits','${p.id}','produits')">🗑️ Supprimer</button>
+                  </div>
+                </div>
               </div>
             </div>`).join('')}
         </div>` : `
         <div class="card overflow-x-auto">
           <table><thead><tr><th>Désignation</th><th>Unité</th><th class="text-right">% coût matériel</th><th></th></tr></thead>
           <tbody>${groups[f].map(p=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(p.nom)}${p.config_json?' 🧩':''}</td><td>${escapeHtml(p.unite)}</td><td class="text-right"><span class="produit-pct" style="--fc:${fc}">${p.cout_materiel_pct}%</span></td>
-          <td class="text-right whitespace-nowrap">${p.config_json?`<button class="text-xs font-semibold mr-3" style="color:${fc}" onclick="configurerProduitExistant('${p.id}')">🧩 Reconfigurer</button>`:`<button class="text-xs font-semibold mr-3" style="color:${fc}" onclick="window._editId='${p.id}';showPage('produits-add')">✏️ Modifier</button>`}
-          <button class="text-gray-500 text-xs font-semibold mr-3" onclick="dupliquerProduit('${p.id}')">⧉ Dupliquer</button>
-          <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('produits','${p.id}','produits')">🗑️ Suppr.</button></td></tr>`).join('')}</tbody></table>
+          <td class="text-right whitespace-nowrap">
+            <div class="dropdown">
+              <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+              <div class="dropdown-menu hidden">
+                ${p.config_json?`<button style="color:${fc}" onclick="configurerProduitExistant('${p.id}')">🧩 Reconfigurer</button>`:`<button style="color:${fc}" onclick="window._editId='${p.id}';showPage('produits-add')">✏️ Modifier</button>`}
+                <button style="color:#6b7280" onclick="dupliquerProduit('${p.id}')">⧉ Dupliquer</button>
+                <button style="color:#dc2626" onclick="deleteRow('produits','${p.id}','produits')">🗑️ Supprimer</button>
+              </div>
+            </div>
+          </td></tr>`).join('')}</tbody></table>
         </div>`}
     </div>`;
   }).join('');
@@ -1249,18 +1287,30 @@ function filterComposantsCatalogue(){
               <div class="pname">${escapeHtml(c.nom)}${c.code?' <span title="Utilisé par le Configurateur ('+escapeHtml(c.code)+')">🧩</span>':''}${(+c.stock_actuel||0)<(+c.stock_min||0)?' <span title="Sous le seuil minimum">🔴</span>':''}</div>
               <div class="punite">${COMPOSANT_STANDINGS[c.standing||'standard']?.icon||''} ${COMPOSANT_STANDINGS[c.standing||'standard']?.label||''} · ${escapeHtml(c.unite)} · ${money(c.prix_unitaire)} · Stock : ${(+c.stock_actuel||0).toFixed(1)}</div>
               <div class="pactions">
-                <button style="color:${fc}" onclick="window._editId='${c.id}';showPage('composants-add')">✏️ Modifier</button>
-                <button class="text-gray-500" onclick="dupliquerComposant('${c.id}')">⧉ Dupliquer</button>
-                <button class="text-red-500" onclick="deleteRow('composants','${c.id}','composants')">🗑️ Suppr.</button>
+                <div class="dropdown">
+                  <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+                  <div class="dropdown-menu hidden">
+                    <button style="color:${fc}" onclick="window._editId='${c.id}';showPage('composants-add')">✏️ Modifier</button>
+                    <button style="color:#6b7280" onclick="dupliquerComposant('${c.id}')">⧉ Dupliquer</button>
+                    <button style="color:#dc2626" onclick="deleteRow('composants','${c.id}','composants')">🗑️ Supprimer</button>
+                  </div>
+                </div>
               </div>
             </div>`).join('')}
         </div>` : `
         <div class="card overflow-x-auto">
           <table><thead><tr><th>Désignation</th><th>Type</th><th>Standing</th><th>Unité</th><th class="text-right">Prix unitaire</th><th></th></tr></thead>
           <tbody>${groups[f].map(c=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(c.nom)}${c.code?' 🧩':''}</td><td>${escapeHtml(c.type)}</td><td>${COMPOSANT_STANDINGS[c.standing||'standard']?.icon||''} ${COMPOSANT_STANDINGS[c.standing||'standard']?.label||''}</td><td>${escapeHtml(c.unite)}</td><td class="text-right">${money(c.prix_unitaire)}</td>
-          <td class="text-right whitespace-nowrap"><button class="text-xs font-semibold mr-3" style="color:${fc}" onclick="window._editId='${c.id}';showPage('composants-add')">✏️ Modifier</button>
-          <button class="text-gray-500 text-xs font-semibold mr-3" onclick="dupliquerComposant('${c.id}')">⧉ Dupliquer</button>
-          <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('composants','${c.id}','composants')">🗑️ Suppr.</button></td></tr>`).join('')}</tbody></table>
+          <td class="text-right whitespace-nowrap">
+            <div class="dropdown">
+              <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+              <div class="dropdown-menu hidden">
+                <button style="color:${fc}" onclick="window._editId='${c.id}';showPage('composants-add')">✏️ Modifier</button>
+                <button style="color:#6b7280" onclick="dupliquerComposant('${c.id}')">⧉ Dupliquer</button>
+                <button style="color:#dc2626" onclick="deleteRow('composants','${c.id}','composants')">🗑️ Supprimer</button>
+              </div>
+            </div>
+          </td></tr>`).join('')}</tbody></table>
         </div>`}
     </div>`;
   }).join('');
@@ -2700,13 +2750,18 @@ async function renderDevis(el,filterStatut){
         <td>${escapeHtml(d.projets?.libelle||'—')}</td><td>${fmtDate(d.date_creation)}</td>
         <td class="text-right">${money(d.total)}</td><td>${badge(STATUT_DEVIS,d.statut)}</td>
         <td class="text-right whitespace-nowrap">
-          <button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${d.id}';showPage('devis-add')">Modifier</button>
-          <button class="text-indigo-700 text-xs font-semibold mr-2" onclick="reviserDevis('${d.id}')" title="Créer une nouvelle version">↻</button>
-          <button class="text-teal-600 text-xs font-semibold mr-2" onclick="printDevis('${d.id}')">🖨</button>
-          <button class="text-purple-600 text-xs font-semibold mr-2" onclick="openEstimation('${d.id}')">📊</button>
-          <button class="text-amber-600 text-xs font-semibold mr-2" onclick="genererFicheExecution('${d.id}')">🛠️</button>
-          <button class="text-emerald-600 text-xs font-semibold mr-2" onclick="convertirEnFacture('${d.id}')">🧾</button>
-          <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('devis','${d.id}','devis')">Suppr.</button>
+          <div class="dropdown">
+            <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+            <div class="dropdown-menu hidden">
+              <button style="color:#4f46e5" onclick="window._editId='${d.id}';showPage('devis-add')">✏️ Modifier</button>
+              <button style="color:#4338ca" onclick="reviserDevis('${d.id}')">↻ Réviser (nouvelle version)</button>
+              <button style="color:#0d9488" onclick="printDevis('${d.id}')">🖨 Imprimer</button>
+              <button style="color:#7c3aed" onclick="openEstimation('${d.id}')">📊 Estimation</button>
+              <button style="color:#d97706" onclick="genererFicheExecution('${d.id}')">🛠️ Fiche d'exécution</button>
+              <button style="color:#059669" onclick="convertirEnFacture('${d.id}')">🧾 Convertir en facture</button>
+              <button style="color:#dc2626" onclick="deleteRow('devis','${d.id}','devis')">🗑️ Supprimer</button>
+            </div>
+          </div>
         </td>
       </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun devis.</td></tr>'}</tbody></table>
     </div>`;
@@ -2995,12 +3050,12 @@ async function renderDevisDetail(el){
       <div class="dropdown">
         <button class="btn btn-primary" onclick="toggleDropdown(event,'devisOptionsMenu')">⚙ Options ▾</button>
         <div class="dropdown-menu hidden" id="devisOptionsMenu">
-          <button onclick="deleteRow('devis','${d.id}','devis')">Supprimer</button>
-          <button onclick="window._editId='${d.id}';showPage('devis-add')">Modifier</button>
-          <button onclick="reviserDevis('${d.id}')">↻ Réviser (nouvelle version)</button>
-          <button onclick="dupliquerDevis('${d.id}')">Dupliquer (nouveau dossier)</button>
-          <button onclick="printDevis('${d.id}')">Prévisualiser</button>
-          <button onclick="ajouterRappel('${d.id}')">Ajouter un Rappel</button>
+          <button style="color:#4f46e5" onclick="window._editId='${d.id}';showPage('devis-add')">✏️ Modifier</button>
+          <button style="color:#4338ca" onclick="reviserDevis('${d.id}')">↻ Réviser (nouvelle version)</button>
+          <button style="color:#6b7280" onclick="dupliquerDevis('${d.id}')">⧉ Dupliquer (nouveau dossier)</button>
+          <button style="color:#0d9488" onclick="printDevis('${d.id}')">🖨 Prévisualiser</button>
+          <button style="color:#d97706" onclick="ajouterRappel('${d.id}')">⏰ Ajouter un rappel</button>
+          <button style="color:#dc2626" onclick="deleteRow('devis','${d.id}','devis')">🗑️ Supprimer</button>
         </div>
       </div>
     </div>
@@ -3016,10 +3071,36 @@ async function renderDevisDetail(el){
     </div>
     ${await fichesExecutionSectionHtml(d.id)}`;
 }
+function positionDropdown(btn,menu){
+  const r=btn.getBoundingClientRect();
+  menu.style.left='auto';
+  menu.style.right=Math.max(8,window.innerWidth-r.right)+'px';
+  menu.style.top=(r.bottom+4)+'px';
+  requestAnimationFrame(()=>{
+    const mr=menu.getBoundingClientRect();
+    if(mr.bottom>window.innerHeight-8) menu.style.top=Math.max(8,r.top-mr.height-4)+'px';
+    if(mr.left<8){ menu.style.right='auto'; menu.style.left='8px'; }
+  });
+}
 function toggleDropdown(e,id){
   e.stopPropagation();
-  document.querySelectorAll('.dropdown-menu').forEach(m=>{ if(m.id!==id) m.classList.add('hidden'); });
-  document.getElementById(id).classList.toggle('hidden');
+  const menu=document.getElementById(id);
+  document.querySelectorAll('.dropdown-menu').forEach(m=>{ if(m!==menu) m.classList.add('hidden'); });
+  const willOpen=menu.classList.contains('hidden');
+  menu.classList.toggle('hidden');
+  if(willOpen) positionDropdown(e.currentTarget,menu);
+}
+/* Menu ⋯ générique en bout de ligne (tableaux/grilles) — pas d'id requis : le menu est le
+   frère DOM du bouton déclencheur. position:fixed + positionDropdown() lui évite d'être
+   rogné par les conteneurs de tableau en overflow-x:auto. */
+function toggleRowMenu(e){
+  e.stopPropagation();
+  const btn=e.currentTarget;
+  const menu=btn.nextElementSibling;
+  document.querySelectorAll('.dropdown-menu').forEach(m=>{ if(m!==menu) m.classList.add('hidden'); });
+  const willOpen=menu.classList.contains('hidden');
+  menu.classList.toggle('hidden');
+  if(willOpen) positionDropdown(btn,menu);
 }
 document.addEventListener('click',()=>document.querySelectorAll('.dropdown-menu').forEach(m=>m.classList.add('hidden')));
 async function dupliquerDevis(devisId){
@@ -3183,9 +3264,9 @@ async function renderFactureDetail(el){
       <div class="dropdown">
         <button class="btn btn-primary" onclick="toggleDropdown(event,'factureOptionsMenu')">⚙ Options ▾</button>
         <div class="dropdown-menu hidden" id="factureOptionsMenu">
-          <button onclick="deleteRow('factures','${f.id}','factures')">Supprimer</button>
-          <button onclick="updateFactureStatut('${f.id}','payee');showPage('facture-view')">Marquer payée</button>
-          <button onclick="printFacture('${f.id}')">Prévisualiser</button>
+          <button style="color:#059669" onclick="updateFactureStatut('${f.id}','payee');showPage('facture-view')">✔ Marquer payée</button>
+          <button style="color:#0d9488" onclick="printFacture('${f.id}')">🖨 Prévisualiser</button>
+          <button style="color:#dc2626" onclick="deleteRow('factures','${f.id}','factures')">🗑️ Supprimer</button>
         </div>
       </div>
     </div>
