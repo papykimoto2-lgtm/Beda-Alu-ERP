@@ -2267,6 +2267,7 @@ async function renderParametres(el){
     <div class="flex flex-wrap gap-2 mb-4 border-b pb-2">
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white" data-paramtab="societe" onclick="switchParamTab('societe')">🏢 Société</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="fne" onclick="switchParamTab('fne')">🧾 FNE (DGI)</button>
+      <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="portail" onclick="switchParamTab('portail')">🌐 Portail client</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="supabase" onclick="switchParamTab('supabase')">☁️ Supabase</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="synchro" onclick="switchParamTab('synchro')">🔄 Synchro</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="sauvegarde" onclick="switchParamTab('sauvegarde')">💾 Sauvegarde</button>
@@ -2337,6 +2338,28 @@ async function renderParametres(el){
       </div>
     </div>
 
+    <div id="paramTab-portail" class="param-tab hidden">
+      <div class="page-card max-w-3xl">
+        <h2>🌐 Portail client — suivi en ligne</h2>
+        <div class="divider"></div>
+        <p class="text-xs text-gray-500 mb-4">Génère un fichier HTML unique et autonome que vous déposez sur votre hébergeur (ou envoyez par lien). Chaque client y saisit son <b>code client</b> + son <b>téléphone</b> pour suivre l'avancement de son chantier, ses devis et ses factures — sans se connecter à l'ERP.</p>
+        <form id="portailForm" class="grid sm:grid-cols-2 gap-4">
+          <div class="sm:col-span-2 flex items-center gap-2">
+            <input type="checkbox" id="ptActif" ${p.portail_actif?'checked':''} style="width:16px;height:16px">
+            <label style="font-size:12px;color:#374151" for="ptActif">Portail actif (sinon le fichier généré affiche "service indisponible")</label>
+          </div>
+          <div class="field sm:col-span-2"><label>Nom affiché sur le portail</label>${fieldWrap('🏷️',`<input id="ptNom" placeholder="Laisser vide pour utiliser la raison sociale" value="${escapeHtml(p.portail_nom||'')}">`)}</div>
+          <div class="field sm:col-span-2"><label>Slogan</label>${fieldWrap('📢',`<input id="ptSlogan" placeholder="Ex : Suivez votre chantier en temps réel" value="${escapeHtml(p.portail_slogan||'')}">`)}</div>
+          <div class="field"><label>Couleur principale</label>${fieldWrap('🎨',`<input id="ptCouleur" type="color" value="${escapeHtml(p.portail_couleur||'#1D3557')}" style="height:42px;padding:2px">`)}</div>
+          <div class="sm:col-span-2 flex justify-between items-center pt-2">
+            <button type="button" class="btn btn-dark" onclick="genererPortailClient()">📤 Générer le portail (.html)</button>
+            <button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button>
+          </div>
+        </form>
+        <div id="portailResult" class="text-sm mt-3"></div>
+      </div>
+    </div>
+
     <div id="paramTab-supabase" class="param-tab hidden">
       <div class="page-card max-w-2xl">
         <h2>☁️ Connexion Supabase</h2>
@@ -2389,6 +2412,151 @@ async function renderParametres(el){
     if(error){ toast(error.message,'error'); return; }
     toast('Paramètres FNE enregistrés.'); await loadAppParams();
   };
+  document.getElementById('portailForm').onsubmit=async(e)=>{
+    e.preventDefault();
+    const rec={portail_actif:document.getElementById('ptActif').checked,portail_nom:val('ptNom'),portail_slogan:val('ptSlogan'),portail_couleur:val('ptCouleur')};
+    const {error}=await sb.from('parametres').update(rec).eq('id',p.id);
+    if(error){ toast(error.message,'error'); return; }
+    toast('Paramètres portail enregistrés.'); await loadAppParams();
+  };
+}
+/* ============================== PORTAIL CLIENT (fichier HTML unique généré) ============================== */
+function buildPortailBrand(){
+  const p=window.APP_PARAMS||{};
+  return {
+    nom: p.portail_nom || p.raison_sociale || 'BEDA ALU',
+    slogan: p.portail_slogan || 'Suivez votre chantier en temps réel',
+    couleur: p.portail_couleur || '#1D3557',
+    logo: p.logo_base64 || '',
+    telephone: p.telephone || '',
+    whatsapp: p.whatsapp || '',
+    email: p.email || ''
+  };
+}
+const PORTAIL_TEMPLATE = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portail client</title>
+<script src="https://cdn.tailwindcss.com"><\/script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"><\/script>
+<style>
+  body{font-family:Arial,sans-serif;background:#f3f4f6;min-height:100vh}
+  .brand-bg{background:var(--pc)}
+  .brand-text{color:var(--pc)}
+  .step{display:flex;align-items:center;gap:10px;padding:10px 0;border-left:2px solid #e5e7eb;margin-left:9px;padding-left:18px;position:relative}
+  .step:last-child{border-left-color:transparent}
+  .step::before{content:'';position:absolute;left:-6px;top:14px;width:10px;height:10px;border-radius:50%;background:#d1d5db}
+  .step.done::before{background:var(--pc)}
+</style>
+</head>
+<body>
+<div id="app" class="max-w-2xl mx-auto px-4 py-8"></div>
+<script>
+window.SB_CFG={ SUPABASE_URL:'__SB_URL__', SUPABASE_ANON_KEY:'__SB_KEY__' };
+window.BRAND=__PORTAIL_BRAND__;
+document.documentElement.style.setProperty('--pc',window.BRAND.couleur||'#1D3557');
+const { createClient } = supabase;
+const sb = createClient(window.SB_CFG.SUPABASE_URL, window.SB_CFG.SUPABASE_ANON_KEY);
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function money(n){ return new Intl.NumberFormat('fr-FR').format(Math.round(n||0)) + ' FCFA'; }
+function fmtDate(d){ return d ? new Date(d).toLocaleDateString('fr-FR') : '—'; }
+const ETAPES=['en_attente','mesure_disponible','pret_fabrication','fabrication_en_cours','installation_en_cours','termine'];
+const ETAPE_LABELS={en_attente:'En attente',mesure_disponible:'Mesure disponible',pret_fabrication:'Prêt pour fabrication',fabrication_en_cours:'Fabrication en cours',installation_en_cours:'Installation en cours',termine:'Terminé',annule:'Annulé'};
+const STATUT_LABELS={en_attente:'En attente',en_cours:'En cours',accepte:'Accepté',refuse:'Refusé',annule:'Annulé',payee:'Payée',payee_partielle:'Payée partielle',annulee:'Annulée'};
+function renderLogin(msg){
+  const b=window.BRAND;
+  document.getElementById('app').innerHTML=\`
+    <div class="text-center mb-6">
+      \${b.logo?\`<img src="\${b.logo}" style="max-height:64px;max-width:220px;object-fit:contain;margin:0 auto 10px">\`:\`<div class="text-2xl font-black brand-text">\${esc(b.nom)}</div>\`}
+      <div class="text-sm text-gray-500 mt-1">\${esc(b.slogan)}</div>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm p-6">
+      <h1 class="text-lg font-bold mb-1">Mon dossier</h1>
+      <p class="text-xs text-gray-500 mb-4">Saisissez votre code client et votre numéro de téléphone pour suivre votre chantier.</p>
+      \${msg?\`<div class="text-sm bg-red-50 text-red-700 rounded-lg px-3 py-2 mb-3">\${esc(msg)}</div>\`:''}
+      <form id="loginForm" class="space-y-3">
+        <input id="fCode" placeholder="Code client (ex : C-42)" required class="w-full border rounded-lg px-3 py-2.5 text-sm">
+        <input id="fTel" placeholder="Téléphone" required class="w-full border rounded-lg px-3 py-2.5 text-sm">
+        <button type="submit" class="w-full text-white rounded-lg py-2.5 font-semibold text-sm brand-bg">Voir mon dossier</button>
+      </form>
+    </div>
+    <div class="text-center text-xs text-gray-400 mt-6">
+      \${[b.telephone?('📞 '+esc(b.telephone)):'',b.whatsapp?('💬 '+esc(b.whatsapp)):'',b.email?esc(b.email):''].filter(Boolean).join(' · ')}
+      <div class="mt-1">Propulsé par BEDA ALU ERP</div>
+    </div>\`;
+  document.getElementById('loginForm').onsubmit=async(e)=>{
+    e.preventDefault();
+    const code=document.getElementById('fCode').value.trim();
+    const tel=document.getElementById('fTel').value.trim();
+    if(!code||!tel) return;
+    const btn=e.target.querySelector('button'); btn.disabled=true; btn.textContent='Recherche…';
+    try{
+      const {data,error}=await sb.rpc('portail_lookup',{p_code:code,p_telephone:tel});
+      if(error) throw error;
+      if(data.disabled){ renderLogin('Le portail est momentanément indisponible.'); return; }
+      if(!data.found){ renderLogin('Aucun dossier trouvé pour ces informations.'); return; }
+      renderDossier(data);
+    }catch(err){ renderLogin(err.message||'Erreur de connexion.'); }
+  };
+}
+function renderDossier(data){
+  const b=window.BRAND, c=data.client;
+  const nomComplet=[c.civilite,c.nom,c.prenoms].filter(Boolean).join(' ')||c.entreprise;
+  const chantiersHtml=(data.projets||[]).map(p=>{
+    const idx=ETAPES.indexOf(p.etape);
+    return \`<div class="bg-white rounded-2xl shadow-sm p-5 mb-4">
+      <div class="flex justify-between items-start mb-3">
+        <div><div class="font-bold">\${esc(p.libelle)}</div><div class="text-xs text-gray-400">\${esc(p.code)}\${p.commune?' · '+esc(p.commune):''}</div></div>
+        \${p.etape==='annule'?'<span class="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-1">Annulé</span>':''}
+      </div>
+      \${idx>=0?ETAPES.map((et,i)=>\`<div class="step \${i<=idx?'done':''}"><span class="text-sm \${i<=idx?'font-semibold':'text-gray-400'}">\${esc(ETAPE_LABELS[et])}</span></div>\`).join(''):''}
+    </div>\`;
+  }).join('')||'<div class="text-sm text-gray-400 mb-4">Aucun chantier enregistré.</div>';
+  const rowsTable=(arr,cols)=>arr.map(r=>\`<tr class="border-b">\${cols.map(c=>\`<td class="py-2 text-sm">\${c(r)}</td>\`).join('')}</tr>\`).join('')||\`<tr><td class="py-3 text-sm text-gray-400" colspan="\${cols.length}">Aucun élément.</td></tr>\`;
+  document.getElementById('app').innerHTML=\`
+    <div class="flex justify-between items-center mb-6">
+      <div>\${b.logo?\`<img src="\${b.logo}" style="max-height:44px;max-width:160px;object-fit:contain">\`:\`<div class="text-lg font-black brand-text">\${esc(b.nom)}</div>\`}</div>
+      <button onclick="renderLogin()" class="text-xs text-gray-500">← Autre dossier</button>
+    </div>
+    <div class="mb-5"><div class="text-xl font-bold">\${esc(nomComplet)}</div><div class="text-xs text-gray-400">\${esc(c.code)}</div></div>
+    <h2 class="text-sm font-bold uppercase text-gray-500 mb-2">🏗️ Mes chantiers</h2>
+    \${chantiersHtml}
+    <h2 class="text-sm font-bold uppercase text-gray-500 mb-2 mt-2">📄 Mes devis</h2>
+    <div class="bg-white rounded-2xl shadow-sm p-4 mb-4 overflow-x-auto"><table class="w-full"><thead><tr class="text-left text-xs text-gray-400"><th class="pb-2">Code</th><th class="pb-2">Libellé</th><th class="pb-2">Statut</th><th class="pb-2 text-right">Montant</th></tr></thead><tbody>
+      \${rowsTable(data.devis,[d=>esc(d.code),d=>esc(d.libelle||'—'),d=>esc(STATUT_LABELS[d.statut]||d.statut),d=>'<span class="block text-right">'+money(d.total)+'</span>'])}
+    </tbody></table></div>
+    <h2 class="text-sm font-bold uppercase text-gray-500 mb-2">🧾 Mes factures</h2>
+    <div class="bg-white rounded-2xl shadow-sm p-4 mb-6 overflow-x-auto"><table class="w-full"><thead><tr class="text-left text-xs text-gray-400"><th class="pb-2">Code</th><th class="pb-2">Date</th><th class="pb-2">Statut</th><th class="pb-2 text-right">Montant</th></tr></thead><tbody>
+      \${rowsTable(data.factures,[f=>esc(f.code),f=>fmtDate(f.date_facture),f=>esc(STATUT_LABELS[f.statut]||f.statut),f=>'<span class="block text-right">'+money(f.total)+'</span>'])}
+    </tbody></table></div>
+    <div class="text-center text-xs text-gray-400 mb-4">
+      \${[b.telephone?('📞 '+esc(b.telephone)):'',b.whatsapp?('💬 '+esc(b.whatsapp)):''].filter(Boolean).join(' · ')}
+    </div>\`;
+}
+renderLogin();
+<\/script>
+</body>
+</html>`;
+async function genererPortailClient(){
+  const el=document.getElementById('portailResult');
+  try{
+    const brand=buildPortailBrand();
+    const bjson=JSON.stringify(brand).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
+    let html=PORTAIL_TEMPLATE
+      .split('__SB_URL__').join(window.SB_CFG.SUPABASE_URL)
+      .split('__SB_KEY__').join(window.SB_CFG.SUPABASE_ANON_KEY)
+      .split('__PORTAIL_BRAND__').join(bjson);
+    const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download='portail-client-beda-alu.html';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    if(el){ el.textContent='✅ Portail généré pour « '+(brand.nom)+' ». Déposez ce fichier sur votre hébergeur ou envoyez-le à vos clients.'; el.className='text-sm mt-3 text-emerald-600'; }
+    toast('Portail client généré.');
+  }catch(err){
+    if(el){ el.textContent='❌ '+err.message; el.className='text-sm mt-3 text-red-600'; }
+  }
 }
 async function fneTesterConnexion(){
   const el=document.getElementById('fneTestResult');
