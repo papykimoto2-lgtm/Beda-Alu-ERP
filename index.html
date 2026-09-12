@@ -962,7 +962,8 @@ async function renderDevisDetail(el){
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
       <div class="flex gap-2 flex-wrap">
         <a href="mailto:${escapeHtml(d.clients?.email||'')}?subject=${encodeURIComponent('Devis '+d.code)}" class="btn btn-amber">✉ Envoyer</a>
-        <button class="btn btn-green" onclick="convertirEnFacture('${d.id}')">✔ Convertir En Facture</button>
+        <button class="btn btn-green" onclick="convertirEnFacture('${d.id}','simple')">✔ Facture simple</button>
+        <button class="btn" style="background:#92400e;color:#fff" onclick="convertirEnFacture('${d.id}','fne')">🧾 Facture FNE</button>
         <button class="btn btn-dark" onclick="printDevis('${d.id}')">🖨 Imprimer</button>
       </div>
       <div class="dropdown">
@@ -1051,13 +1052,34 @@ function printDocHtml(type,code,client,meta,libelle,lignes,sousTotal,reduction,a
     </body></html>`;
 }
 
-async function convertirEnFacture(devisId){
+async function convertirEnFacture(devisId,type){
+  type=type||'simple';
   const {data:d}=await sb.from('devis').select('*').eq('id',devisId).single();
-  if(!confirm(`Générer la facture pour le devis ${d.code} (${money(d.total)}) ?`)) return;
-  const {error}=await sb.from('factures').insert({devis_id:devisId,client_id:d.client_id,total:d.total,created_by:CURRENT_USER.id});
+  const label=type==='fne'?'Facture normalisée FNE':'Facture simple';
+  if(!confirm(`Générer une ${label} pour le devis ${d.code} (${money(d.total)}) ?`)) return;
+  const rec={devis_id:devisId,client_id:d.client_id,total:d.total,created_by:CURRENT_USER.id,type_facture:type};
+  if(type==='fne'){
+    const cert=await certifierFacturefne(d);
+    rec.fne_reference=cert.reference; rec.fne_statut=cert.statut;
+  }
+  const {error}=await sb.from('factures').insert(rec);
   if(error){ toast(error.message,'error'); return; }
   await sb.from('devis').update({statut:'accepte'}).eq('id',devisId);
-  toast('Facture générée.'); showPage('devis');
+  toast(label+' générée'+(type==='fne'?' ('+rec.fne_statut+').':'.')); showPage('devis');
+}
+async function certifierFacturefne(devis){
+  const p=window.APP_PARAMS||await loadAppParams();
+  if(!p.fne_actif){ return {reference:'PROV-'+Date.now(),statut:'provisoire'}; }
+  const url=p.fne_environnement==='production'?p.fne_url_prod:p.fne_url_test;
+  if(!url||!p.fne_api_key) return {reference:'PROV-'+Date.now(),statut:'provisoire'};
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+p.fne_api_key,'Content-Type':'application/json'},body:JSON.stringify({pointVente:p.fne_point_vente,etablissement:p.fne_etablissement,montant:devis.total,client:devis.client_id})});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const json=await res.json().catch(()=>({}));
+    return {reference:json.reference||json.ncc||('FNE-'+Date.now()),statut:'certifiee'};
+  }catch(err){
+    return {reference:'PROV-'+Date.now(),statut:'provisoire'};
+  }
 }
 
 /* ============================== FACTURES ============================== */
@@ -1067,18 +1089,20 @@ async function renderFactures(el){
   el.innerHTML=`
     <div class="text-sm text-gray-500 mb-4">${data.length} facture(s)</div>
     <div class="card overflow-x-auto">
-      <table><thead><tr><th>Code</th><th>Devis</th><th>Client</th><th>Date</th><th class="text-right">Total</th><th>Statut</th><th></th></tr></thead>
+      <table><thead><tr><th>Code</th><th>Devis</th><th>Client</th><th>Date</th><th class="text-right">Total</th><th>Type</th><th>Statut</th><th></th></tr></thead>
       <tbody>${data.map(f=>`<tr>
         <td class="font-semibold"><button class="text-indigo-600 hover:underline" onclick="window._editId='${f.id}';showPage('facture-view')">${escapeHtml(f.code)}</button></td><td>${escapeHtml(f.devis?.code||'—')}</td>
         <td>${escapeHtml(f.clients?[f.clients.nom,f.clients.prenoms].filter(Boolean).join(' '):'—')}</td>
-        <td>${fmtDate(f.date_facture)}</td><td class="text-right">${money(f.total)}</td><td>${badge(STATUT_FACTURE,f.statut)}</td>
+        <td>${fmtDate(f.date_facture)}</td><td class="text-right">${money(f.total)}</td>
+        <td>${f.type_facture==='fne'?`<span class="badge ${f.fne_statut==='certifiee'?'bg-emerald-50 text-emerald-700':'bg-amber-50 text-amber-700'}">FNE${f.fne_reference?' · '+escapeHtml(f.fne_reference):''}</span>`:'<span class="badge bg-gray-100 text-gray-600">Simple</span>'}</td>
+        <td>${badge(STATUT_FACTURE,f.statut)}</td>
         <td class="text-right whitespace-nowrap">
           <button class="text-dark text-xs font-semibold mr-2" onclick="printFacture('${f.id}')">🖨</button>
           <select onchange="updateFactureStatut('${f.id}',this.value)" class="text-xs">
             ${Object.entries(STATUT_FACTURE).map(([k,v])=>`<option value="${k}" ${k===f.statut?'selected':''}>${v.label}</option>`).join('')}
           </select>
         </td>
-      </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucune facture.</td></tr>'}</tbody></table>
+      </tr>`).join('')||'<tr><td colspan="8" class="text-gray-400 p-4">Aucune facture.</td></tr>'}</tbody></table>
     </div>`;
 }
 async function updateFactureStatut(id,statut){
@@ -1110,7 +1134,7 @@ async function renderFactureDetail(el){
       </div>
     </div>
     <div class="page-card">
-      ${docHeaderHtml(f.clients,{code:f.code,lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune,statutBadge:`<span class="pill" style="margin-top:6px;display:inline-block">${escapeHtml(st.label)}</span>`})}
+      ${docHeaderHtml(f.clients,{code:f.code,lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune,statutBadge:`<span class="pill" style="margin-top:6px;display:inline-block">${escapeHtml(st.label)}</span>${f.type_facture==='fne'?`<span class="pill" style="margin-top:6px;margin-left:6px;display:inline-block;color:${f.fne_statut==='certifiee'?'#059669':'#d97706'}">🧾 FNE ${f.fne_statut==='certifiee'?'certifiée':'provisoire'}${f.fne_reference?' — '+escapeHtml(f.fne_reference):''}</span>`:''}`})}
       <h3 class="font-bold mb-2">FACTURE : ${escapeHtml(d.libelle||'—')}</h3>
       <div class="overflow-x-auto"><table class="doc-table">
         <thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
@@ -1402,6 +1426,7 @@ async function renderParametres(el){
   el.innerHTML=`
     <div class="flex flex-wrap gap-2 mb-4 border-b pb-2">
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white" data-paramtab="societe" onclick="switchParamTab('societe')">🏢 Société</button>
+      <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="fne" onclick="switchParamTab('fne')">🧾 FNE (DGI)</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="supabase" onclick="switchParamTab('supabase')">☁️ Supabase</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="synchro" onclick="switchParamTab('synchro')">🔄 Synchro</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="sauvegarde" onclick="switchParamTab('sauvegarde')">💾 Sauvegarde</button>
@@ -1441,6 +1466,34 @@ async function renderParametres(el){
           <div class="field"><label>WhatsApp</label>${fieldWrap('💬',`<input id="psWhatsapp" value="${escapeHtml(p.whatsapp||'')}">`)}</div>
           <div class="sm:col-span-2 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
         </form>
+      </div>
+    </div>
+
+    <div id="paramTab-fne" class="param-tab hidden">
+      <div class="page-card max-w-3xl">
+        <h2>🧾 Facturation normalisée FNE — DGI Côte d'Ivoire</h2>
+        <div class="divider"></div>
+        <div class="text-xs bg-amber-50 text-amber-800 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+          Clé API : espace FNE → Paramétrage (visible après validation DGI). Test : http://54.247.95.108/ws. URL prod transmise par la DGI.<br>
+          Appel navigateur direct = souvent bloqué (CORS/mixed-content) : passer par un relais Supabase Edge Function en production.
+        </div>
+        <form id="fneForm" class="grid sm:grid-cols-2 gap-4">
+          <div class="field sm:col-span-2"><label>Environnement</label>${fieldWrap('🌐',`<select id="fneEnvironnement"><option value="test" ${p.fne_environnement==='test'?'selected':''}>Test (environnement DGI)</option><option value="production" ${p.fne_environnement==='production'?'selected':''}>Production</option></select>`)}</div>
+          <div class="field sm:col-span-2"><label>URL API — test</label>${fieldWrap('🔗',`<input id="fneUrlTest" value="${escapeHtml(p.fne_url_test||'http://54.247.95.108/ws')}">`)}</div>
+          <div class="field sm:col-span-2"><label>URL API — production</label>${fieldWrap('🔗',`<input id="fneUrlProd" placeholder="Communiquée par support.fne@dgi.gouv.ci" value="${escapeHtml(p.fne_url_prod||'')}">`)}</div>
+          <div class="field sm:col-span-2"><label>Clé API (Bearer)</label>${fieldWrap('🔑',`<input id="fneApiKey" type="password" placeholder="Fournie par la DGI" value="${escapeHtml(p.fne_api_key||'')}">`)}</div>
+          <div class="field"><label>Point de vente</label>${fieldWrap('🏬',`<input id="fnePointVente" value="${escapeHtml(p.fne_point_vente||'1')}">`)}</div>
+          <div class="field"><label>Établissement</label>${fieldWrap('🏢',`<input id="fneEtablissement" value="${escapeHtml(p.fne_etablissement||'Principal')}">`)}</div>
+          <div class="sm:col-span-2 flex items-center gap-2">
+            <input type="checkbox" id="fneActif" ${p.fne_actif?'checked':''} style="width:16px;height:16px">
+            <label style="font-size:12px;color:#374151" for="fneActif">Certification DGI active (sinon référence provisoire locale)</label>
+          </div>
+          <div class="sm:col-span-2 flex justify-between items-center pt-2">
+            <button type="button" class="btn btn-outline" onclick="fneTesterConnexion()">🔌 Tester la connexion à l'API FNE</button>
+            <button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button>
+          </div>
+        </form>
+        <div id="fneTestResult" class="text-sm mt-3"></div>
       </div>
     </div>
 
@@ -1489,6 +1542,28 @@ async function renderParametres(el){
     if(error){ toast(error.message,'error'); return; }
     toast('Paramètres société enregistrés.'); await loadAppParams();
   };
+  document.getElementById('fneForm').onsubmit=async(e)=>{
+    e.preventDefault();
+    const rec={fne_environnement:val('fneEnvironnement'),fne_url_test:val('fneUrlTest'),fne_url_prod:val('fneUrlProd'),fne_api_key:val('fneApiKey'),fne_point_vente:val('fnePointVente'),fne_etablissement:val('fneEtablissement'),fne_actif:document.getElementById('fneActif').checked};
+    const {error}=await sb.from('parametres').update(rec).eq('id',p.id);
+    if(error){ toast(error.message,'error'); return; }
+    toast('Paramètres FNE enregistrés.'); await loadAppParams();
+  };
+}
+async function fneTesterConnexion(){
+  const el=document.getElementById('fneTestResult');
+  el.textContent='Test en cours…'; el.className='text-sm mt-3 text-gray-500';
+  const p=window.APP_PARAMS||{};
+  const url=(val('fneEnvironnement')==='production'?val('fneUrlProd'):val('fneUrlTest'))||p.fne_url_test;
+  const key=val('fneApiKey')||p.fne_api_key;
+  if(!url||!key){ el.textContent='⚠️ Renseignez URL et clé API avant de tester.'; el.className='text-sm mt-3 text-amber-600'; return; }
+  try{
+    const res=await fetch(url,{method:'GET',headers:{'Authorization':'Bearer '+key}});
+    el.textContent=`✅ Réponse reçue (HTTP ${res.status}).`; el.className='text-sm mt-3 text-emerald-600';
+  }catch(err){
+    el.textContent='❌ Appel navigateur bloqué (CORS/mixed-content) — normal en direct : prévoir un relais Supabase Edge Function pour la production.';
+    el.className='text-sm mt-3 text-red-600';
+  }
 }
 function switchParamTab(tab){
   document.querySelectorAll('.param-tab-btn').forEach(b=>{ const on=b.dataset.paramtab===tab; b.classList.toggle('bg-indigo-600',on); b.classList.toggle('text-white',on); });
