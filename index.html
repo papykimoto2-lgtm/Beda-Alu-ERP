@@ -645,20 +645,77 @@ async function renderProspectForm(el){
 async function renderFournisseurs(el){
   const {data,error}=await sb.from('fournisseurs').select('*').order('created_at',{ascending:false});
   if(error) throw error;
+  window._fournisseursListCache=data;
+  const catOptions=['Matériaux','Vitrage','Quincaillerie','Transport','Autre'].map(c=>`<option value="${c}">${c}</option>`).join('');
   el.innerHTML=`
-    <div class="flex justify-between items-center mb-4">
-      <div class="text-sm text-gray-500">${data.length} fournisseur(s)</div>
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div class="text-sm text-gray-500" id="fournisseursCount">${data.length} fournisseur(s)</div>
       <button class="btn btn-primary" onclick="window._editId=null;showPage('fournisseurs-add')">+ Ajouter un fournisseur</button>
+    </div>
+    <div class="card mb-3">
+      <div class="grid sm:grid-cols-3 gap-3">
+        <div class="sm:col-span-2">${fieldWrap('🔎',`<input id="foFilterQ" placeholder="Rechercher : nom, contact, téléphone…" oninput="filterFournisseursTable()">`)}</div>
+        ${fieldWrap('🏷️',`<select id="foFilterCat" onchange="filterFournisseursTable()"><option value="">Toutes catégories</option>${catOptions}</select>`)}
+      </div>
     </div>
     <div class="card overflow-x-auto">
       <table><thead><tr><th>Code</th><th>Nom</th><th>Contact</th><th>Téléphone</th><th>Catégorie</th><th></th></tr></thead>
-      <tbody>${data.map(f=>`<tr>
-        <td class="font-semibold">${escapeHtml(f.code)}</td><td>${escapeHtml(f.nom)}</td>
-        <td>${escapeHtml(f.contact_principal||'—')}</td><td>${escapeHtml(f.telephone||'—')}</td><td>${escapeHtml(f.categorie||'—')}</td>
-        <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${f.id}';showPage('fournisseurs-add')">Modifier</button>
-        <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('fournisseurs','${f.id}','fournisseurs')">Suppr.</button></td>
-      </tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 p-4">Aucun fournisseur.</td></tr>'}</tbody></table>
+      <tbody id="fournisseursTbody"></tbody></table>
     </div>`;
+  filterFournisseursTable();
+}
+function filterFournisseursTable(){
+  const data=window._fournisseursListCache||[];
+  const q=(document.getElementById('foFilterQ')?.value||'').trim().toLowerCase();
+  const cat=document.getElementById('foFilterCat')?.value||'';
+  const filtered=data.filter(f=>{
+    if(cat && f.categorie!==cat) return false;
+    if(q){
+      const hay=[f.code,f.nom,f.contact_principal,f.telephone,f.email].filter(Boolean).join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const tbody=document.getElementById('fournisseursTbody'); if(!tbody) return;
+  tbody.innerHTML=filtered.map(f=>`<tr>
+    <td class="font-semibold">${escapeHtml(f.code)}</td><td>${escapeHtml(f.nom)}</td>
+    <td>${escapeHtml(f.contact_principal||'—')}</td><td>${escapeHtml(f.telephone||'—')}</td><td>${escapeHtml(f.categorie||'—')}</td>
+    <td class="text-right whitespace-nowrap">
+      <button class="text-gray-500 text-xs font-semibold mr-2" onclick="printFournisseurFiche('${f.id}')">🖨 Imprimer</button>
+      <button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${f.id}';showPage('fournisseurs-add')">Modifier</button>
+      <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('fournisseurs','${f.id}','fournisseurs')">Suppr.</button>
+    </td>
+  </tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 p-4">Aucun fournisseur.</td></tr>';
+  const countEl=document.getElementById('fournisseursCount'); if(countEl) countEl.textContent=`${filtered.length} fournisseur(s)`+(filtered.length!==data.length?` sur ${data.length}`:'');
+}
+async function printFournisseurFiche(id){
+  const {data:f,error}=await sb.from('fournisseurs').select('*').eq('id',id).single();
+  if(error){ toast(error.message,'error'); return; }
+  const win=window.open('','_blank','width=800,height=1000'); if(!win) return;
+  const rows=[
+    ['Code',f.code],['Nom',f.nom],['Catégorie',f.categorie],
+    ['Contact principal',f.contact_principal],['Téléphone',f.telephone],['Email',f.email],
+    ['Pays',f.pays],['Commune / Ville',f.commune],['Quartier',f.quartier],['Adresse',f.adresse],
+    ['NCC',f.ncc],['RCCM',f.rccm],['Régime fiscal',f.regime_fiscal],
+    ['Créé le',fmtDate(f.created_at)]
+  ].filter(([,v])=>v);
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fiche fournisseur ${escapeHtml(f.code)}</title>
+    <style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:34px;color:#111827;font-size:13px}
+      h1{font-size:19px;margin:0 0 2px}
+      table{width:100%;border-collapse:collapse;margin-top:10px}
+      td{padding:8px 6px;border-bottom:1px solid #e5e7eb}
+      td:first-child{font-weight:700;color:#6b7280;width:180px}
+      @media print{ body{padding:0} }
+    </style></head><body>
+    ${printCompanyHeaderHtml()}
+    <h1>FICHE FOURNISSEUR — ${escapeHtml(f.nom||'—')}</h1>
+    <div style="color:#6b7280;font-size:12px">Code ${escapeHtml(f.code)}</div>
+    <table>${rows.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(String(v))}</td></tr>`).join('')}</table>
+    ${printFooterQrHtml('FICHE FOURNISSEUR',f.code,0)}
+    <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script>
+    </body></html>`);
+  win.document.close(); win.focus();
 }
 async function renderFournisseurForm(el){
   let f={};
