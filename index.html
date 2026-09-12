@@ -982,7 +982,8 @@ async function dupliquerProduit(id){
   const {data:newP,error}=await sb.from('produits').insert(copy).select().single();
   if(error){ toast(error.message,'error'); return; }
   toast('Produit dupliqué — modifiez ses caractéristiques.');
-  window._editId=newP.id; showPage('produits-add');
+  if(newP.config_json){ window._configEditId=newP.id; showPage('produits-config'); }
+  else { window._editId=newP.id; showPage('produits-add'); }
 }
 function updateProduitsViewButtons(){
   const g=document.getElementById('prViewGrille'), l=document.getElementById('prViewListe');
@@ -1048,6 +1049,10 @@ async function renderProduitForm(el){
     <div class="page-card max-w-2xl">
       <h2>📦 ${p.id?'Modifier':'Ajouter'} un produit</h2>
       <div class="divider"></div>
+      ${p.config_json?`<div class="text-sm bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg px-3 py-2.5 mb-4 flex items-center justify-between gap-3">
+        <span>🧩 Ce produit est issu du Configurateur — largeur, hauteur, vantaux et coûts se modifient là-bas, pas ici.</span>
+        <button type="button" class="btn btn-dark shrink-0" onclick="configurerProduitExistant('${p.id}')">🧩 Reconfigurer</button>
+      </div>`:''}
       <form id="prodForm" class="grid sm:grid-cols-2 gap-4">
         <input type="hidden" id="prId" value="${p.id||''}">
         <div class="field sm:col-span-2"><label>Désignation</label>${fieldWrap('📦',`<input id="prNom" required value="${escapeHtml(p.nom||'')}">`)}</div>
