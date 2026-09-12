@@ -7,6 +7,8 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 window.SB_CFG = {
   SUPABASE_URL: 'https://snphfuygvllbioaoyfkm.supabase.co',
@@ -125,6 +127,7 @@ window.SB_CFG = {
     </div>
     <nav class="flex-1 px-3 pb-4 overflow-y-auto text-sm" id="sidebarNav">
       <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="dashboard">🏠 <span>Accueil</span></button>
+      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="carte">🗺️ <span>Carte</span></button>
 
       <div class="sidebar-group-title">Clients</div>
       <button class="nav-parent" data-toggle="clients-g">🏠 <span>Clients</span><span class="chev">▸</span></button>
@@ -300,8 +303,8 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,parametres:renderParametres};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients & Chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,parametres:renderParametres};
 const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g'};
 window._editId=null;
 async function showPage(page){
@@ -463,6 +466,9 @@ async function renderClientForm(el){
         <div class="field sm:col-span-2"><label>Adresse</label>${fieldWrap('📍',`<input id="clAdresse" value="${escapeHtml(c.adresse||'')}">`)}</div>
         <div class="field sm:col-span-2"><label>Source - Lieu d'affaire</label>${fieldWrap('🌐',`<input id="clSource" value="${escapeHtml(c.source||'')}">`)}</div>
         <div class="field"><label>Commercial</label>${fieldWrap('👤',`<input id="clCommercial" value="${escapeHtml(c.commercial||'')}">`)}</div>
+        <div class="field"><label>Latitude</label>${fieldWrap('🌍',`<input id="clLat" type="number" step="any" value="${c.latitude??''}">`)}</div>
+        <div class="field"><label>Longitude</label>${fieldWrap('🌍',`<input id="clLng" type="number" step="any" value="${c.longitude??''}">`)}</div>
+        <div class="field flex items-end"><button type="button" class="btn btn-dark w-full" onclick="geolocateField('clLat','clLng')">📍 Ma position</button></div>
         <div class="sm:col-span-3 border-t pt-3 mt-1">
           <div class="text-xs font-bold text-gray-500 uppercase mb-2">Informations légales — facturation normalisée (FNE)</div>
         </div>
@@ -476,7 +482,7 @@ async function renderClientForm(el){
     </div>`;
   document.getElementById('clientForm').onsubmit=async (e)=>{
     e.preventDefault();
-    const rec={civilite:val('clCivilite'),nom:val('clNom'),prenoms:val('clPrenoms'),entreprise:val('clEntreprise'),telephone:val('clTelephone'),email:val('clEmail'),pays:val('clPays'),commune:val('clCommune'),categorie:val('clCategorie'),adresse:val('clAdresse'),source:val('clSource'),commercial:val('clCommercial'),ncc:val('clNcc'),rccm:val('clRccm'),regime_fiscal:val('clRegimeFiscal')||null};
+    const rec={civilite:val('clCivilite'),nom:val('clNom'),prenoms:val('clPrenoms'),entreprise:val('clEntreprise'),telephone:val('clTelephone'),email:val('clEmail'),pays:val('clPays'),commune:val('clCommune'),categorie:val('clCategorie'),adresse:val('clAdresse'),source:val('clSource'),commercial:val('clCommercial'),ncc:val('clNcc'),rccm:val('clRccm'),regime_fiscal:val('clRegimeFiscal')||null,latitude:val('clLat')?+val('clLat'):null,longitude:val('clLng')?+val('clLng'):null};
     const id=val('clId');
     let error;
     if(id){ ({error}=await sb.from('clients').update(rec).eq('id',id)); }
@@ -486,6 +492,66 @@ async function renderClientForm(el){
   };
 }
 function val(id){ return document.getElementById(id).value.trim(); }
+function geolocateField(latId,lngId){
+  if(!navigator.geolocation){ toast('Géolocalisation non disponible sur cet appareil.','error'); return; }
+  toast('Récupération de la position…');
+  navigator.geolocation.getCurrentPosition(
+    pos=>{ document.getElementById(latId).value=pos.coords.latitude.toFixed(6); document.getElementById(lngId).value=pos.coords.longitude.toFixed(6); toast('Position récupérée.'); },
+    err=>toast("Impossible d'obtenir la position : "+err.message,'error'),
+    {enableHighAccuracy:true,timeout:10000}
+  );
+}
+
+/* ============================== CARTE (CLIENTS & CHANTIERS) ============================== */
+let _carteMap=null;
+async function renderCarte(el){
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div class="flex gap-4 text-sm">
+        <label class="flex items-center gap-1.5"><input type="checkbox" id="carteShowClients" checked onchange="refreshCarteLayers()"> 🔵 Clients</label>
+        <label class="flex items-center gap-1.5"><input type="checkbox" id="carteShowChantiers" checked onchange="refreshCarteLayers()"> 🟠 Chantiers</label>
+      </div>
+      <div class="text-sm text-gray-500" id="carteCount">—</div>
+    </div>
+    <div class="card overflow-hidden p-0"><div id="carteEl" style="height:70vh;width:100%"></div></div>`;
+  const [{data:clients},{data:projets}]=await Promise.all([
+    sb.from('clients').select('id,code,civilite,nom,prenoms,entreprise,commune,latitude,longitude').not('latitude','is',null).not('longitude','is',null),
+    sb.from('projets').select('id,code,libelle,commune,etape,latitude,longitude,clients(nom,prenoms)').not('latitude','is',null).not('longitude','is',null)
+  ]);
+  window._carteClients=clients||[];
+  window._carteProjets=projets||[];
+  if(_carteMap){ _carteMap.remove(); _carteMap=null; }
+  _carteMap=L.map('carteEl');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(_carteMap);
+  window._carteClientLayer=L.layerGroup();
+  window._carteProjetLayer=L.layerGroup();
+  refreshCarteLayers();
+}
+function refreshCarteLayers(){
+  if(!_carteMap) return;
+  const showClients=document.getElementById('carteShowClients')?.checked;
+  const showChantiers=document.getElementById('carteShowChantiers')?.checked;
+  window._carteClientLayer.clearLayers(); window._carteProjetLayer.clearLayers();
+  const clientIcon=L.divIcon({className:'',html:'<div style="width:14px;height:14px;border-radius:50%;background:#2563eb;border:2px solid #fff;box-shadow:0 0 0 1px #2563eb"></div>',iconSize:[14,14]});
+  const chantierIcon=L.divIcon({className:'',html:'<div style="width:14px;height:14px;border-radius:50%;background:#f59e0b;border:2px solid #fff;box-shadow:0 0 0 1px #f59e0b"></div>',iconSize:[14,14]});
+  const bounds=[];
+  (window._carteClients||[]).forEach(c=>{
+    const nom=[c.civilite,c.nom,c.prenoms].filter(Boolean).join(' ')||c.entreprise||'—';
+    L.marker([c.latitude,c.longitude],{icon:clientIcon}).bindPopup(`<b>🔵 ${escapeHtml(nom)}</b><br>${escapeHtml(c.code)}${c.commune?'<br>'+escapeHtml(c.commune):''}<br><a href="#" onclick="window._editId='${c.id}';showPage('clients-add');return false;">Voir la fiche →</a>`).addTo(window._carteClientLayer);
+    bounds.push([c.latitude,c.longitude]);
+  });
+  (window._carteProjets||[]).forEach(p=>{
+    const st=STATUT_PROJET[p.etape]||{label:p.etape};
+    const clientNom=p.clients?[p.clients.nom,p.clients.prenoms].filter(Boolean).join(' '):'';
+    L.marker([p.latitude,p.longitude],{icon:chantierIcon}).bindPopup(`<b>🟠 ${escapeHtml(p.libelle)}</b><br>${escapeHtml(p.code)}${clientNom?'<br>Client : '+escapeHtml(clientNom):''}${p.commune?'<br>'+escapeHtml(p.commune):''}<br>Étape : ${escapeHtml(st.label)}<br><a href="#" onclick="window._editId='${p.id}';showPage('projets-add');return false;">Voir la fiche →</a>`).addTo(window._carteProjetLayer);
+    bounds.push([p.latitude,p.longitude]);
+  });
+  if(showClients) window._carteClientLayer.addTo(_carteMap); else _carteMap.removeLayer(window._carteClientLayer);
+  if(showChantiers) window._carteProjetLayer.addTo(_carteMap); else _carteMap.removeLayer(window._carteProjetLayer);
+  if(bounds.length) _carteMap.fitBounds(bounds,{padding:[30,30]}); else _carteMap.setView([5.3364,-4.0267],6);
+  const countEl=document.getElementById('carteCount');
+  if(countEl) countEl.textContent=`${(window._carteClients||[]).length} client(s) géolocalisé(s) · ${(window._carteProjets||[]).length} chantier(s) géolocalisé(s)`;
+}
 
 /* ============================== CATÉGORIE CLIENTS ============================== */
 async function renderClientCategories(el){
@@ -716,13 +782,16 @@ async function renderProjetForm(el){
         <div class="field"><label>Quartier (lieu précis)</label>${fieldWrap('📍',`<input id="pjQuartier" value="${escapeHtml(p.quartier||'')}">`)}</div>
         <div class="field"><label>Source - Lieu d'affaire</label>${fieldWrap('🌐',`<input id="pjSource" value="${escapeHtml(p.source||'')}">`)}</div>
         <div class="field sm:col-span-2"><label>Responsable chantier</label>${fieldWrap('👤',`<input id="pjResponsable" value="${escapeHtml(p.responsable||'')}">`)}</div>
+        <div class="field"><label>Latitude</label>${fieldWrap('🌍',`<input id="pjLat" type="number" step="any" value="${p.latitude??''}">`)}</div>
+        <div class="field"><label>Longitude</label>${fieldWrap('🌍',`<input id="pjLng" type="number" step="any" value="${p.longitude??''}">`)}</div>
+        <div class="field flex items-end"><button type="button" class="btn btn-dark w-full" onclick="geolocateField('pjLat','pjLng')">📍 Ma position</button></div>
         <div class="field sm:col-span-3"><label>Description</label>${fieldWrap('📝',`<textarea id="pjDescription" rows="3">${escapeHtml(p.description||'')}</textarea>`)}</div>
         <div class="sm:col-span-3 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
       </form>
     </div>`;
   document.getElementById('projetForm').onsubmit=async (e)=>{
     e.preventDefault();
-    const rec={libelle:val('pjLibelle'),client_id:val('pjClient'),categorie:val('pjCategorie'),date_debut:val('pjDateDebut')||null,date_fin:val('pjDateFin')||null,pays:val('pjPays'),commune:val('pjCommune'),quartier:val('pjQuartier'),source:val('pjSource'),responsable:val('pjResponsable'),description:val('pjDescription')};
+    const rec={libelle:val('pjLibelle'),client_id:val('pjClient'),categorie:val('pjCategorie'),date_debut:val('pjDateDebut')||null,date_fin:val('pjDateFin')||null,pays:val('pjPays'),commune:val('pjCommune'),quartier:val('pjQuartier'),source:val('pjSource'),responsable:val('pjResponsable'),description:val('pjDescription'),latitude:val('pjLat')?+val('pjLat'):null,longitude:val('pjLng')?+val('pjLng'):null};
     const id=val('pjId');
     let error;
     if(id){ ({error}=await sb.from('projets').update(rec).eq('id',id)); }
