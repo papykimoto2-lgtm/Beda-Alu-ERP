@@ -101,6 +101,7 @@ window.SB_CFG = {
       <div class="sidebar-children" data-children="clients-g">
         <button class="nav-child" data-page="clients-add">→ Ajouter un client</button>
         <button class="nav-child" data-page="clients">→ Liste des clients</button>
+        <button class="nav-child" data-page="clients-categories">→ Catégorie clients</button>
       </div>
       <button class="nav-parent" data-toggle="prospects-g">🏠 <span>Prospects</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="prospects-g">
@@ -250,9 +251,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',clients:'Clients','clients-add':'Ajouter un client',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets / Chantiers','projets-add':'Ajouter un projet',devis:'Devis','devis-add':'Ajouter un Devis',factures:'Factures',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit'};
-const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,'clients-add':renderClientForm,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:renderProjets,'projets-add':renderProjetForm,devis:renderDevis,'devis-add':renderDevisEditorPage,factures:renderFactures,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','devis-add':'devis-g',devis:'devis-g',factures:'factures-g',fiches:'fiches-g','produits-add':'produits-g',produits:'produits-g'};
+const PAGE_TITLES={dashboard:'Accueil',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets / Chantiers','projets-add':'Ajouter un projet',devis:'Devis','devis-add':'Ajouter un Devis',factures:'Factures',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit'};
+const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:renderProjets,'projets-add':renderProjetForm,devis:renderDevis,'devis-add':renderDevisEditorPage,factures:renderFactures,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','devis-add':'devis-g',devis:'devis-g',factures:'factures-g',fiches:'fiches-g','produits-add':'produits-g',produits:'produits-g'};
 window._editId=null;
 async function showPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -328,6 +329,8 @@ function fieldWrap(icon,inputHtml){ return `<div class="field-input"><span class
 async function renderClientForm(el){
   let c={};
   if(window._editId){ const {data}=await sb.from('clients').select('*').eq('id',window._editId).single(); c=data||{}; }
+  const {data:cats}=await sb.from('client_categories').select('nom').order('nom');
+  const catOptions=(cats||[]).map(x=>`<option ${c.categorie===x.nom?'selected':''}>${escapeHtml(x.nom)}</option>`).join('');
   el.innerHTML=`
     <div class="page-card max-w-4xl">
       <h2>👤 ${c.id?'Modifier':'Ajouter'} un client</h2>
@@ -343,7 +346,7 @@ async function renderClientForm(el){
         <div class="field"><label>Pays</label>${fieldWrap('🌐',`<input id="clPays" value="${escapeHtml(c.pays||"Côte d'Ivoire")}">`)}</div>
         <div class="field sm:col-span-2"><label>Commune / Villes</label>${fieldWrap('🏙️',`<input id="clCommune" value="${escapeHtml(c.commune||'')}">`)}</div>
         <div class="field sm:col-span-3"><label>Quartier</label>${fieldWrap('📍',`<input id="clQuartier" value="${escapeHtml(c.quartier||'')}">`)}</div>
-        <div class="field"><label>Catégorie client</label>${fieldWrap('🏷️',`<select id="clCategorie"><option ${c.categorie==='Particulier'?'selected':''}>Particulier</option><option ${c.categorie==='Entreprise'?'selected':''}>Entreprise</option></select>`)}</div>
+        <div class="field"><label>Catégorie client</label>${fieldWrap('🏷️',`<select id="clCategorie">${catOptions}</select>`)}</div>
         <div class="field sm:col-span-2"><label>Adresse</label>${fieldWrap('📍',`<input id="clAdresse" value="${escapeHtml(c.adresse||'')}">`)}</div>
         <div class="field sm:col-span-2"><label>Source - Lieu d'affaire</label>${fieldWrap('🌐',`<input id="clSource" value="${escapeHtml(c.source||'')}">`)}</div>
         <div class="field"><label>Commercial</label>${fieldWrap('👤',`<input id="clCommercial" value="${escapeHtml(c.commercial||'')}">`)}</div>
@@ -364,6 +367,36 @@ async function renderClientForm(el){
   };
 }
 function val(id){ return document.getElementById(id).value.trim(); }
+
+/* ============================== CATÉGORIE CLIENTS ============================== */
+async function renderClientCategories(el){
+  const {data,error}=await sb.from('client_categories').select('*').order('nom');
+  if(error) throw error;
+  el.innerHTML=`
+    <div class="page-card max-w-2xl">
+      <h2>🏷️ Catégorie clients</h2>
+      <div class="divider"></div>
+      <form id="catForm" class="flex gap-2 mb-5">
+        ${fieldWrap('🏷️',`<input id="catNom" placeholder="Nouvelle catégorie" required>`)}
+        <button type="submit" class="btn btn-primary px-6">Ajouter</button>
+      </form>
+      <table><thead><tr><th>Nom</th><th></th></tr></thead>
+      <tbody>${data.map(c=>`<tr><td>${escapeHtml(c.nom)}</td><td class="text-right"><button class="text-red-500 text-xs font-semibold" onclick="deleteClientCategory('${c.id}')">Suppr.</button></td></tr>`).join('')||'<tr><td colspan="2" class="text-gray-400 p-3">Aucune catégorie.</td></tr>'}</tbody></table>
+    </div>`;
+  document.getElementById('catForm').onsubmit=async (e)=>{
+    e.preventDefault();
+    const nom=val('catNom');
+    const {error}=await sb.from('client_categories').insert({nom});
+    if(error){ toast(error.message,'error'); return; }
+    toast('Catégorie ajoutée.'); showPage('clients-categories');
+  };
+}
+async function deleteClientCategory(id){
+  if(!confirm('Supprimer cette catégorie ?')) return;
+  const {error}=await sb.from('client_categories').delete().eq('id',id);
+  if(error){ toast(error.message,'error'); return; }
+  toast('Supprimé.'); showPage('clients-categories');
+}
 
 /* ============================== PROSPECTS ============================== */
 const STATUT_PROSPECT={nouveau:{label:'Nouveau',color:'bg-blue-50 text-blue-700'},contacte:{label:'Contacté',color:'bg-amber-50 text-amber-700'},qualifie:{label:'Qualifié',color:'bg-purple-50 text-purple-700'},gagne:{label:'Gagné',color:'bg-emerald-50 text-emerald-700'},perdu:{label:'Perdu',color:'bg-gray-100 text-gray-500'}};
