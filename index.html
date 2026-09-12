@@ -210,6 +210,11 @@ window.SB_CFG = {
         <button class="nav-child" data-page="produits-config" onclick="window._configEditId=null">→ Configurateur d'ouvrage</button>
         <button class="nav-child" data-page="produits">→ Liste des produits</button>
       </div>
+      <button class="nav-parent" data-toggle="composants-g">🏠 <span>Composants</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="composants-g">
+        <button class="nav-child" data-page="composants-add">→ Ajouter un composant</button>
+        <button class="nav-child" data-page="composants">→ Catalogue composants & consommables</button>
+      </div>
 
       <div class="sidebar-group-title">Réglages</div>
       <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="parametres">⚙️ <span>Paramètres</span></button>
@@ -325,9 +330,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients & Chantiers','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients & Chantiers','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g'};
 window._editId=null;
 async function showPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -1071,6 +1076,147 @@ async function renderProduitForm(el){
     else { ({error}=await sb.from('produits').insert(rec)); }
     if(error){ toast(error.message,'error'); return; }
     toast('Produit enregistré.'); window._editId=null; showPage('produits');
+  };
+}
+
+/* ============================== COMPOSANTS & CONSOMMABLES ============================== */
+const COMPOSANT_FAMILLES=['Profilé aluminium','Vitrage','Quincaillerie','Visserie & fixations','Joint & étanchéité','Consommable atelier','Autre'];
+const COMPOSANT_FAM_ICONS={'Profilé aluminium':'🪜','Vitrage':'🪟','Quincaillerie':'🔩','Visserie & fixations':'🔧','Joint & étanchéité':'➰','Consommable atelier':'🧴','Autre':'📦'};
+const COMPOSANT_FAM_COLORS={'Profilé aluminium':'#2563eb','Vitrage':'#7c3aed','Quincaillerie':'#475569','Visserie & fixations':'#0891b2','Joint & étanchéité':'#d97706','Consommable atelier':'#059669','Autre':'#6b7280'};
+const COMPOSANT_TYPES=['Composant','Consommable'];
+window._composantsView=window._composantsView||'grille';
+window._composantsTypeFilter=window._composantsTypeFilter||'';
+window._composantsFamFilter=window._composantsFamFilter||'';
+async function renderComposants(el){
+  const {data,error}=await sb.from('composants').select('*').order('nom');
+  if(error) throw error;
+  window._composantsCache=data;
+  const presentFamilles=COMPOSANT_FAMILLES.filter(f=>data.some(c=>(c.famille||'Autre')===f));
+  const typeChips=[`<button class="fam-chip ${!window._composantsTypeFilter?'active':''}" onclick="setComposantsTypeFilter('')">🗂️ Tous</button>`]
+    .concat(COMPOSANT_TYPES.map(t=>`<button class="fam-chip ${window._composantsTypeFilter===t?'active':''}" style="--fc:${t==='Composant'?'#2563eb':'#d97706'}" onclick="setComposantsTypeFilter('${t}')">${t==='Composant'?'🔩':'🧴'} ${t}</button>`))
+    .join('');
+  const famChips=[`<button class="fam-chip ${!window._composantsFamFilter?'active':''}" onclick="setComposantsFamFilter('')">🏷️ Toutes familles</button>`]
+    .concat(presentFamilles.map(f=>`<button class="fam-chip ${window._composantsFamFilter===f?'active':''}" style="--fc:${COMPOSANT_FAM_COLORS[f]||'#6d28d9'}" onclick="setComposantsFamFilter('${f}')">${COMPOSANT_FAM_ICONS[f]||'📦'} ${escapeHtml(f)}</button>`))
+    .join('');
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <p class="text-sm text-gray-500 max-w-lg">Composants (pièces entrant dans les ouvrages) et consommables (matières d'atelier) utilisés pour le Débit et le Chiffrage.</p>
+      <button class="btn btn-primary" onclick="window._editId=null;showPage('composants-add')">+ Ajouter</button>
+    </div>
+    <div class="card mb-3">
+      <div class="flex items-center gap-2 mb-2" style="overflow-x:auto">${typeChips}</div>
+      <div class="flex items-center gap-2 mb-3" style="overflow-x:auto">${famChips}</div>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex-1 min-w-[200px]">${fieldWrap('🔎',`<input id="coFilterQ" placeholder="Rechercher un composant…" oninput="filterComposantsCatalogue()">`)}</div>
+        <div class="flex rounded-lg border overflow-hidden shrink-0">
+          <button id="coViewGrille" class="view-toggle-btn px-3 py-2 text-sm font-semibold" onclick="setComposantsView('grille')">▦ Grille</button>
+          <button id="coViewListe" class="view-toggle-btn px-3 py-2 text-sm font-semibold border-l" onclick="setComposantsView('liste')">☰ Liste</button>
+        </div>
+      </div>
+    </div>
+    <div id="composantsCatalogue"></div>`;
+  updateComposantsViewButtons();
+  filterComposantsCatalogue();
+}
+function setComposantsView(v){ window._composantsView=v; updateComposantsViewButtons(); filterComposantsCatalogue(); }
+function setComposantsTypeFilter(t){ window._composantsTypeFilter=t; showPage('composants'); }
+function setComposantsFamFilter(f){ window._composantsFamFilter=f; showPage('composants'); }
+function updateComposantsViewButtons(){
+  const g=document.getElementById('coViewGrille'), l=document.getElementById('coViewListe');
+  if(!g||!l) return;
+  g.classList.toggle('active',window._composantsView==='grille');
+  l.classList.toggle('active',window._composantsView==='liste');
+}
+function filterComposantsCatalogue(){
+  const data=window._composantsCache||[];
+  const q=(document.getElementById('coFilterQ')?.value||'').trim().toLowerCase();
+  const type=window._composantsTypeFilter||'';
+  const fam=window._composantsFamFilter||'';
+  const filtered=data.filter(c=>{
+    if(type && c.type!==type) return false;
+    if(fam && (c.famille||'Autre')!==fam) return false;
+    if(q && !c.nom.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const groups={};
+  filtered.forEach(c=>{ const f=c.famille||'Autre'; (groups[f]=groups[f]||[]).push(c); });
+  const familles=COMPOSANT_FAMILLES.filter(f=>groups[f]?.length);
+  const host=document.getElementById('composantsCatalogue');
+  if(!host) return;
+  if(!familles.length){ host.innerHTML='<div class="card text-center text-gray-400 p-8">Aucun composant.</div>'; return; }
+  host.innerHTML=familles.map(f=>{
+    const fc=COMPOSANT_FAM_COLORS[f]||'#6d28d9';
+    return `
+    <div class="mb-7">
+      <div class="fam-section-head">
+        <div class="bar" style="background:${fc}"></div>
+        <h3>${COMPOSANT_FAM_ICONS[f]||'📦'} ${escapeHtml(f)}</h3>
+        <span class="count">${groups[f].length}</span>
+      </div>
+      ${window._composantsView==='grille' ? `
+        <div class="fam-row-scroll">
+          ${groups[f].map(c=>`
+            <div class="produit-card" style="--fc:${fc}">
+              <div class="flex justify-between items-start">
+                <div class="produit-icon">${COMPOSANT_FAM_ICONS[f]||'📦'}</div>
+                <span class="produit-pct" style="--fc:${c.type==='Consommable'?'#d97706':'#2563eb'}">${escapeHtml(c.type)}</span>
+              </div>
+              <div class="pname">${escapeHtml(c.nom)}</div>
+              <div class="punite">${escapeHtml(c.unite)} · ${money(c.prix_unitaire)}</div>
+              <div class="pactions">
+                <button style="color:${fc}" onclick="window._editId='${c.id}';showPage('composants-add')">✏️ Modifier</button>
+                <button class="text-gray-500" onclick="dupliquerComposant('${c.id}')">⧉ Dupliquer</button>
+                <button class="text-red-500" onclick="deleteRow('composants','${c.id}','composants')">🗑️ Suppr.</button>
+              </div>
+            </div>`).join('')}
+        </div>` : `
+        <div class="card overflow-x-auto">
+          <table><thead><tr><th>Désignation</th><th>Type</th><th>Unité</th><th class="text-right">Prix unitaire</th><th></th></tr></thead>
+          <tbody>${groups[f].map(c=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(c.nom)}</td><td>${escapeHtml(c.type)}</td><td>${escapeHtml(c.unite)}</td><td class="text-right">${money(c.prix_unitaire)}</td>
+          <td class="text-right whitespace-nowrap"><button class="text-xs font-semibold mr-3" style="color:${fc}" onclick="window._editId='${c.id}';showPage('composants-add')">✏️ Modifier</button>
+          <button class="text-gray-500 text-xs font-semibold mr-3" onclick="dupliquerComposant('${c.id}')">⧉ Dupliquer</button>
+          <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('composants','${c.id}','composants')">🗑️ Suppr.</button></td></tr>`).join('')}</tbody></table>
+        </div>`}
+    </div>`;
+  }).join('');
+}
+async function dupliquerComposant(id){
+  const {data:c,error:e1}=await sb.from('composants').select('*').eq('id',id).single();
+  if(e1){ toast(e1.message,'error'); return; }
+  const copy={...c}; delete copy.id; delete copy.created_at;
+  copy.nom=copy.nom+' (copie)';
+  const {data:newC,error}=await sb.from('composants').insert(copy).select().single();
+  if(error){ toast(error.message,'error'); return; }
+  toast('Composant dupliqué — modifiez ses caractéristiques.');
+  window._editId=newC.id; showPage('composants-add');
+}
+async function renderComposantForm(el){
+  let c={};
+  if(window._editId){ const {data}=await sb.from('composants').select('*').eq('id',window._editId).single(); c=data||{}; }
+  el.innerHTML=`
+    <div class="page-card max-w-2xl">
+      <h2>🔩 ${c.id?'Modifier':'Ajouter'} un composant</h2>
+      <div class="divider"></div>
+      <form id="composantForm" class="grid sm:grid-cols-2 gap-4">
+        <input type="hidden" id="coId" value="${c.id||''}">
+        <div class="field sm:col-span-2"><label>Désignation</label>${fieldWrap('🔩',`<input id="coNom" required value="${escapeHtml(c.nom||'')}">`)}</div>
+        <div class="field"><label>Type</label>${fieldWrap('🗂️',`<select id="coType">${COMPOSANT_TYPES.map(t=>`<option value="${t}" ${c.type===t?'selected':''}>${t}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Famille</label>${fieldWrap('🏷️',`<select id="coFamille">${COMPOSANT_FAMILLES.map(f=>`<option value="${f}" ${c.famille===f?'selected':''}>${f}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Unité</label>${fieldWrap('📐',`<select id="coUnite">${['unite','ml','m2','kg','litre','boite','cartouche'].map(u=>`<option value="${u}" ${c.unite===u?'selected':''}>${u}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Prix unitaire (FCFA)</label>${fieldWrap('💰',`<input id="coPrix" type="number" min="0" step="1" value="${c.prix_unitaire??0}">`)}</div>
+        <div class="field sm:col-span-2"><label>Référence fournisseur (optionnel)</label>${fieldWrap('🏷️',`<input id="coRef" value="${escapeHtml(c.reference||'')}">`)}</div>
+        <div class="sm:col-span-2 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
+      </form>
+    </div>`;
+  document.getElementById('composantForm').onsubmit=async (e)=>{
+    e.preventDefault();
+    const rec={nom:val('coNom'),type:val('coType'),famille:val('coFamille'),unite:val('coUnite'),prix_unitaire:+val('coPrix')||0,reference:val('coRef')||null};
+    const id=val('coId');
+    let error;
+    if(id){ ({error}=await sb.from('composants').update(rec).eq('id',id)); }
+    else { rec.created_by=CURRENT_USER.id; ({error}=await sb.from('composants').insert(rec)); }
+    if(error){ toast(error.message,'error'); return; }
+    toast('Composant enregistré.'); window._editId=null; showPage('composants');
   };
 }
 
@@ -2497,7 +2643,7 @@ function printEstimation(){
 }
 
 /* ============================== PARAMÉTRAGE : SOCIÉTÉ / LOGO / SUPABASE / SYNCHRO / SAUVEGARDE ============================== */
-const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','parametres'];
+const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','parametres'];
 async function loadAppParams(){
   let {data}=await sb.from('parametres').select('*').limit(1).maybeSingle();
   if(!data){ const res=await sb.from('parametres').insert({}).select().single(); data=res.data; }
