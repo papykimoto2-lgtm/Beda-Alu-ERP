@@ -355,24 +355,89 @@ async function renderDashboard(el){
 
 /* ============================== CLIENTS ============================== */
 async function renderClients(el){
-  const {data,error}=await sb.from('clients').select('*').order('created_at',{ascending:false});
+  const [{data,error},{data:cats}]=await Promise.all([
+    sb.from('clients').select('*').order('created_at',{ascending:false}),
+    sb.from('client_categories').select('nom').order('nom')
+  ]);
   if(error) throw error;
+  window._clientsListCache=data;
+  const catOptions=(cats||[]).map(c=>`<option value="${escapeHtml(c.nom)}">${escapeHtml(c.nom)}</option>`).join('');
   el.innerHTML=`
-    <div class="flex justify-between items-center mb-4">
-      <div class="text-sm text-gray-500">${data.length} client(s)</div>
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div class="text-sm text-gray-500" id="clientsCount">${data.length} client(s)</div>
       <button class="btn btn-primary" onclick="window._editId=null;showPage('clients-add')">+ Ajouter un client</button>
+    </div>
+    <div class="card mb-3">
+      <div class="grid sm:grid-cols-4 gap-3">
+        <div class="sm:col-span-2">${fieldWrap('🔎',`<input id="clFilterQ" placeholder="Rechercher : nom, entreprise, téléphone, email…" oninput="filterClientsTable()">`)}</div>
+        ${fieldWrap('🏷️',`<select id="clFilterCat" onchange="filterClientsTable()"><option value="">Toutes catégories</option>${catOptions}</select>`)}
+        ${fieldWrap('🏙️',`<input id="clFilterVille" placeholder="Ville / commune" oninput="filterClientsTable()">`)}
+      </div>
     </div>
     <div class="card overflow-x-auto">
       <table><thead><tr><th>Code</th><th>Nom</th><th>Téléphone</th><th>Email</th><th>Ville</th><th>Catégorie</th><th></th></tr></thead>
-      <tbody>${data.map(c=>`<tr>
-        <td class="font-semibold">${escapeHtml(c.code)}</td>
-        <td>${escapeHtml([c.civilite,c.nom,c.prenoms].filter(Boolean).join(' '))}${c.entreprise?`<div class="text-xs text-gray-400">${escapeHtml(c.entreprise)}</div>`:''}</td>
-        <td>${escapeHtml(c.telephone||'—')}</td><td>${escapeHtml(c.email||'—')}</td><td>${escapeHtml(c.commune||'—')}</td>
-        <td>${escapeHtml(c.categorie||'—')}</td>
-        <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${c.id}';showPage('clients-add')">Modifier</button>
-        <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('clients','${c.id}','clients')">Suppr.</button></td>
-      </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun client.</td></tr>'}</tbody></table>
+      <tbody id="clientsTbody"></tbody></table>
     </div>`;
+  filterClientsTable();
+}
+function filterClientsTable(){
+  const data=window._clientsListCache||[];
+  const q=(document.getElementById('clFilterQ')?.value||'').trim().toLowerCase();
+  const cat=document.getElementById('clFilterCat')?.value||'';
+  const ville=(document.getElementById('clFilterVille')?.value||'').trim().toLowerCase();
+  const filtered=data.filter(c=>{
+    if(cat && c.categorie!==cat) return false;
+    if(ville && !(c.commune||'').toLowerCase().includes(ville)) return false;
+    if(q){
+      const hay=[c.code,c.nom,c.prenoms,c.entreprise,c.telephone,c.email].filter(Boolean).join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const tbody=document.getElementById('clientsTbody'); if(!tbody) return;
+  tbody.innerHTML=filtered.map(c=>`<tr>
+    <td class="font-semibold">${escapeHtml(c.code)}</td>
+    <td>${escapeHtml([c.civilite,c.nom,c.prenoms].filter(Boolean).join(' '))}${c.entreprise?`<div class="text-xs text-gray-400">${escapeHtml(c.entreprise)}</div>`:''}</td>
+    <td>${escapeHtml(c.telephone||'—')}</td><td>${escapeHtml(c.email||'—')}</td><td>${escapeHtml(c.commune||'—')}</td>
+    <td>${escapeHtml(c.categorie||'—')}</td>
+    <td class="text-right whitespace-nowrap">
+      <button class="text-gray-500 text-xs font-semibold mr-2" onclick="printClientFiche('${c.id}')">🖨 Imprimer</button>
+      <button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${c.id}';showPage('clients-add')">Modifier</button>
+      <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('clients','${c.id}','clients')">Suppr.</button>
+    </td>
+  </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun client.</td></tr>';
+  const countEl=document.getElementById('clientsCount'); if(countEl) countEl.textContent=`${filtered.length} client(s)`+(filtered.length!==data.length?` sur ${data.length}`:'');
+}
+async function printClientFiche(id){
+  const {data:c,error}=await sb.from('clients').select('*').eq('id',id).single();
+  if(error){ toast(error.message,'error'); return; }
+  const win=window.open('','_blank','width=800,height=1000'); if(!win) return;
+  const nomComplet=[c.civilite,c.nom,c.prenoms].filter(Boolean).join(' ');
+  const rows=[
+    ['Code',c.code],['Nom',nomComplet],['Entreprise',c.entreprise],
+    ['Téléphone',c.telephone],['Email',c.email],['Catégorie',c.categorie],
+    ['Pays',c.pays],['Commune / Ville',c.commune],['Adresse',c.adresse],
+    ['Source',c.source],['Commercial',c.commercial],
+    ['NCC',c.ncc],['RCCM',c.rccm],['Régime fiscal',c.regime_fiscal],
+    ['Créé le',fmtDate(c.created_at)]
+  ].filter(([,v])=>v);
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fiche client ${escapeHtml(c.code)}</title>
+    <style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:34px;color:#111827;font-size:13px}
+      h1{font-size:19px;margin:0 0 2px}
+      table{width:100%;border-collapse:collapse;margin-top:10px}
+      td{padding:8px 6px;border-bottom:1px solid #e5e7eb}
+      td:first-child{font-weight:700;color:#6b7280;width:180px}
+      @media print{ body{padding:0} }
+    </style></head><body>
+    ${printCompanyHeaderHtml()}
+    <h1>FICHE CLIENT — ${escapeHtml(nomComplet||c.entreprise||'—')}</h1>
+    <div style="color:#6b7280;font-size:12px">Code ${escapeHtml(c.code)}</div>
+    <table>${rows.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(String(v))}</td></tr>`).join('')}</table>
+    ${printFooterQrHtml('FICHE CLIENT',c.code,0)}
+    <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script>
+    </body></html>`);
+  win.document.close(); win.focus();
 }
 function fieldWrap(icon,inputHtml){ return `<div class="field-input"><span class="fi">${icon}</span>${inputHtml}</div>`; }
 async function renderClientForm(el){
