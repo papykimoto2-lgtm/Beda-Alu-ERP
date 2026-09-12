@@ -1161,7 +1161,7 @@ function filterComposantsCatalogue(){
                 <div class="produit-icon">${COMPOSANT_FAM_ICONS[f]||'📦'}</div>
                 <span class="produit-pct" style="--fc:${c.type==='Consommable'?'#d97706':'#2563eb'}">${escapeHtml(c.type)}</span>
               </div>
-              <div class="pname">${escapeHtml(c.nom)}</div>
+              <div class="pname">${escapeHtml(c.nom)}${c.code?' <span title="Utilisé par le Configurateur ('+escapeHtml(c.code)+')">🧩</span>':''}</div>
               <div class="punite">${escapeHtml(c.unite)} · ${money(c.prix_unitaire)}</div>
               <div class="pactions">
                 <button style="color:${fc}" onclick="window._editId='${c.id}';showPage('composants-add')">✏️ Modifier</button>
@@ -1172,7 +1172,7 @@ function filterComposantsCatalogue(){
         </div>` : `
         <div class="card overflow-x-auto">
           <table><thead><tr><th>Désignation</th><th>Type</th><th>Unité</th><th class="text-right">Prix unitaire</th><th></th></tr></thead>
-          <tbody>${groups[f].map(c=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(c.nom)}</td><td>${escapeHtml(c.type)}</td><td>${escapeHtml(c.unite)}</td><td class="text-right">${money(c.prix_unitaire)}</td>
+          <tbody>${groups[f].map(c=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(c.nom)}${c.code?' 🧩':''}</td><td>${escapeHtml(c.type)}</td><td>${escapeHtml(c.unite)}</td><td class="text-right">${money(c.prix_unitaire)}</td>
           <td class="text-right whitespace-nowrap"><button class="text-xs font-semibold mr-3" style="color:${fc}" onclick="window._editId='${c.id}';showPage('composants-add')">✏️ Modifier</button>
           <button class="text-gray-500 text-xs font-semibold mr-3" onclick="dupliquerComposant('${c.id}')">⧉ Dupliquer</button>
           <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('composants','${c.id}','composants')">🗑️ Suppr.</button></td></tr>`).join('')}</tbody></table>
@@ -1203,7 +1203,9 @@ async function renderComposantForm(el){
         <div class="field"><label>Type</label>${fieldWrap('🗂️',`<select id="coType">${COMPOSANT_TYPES.map(t=>`<option value="${t}" ${c.type===t?'selected':''}>${t}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Famille</label>${fieldWrap('🏷️',`<select id="coFamille">${COMPOSANT_FAMILLES.map(f=>`<option value="${f}" ${c.famille===f?'selected':''}>${f}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Unité</label>${fieldWrap('📐',`<select id="coUnite">${['unite','ml','m2','kg','litre','boite','cartouche'].map(u=>`<option value="${u}" ${c.unite===u?'selected':''}>${u}</option>`).join('')}</select>`)}</div>
-        <div class="field"><label>Prix unitaire (FCFA)</label>${fieldWrap('💰',`<input id="coPrix" type="number" min="0" step="1" value="${c.prix_unitaire??0}">`)}</div>
+        <div class="field"><label>Prix unitaire (FCFA)</label>${fieldWrap('💰',`<input id="coPrix" type="number" min="0" step="0.1" value="${c.prix_unitaire??0}">`)}</div>
+        ${c.code?`<div class="field sm:col-span-2"><label>Code technique (Configurateur)</label>${fieldWrap('🧩',`<input value="${escapeHtml(c.code)}" readonly style="background:#f9fafb;color:#6b7280">`)}</div>
+        <div class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 sm:col-span-2">🧩 Ce composant alimente directement le calcul du BOM dans le Configurateur d'ouvrage (code <b>${escapeHtml(c.code)}</b>). Modifier son prix ici change le chiffrage de tous les produits configurés qui l'utilisent.</div>`:''}
         <div class="field sm:col-span-2"><label>Référence fournisseur (optionnel)</label>${fieldWrap('🏷️',`<input id="coRef" value="${escapeHtml(c.reference||'')}">`)}</div>
         <div class="sm:col-span-2 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
       </form>
@@ -1226,6 +1228,13 @@ async function renderComposantForm(el){
    Coulissant galandage et Garde-corps inox sont reprises à l'identique ; Moustiquaire et
    Fenêtre jalousie sont des formules analogues (pas d'équivalent côté Sanix). */
 const CONFIG_TYPES=['Fenêtre coulissante','Porte à la française','Porte coulissante','Coulissant galandage','Fenêtre jalousie','Moustiquaire fixe','Moustiquaire coulissante','Garde-corps inox'];
+/* Prix unitaires lus depuis la table composants (catalogue Composants & Consommables) — voir
+   window._composantsPriceMap, chargée par renderConfigurateur(). Le 2e argument est un
+   secours si le composant a été supprimé du catalogue, pour ne jamais casser un devis. */
+function getPrix(code,fallback){
+  const m=window._composantsPriceMap;
+  return (m && m[code]!=null) ? m[code] : fallback;
+}
 function configCalculerBOM(type,w,h,leaves,qty,opts){
   opts=opts||{};
   const perimeter=2*(w+h);
@@ -1238,17 +1247,17 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
     glassArea=infill==='verre'?(w/nPanels*h/1000000)*nPanels*qty:0;
     alu=(nPoteaux*h+w)*qty/1000;
     rows=[
-      ['POT-GI-001','Poteau inox tube 42.4mm',nPoteaux*qty,h,nPoteaux*qty*h*22.5],
-      ['MC-GI-001','Main courante inox',qty,w,qty*w*16.8],
-      ['PLA-GI-001','Platine fixation inox',nPoteaux*qty,0,nPoteaux*qty*3800],
+      ['POT-GI-001','Poteau inox tube 42.4mm',nPoteaux*qty,h,nPoteaux*qty*(h/1000)*getPrix('POT-GI-001',22500)],
+      ['MC-GI-001','Main courante inox',qty,w,qty*(w/1000)*getPrix('MC-GI-001',16800)],
+      ['PLA-GI-001','Platine fixation inox',nPoteaux*qty,0,nPoteaux*qty*getPrix('PLA-GI-001',3800)],
       ...(infill==='cable' ? [
-        ['CAB-GI-001','Câble inox Ø6mm tendu',Math.ceil(h/110)*qty,w,Math.ceil(h/110)*qty*w*4.5/1000],
-        ['TEN-GI-001','Tendeur + terminaison sertie',2*Math.ceil(h/110)*qty,0,2*Math.ceil(h/110)*qty*1800]
+        ['CAB-GI-001','Câble inox Ø6mm tendu',Math.ceil(h/110)*qty,w,Math.ceil(h/110)*qty*(w/1000)*getPrix('CAB-GI-001',4.5)],
+        ['TEN-GI-001','Tendeur + terminaison sertie',2*Math.ceil(h/110)*qty,0,2*Math.ceil(h/110)*qty*getPrix('TEN-GI-001',1800)]
       ] : infill==='barreaudage' ? [
-        ['BAR-GI-001','Barreau vertical inox Ø12mm',Math.ceil(w/110)*qty,h,Math.ceil(w/110)*qty*h*8.2]
+        ['BAR-GI-001','Barreau vertical inox Ø12mm',Math.ceil(w/110)*qty,h,Math.ceil(w/110)*qty*(h/1000)*getPrix('BAR-GI-001',8200)]
       ] : [
-        ['VIT-GI-001','Verre feuilleté sécurit',nPanels*qty,Math.round(w/nPanels*h/1000),glassArea*9500],
-        ['PIN-GI-001','Pince de fixation verre inox',4*nPanels*qty,0,4*nPanels*qty*2400]
+        ['VIT-GI-001','Verre feuilleté sécurit',nPanels*qty,Math.round(w/nPanels*h/1000),glassArea*getPrix('VIT-GI-001',9500)],
+        ['PIN-GI-001','Pince de fixation verre inox',4*nPanels*qty,0,4*nPanels*qty*getPrix('PIN-GI-001',2400)]
       ])
     ];
     if(infill==='verre') glassPanels=[{w:Math.round(w/nPanels),h,qty:nPanels*qty}];
@@ -1258,14 +1267,14 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
     glassArea=0;
     alu=(perimeter+(isCoul?leaves*(2*ouvrantW+2*h):0))*qty/1000;
     rows=[
-      ['CAD-MO-001','Cadre aluminium moustiquaire',isCoul?2*leaves*qty:2*qty,isCoul?ouvrantW:w,(isCoul?2*leaves*ouvrantW:2*w)*qty*3.8],
-      ['CAD-MO-002','Traverse aluminium moustiquaire',isCoul?2*leaves*qty:2*qty,h,(isCoul?2*leaves*h:2*h)*qty*3.8],
-      ['TUL-MO-001','Toile moustiquaire (fibre de verre)',qty,Math.round(w*h/1000),(w*h/1000000)*qty*3200],
+      ['CAD-MO-001','Cadre aluminium moustiquaire',isCoul?2*leaves*qty:2*qty,isCoul?ouvrantW:w,(isCoul?2*leaves*ouvrantW:2*w)*qty/1000*getPrix('CAD-MO-001',3800)],
+      ['CAD-MO-002','Traverse aluminium moustiquaire',isCoul?2*leaves*qty:2*qty,h,(isCoul?2*leaves*h:2*h)*qty/1000*getPrix('CAD-MO-002',3800)],
+      ['TUL-MO-001','Toile moustiquaire (fibre de verre)',qty,Math.round(w*h/1000),(w*h/1000000)*qty*getPrix('TUL-MO-001',3200)],
       ...(isCoul ? [
-        ['RAI-MO-001','Rail coulissant moustiquaire',qty,w,qty*w*4.2],
-        ['ROU-MO-001','Roulette coulissante',2*leaves*qty,0,2*leaves*qty*950]
+        ['RAI-MO-001','Rail coulissant moustiquaire',qty,w,qty*(w/1000)*getPrix('RAI-MO-001',4200)],
+        ['ROU-MO-001','Roulette coulissante',2*leaves*qty,0,2*leaves*qty*getPrix('ROU-MO-001',950)]
       ] : [
-        ['LOQ-MO-001','Loquet de fermeture',qty,0,qty*1200]
+        ['LOQ-MO-001','Loquet de fermeture',qty,0,qty*getPrix('LOQ-MO-001',1200)]
       ])
     ];
   } else if(type==='Fenêtre jalousie'){
@@ -1273,11 +1282,11 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
     glassArea=(w*h/1000000)*qty;
     alu=(perimeter+nLames*w/1000)*qty/1000;
     rows=[
-      ['CAD-FJ-001','Cadre dormant jalousie',2*qty,w,2*w*qty*8.5],
-      ['CAD-FJ-002','Montant dormant jalousie',2*qty,h,2*h*qty*8.5],
-      ['LAM-FJ-001','Lame de verre jalousie 5mm',nLames*qty,w,glassArea*4800],
-      ['MEC-FJ-001','Mécanisme à manivelle',qty,0,qty*6500],
-      ['CLI-FJ-001','Clip de fixation lame',nLames*2*qty,0,nLames*2*qty*350]
+      ['CAD-FJ-001','Cadre dormant jalousie',2*qty,w,2*qty*(w/1000)*getPrix('CAD-FJ-001',8500)],
+      ['CAD-FJ-002','Montant dormant jalousie',2*qty,h,2*qty*(h/1000)*getPrix('CAD-FJ-002',8500)],
+      ['LAM-FJ-001','Lame de verre jalousie 5mm',nLames*qty,w,glassArea*getPrix('LAM-FJ-001',4800)],
+      ['MEC-FJ-001','Mécanisme à manivelle',qty,0,qty*getPrix('MEC-FJ-001',6500)],
+      ['CLI-FJ-001','Clip de fixation lame',nLames*2*qty,0,nLames*2*qty*getPrix('CLI-FJ-001',350)]
     ];
     glassPanels=[{w,h:Math.round(h/nLames),qty:nLames*qty}];
   } else {
@@ -1291,30 +1300,32 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
     const glassH=Math.max(0,h-glassRebate-gap);
     glassArea=glassW*glassH/1000000*leaves*qty;
     alu=(perimeter+leaves*(2*ouvrantW+2*h))*qty/1000;
+    const quiCode1=isPorte?'QUI-001-PORTE':'QUI-001';
+    const quiCode2=isPorte?'QUI-002-PORTE':isGalandage?'QUI-002-GALANDAGE':'QUI-002';
     rows=[
-      ['P-STD-001','Dormant horizontal',2*qty,w,2*w*qty*8.5],
-      ['P-STD-002','Dormant vertical',2*qty,h,2*h*qty*8.5],
-      ['P-STD-003','Ouvrant horizontal',2*leaves*qty,ouvrantW,2*leaves*ouvrantW*qty*9.2],
-      ['P-STD-004','Ouvrant vertical',2*leaves*qty,h,2*leaves*h*qty*9.2],
-      ['P-PAR-001','Parclose',4*leaves*qty,glassW,4*leaves*glassW*qty*3.2],
-      ['VIT-001','Double vitrage 6/12/6',leaves*qty,glassW*glassH/1000000,glassArea*6500],
-      ['JNT-001','Joint vitrage',2*(glassW+glassH)*leaves*qty/1000,0,2*(glassW+glassH)*leaves*qty/1000*900],
-      ['QUI-001',isPorte?'Ensemble serrure + poignée':'Poignée',leaves*qty,0,leaves*qty*(isPorte?12500:4500)],
-      ['QUI-002',isPorte?'Paumelle renforcée':isGalandage?'Roulette renforcée galandage':'Paumelle',(isPorte?3:2)*leaves*qty,0,(isPorte?3:2)*leaves*qty*(isPorte?1600:isGalandage?2100:850)],
-      ...(isPorte ? [['P-SEU-001','Seuil bas renforcé',qty,w,qty*w*11.5],['QUI-003','Gâche + ferme-porte',qty,0,qty*7800]] : []),
+      ['P-STD-001','Dormant horizontal',2*qty,w,2*qty*(w/1000)*getPrix('P-STD-001',8500)],
+      ['P-STD-002','Dormant vertical',2*qty,h,2*qty*(h/1000)*getPrix('P-STD-002',8500)],
+      ['P-STD-003','Ouvrant horizontal',2*leaves*qty,ouvrantW,2*leaves*qty*(ouvrantW/1000)*getPrix('P-STD-003',9200)],
+      ['P-STD-004','Ouvrant vertical',2*leaves*qty,h,2*leaves*qty*(h/1000)*getPrix('P-STD-004',9200)],
+      ['P-PAR-001','Parclose',4*leaves*qty,glassW,4*leaves*qty*(glassW/1000)*getPrix('P-PAR-001',3200)],
+      ['VIT-001','Double vitrage 6/12/6',leaves*qty,glassW*glassH/1000000,glassArea*getPrix('VIT-001',6500)],
+      ['JNT-001','Joint vitrage',2*(glassW+glassH)*leaves*qty/1000,0,2*(glassW+glassH)*leaves*qty/1000*getPrix('JNT-001',900)],
+      [quiCode1,isPorte?'Ensemble serrure + poignée':'Poignée',leaves*qty,0,leaves*qty*getPrix(quiCode1,isPorte?12500:4500)],
+      [quiCode2,isPorte?'Paumelle renforcée':isGalandage?'Roulette renforcée galandage':'Paumelle',(isPorte?3:2)*leaves*qty,0,(isPorte?3:2)*leaves*qty*getPrix(quiCode2,isPorte?1600:isGalandage?2100:850)],
+      ...(isPorte ? [['P-SEU-001','Seuil bas renforcé',qty,w,qty*(w/1000)*getPrix('P-SEU-001',11500)],['QUI-003','Gâche + ferme-porte',qty,0,qty*getPrix('QUI-003',7800)]] : []),
       ...(isGalandage ? [
-        ['CAI-001','Caisson de galandage',leaves*qty,ouvrantW,leaves*qty*ouvrantW*14.5],
-        ['RAIL-001','Rail double renforcé galandage',qty,w,qty*w*12.8],
-        ['SAN-001','Sangle de finition caisson',leaves*qty,h,leaves*qty*h*3.5],
-        ['BRO-001','Joint brosse étanchéité',2*leaves*qty,h,2*leaves*qty*h*1.1]
+        ['CAI-001','Caisson de galandage',leaves*qty,ouvrantW,leaves*qty*(ouvrantW/1000)*getPrix('CAI-001',14500)],
+        ['RAIL-001','Rail double renforcé galandage',qty,w,qty*(w/1000)*getPrix('RAIL-001',12800)],
+        ['SAN-001','Sangle de finition caisson',leaves*qty,h,leaves*qty*(h/1000)*getPrix('SAN-001',3500)],
+        ['BRO-001','Joint brosse étanchéité',2*leaves*qty,h,2*leaves*qty*(h/1000)*getPrix('BRO-001',1100)]
       ] : []),
-      ['CON-001','Silicone',Math.max(1,Math.ceil(perimeter*qty/5000)),0,Math.max(1,Math.ceil(perimeter*qty/5000))*2800],
+      ['CON-001','Silicone',Math.max(1,Math.ceil(perimeter*qty/5000)),0,Math.max(1,Math.ceil(perimeter*qty/5000))*getPrix('CON-001',2800)],
       (()=>{
         const n=4*(1+leaves)*qty;
-        const unit={onglet:1500,equerre:1200,about:900}[jointType]||1200;
+        const fallback={onglet:1500,equerre:1200,about:900}[jointType]||1200;
         const code={onglet:'JNT-ONG-001',equerre:'JNT-EQ-001',about:'JNT-ABT-001'}[jointType];
         const label={onglet:"Jonction onglet 45° (colle+sertissage)",equerre:"Équerre d'angle mécanique",about:'Aboutage 90° + vis'}[jointType];
-        return [code,label,n,0,n*unit];
+        return [code,label,n,0,n*getPrix(code,fallback)];
       })()
     ];
     glassPanels=[{w:Math.round(glassW),h:Math.round(glassH),qty:leaves*qty}];
@@ -1369,6 +1380,8 @@ function binPackCuts(cuts,barLen,kerf){
 
 let configState=null;
 async function renderConfigurateur(el){
+  const {data:priceRows}=await sb.from('composants').select('code,prix_unitaire').not('code','is',null);
+  window._composantsPriceMap=Object.fromEntries((priceRows||[]).map(r=>[r.code,+r.prix_unitaire]));
   configState={type:CONFIG_TYPES[0],w:1200,h:1200,leaves:2,qty:1,serie:'STD120',jointType:'onglet',gap:5,spacing:1500,infill:'cable',
     barLen:6000,kerf:3,laborRate:3500,poseForfait:0,tauxEnergie:2,tauxAmortissement:3,tauxTransport:2,tauxFraisAtelier:5,tauxFraisAdmin:5,margin:25,remise:0,
     sheetW:3210,sheetH:2250,glassKerf:5,chuteMinReutilisable:500,chuteMinReutilisableVitrage:300,
