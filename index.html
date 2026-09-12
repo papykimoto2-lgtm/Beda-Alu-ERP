@@ -97,6 +97,11 @@ window.SB_CFG = {
   .fam-section-head .bar{width:5px;height:20px;border-radius:3px}
   .fam-section-head h3{font-size:13px;font-weight:800;color:#111827;text-transform:none;letter-spacing:0}
   .fam-section-head .count{background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px}
+  .fam-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font-size:12.5px;font-weight:700;background:#fff;border:1.5px solid #e5e7eb;color:#4b5563;cursor:pointer;white-space:nowrap;transition:transform .1s,box-shadow .15s,border-color .15s}
+  .fam-chip:hover{transform:translateY(-1px);box-shadow:0 4px 10px -4px rgba(0,0,0,.15)}
+  .fam-chip.active{background:var(--fc,var(--accent));border-color:var(--fc,var(--accent));color:#fff}
+  .fam-row-scroll{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x proximity}
+  .fam-row-scroll .produit-card{flex:0 0 230px;scroll-snap-align:start}
   .produit-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;position:relative;overflow:hidden;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;cursor:default}
   .produit-card::before{content:'';position:absolute;inset:0 0 auto 0;height:4px;background:var(--fc,var(--accent))}
   .produit-card:hover{transform:translateY(-4px);box-shadow:0 14px 30px -10px rgba(17,24,39,.18);border-color:var(--fc,var(--accent))}
@@ -879,20 +884,24 @@ const PRODUIT_FAMILLES=['Fenêtre coulissante','Porte à la française','Porte c
 const FAMILLE_ICONS={'Fenêtre coulissante':'🪟','Porte à la française':'🚪','Porte coulissante':'🚪','Coulissant galandage':'🚪','Fenêtre jalousie':'🪟','Moustiquaire fixe':'🦟','Moustiquaire coulissante':'🦟','Garde-corps inox':'🛡️','Verrière / mur rideau':'🏢','Autre':'📦'};
 const FAMILLE_COLORS={'Fenêtre coulissante':'#2563eb','Porte à la française':'#d97706','Porte coulissante':'#ea580c','Coulissant galandage':'#0891b2','Fenêtre jalousie':'#7c3aed','Moustiquaire fixe':'#059669','Moustiquaire coulissante':'#0d9488','Garde-corps inox':'#475569','Verrière / mur rideau':'#db2777','Autre':'#6b7280'};
 window._produitsView=window._produitsView||'grille';
+window._produitsFamFilter=window._produitsFamFilter||'';
 async function renderProduits(el){
   const {data,error}=await sb.from('produits').select('*').order('nom');
   if(error) throw error;
   window._produitsCache=data;
-  const famOptions=PRODUIT_FAMILLES.map(f=>`<option value="${f}">${f}</option>`).join('');
+  const presentFamilles=PRODUIT_FAMILLES.filter(f=>data.some(p=>(p.famille||'Autre')===f));
+  const chips=[`<button class="fam-chip ${!window._produitsFamFilter?'active':''}" onclick="setProduitsFamFilter('')">🗂️ Toutes</button>`]
+    .concat(presentFamilles.map(f=>`<button class="fam-chip ${window._produitsFamFilter===f?'active':''}" style="--fc:${FAMILLE_COLORS[f]||'#6d28d9'}" onclick="setProduitsFamFilter('${f}')">${FAMILLE_ICONS[f]||'📦'} ${escapeHtml(f)}</button>`))
+    .join('');
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
       <p class="text-sm text-gray-500 max-w-lg">Catalogue de référence utilisé dans les devis. Le % coût matériel sert à l'estimation financière prévisionnelle (approximatif).</p>
       <button class="btn btn-primary" onclick="window._editId=null;showPage('produits-add')">+ Ajouter</button>
     </div>
     <div class="card mb-3">
+      <div class="flex items-center gap-2 mb-3" style="overflow-x:auto">${chips}</div>
       <div class="flex flex-wrap items-center gap-3">
         <div class="flex-1 min-w-[200px]">${fieldWrap('🔎',`<input id="prFilterQ" placeholder="Rechercher un produit…" oninput="filterProduitsCatalogue()">`)}</div>
-        <div style="min-width:200px">${fieldWrap('🏷️',`<select id="prFilterFamille" onchange="filterProduitsCatalogue()"><option value="">Toutes les familles</option>${famOptions}</select>`)}</div>
         <div class="flex rounded-lg border overflow-hidden shrink-0">
           <button id="prViewGrille" class="view-toggle-btn px-3 py-2 text-sm font-semibold" onclick="setProduitsView('grille')">▦ Grille</button>
           <button id="prViewListe" class="view-toggle-btn px-3 py-2 text-sm font-semibold border-l" onclick="setProduitsView('liste')">☰ Liste</button>
@@ -904,6 +913,7 @@ async function renderProduits(el){
   filterProduitsCatalogue();
 }
 function setProduitsView(v){ window._produitsView=v; updateProduitsViewButtons(); filterProduitsCatalogue(); }
+function setProduitsFamFilter(f){ window._produitsFamFilter=f; showPage('produits'); }
 function updateProduitsViewButtons(){
   const g=document.getElementById('prViewGrille'), l=document.getElementById('prViewListe');
   if(!g||!l) return;
@@ -913,7 +923,7 @@ function updateProduitsViewButtons(){
 function filterProduitsCatalogue(){
   const data=window._produitsCache||[];
   const q=(document.getElementById('prFilterQ')?.value||'').trim().toLowerCase();
-  const fam=document.getElementById('prFilterFamille')?.value||'';
+  const fam=window._produitsFamFilter||'';
   const filtered=data.filter(p=>{
     if(fam && (p.famille||'Autre')!==fam) return false;
     if(q && !p.nom.toLowerCase().includes(q)) return false;
@@ -935,7 +945,7 @@ function filterProduitsCatalogue(){
         <span class="count">${groups[f].length}</span>
       </div>
       ${window._produitsView==='grille' ? `
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div class="fam-row-scroll">
           ${groups[f].map(p=>`
             <div class="produit-card" style="--fc:${fc}">
               <div class="flex justify-between items-start">
