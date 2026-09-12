@@ -810,25 +810,87 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
   const coutMateriel=rows.reduce((s,r)=>s+r[4],0);
   return {rows,alu,glassArea,coutMateriel,surface:w*h/1000000};
 }
+/* ---------- Classification BOM (structure/mobile/vitrage/quincaillerie), portée de Sanix ---------- */
+const BOM_L1_CATEGORIES=[
+  {key:'structure',label:'Structure / Ossature',icon:'🏗️'},
+  {key:'mobile',label:'Éléments mobiles / Ouvrants',icon:'🚪'},
+  {key:'remplissage',label:'Vitrage / Remplissage',icon:'🪟'},
+  {key:'quincaillerie',label:'Quincaillerie & Consommables',icon:'🔩'}
+];
+const BOM_L1_KEYWORDS={
+  structure:['dormant','montant','traverse','meneau','poteau','limon','cadre','ossature'],
+  mobile:['ouvrant','vantail','lame','tablier'],
+  remplissage:['vitrage','verre','toile','parclose'],
+  quincaillerie:['vis','joint','poignée','serrure','paumelle','roulette','silicone','moteur','manivelle','tendeur','pince','clip','platine','sangle','équerre','gâche','ferme-porte','fixation','câble','capot','jonction','loquet','mécanisme','seuil','rail','caisson']
+};
+function classifyBOMLine(designation){
+  const d=String(designation).toLowerCase();
+  for(const [l1,keywords] of Object.entries(BOM_L1_KEYWORDS)){
+    if(keywords.some(k=>d.includes(k))) return l1;
+  }
+  return 'structure';
+}
+
+/* ---------- Débit / optimisation des barres (bin-packing First-Fit / Best-Fit), porté de Sanix ---------- */
+function packStrategy(sorted,barLen,kerf,mode){
+  let remaining=[], barCuts=[];
+  sorted.forEach(cLen=>{
+    let i=-1;
+    if(mode==='best'){
+      let bestSlack=Infinity;
+      remaining.forEach((r,idx)=>{ if(r>=cLen+kerf){ const slack=r-(cLen+kerf); if(slack<bestSlack){ bestSlack=slack; i=idx; } } });
+    } else {
+      i=remaining.findIndex(r=>r>=cLen+kerf);
+    }
+    if(i<0){ remaining.push(barLen-cLen-kerf); barCuts.push([cLen]); }
+    else{ barCuts[i].push(cLen); remaining[i]-=cLen+kerf; }
+  });
+  const bars=barCuts.map((cuts,i)=>({cuts,used:cuts.reduce((a,b)=>a+b+kerf,0),chute:remaining[i]}));
+  return {bars,nbBarres:bars.length,chuteTotale:bars.reduce((s,b)=>s+b.chute,0)};
+}
+function binPackCuts(cuts,barLen,kerf){
+  const sorted=[...cuts].sort((a,b)=>b-a);
+  const best=packStrategy(sorted,barLen,kerf,'best');
+  const first=packStrategy(sorted,barLen,kerf,'first');
+  return (best.nbBarres<first.nbBarres) ? best.bars : (first.nbBarres<best.nbBarres) ? first.bars : (best.chuteTotale<=first.chuteTotale?best.bars:first.bars);
+}
+
 let configState=null;
 async function renderConfigurateur(el){
-  configState={type:CONFIG_TYPES[0],w:1200,h:1200,leaves:2,qty:1,marge:35,serie:'STD120',jointType:'onglet',gap:5,spacing:1500,infill:'cable'};
-  el.innerHTML=`<div id="configuratorRoot"></div>`;
-  renderConfiguratorBody();
+  configState={type:CONFIG_TYPES[0],w:1200,h:1200,leaves:2,qty:1,serie:'STD120',jointType:'onglet',gap:5,spacing:1500,infill:'cable',
+    barLen:6000,kerf:3,laborRate:3500,poseForfait:0,tauxEnergie:2,tauxAmortissement:3,tauxTransport:2,tauxFraisAtelier:5,tauxFraisAdmin:5,margin:25,remise:0,
+    activeTab:'config'};
+  el.innerHTML=`
+    <div class="flex flex-wrap gap-2 mb-4 border-b pb-2">
+      <button class="etude-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white" data-etudetab="config" onclick="showEtudeTab('config')">🧩 Configurateur</button>
+      <button class="etude-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-etudetab="bom" onclick="showEtudeTab('bom')">📋 BOM</button>
+      <button class="etude-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-etudetab="cut" onclick="showEtudeTab('cut')">✂️ Débit</button>
+      <button class="etude-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-etudetab="cost" onclick="showEtudeTab('cost')">💰 Chiffrage</button>
+    </div>
+    <div id="etudeTabContent"></div>`;
+  showEtudeTab('config');
 }
-function renderConfiguratorBody(){
+function showEtudeTab(tab){
+  configState.activeTab=tab;
+  document.querySelectorAll('.etude-tab-btn').forEach(b=>{ const on=b.dataset.etudetab===tab; b.classList.toggle('bg-indigo-600',on); b.classList.toggle('text-white',on); });
+  const renderers={config:renderTabConfig,bom:renderTabBOM,cut:renderTabDebit,cost:renderTabChiffrage};
+  renderers[tab]();
+}
+function configUpdate(field,value){ configState[field]=value; showEtudeTab(configState.activeTab); }
+function configResultat(){
+  const c=configState;
+  return configCalculerBOM(c.type,c.w,c.h,c.leaves,c.qty,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill});
+}
+function renderTabConfig(){
   const c=configState;
   const isGC=c.type==='Garde-corps inox';
-  const isMousticoul=c.type==='Moustiquaire coulissante';
   const showLeaves=!isGC && c.type!=='Moustiquaire fixe' && c.type!=='Fenêtre jalousie';
   const showJoint=!isGC && !c.type.startsWith('Moustiquaire') && c.type!=='Fenêtre jalousie';
-  const res=configCalculerBOM(c.type,c.w,c.h,c.leaves,c.qty,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill});
-  const prixVente=Math.round(res.coutMateriel*(1+c.marge/100));
-  const pctCout=prixVente?Math.round(res.coutMateriel/prixVente*100):0;
-  document.getElementById('configuratorRoot').innerHTML=`
+  const res=configResultat();
+  document.getElementById('etudeTabContent').innerHTML=`
     <div class="page-card mb-4">
       <div class="flex justify-between items-center">
-        <h2>🧮 Configurateur d'ouvrage</h2>
+        <h2>🧩 Configurateur d'ouvrage</h2>
         <span class="badge bg-blue-50 text-blue-700">BOM paramétrique</span>
       </div>
       <p class="text-xs text-gray-500 mb-3">Les dimensions pilotent automatiquement la nomenclature (aluminium, vitrage, quincaillerie).</p>
@@ -844,40 +906,177 @@ function renderConfiguratorBody(){
         <div class="field"><label>Jeu vitrage (mm)</label>${fieldWrap('📏',`<input type="number" value="${c.gap}" onchange="configUpdate('gap',+this.value||0)">`)}</div>`:''}
         ${isGC?`<div class="field"><label>Espacement poteaux (mm)</label>${fieldWrap('📏',`<input type="number" min="500" value="${c.spacing}" onchange="configUpdate('spacing',+this.value||1500)">`)}</div>
         <div class="field"><label>Remplissage</label>${fieldWrap('🧱',`<select onchange="configUpdate('infill',this.value)"><option value="cable" ${c.infill==='cable'?'selected':''}>Câble inox</option><option value="barreaudage" ${c.infill==='barreaudage'?'selected':''}>Barreaudage</option><option value="verre" ${c.infill==='verre'?'selected':''}>Verre feuilleté</option></select>`)}</div>`:''}
-        <div class="field"><label>Marge (%)</label>${fieldWrap('💰',`<input type="number" min="0" value="${c.marge}" onchange="configUpdate('marge',+this.value||0)">`)}</div>
       </div>
     </div>
-    <div class="grid sm:grid-cols-4 gap-4 mb-4">
+    <div class="grid sm:grid-cols-4 gap-4">
       <div class="card p-4"><div class="text-gray-400 text-xs">Surface</div><div class="text-lg font-black mt-1">${res.surface.toFixed(2)} m²</div></div>
       <div class="card p-4"><div class="text-gray-400 text-xs">Aluminium</div><div class="text-lg font-black mt-1">${res.alu.toFixed(2)} ml</div></div>
       <div class="card p-4"><div class="text-gray-400 text-xs">Vitrage</div><div class="text-lg font-black mt-1">${res.glassArea.toFixed(2)} m²</div></div>
       <div class="card p-4"><div class="text-gray-400 text-xs">Coût matériel</div><div class="text-lg font-black mt-1 text-red-600">${money(res.coutMateriel)}</div></div>
     </div>
-    <div class="page-card">
-      <div class="flex justify-between items-center mb-3">
-        <h3 class="font-bold text-sm">Nomenclature (BOM)</h3>
-        <div class="text-sm">Prix de vente suggéré : <b class="text-indigo-600">${money(prixVente)}</b> <span class="text-xs text-gray-400">(coût matériel ${pctCout}%)</span></div>
+    <div class="flex justify-end mt-4">
+      <button class="btn btn-outline" onclick="showEtudeTab('bom')">Voir la nomenclature →</button>
+    </div>`;
+}
+function renderTabBOM(){
+  const res=configResultat();
+  const groupsHtml=BOM_L1_CATEGORIES.map(cat=>{
+    const lignes=res.rows.filter(r=>classifyBOMLine(r[1])===cat.key);
+    if(!lignes.length) return '';
+    const sousTotal=lignes.reduce((s,r)=>s+r[4],0);
+    return `<div class="mb-4">
+      <div class="flex justify-between items-center bg-slate-50 rounded-lg px-3 py-2 mb-1">
+        <b class="text-sm">${cat.icon} ${cat.label}</b><span class="text-sm font-semibold">${money(sousTotal)}</span>
       </div>
-      <div class="overflow-x-auto"><table><thead><tr><th>Code</th><th>Désignation</th><th class="text-right">Qté</th><th class="text-right">Longueur</th><th class="text-right">Montant</th></tr></thead>
-      <tbody>${res.rows.map(r=>`<tr><td class="font-semibold">${escapeHtml(r[0])}</td><td>${escapeHtml(r[1])}</td><td class="text-right">${Number(r[2]).toFixed(2)}</td><td class="text-right">${r[3]?Number(r[3]).toFixed(0)+' mm':'—'}</td><td class="text-right">${money(r[4])}</td></tr>`).join('')}</tbody>
-      <tfoot><tr class="font-bold border-t-2"><td colspan="4" class="p-2">Total matière</td><td class="text-right p-2">${money(res.coutMateriel)}</td></tr></tfoot></table></div>
-      <div class="flex justify-end mt-4">
+      <div class="overflow-x-auto"><table><tbody>${lignes.map(r=>`<tr><td class="font-semibold w-28">${escapeHtml(r[0])}</td><td>${escapeHtml(r[1])}</td><td class="text-right">${Number(r[2]).toFixed(2)}</td><td class="text-right">${r[3]?Number(r[3]).toFixed(0)+' mm':'—'}</td><td class="text-right">${money(r[4])}</td></tr>`).join('')}</tbody></table></div>
+    </div>`;
+  }).join('');
+  document.getElementById('etudeTabContent').innerHTML=`
+    <div class="page-card">
+      <h2>📋 Nomenclature (BOM)</h2>
+      <p class="text-xs text-gray-500 mb-3">Regroupée par catégorie — structure, éléments mobiles, vitrage, quincaillerie.</p>
+      <div class="divider"></div>
+      ${groupsHtml}
+      <div class="flex justify-between items-center border-t-2 pt-3 font-bold">
+        <span>Total matière</span><span>${money(res.coutMateriel)}</span>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button class="btn btn-outline" onclick="showEtudeTab('cut')">Optimiser le débit →</button>
+      </div>
+    </div>`;
+}
+function renderTabDebit(){
+  const c=configState;
+  const res=configResultat();
+  const groups={};
+  res.rows.forEach(r=>{
+    const longueur=r[3];
+    if(!(longueur>0) || classifyBOMLine(r[1])==='remplissage') return;
+    const q=Math.max(1,Math.round(r[2]));
+    if(!groups[r[0]]) groups[r[0]]={label:r[1],cuts:[]};
+    for(let i=0;i<q;i++) groups[r[0]].cuts.push(Math.round(longueur));
+  });
+  const codes=Object.keys(groups);
+  if(!codes.length){
+    document.getElementById('etudeTabContent').innerHTML=`<div class="page-card"><h2>✂️ Débit — Optimisation des barres</h2><p class="text-sm text-gray-400 mt-3">Aucun profil linéaire à débiter pour cette configuration.</p></div>`;
+    return;
+  }
+  let totalBars=0,totalChute=0,theorique=0,consommee=0,rates=[],plan='';
+  codes.forEach(code=>{
+    const g=groups[code];
+    theorique+=g.cuts.reduce((a,b)=>a+b,0);
+    const bars=binPackCuts(g.cuts,c.barLen,c.kerf);
+    totalBars+=bars.length; consommee+=bars.length*c.barLen;
+    const used=bars.reduce((s,b)=>s+b.used,0);
+    const rate=bars.length?(1-used/(bars.length*c.barLen))*100:0;
+    rates.push(rate);
+    bars.forEach(b=>totalChute+=b.chute);
+    plan+=`<div class="mb-4">
+      <div class="flex justify-between items-center mb-2"><b class="text-sm">${escapeHtml(code)} — ${escapeHtml(g.label)}</b><span class="text-xs text-gray-500">${bars.length} barre${bars.length>1?'s':''} de ${c.barLen.toLocaleString('fr-FR')} mm • ${rate.toFixed(1)}% chute</span></div>
+      <div class="space-y-1.5">${bars.map((b,i)=>`
+        <div class="border rounded-lg p-2">
+          <div class="flex justify-between text-xs text-gray-500 mb-1"><span>Barre ${i+1}</span><span>Chute ${Math.round(b.chute)} mm</span></div>
+          <div class="h-6 bg-slate-100 rounded flex overflow-hidden">${b.cuts.map(cut=>`<div style="width:${(cut/c.barLen*100).toFixed(2)}%" class="bg-indigo-600 text-white text-[9px] flex items-center justify-center border-r border-white">${cut}</div>`).join('')}</div>
+        </div>`).join('')}</div>
+    </div>`;
+  });
+  const avgRate=rates.length?rates.reduce((a,b)=>a+b,0)/rates.length:0;
+  document.getElementById('etudeTabContent').innerHTML=`
+    <div class="grid lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2 page-card">
+        <div class="flex justify-between items-center"><h2>✂️ Débit — Optimisation des barres</h2><span class="badge bg-emerald-50 text-emerald-700">${avgRate.toFixed(1)}% chute</span></div>
+        <p class="text-xs text-gray-500 mb-3">Imbrication First-Fit / Best-Fit, calculée depuis la BOM du configurateur.</p>
+        <div class="divider"></div>
+        ${plan}
+      </div>
+      <div class="page-card h-fit">
+        <h3 class="font-bold text-sm mb-3">Paramètres</h3>
+        <div class="field mb-2"><label>Barre standard (mm)</label>${fieldWrap('📏',`<input type="number" min="1000" value="${c.barLen}" onchange="configUpdate('barLen',+this.value||6000)">`)}</div>
+        <div class="field mb-4"><label>Trait de scie (mm)</label>${fieldWrap('🪚',`<input type="number" min="0" value="${c.kerf}" onchange="configUpdate('kerf',+this.value||3)">`)}</div>
+        <div class="space-y-2 text-sm border-t pt-3">
+          <div class="flex justify-between"><span>Barres nécessaires</span><b>${totalBars}</b></div>
+          <div class="flex justify-between"><span>Matière théorique</span><b>${Math.round(theorique).toLocaleString('fr-FR')} mm</b></div>
+          <div class="flex justify-between"><span>Matière consommée</span><b>${Math.round(consommee).toLocaleString('fr-FR')} mm</b></div>
+          <div class="flex justify-between"><span>Taux d'utilisation</span><b>${consommee?(theorique/consommee*100).toFixed(1):'0'} %</b></div>
+          <div class="flex justify-between"><span>Chute totale</span><b>${Math.round(totalChute).toLocaleString('fr-FR')} mm</b></div>
+        </div>
+      </div>
+    </div>`;
+}
+function renderTabChiffrage(){
+  const c=configState;
+  const res=configResultat();
+  const matByCat={structure:0,mobile:0,remplissage:0,quincaillerie:0};
+  res.rows.forEach(r=>matByCat[classifyBOMLine(r[1])]+=r[4]);
+  const labor=res.coutMateriel?c.laborRate*1.8:0;
+  const pose=+c.poseForfait||0;
+  const direct=res.coutMateriel+labor+pose;
+  const energie=direct*c.tauxEnergie/100, amort=direct*c.tauxAmortissement/100, transport=direct*c.tauxTransport/100, fraisAtelier=direct*c.tauxFraisAtelier/100, fraisAdmin=direct*c.tauxFraisAdmin/100;
+  const indirect=energie+amort+transport+fraisAtelier+fraisAdmin;
+  const total=direct+indirect;
+  const saleBrute=total*(1+c.margin/100);
+  const remise=Math.min(90,Math.max(0,c.remise));
+  const sale=saleBrute*(1-remise/100);
+  const margeReelle=sale?((sale-total)/sale*100):0;
+  document.getElementById('etudeTabContent').innerHTML=`
+    <div class="page-card">
+      <h2>💰 Chiffrage</h2>
+      <p class="text-xs text-gray-500 mb-4">Coût matière → coût direct → coût indirect → coût de revient → prix de vente.</p>
+      <h3 class="text-xs uppercase tracking-wider text-gray-400 font-bold mb-2">Coût matière (détail)</h3>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        <div class="bg-slate-50 rounded-xl p-3"><span class="text-xs text-gray-500">🏗️ Structure</span><b class="block text-base mt-1">${money(matByCat.structure)}</b></div>
+        <div class="bg-slate-50 rounded-xl p-3"><span class="text-xs text-gray-500">🚪 Mobile</span><b class="block text-base mt-1">${money(matByCat.mobile)}</b></div>
+        <div class="bg-slate-50 rounded-xl p-3"><span class="text-xs text-gray-500">🪟 Vitrage</span><b class="block text-base mt-1">${money(matByCat.remplissage)}</b></div>
+        <div class="bg-slate-50 rounded-xl p-3"><span class="text-xs text-gray-500">🔩 Quincaillerie</span><b class="block text-base mt-1">${money(matByCat.quincaillerie)}</b></div>
+      </div>
+      <h3 class="text-xs uppercase tracking-wider text-gray-400 font-bold mb-2">Coût direct</h3>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
+        <div class="bg-slate-50 rounded-xl p-3"><span class="text-xs text-gray-500">Matière (total)</span><b class="block text-lg mt-1">${money(res.coutMateriel)}</b></div>
+        <div class="field"><label class="text-xs text-gray-500">Main-d'œuvre — taux horaire</label>${fieldWrap('👷',`<input type="number" value="${c.laborRate}" onchange="configUpdate('laborRate',+this.value||0)">`)}</div>
+        <div class="field"><label class="text-xs text-gray-500">Pose / installation (FCFA)</label>${fieldWrap('🔧',`<input type="number" value="${c.poseForfait}" onchange="configUpdate('poseForfait',+this.value||0)">`)}</div>
+        <div class="bg-slate-100 rounded-xl p-3"><span class="text-xs text-gray-500">Sous-total direct</span><b class="block text-lg mt-1">${money(direct)}</b></div>
+      </div>
+      <div class="text-xs text-gray-400 mb-4">Main-d'œuvre calculée : ${money(labor)}</div>
+      <h3 class="text-xs uppercase tracking-wider text-gray-400 font-bold mb-2">Coût indirect (% du coût direct)</h3>
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
+        <div class="field"><label class="text-xs text-gray-500">Énergie %</label>${fieldWrap('⚡',`<input type="number" value="${c.tauxEnergie}" onchange="configUpdate('tauxEnergie',+this.value||0)">`)}</div>
+        <div class="field"><label class="text-xs text-gray-500">Amortissement %</label>${fieldWrap('🏭',`<input type="number" value="${c.tauxAmortissement}" onchange="configUpdate('tauxAmortissement',+this.value||0)">`)}</div>
+        <div class="field"><label class="text-xs text-gray-500">Transport %</label>${fieldWrap('🚚',`<input type="number" value="${c.tauxTransport}" onchange="configUpdate('tauxTransport',+this.value||0)">`)}</div>
+        <div class="field"><label class="text-xs text-gray-500">Frais atelier %</label>${fieldWrap('🏗️',`<input type="number" value="${c.tauxFraisAtelier}" onchange="configUpdate('tauxFraisAtelier',+this.value||0)">`)}</div>
+        <div class="field"><label class="text-xs text-gray-500">Frais admin %</label>${fieldWrap('🗂️',`<input type="number" value="${c.tauxFraisAdmin}" onchange="configUpdate('tauxFraisAdmin',+this.value||0)">`)}</div>
+      </div>
+      <div class="text-right text-sm text-gray-500 mb-5">Total coût indirect : <b>${money(indirect)}</b></div>
+      <div class="grid sm:grid-cols-2 gap-3 mb-4">
+        <div class="field"><label>Marge (%)</label>${fieldWrap('💰',`<input type="number" value="${c.margin}" onchange="configUpdate('margin',+this.value||0)">`)}</div>
+        <div class="field"><label>Remise commerciale (%)</label>${fieldWrap('🏷️',`<input type="number" value="${c.remise}" onchange="configUpdate('remise',+this.value||0)">`)}</div>
+      </div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="bg-slate-900 text-white rounded-xl p-4"><span class="text-sm text-slate-300">Coût de revient total</span><b class="block text-2xl mt-1">${money(total)}</b></div>
+        <div class="bg-blue-50 rounded-xl p-4"><span class="text-sm text-blue-600">Prix de vente (marge incluse)</span><b class="block text-2xl mt-1 text-blue-700">${money(sale)}</b></div>
+      </div>
+      <div class="text-xs text-gray-400 mt-2">Marge réelle sur prix de vente : ${margeReelle.toFixed(1)}%</div>
+      <div class="flex justify-end mt-5">
         <button class="btn btn-primary px-8 py-2.5" onclick="enregistrerProduitConfigure()">Enregistrer comme produit</button>
       </div>
     </div>`;
 }
-function configUpdate(field,value){ configState[field]=value; renderConfiguratorBody(); }
 async function enregistrerProduitConfigure(){
   const c=configState;
-  const res=configCalculerBOM(c.type,c.w,c.h,c.leaves,c.qty,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill});
-  const prixVente=Math.round(res.coutMateriel*(1+c.marge/100));
-  const pctCout=prixVente?Math.round(res.coutMateriel/prixVente*100):60;
+  const res=configResultat();
+  const matByCat={structure:0,mobile:0,remplissage:0,quincaillerie:0};
+  res.rows.forEach(r=>matByCat[classifyBOMLine(r[1])]+=r[4]);
+  const labor=res.coutMateriel?c.laborRate*1.8:0;
+  const direct=res.coutMateriel+labor+(+c.poseForfait||0);
+  const indirect=direct*(c.tauxEnergie+c.tauxAmortissement+c.tauxTransport+c.tauxFraisAtelier+c.tauxFraisAdmin)/100;
+  const total=direct+indirect;
+  const sale=Math.round(total*(1+c.margin/100)*(1-Math.min(90,Math.max(0,c.remise))/100));
+  const pctCout=sale?Math.round(res.coutMateriel/sale*100):60;
   const showLeaves=!c.type.startsWith('Moustiquaire')&&c.type!=='Fenêtre jalousie'&&c.type!=='Garde-corps inox';
   const nom=`${c.type} ${c.w}×${c.h}mm${showLeaves&&c.leaves>1?' — '+c.leaves+' vantaux':''} (${c.serie})`;
-  const rec={nom,unite:'unite',prix_vente:prixVente,cout_materiel:res.coutMateriel,cout_materiel_pct:pctCout,alu_ml:res.alu,glass_m2:res.glassArea,config_json:c};
+  const rec={nom,unite:'unite',prix_vente:sale,cout_materiel:res.coutMateriel,cout_materiel_pct:pctCout,alu_ml:res.alu,glass_m2:res.glassArea,config_json:c};
   const {error}=await sb.from('produits').insert(rec);
   if(error){ toast(error.message,'error'); return; }
-  toast('Produit créé depuis le configurateur.'); showPage('produits');
+  toast('Produit créé depuis le Bureau d\'études.'); showPage('produits');
 }
 
 /* ============================== DEVIS ============================== */
