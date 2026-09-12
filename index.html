@@ -69,6 +69,28 @@ window.SB_CFG = {
   .icon-btn:hover{background:#e5e7eb}
   .icon-btn .dot{position:absolute;top:-2px;right:-2px;background:var(--accent);color:#fff;font-size:9px;font-weight:800;border-radius:999px;min-width:15px;height:15px;display:flex;align-items:center;justify-content:center;padding:0 3px}
   .avatar{width:34px;height:34px;border-radius:999px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .doc-header{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:16px}
+  .doc-client-name{font-size:20px;font-weight:800;text-transform:uppercase}
+  .doc-header p{margin:2px 0;font-size:13px;color:#374151}
+  .doc-header a{color:var(--accent)}
+  .doc-code{text-align:right}
+  .doc-code .code-txt{font-size:22px;font-weight:800;color:var(--accent)}
+  .doc-num{background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;font-weight:800;font-size:12px}
+  .doc-table{width:100%;border-collapse:collapse;font-size:13px}
+  .doc-table th{background:transparent;border-bottom:2px solid #111827;font-size:11px;text-transform:uppercase;color:#6b7280;padding:6px 8px;text-align:left}
+  .doc-table td{padding:8px;border-bottom:1px solid #f1f5f9}
+  .doc-table .tc{text-align:center}.doc-table .tr{text-align:right}
+  .doc-mt{font-weight:800;color:var(--accent)}
+  .doc-totals{max-width:340px;margin-left:auto}
+  .doc-totals div{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #e5e7eb;font-size:13px}
+  .doc-totals span{color:#6b7280;text-transform:uppercase;font-size:11px;font-weight:700;letter-spacing:.02em}
+  .doc-total-final{font-weight:800!important;color:var(--accent);border-top:2px solid #111827!important;border-bottom:0!important}
+  .doc-total-final span{color:var(--accent)!important}
+  .pill{display:inline-flex;align-items:center;padding:4px 14px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid currentColor}
+  .dropdown{position:relative;display:inline-block}
+  .dropdown-menu{position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:180px;z-index:30;overflow:hidden}
+  .dropdown-menu button{width:100%;text-align:left;padding:9px 14px;font-size:13px;background:#fff;border:0;cursor:pointer;color:#374151}
+  .dropdown-menu button:hover{background:#f3f4f6}
   @media (max-width:900px){#sidebar{position:fixed;inset:0 20% 0 0;z-index:40;transform:translateX(-100%);transition:transform .2s;max-width:260px}#sidebar.open{transform:translateX(0)}#overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:35;opacity:0;pointer-events:none}#overlay.open{opacity:1;pointer-events:auto}}
 </style>
 </head>
@@ -273,9 +295,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit'};
-const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g',fiches:'fiches-g','produits-add':'produits-g',produits:'produits-g'};
+const PAGE_TITLES={dashboard:'Accueil',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit'};
+const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g',produits:'produits-g'};
 window._editId=null;
 async function showPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -689,7 +711,7 @@ async function renderDevis(el,filterStatut){
     <div class="card overflow-x-auto">
       <table><thead><tr><th>Code</th><th>Client</th><th>Projet</th><th>Date</th><th class="text-right">Total</th><th>Statut</th><th></th></tr></thead>
       <tbody>${data.map(d=>`<tr>
-        <td class="font-semibold">${escapeHtml(d.code)}</td>
+        <td class="font-semibold"><button class="text-indigo-600 hover:underline" onclick="window._editId='${d.id}';showPage('devis-view')">${escapeHtml(d.code)}</button></td>
         <td>${escapeHtml(d.clients?[d.clients.nom,d.clients.prenoms].filter(Boolean).join(' '):'—')}</td>
         <td>${escapeHtml(d.projets?.libelle||'—')}</td><td>${fmtDate(d.date_creation)}</td>
         <td class="text-right">${money(d.total)}</td><td>${badge(STATUT_DEVIS,d.statut)}</td>
@@ -796,8 +818,12 @@ function renderDevisEditorBody(){
       </div>
       <div class="overflow-x-auto mb-3"><table id="lignesTable"><thead><tr><th>Pièce</th><th>Produit / Titre</th><th>L (cm)</th><th>H (cm)</th><th>Qté</th><th>Remise %</th><th>Prix</th><th class="text-right">Total</th><th></th></tr></thead>
       <tbody>${lignes.map((l,i)=>ligneRowHtml(l,i)).join('')}</tbody></table></div>
+      <div class="grid sm:grid-cols-2 gap-4 mb-5 max-w-md ml-auto">
+        <div class="field"><label>Réduction (montant)</label>${fieldWrap('➖',`<input id="dvReduction" type="number" step="1" value="${d.reduction||0}">`)}</div>
+        <div class="field"><label>Autre frais</label>${fieldWrap('➕',`<input id="dvAutreFrais" type="number" step="1" value="${d.autre_frais||0}">`)}</div>
+      </div>
       <div class="flex justify-end gap-6 text-sm mb-5">
-        <div>Sous-total : <b>${money(total)}</b></div>
+        <div>Total sans remise : <b>${money(total)}</b></div>
       </div>
       <div class="flex justify-end">
         <button class="btn btn-primary px-8 py-2.5" onclick="saveDevis()">SAUVEGARDER</button>
@@ -837,10 +863,11 @@ function onProduitSelect(i,produitId){
   renderDevisEditorBody();
 }
 async function saveDevis(){
-  const header={libelle:val('dvLibelle'),client_id:val('dvClient'),projet_id:val('dvProjet')||null,statut:val('dvStatut'),categorie:val('dvCategorie')||null,date_creation:val('dvDate')||null,date_echeance:val('dvEcheance')||null,commercial:val('dvCommercial'),lieu_affaire:val('dvLieuAffaire'),commune:val('dvCommune'),quartier:val('dvQuartier')};
+  const header={libelle:val('dvLibelle'),client_id:val('dvClient'),projet_id:val('dvProjet')||null,statut:val('dvStatut'),categorie:val('dvCategorie')||null,date_creation:val('dvDate')||null,date_echeance:val('dvEcheance')||null,commercial:val('dvCommercial'),lieu_affaire:val('dvLieuAffaire'),commune:val('dvCommune'),quartier:val('dvQuartier'),reduction:+val('dvReduction')||0,autre_frais:+val('dvAutreFrais')||0};
   if(!header.client_id){ toast('Sélectionnez un client.','error'); return; }
   const lignes=devisEditorState.lignes;
-  header.total=lignes.reduce((s,l)=>s+ligneTotal(l),0);
+  const sousTotal=lignes.reduce((s,l)=>s+ligneTotal(l),0);
+  header.total=sousTotal-header.reduction+header.autre_frais;
   let devisId=devisEditorState.devis.id;
   let error;
   if(devisId){ ({error}=await sb.from('devis').update(header).eq('id',devisId)); }
@@ -855,32 +882,167 @@ async function saveDevis(){
   toast('Devis enregistré.'); window._editId=null; showPage('devis');
 }
 
-async function printDevis(devisId){
-  const [{data:d},{data:lignes},{data:client}]=await Promise.all([
-    sb.from('devis').select('*, clients(*), projets(*)').eq('id',devisId).single().then(r=>r),
-    sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre'),
-    Promise.resolve({data:null})
-  ]);
+/* ============================== STRUCTURE PARTAGÉE DEVIS / FACTURE ============================== */
+const DOC_NOTES_HTML=`
+  <p style="margin:14px 0 4px"><b>Ne sont pas inclus :</b></p>
+  <p style="margin:2px 0;color:#4b5563;font-size:12.5px">- Tout type de correction (maçonnerie, carrelage, électricité et peinture)</p>
+  <p style="margin:2px 0;color:#4b5563;font-size:12.5px">- Plans de réalisation ou plans d'exécution</p>
+  <p style="margin:2px 0;color:#4b5563;font-size:12.5px">- La protection des aluminiums ou des inox par film pelable</p>
+  <p style="margin:2px 0;color:#4b5563;font-size:12.5px">- Le gardiennage du site de pose</p>
+  <p style="margin:14px 0 4px"><b>Délais :</b></p>
+  <p style="margin:2px 0;color:#4b5563;font-size:12.5px">- Notre délai dépend de la disponibilité des matériaux en stock et de l'état du chantier</p>
+  <p style="margin:14px 0 4px"><b>Modalité de paiement :</b></p>
+  <p style="margin:2px 0;color:#4b5563;font-size:12.5px">- 60% à la commande (fabrication, pose des cadres sauf soufflets)</p>
+  <p style="margin:2px 0;color:#4b5563;font-size:12.5px">- 40% avant la livraison (vitrage et quincaillerie)</p>`;
+function docLignesRows(lignes){
   const groupes={};
   (lignes||[]).forEach(l=>{ (groupes[l.piece||'Non renseigné']=groupes[l.piece||'Non renseigné']||[]).push(l); });
-  let rowsHtml='';
+  let num=0, html='';
   Object.entries(groupes).forEach(([piece,rows])=>{
-    rowsHtml+=`<tr><td colspan="7" style="background:#f1f5f9;font-weight:700;padding:6px 10px">${escapeHtml(piece.toUpperCase())}</td></tr>`;
-    rows.forEach((l,i)=>{ rowsHtml+=`<tr><td>${i+1}</td><td>${escapeHtml(l.titre)}</td><td class="tc">${l.largeur}</td><td class="tc">${l.hauteur}</td><td class="tc">${l.quantite}</td><td class="tr">${money(l.prix_unitaire)}</td><td class="tr">${money(l.total)}</td></tr>`; });
+    html+=`<tr><td colspan="9" style="font-style:italic;font-weight:700;padding:8px 4px 4px;border:0">${escapeHtml(piece)}</td></tr>`;
+    rows.forEach(l=>{
+      num++;
+      const pub=+l.prix_unitaire||0, remise=+l.remise_pct||0, pur=pub*(1-remise/100), mt=(+l.quantite||0)*pur;
+      html+=`<tr>
+        <td><span class="doc-num">${num}</span></td>
+        <td>${escapeHtml(l.titre)}</td>
+        <td class="tc">${l.largeur||0}</td>
+        <td class="tc">${l.hauteur||0}</td>
+        <td class="tc">${l.quantite||0}</td>
+        <td class="tr">${money(pub)}</td>
+        <td class="tc">${remise}%</td>
+        <td class="tr">${money(pur)}</td>
+        <td class="tr doc-mt">${money(mt)}</td>
+      </tr>`;
+    });
   });
-  const win=window.open('','_blank','width=900,height=1100'); if(!win) return;
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Devis ${escapeHtml(d.code)}</title>
-    <style>body{font-family:Arial,sans-serif;padding:30px;color:#111827;font-size:13px}h1{font-size:18px;margin:0 0 4px}
-    .sub{color:#6b7280;font-size:12px;margin-bottom:16px}table{width:100%;border-collapse:collapse;margin-top:10px}
-    th,td{border:1px solid #d1d5db;padding:7px 9px}th{background:#f1f5f9;text-align:left}.tc{text-align:center}.tr{text-align:right}
-    tfoot td{font-weight:800;border-top:2px solid #111827}</style></head><body>
-    <div class="noprint" style="text-align:right"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700">🖨 Imprimer</button></div>
-    <h1>DEVIS ${escapeHtml(d.code)}</h1>
-    <div class="sub">Client : ${escapeHtml([d.clients?.nom,d.clients?.prenoms].filter(Boolean).join(' '))} — ${escapeHtml(d.clients?.telephone||'')} — Projet : ${escapeHtml(d.projets?.libelle||'—')} — Date : ${fmtDate(d.date_creation)}</div>
-    <table><thead><tr><th>#</th><th>Désignation</th><th class="tc">L</th><th class="tc">H</th><th class="tc">Qté</th><th class="tr">P.U.</th><th class="tr">Total</th></tr></thead>
-    <tbody>${rowsHtml}</tbody><tfoot><tr><td colspan="6">TOTAL</td><td class="tr">${money(d.total)}</td></tr></tfoot></table>
-    </body></html>`);
+  return html;
+}
+function docTotalsHtml(sousTotal,reduction,autreFrais){
+  const total=sousTotal-reduction+autreFrais;
+  return `<div class="doc-totals">
+    <div><span>Total sans remise</span><b>${money(sousTotal)}</b></div>
+    <div><span>Réduction</span><b>${money(reduction)}</b></div>
+    <div><span>Autre frais</span><b>${money(autreFrais)}</b></div>
+    <div class="doc-total-final"><span>Montant total à payer</span><b>${money(total)}</b></div>
+  </div>`;
+}
+function docHeaderHtml(client,meta){
+  const nomClient=[client?.civilite,client?.nom,client?.prenoms].filter(Boolean).join(' ')||client?.entreprise||'—';
+  return `<div class="doc-header">
+    <div>
+      <div class="doc-client-name">${escapeHtml(nomClient)}</div>
+      ${client?.telephone?`<p>${escapeHtml(client.telephone)}</p>`:''}
+      ${client?.email?`<p><a href="mailto:${escapeHtml(client.email)}">${escapeHtml(client.email)}</a></p>`:''}
+      <p>Lieu d'affaire : ${escapeHtml(meta.lieuAffaire||'—')}</p>
+      ${meta.projet?`<p>Projet : ${escapeHtml(meta.projet)}</p>`:''}
+      ${meta.categorie?`<p>Categorie : ${escapeHtml(meta.categorie)}</p>`:''}
+      <p>Localisation : ${escapeHtml([meta.pays,meta.commune].filter(Boolean).join(', ')||'—')}</p>
+    </div>
+    <div class="doc-code">
+      <div class="code-txt">${escapeHtml(meta.code)}</div>
+      ${meta.statutBadge||''}
+    </div>
+  </div>`;
+}
+
+/* ============================== DEVIS : DÉTAIL / IMPRESSION ============================== */
+async function renderDevisDetail(el){
+  const devisId=window._editId;
+  const {data:d,error}=await sb.from('devis').select('*, clients(*), projets(libelle)').eq('id',devisId).single();
+  if(error){ el.innerHTML=`<div class="text-red-600">${escapeHtml(error.message)}</div>`; return; }
+  const {data:lignes}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
+  const sousTotal=(lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100),0);
+  const st=STATUT_DEVIS[d.statut]||{label:d.statut,color:'text-gray-500'};
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div class="flex gap-2 flex-wrap">
+        <a href="mailto:${escapeHtml(d.clients?.email||'')}?subject=${encodeURIComponent('Devis '+d.code)}" class="btn btn-amber">✉ Envoyer</a>
+        <button class="btn btn-green" onclick="convertirEnFacture('${d.id}')">✔ Convertir En Facture</button>
+        <button class="btn btn-dark" onclick="printDevis('${d.id}')">🖨 Imprimer</button>
+      </div>
+      <div class="dropdown">
+        <button class="btn btn-primary" onclick="toggleDropdown(event,'devisOptionsMenu')">⚙ Options ▾</button>
+        <div class="dropdown-menu hidden" id="devisOptionsMenu">
+          <button onclick="deleteRow('devis','${d.id}','devis')">Supprimer</button>
+          <button onclick="window._editId='${d.id}';showPage('devis-add')">Modifier</button>
+          <button onclick="dupliquerDevis('${d.id}')">Dupliquer</button>
+          <button onclick="printDevis('${d.id}')">Prévisualiser</button>
+          <button onclick="ajouterRappel('${d.id}')">Ajouter un Rappel</button>
+        </div>
+      </div>
+    </div>
+    <div class="page-card">
+      ${docHeaderHtml(d.clients,{code:d.code,lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune,statutBadge:`<span class="pill ${st.color||''}" style="margin-top:6px;display:inline-block">${escapeHtml(st.label)}</span>`})}
+      <h3 class="font-bold mb-2">DEVIS : ${escapeHtml(d.libelle||'—')}</h3>
+      <div class="overflow-x-auto"><table class="doc-table">
+        <thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
+        <tbody>${docLignesRows(lignes)||'<tr><td colspan="9" class="text-gray-400 p-3">Aucune ligne.</td></tr>'}</tbody>
+      </table></div>
+      <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0)}</div>
+      ${DOC_NOTES_HTML}
+    </div>`;
+}
+function toggleDropdown(e,id){
+  e.stopPropagation();
+  document.querySelectorAll('.dropdown-menu').forEach(m=>{ if(m.id!==id) m.classList.add('hidden'); });
+  document.getElementById(id).classList.toggle('hidden');
+}
+document.addEventListener('click',()=>document.querySelectorAll('.dropdown-menu').forEach(m=>m.classList.add('hidden')));
+async function dupliquerDevis(devisId){
+  const {data:d}=await sb.from('devis').select('*').eq('id',devisId).single();
+  const {data:lignes}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId);
+  const copy={...d}; delete copy.id; delete copy.code; delete copy.created_at;
+  const {data:newDevis,error}=await sb.from('devis').insert(copy).select().single();
+  if(error){ toast(error.message,'error'); return; }
+  if(lignes?.length){
+    const rows=lignes.map(l=>{ const c={...l}; delete c.id; c.devis_id=newDevis.id; return c; });
+    await sb.from('devis_lignes').insert(rows);
+  }
+  toast('Devis dupliqué : '+newDevis.code); showPage('devis');
+}
+function ajouterRappel(devisId){
+  const date=prompt('Date du rappel (AAAA-MM-JJ) :', new Date().toISOString().slice(0,10));
+  if(!date) return;
+  toast('Rappel noté pour le '+fmtDate(date)+'.');
+}
+async function printDevis(devisId){
+  const {data:d}=await sb.from('devis').select('*, clients(*), projets(libelle)').eq('id',devisId).single();
+  const {data:lignes}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
+  const sousTotal=(lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100),0);
+  const win=window.open('','_blank','width=950,height=1150'); if(!win) return;
+  win.document.write(printDocHtml('DEVIS',d.code,d.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0));
   win.document.close(); win.focus();
+}
+function printDocHtml(type,code,client,meta,libelle,lignes,sousTotal,reduction,autreFrais){
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${type} ${escapeHtml(code)}</title>
+    <style>
+      *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:34px;color:#111827;font-size:13px}
+      .doc-header{display:flex;justify-content:space-between;gap:20px;margin-bottom:16px}
+      .doc-client-name{font-size:20px;font-weight:800;text-transform:uppercase}
+      .doc-header p{margin:2px 0;font-size:13px;color:#374151}
+      .doc-code{text-align:right}.doc-code .code-txt{font-size:22px;font-weight:800;color:#6d28d9}
+      h3{font-size:15px;font-weight:800;margin:10px 0}
+      table{width:100%;border-collapse:collapse}
+      th{border-bottom:2px solid #111827;font-size:11px;text-transform:uppercase;color:#6b7280;padding:6px 8px;text-align:left}
+      td{padding:8px;border-bottom:1px solid #f1f5f9}
+      .doc-num{background:#6d28d9;color:#fff;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;font-weight:800;font-size:12px}
+      .tc{text-align:center}.tr{text-align:right}.doc-mt{font-weight:800;color:#6d28d9}
+      .doc-totals{max-width:340px;margin-left:auto;margin-top:16px}
+      .doc-totals div{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #e5e7eb}
+      .doc-totals span{color:#6b7280;text-transform:uppercase;font-size:11px;font-weight:700}
+      .doc-total-final{font-weight:800!important;color:#6d28d9;border-top:2px solid #111827!important;border-bottom:0!important}
+      .doc-total-final span{color:#6d28d9!important}
+      @media print{.noprint{display:none}}@page{size:A4;margin:16mm}
+    </style></head><body>
+    <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+    ${docHeaderHtml(client,{code,...meta})}
+    <h3>${type} : ${escapeHtml(libelle||'—')}</h3>
+    <table><thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
+    <tbody>${docLignesRows(lignes)}</tbody></table>
+    ${docTotalsHtml(sousTotal,reduction,autreFrais)}
+    ${DOC_NOTES_HTML}
+    </body></html>`;
 }
 
 async function convertirEnFacture(devisId){
@@ -901,10 +1063,11 @@ async function renderFactures(el){
     <div class="card overflow-x-auto">
       <table><thead><tr><th>Code</th><th>Devis</th><th>Client</th><th>Date</th><th class="text-right">Total</th><th>Statut</th><th></th></tr></thead>
       <tbody>${data.map(f=>`<tr>
-        <td class="font-semibold">${escapeHtml(f.code)}</td><td>${escapeHtml(f.devis?.code||'—')}</td>
+        <td class="font-semibold"><button class="text-indigo-600 hover:underline" onclick="window._editId='${f.id}';showPage('facture-view')">${escapeHtml(f.code)}</button></td><td>${escapeHtml(f.devis?.code||'—')}</td>
         <td>${escapeHtml(f.clients?[f.clients.nom,f.clients.prenoms].filter(Boolean).join(' '):'—')}</td>
         <td>${fmtDate(f.date_facture)}</td><td class="text-right">${money(f.total)}</td><td>${badge(STATUT_FACTURE,f.statut)}</td>
         <td class="text-right whitespace-nowrap">
+          <button class="text-dark text-xs font-semibold mr-2" onclick="printFacture('${f.id}')">🖨</button>
           <select onchange="updateFactureStatut('${f.id}',this.value)" class="text-xs">
             ${Object.entries(STATUT_FACTURE).map(([k,v])=>`<option value="${k}" ${k===f.statut?'selected':''}>${v.label}</option>`).join('')}
           </select>
@@ -916,6 +1079,49 @@ async function updateFactureStatut(id,statut){
   const {error}=await sb.from('factures').update({statut}).eq('id',id);
   if(error){ toast(error.message,'error'); return; }
   toast('Statut mis à jour.');
+}
+async function renderFactureDetail(el){
+  const factureId=window._editId;
+  const {data:f,error}=await sb.from('factures').select('*, clients(*), devis(*, projets(libelle))').eq('id',factureId).single();
+  if(error){ el.innerHTML=`<div class="text-red-600">${escapeHtml(error.message)}</div>`; return; }
+  const d=f.devis||{};
+  const {data:lignes}=d.id ? await sb.from('devis_lignes').select('*').eq('devis_id',d.id).order('ordre') : {data:[]};
+  const sousTotal=(lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100),0);
+  const st=STATUT_FACTURE[f.statut]||{label:f.statut,color:'text-gray-500'};
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div class="flex gap-2 flex-wrap">
+        <a href="mailto:${escapeHtml(f.clients?.email||'')}?subject=${encodeURIComponent('Facture '+f.code)}" class="btn btn-amber">✉ Envoyer</a>
+        <button class="btn btn-dark" onclick="printFacture('${f.id}')">🖨 Imprimer</button>
+      </div>
+      <div class="dropdown">
+        <button class="btn btn-primary" onclick="toggleDropdown(event,'factureOptionsMenu')">⚙ Options ▾</button>
+        <div class="dropdown-menu hidden" id="factureOptionsMenu">
+          <button onclick="deleteRow('factures','${f.id}','factures')">Supprimer</button>
+          <button onclick="updateFactureStatut('${f.id}','payee');showPage('facture-view')">Marquer payée</button>
+          <button onclick="printFacture('${f.id}')">Prévisualiser</button>
+        </div>
+      </div>
+    </div>
+    <div class="page-card">
+      ${docHeaderHtml(f.clients,{code:f.code,lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune,statutBadge:`<span class="pill" style="margin-top:6px;display:inline-block">${escapeHtml(st.label)}</span>`})}
+      <h3 class="font-bold mb-2">FACTURE : ${escapeHtml(d.libelle||'—')}</h3>
+      <div class="overflow-x-auto"><table class="doc-table">
+        <thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
+        <tbody>${docLignesRows(lignes)||'<tr><td colspan="9" class="text-gray-400 p-3">Aucune ligne.</td></tr>'}</tbody>
+      </table></div>
+      <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0)}</div>
+      ${DOC_NOTES_HTML}
+    </div>`;
+}
+async function printFacture(factureId){
+  const {data:f}=await sb.from('factures').select('*, clients(*), devis(*, projets(libelle))').eq('id',factureId).single();
+  const d=f.devis||{};
+  const {data:lignes}=d.id ? await sb.from('devis_lignes').select('*').eq('devis_id',d.id).order('ordre') : {data:[]};
+  const sousTotal=(lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100),0);
+  const win=window.open('','_blank','width=950,height=1150'); if(!win) return;
+  win.document.write(printDocHtml('FACTURE',f.code,f.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0));
+  win.document.close(); win.focus();
 }
 
 /* ============================== FICHES D'EXÉCUTION ============================== */
