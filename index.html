@@ -1610,17 +1610,24 @@ async function renderStockSimulateur(el){
   const {data:clients}=await sb.from('clients').select('id,nom,prenoms');
   window._simDevisCache=devisList||[];
   window._simClientMap=Object.fromEntries((clients||[]).map(c=>[c.id,[c.nom,c.prenoms].filter(Boolean).join(' ')]));
-  const state=window._simDebit=window._simDebit||{selected:new Set(),barLen:6000,kerf:3,result:null};
+  const state=window._simDebit=window._simDebit||{selected:new Set(),barLen:6000,kerf:3,sheetW:3210,sheetH:2250,glassKerf:5,result:null};
   el.innerHTML=`
     <div class="page-card mb-4">
       <h2>✂️ Simulateur de débit — Optimisation multi-chantiers</h2>
-      <p class="text-xs text-gray-500 mt-1 mb-3">Sélectionnez plusieurs devis à regrouper pour estimer l'économie de barres aluminium et de chutes réalisée en lançant ces chantiers ensemble plutôt que séparément.</p>
+      <p class="text-xs text-gray-500 mt-1 mb-3">Sélectionnez plusieurs devis à regrouper pour estimer l'économie de barres aluminium, de vitrage et de chutes réalisée en lançant ces chantiers ensemble plutôt que séparément.</p>
       <div class="divider"></div>
+      <div class="text-xs font-bold text-gray-500 uppercase mb-2">🪜 Profilés aluminium</div>
       <div class="grid sm:grid-cols-3 gap-4 mb-4">
         <div class="field"><label>Longueur de barre (mm)</label>${fieldWrap('📏',`<input type="number" id="simBarLen" value="${state.barLen}" step="100" min="1000">`)}</div>
         <div class="field"><label>Trait de scie / kerf (mm)</label>${fieldWrap('🪚',`<input type="number" id="simKerf" value="${state.kerf}" step="1" min="0">`)}</div>
-        <div class="field flex items-end"><button class="btn btn-primary w-full" onclick="lancerSimulationDebit()">▶ Lancer la simulation</button></div>
       </div>
+      <div class="text-xs font-bold text-gray-500 uppercase mb-2">🪟 Vitrage</div>
+      <div class="grid sm:grid-cols-3 gap-4 mb-4">
+        <div class="field"><label>Largeur feuille (mm)</label>${fieldWrap('↔️',`<input type="number" id="simSheetW" value="${state.sheetW}" step="10" min="500">`)}</div>
+        <div class="field"><label>Hauteur feuille (mm)</label>${fieldWrap('↕️',`<input type="number" id="simSheetH" value="${state.sheetH}" step="10" min="500">`)}</div>
+        <div class="field"><label>Joint de découpe (mm)</label>${fieldWrap('🪚',`<input type="number" id="simGlassKerf" value="${state.glassKerf}" step="1" min="0">`)}</div>
+      </div>
+      <div class="flex justify-end mb-2"><button class="btn btn-primary px-8" onclick="lancerSimulationDebit()">▶ Lancer la simulation</button></div>
       <div class="overflow-x-auto"><table><thead><tr><th></th><th>Devis</th><th>Client</th><th>Statut</th><th class="text-right">Montant</th></tr></thead>
       <tbody>${(devisList||[]).map(d=>`<tr>
         <td><input type="checkbox" class="simDevisCk" ${state.selected.has(d.id)?'checked':''} onchange="toggleSimDevis('${d.id}',this.checked)"></td>
@@ -1664,6 +1671,9 @@ async function lancerSimulationDebit(){
   const state=window._simDebit;
   state.barLen=+val('simBarLen')||6000;
   state.kerf=+val('simKerf')||0;
+  state.sheetW=+val('simSheetW')||3210;
+  state.sheetH=+val('simSheetH')||2250;
+  state.glassKerf=+val('simGlassKerf')||0;
   const ids=[...state.selected];
   if(ids.length<2){ toast('Sélectionnez au moins 2 devis à combiner.','error'); return; }
   const {data:lignes}=await sb.from('devis_lignes').select('id,devis_id,largeur,hauteur,quantite,produit_id').in('devis_id',ids);
@@ -1673,11 +1683,13 @@ async function lancerSimulationDebit(){
 
   const cutsByCode={}; // code -> {label, cuts:[{len,devisId}]}
   const cutsByDevisByCode={}; // devisId -> code -> [len,...]
+  const panelsByCode={}; // code -> {label, panels:[{w,h,devisId}]}
+  const panelsByDevisByCode={}; // devisId -> code -> [{w,h},...]
   (lignes||[]).forEach(l=>{
     const p=produitMap[l.produit_id];
     if(!p?.config_json) return;
     const c=p.config_json;
-    const res=configCalculerBOM(c.type,+l.largeur||0,+l.hauteur||0,c.leaves||1,+l.quantite||1,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill});
+    const res=configCalculerBOM(c.type,+l.largeur||0,+l.hauteur||0,c.leaves||1,+l.quantite||1,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill,standing:c.standing});
     res.rows.forEach(r=>{
       const [code,label,qty,longueur]=r;
       if(!(longueur>0) || classifyBOMLine(label)==='remplissage') return;
@@ -1690,10 +1702,23 @@ async function lancerSimulationDebit(){
         cutsByDevisByCode[l.devis_id][code].push(Math.round(longueur));
       }
     });
+    (res.glassPanels||[]).forEach(gp=>{
+      if(!gp.code||!(gp.w>0)||!(gp.h>0)) return;
+      const row=res.rows.find(rr=>rr[0]===gp.code);
+      const label=row?row[1]:gp.code;
+      panelsByCode[gp.code]=panelsByCode[gp.code]||{label,panels:[]};
+      panelsByDevisByCode[l.devis_id]=panelsByDevisByCode[l.devis_id]||{};
+      panelsByDevisByCode[l.devis_id][gp.code]=panelsByDevisByCode[l.devis_id][gp.code]||[];
+      for(let i=0;i<gp.qty;i++){
+        panelsByCode[gp.code].panels.push({w:gp.w,h:gp.h,devisId:l.devis_id});
+        panelsByDevisByCode[l.devis_id][gp.code].push({w:gp.w,h:gp.h});
+      }
+    });
   });
 
   const codes=Object.keys(cutsByCode);
-  if(!codes.length){ toast('Aucun profil linéaire à débiter pour ces devis.','error'); return; }
+  const glassCodes=Object.keys(panelsByCode);
+  if(!codes.length && !glassCodes.length){ toast('Aucun profil ni vitrage à débiter pour ces devis.','error'); return; }
 
   const detail=codes.map(code=>{
     const g=cutsByCode[code];
@@ -1711,6 +1736,23 @@ async function lancerSimulationDebit(){
     return {code,label:g.label,nbPieces:g.cuts.length,nbGroupe,nbSepare,chuteGroupe,chuteSepare,barresEconomisees,economieFcfa:barresEconomisees*coutBarre,groupedBars};
   }).sort((a,b)=>b.economieFcfa-a.economieFcfa);
 
+  const surfaceFeuille=state.sheetW*state.sheetH/1e6;
+  const glassDetail=glassCodes.map(code=>{
+    const g=panelsByCode[code];
+    const groupedSheets=packGlassSheetsTagged(g.panels,state.sheetW,state.sheetH,state.glassKerf);
+    let sepSheets=[];
+    ids.forEach(did=>{
+      const panels=(panelsByDevisByCode[did]&&panelsByDevisByCode[did][code])||[];
+      if(panels.length) sepSheets=sepSheets.concat(packGlassSheets(panels.map(p=>({w:p.w,h:p.h,qty:1})),state.sheetW,state.sheetH,state.glassKerf));
+    });
+    const nbGroupe=groupedSheets.length, nbSepare=sepSheets.length;
+    const surfacePieces=g.panels.reduce((s,p)=>s+p.w*p.h/1e6,0);
+    const surfaceGroupe=nbGroupe*surfaceFeuille, surfaceSepare=nbSepare*surfaceFeuille;
+    const coutFeuille=getPrix(code,'standard',0)*surfaceFeuille;
+    const feuillesEconomisees=nbSepare-nbGroupe;
+    return {code,label:g.label,nbPieces:g.panels.length,surfacePieces,nbGroupe,nbSepare,surfaceGroupe,surfaceSepare,feuillesEconomisees,economieFcfa:feuillesEconomisees*coutFeuille,groupedSheets};
+  }).sort((a,b)=>b.economieFcfa-a.economieFcfa);
+
   window._simDebit.result={
     detail,
     totNbGroupe:detail.reduce((s,d)=>s+d.nbGroupe,0),
@@ -1718,7 +1760,13 @@ async function lancerSimulationDebit(){
     totChuteGroupe:detail.reduce((s,d)=>s+d.chuteGroupe,0),
     totChuteSepare:detail.reduce((s,d)=>s+d.chuteSepare,0),
     totEconomie:detail.reduce((s,d)=>s+d.economieFcfa,0),
-    ids, barLen:state.barLen, kerf:state.kerf
+    glassDetail,
+    totFeuillesGroupe:glassDetail.reduce((s,d)=>s+d.nbGroupe,0),
+    totFeuillesSepare:glassDetail.reduce((s,d)=>s+d.nbSepare,0),
+    totSurfaceGroupe:glassDetail.reduce((s,d)=>s+d.surfaceGroupe,0),
+    totSurfaceSepare:glassDetail.reduce((s,d)=>s+d.surfaceSepare,0),
+    totEconomieVitrage:glassDetail.reduce((s,d)=>s+d.economieFcfa,0),
+    ids, barLen:state.barLen, kerf:state.kerf, sheetW:state.sheetW, sheetH:state.sheetH, glassKerf:state.glassKerf
   };
   renderSimDebitResult();
 }
@@ -1729,23 +1777,29 @@ function renderSimDebitResult(){
   const barresEco=r.totNbSepare-r.totNbGroupe;
   const pctEco=r.totNbSepare?((barresEco/r.totNbSepare)*100).toFixed(1):'0.0';
   const pctChute=r.totChuteSepare?(((r.totChuteSepare-r.totChuteGroupe)/r.totChuteSepare)*100).toFixed(1):'0.0';
+  const feuillesEco=r.totFeuillesSepare-r.totFeuillesGroupe;
+  const pctFeuillesEco=r.totFeuillesSepare?((feuillesEco/r.totFeuillesSepare)*100).toFixed(1):'0.0';
+  const pctSurface=r.totSurfaceSepare?(((r.totSurfaceSepare-r.totSurfaceGroupe)/r.totSurfaceSepare)*100).toFixed(1):'0.0';
+  const economieTotale=r.totEconomie+r.totEconomieVitrage;
   const devisMap=window._simDevisCache?Object.fromEntries(window._simDevisCache.map(d=>[d.id,d])):{};
   const colorForDevis=(id)=>SIM_DEVIS_COLORS[r.ids.indexOf(id)%SIM_DEVIS_COLORS.length];
   const legend=r.ids.map(id=>`<span class="inline-flex items-center gap-1 text-xs mr-3 mb-1"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${colorForDevis(id)}"></span>${escapeHtml(devisMap[id]?.libelle||'')}</span>`).join('');
+  const gain=barresEco>0||feuillesEco>0;
   box.innerHTML=`
+    ${gain?`<div class="page-card mb-4" style="border-color:#a7f3d0;background:#ecfdf5"><b class="text-emerald-700">✔ Ces chantiers gagnent à être lancés ensemble</b><span class="text-sm text-emerald-700"> — ${barresEco>0?barresEco+' barre'+(barresEco>1?'s':'')+' alu':''}${barresEco>0&&feuillesEco>0?' et ':''}${feuillesEco>0?feuillesEco+' feuille'+(feuillesEco>1?'s':'')+' de verre':''} économisées, soit ${money(economieTotale)} en regroupant leur découpe.</span></div>`:`<div class="page-card mb-4" style="border-color:#fde68a;background:#fffbeb"><b class="text-amber-700">Pas de gain significatif</b><span class="text-sm text-amber-700"> sur ce regroupement — essayez une autre combinaison de devis.</span></div>`}
+    <div class="text-xs font-bold text-gray-500 uppercase mb-2">🪜 Profilés aluminium</div>
     <div class="grid sm:grid-cols-4 gap-4 mb-4">
       <div class="page-card"><div class="text-xs text-gray-500">Barres groupé / séparé</div><div class="text-2xl font-bold">${r.totNbGroupe} <span class="text-sm text-gray-400 font-normal">/ ${r.totNbSepare}</span></div></div>
       <div class="page-card"><div class="text-xs text-gray-500">Barres économisées</div><div class="text-2xl font-bold text-emerald-600">${barresEco} <span class="text-sm font-normal">(${pctEco}%)</span></div></div>
       <div class="page-card"><div class="text-xs text-gray-500">Réduction de chute</div><div class="text-2xl font-bold text-emerald-600">${pctChute}%</div></div>
-      <div class="page-card"><div class="text-xs text-gray-500">Économie estimée</div><div class="text-2xl font-bold text-emerald-600">${money(r.totEconomie)}</div></div>
+      <div class="page-card"><div class="text-xs text-gray-500">Économie alu</div><div class="text-2xl font-bold text-emerald-600">${money(r.totEconomie)}</div></div>
     </div>
-    ${barresEco>0?`<div class="page-card mb-4" style="border-color:#a7f3d0;background:#ecfdf5"><b class="text-emerald-700">✔ Ces chantiers gagnent à être lancés ensemble</b><span class="text-sm text-emerald-700"> — ${barresEco} barre${barresEco>1?'s':''} et ${money(r.totEconomie)} économisées en regroupant leur découpe.</span></div>`:`<div class="page-card mb-4" style="border-color:#fde68a;background:#fffbeb"><b class="text-amber-700">Pas de gain significatif</b><span class="text-sm text-amber-700"> sur ce regroupement — essayez une autre combinaison de devis.</span></div>`}
-    <div class="page-card mb-4">
+    ${r.detail.length?`<div class="page-card mb-4">
       <h3 class="font-bold text-sm mb-2">Détail par profil</h3>
       <div class="overflow-x-auto"><table><thead><tr><th>Profil</th><th class="text-right">Pièces</th><th class="text-right">Barres séparé</th><th class="text-right">Barres groupé</th><th class="text-right">Économisées</th><th class="text-right">Chute groupée</th><th class="text-right">Économie</th></tr></thead>
       <tbody>${r.detail.map(d=>`<tr><td class="font-semibold">${escapeHtml(d.code)} — ${escapeHtml(d.label)}</td><td class="text-right">${d.nbPieces}</td><td class="text-right">${d.nbSepare}</td><td class="text-right">${d.nbGroupe}</td><td class="text-right ${d.barresEconomisees>0?'text-emerald-600 font-semibold':''}">${d.barresEconomisees}</td><td class="text-right">${Math.round(d.chuteGroupe).toLocaleString('fr-FR')} mm</td><td class="text-right">${money(d.economieFcfa)}</td></tr>`).join('')}</tbody></table></div>
     </div>
-    <div class="page-card">
+    <div class="page-card mb-5">
       <h3 class="font-bold text-sm mb-2">Plan de débit groupé (couleur = chantier d'origine)</h3>
       <div class="mb-3">${legend}</div>
       ${r.detail.map(d=>`<div class="mb-4">
@@ -1756,7 +1810,38 @@ function renderSimDebitResult(){
             <div class="h-6 bg-slate-100 rounded flex overflow-hidden">${b.cuts.map(cut=>`<div style="width:${(cut.len/r.barLen*100).toFixed(2)}%;background:${colorForDevis(cut.devisId)}" class="text-white text-[9px] flex items-center justify-center border-r border-white" title="${escapeHtml(devisMap[cut.devisId]?.libelle||'')}">${cut.len}</div>`).join('')}</div>
           </div>`).join('')}</div>
       </div>`).join('')}
-    </div>`;
+    </div>`:'<div class="page-card mb-5 text-sm text-gray-400 text-center py-6">Aucun profilé linéaire à débiter pour ces devis.</div>'}
+    <div class="text-xs font-bold text-gray-500 uppercase mb-2">🪟 Vitrage</div>
+    <div class="grid sm:grid-cols-4 gap-4 mb-4">
+      <div class="page-card"><div class="text-xs text-gray-500">Feuilles groupé / séparé</div><div class="text-2xl font-bold">${r.totFeuillesGroupe} <span class="text-sm text-gray-400 font-normal">/ ${r.totFeuillesSepare}</span></div></div>
+      <div class="page-card"><div class="text-xs text-gray-500">Feuilles économisées</div><div class="text-2xl font-bold text-emerald-600">${feuillesEco} <span class="text-sm font-normal">(${pctFeuillesEco}%)</span></div></div>
+      <div class="page-card"><div class="text-xs text-gray-500">Réduction de chute (surface)</div><div class="text-2xl font-bold text-emerald-600">${pctSurface}%</div></div>
+      <div class="page-card"><div class="text-xs text-gray-500">Économie vitrage</div><div class="text-2xl font-bold text-emerald-600">${money(r.totEconomieVitrage)}</div></div>
+    </div>
+    ${r.glassDetail.length?`<div class="page-card mb-4">
+      <h3 class="font-bold text-sm mb-2">Détail par type de vitrage</h3>
+      <div class="overflow-x-auto"><table><thead><tr><th>Vitrage</th><th class="text-right">Panneaux</th><th class="text-right">Feuilles séparé</th><th class="text-right">Feuilles groupé</th><th class="text-right">Économisées</th><th class="text-right">Surface groupée</th><th class="text-right">Économie</th></tr></thead>
+      <tbody>${r.glassDetail.map(d=>`<tr><td class="font-semibold">${escapeHtml(d.code)} — ${escapeHtml(d.label)}</td><td class="text-right">${d.nbPieces}</td><td class="text-right">${d.nbSepare}</td><td class="text-right">${d.nbGroupe}</td><td class="text-right ${d.feuillesEconomisees>0?'text-emerald-600 font-semibold':''}">${d.feuillesEconomisees}</td><td class="text-right">${d.surfaceGroupe.toFixed(2)} m²</td><td class="text-right">${money(d.economieFcfa)}</td></tr>`).join('')}</tbody></table></div>
+    </div>
+    <div class="page-card">
+      <h3 class="font-bold text-sm mb-2">Schéma d'imbrication groupée (2D, couleur = chantier d'origine)</h3>
+      <p class="text-xs text-gray-500 mb-3">Imbrication par étagères (rotation 90° autorisée) — zones grises = chute non utilisée sur la feuille.</p>
+      <div class="mb-3">${legend}</div>
+      ${r.glassDetail.map(d=>{
+        const scale=380/r.sheetW;
+        return `<div class="mb-5">
+          <div class="flex justify-between items-center mb-2"><b class="text-sm">${escapeHtml(d.code)} — ${escapeHtml(d.label)}</b><span class="text-xs text-gray-500">${d.nbGroupe} feuille${d.nbGroupe>1?'s':''} de ${r.sheetW}×${r.sheetH} mm</span></div>
+          <div class="flex flex-wrap gap-3 overflow-x-auto">${d.groupedSheets.map((s,i)=>{
+            const itemsHtml=s.shelves.flatMap(sh=>sh.items).map(it=>`<div style="position:absolute;left:${it.x*scale}px;top:${it.y*scale}px;width:${it.w*scale}px;height:${it.h*scale}px;background:${colorForDevis(it.devisId)};opacity:.85;border:1px solid #fff;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;overflow:hidden" title="${escapeHtml(devisMap[it.devisId]?.libelle||'')}">${it.w}×${it.h}</div>`).join('');
+            const chutesHtml=(s.chutes||[]).map(ch=>`<div style="position:absolute;left:${ch.x*scale}px;top:${ch.y*scale}px;width:${ch.w*scale}px;height:${ch.h*scale}px;background:rgba(148,163,184,.25);border:1px dashed #94a3b8"></div>`).join('');
+            return `<div>
+              <div style="position:relative;width:${r.sheetW*scale}px;height:${r.sheetH*scale}px;background:#f8fafc;border:2px solid #0f172a">${itemsHtml}${chutesHtml}</div>
+              <div class="text-center text-[10px] text-gray-500 mt-1">Feuille ${i+1}</div>
+            </div>`;
+          }).join('')}</div>
+        </div>`;
+      }).join('')}
+    </div>`:'<div class="page-card text-sm text-gray-400 text-center py-6">Aucun vitrage à débiter pour ces devis.</div>'}`;
 }
 
 /* ============================== CONFIGURATEUR D'OUVRAGE ============================== */
@@ -1811,7 +1896,7 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
         ['PIN-GI-001','Pince de fixation verre inox',4*nPanels*qty,0,4*nPanels*qty*getPrix('PIN-GI-001',standing,2400)]
       ])
     ];
-    if(infill==='verre') glassPanels=[{w:Math.round(w/nPanels),h,qty:nPanels*qty}];
+    if(infill==='verre') glassPanels=[{code:'VIT-GI-001',w:Math.round(w/nPanels),h,qty:nPanels*qty}];
   } else if(type==='Moustiquaire fixe' || type==='Moustiquaire coulissante'){
     const isCoul=type==='Moustiquaire coulissante';
     const ouvrantW=isCoul?Math.max(0,w/leaves):w;
@@ -1839,7 +1924,7 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
       ['MEC-FJ-001','Mécanisme à manivelle',qty,0,qty*getPrix('MEC-FJ-001',standing,6500)],
       ['CLI-FJ-001','Clip de fixation lame',nLames*2*qty,0,nLames*2*qty*getPrix('CLI-FJ-001',standing,350)]
     ];
-    glassPanels=[{w,h:Math.round(h/nLames),qty:nLames*qty}];
+    glassPanels=[{code:'LAM-FJ-001',w,h:Math.round(h/nLames),qty:nLames*qty}];
   } else {
     const jointType=opts.jointType||'onglet';
     const gap=+opts.gap||5;
@@ -1879,7 +1964,7 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
         return [code,label,n,0,n*getPrix(code,standing,fallback)];
       })()
     ];
-    glassPanels=[{w:Math.round(glassW),h:Math.round(glassH),qty:leaves*qty}];
+    glassPanels=[{code:'VIT-001',w:Math.round(glassW),h:Math.round(glassH),qty:leaves*qty}];
   }
   const coutMateriel=rows.reduce((s,r)=>s+r[4],0);
   return {rows,alu,glassArea,coutMateriel,surface:w*h/1000000,glassPanels};
@@ -2290,6 +2375,56 @@ function packGlassSheets(panels,sheetW,sheetH,kerf){
     });
     const hBas=sheetH-sh.usedHeight;
     if(hBas>1) sh.chutes.push({w:sheetW,h:Math.round(hBas),x:0,y:Math.round(sh.usedHeight),bottom:true});
+  });
+  return sheets;
+}
+/* Variante taguée de packGlassSheets : conserve le devisId d'origine de chaque panneau à
+   travers l'imbrication 2D, pour le Simulateur multi-chantiers (traçabilité + visuel couleur).
+   `pieces` est déjà à plat (une entrée par panneau, qty déjà expansé), contrairement à
+   packGlassSheets qui reçoit des {w,h,qty} groupés. */
+function packGlassSheetsTagged(pieces,sheetW,sheetH,kerf){
+  const sorted=[...pieces].sort((a,b)=>Math.max(b.w,b.h)-Math.max(a.w,a.h));
+  const sheets=[];
+  let sheet=null;
+  function newSheet(){ sheet={shelves:[],usedHeight:0}; sheets.push(sheet); }
+  newSheet();
+  sorted.forEach(p=>{
+    const orients=[[p.w,p.h],[p.h,p.w]];
+    let placed=false;
+    for(const shelf of sheet.shelves){
+      for(const [pw,ph] of orients){
+        if(ph<=shelf.height+0.01 && shelf.usedWidth+pw+kerf<=sheetW+0.01){
+          shelf.items.push({x:shelf.usedWidth,y:shelf.y,w:pw,h:ph,devisId:p.devisId});
+          shelf.usedWidth+=pw+kerf;
+          placed=true; break;
+        }
+      }
+      if(placed) break;
+    }
+    if(!placed){
+      for(const [pw,ph] of orients){
+        if(pw<=sheetW+0.01 && sheet.usedHeight+ph+kerf<=sheetH+0.01){
+          sheet.shelves.push({y:sheet.usedHeight,height:ph,usedWidth:pw+kerf,items:[{x:0,y:sheet.usedHeight,w:pw,h:ph,devisId:p.devisId}]});
+          sheet.usedHeight+=ph+kerf;
+          placed=true; break;
+        }
+      }
+    }
+    if(!placed){
+      newSheet();
+      const orient=(p.w<=sheetW && p.h<=sheetH)?[p.w,p.h]:[p.h,p.w];
+      sheet.shelves.push({y:0,height:orient[1],usedWidth:orient[0]+kerf,items:[{x:0,y:0,w:orient[0],h:orient[1],devisId:p.devisId}]});
+      sheet.usedHeight=orient[1]+kerf;
+    }
+  });
+  sheets.forEach(sh=>{
+    sh.chutes=[];
+    sh.shelves.forEach(shelf=>{
+      const w=sheetW-shelf.usedWidth;
+      if(w>1) sh.chutes.push({w:Math.round(w),h:Math.round(shelf.height),x:Math.round(shelf.usedWidth),y:Math.round(shelf.y)});
+    });
+    const hBas=sheetH-sh.usedHeight;
+    if(hBas>1) sh.chutes.push({w:sheetW,h:Math.round(hBas),x:0,y:Math.round(sh.usedHeight)});
   });
   return sheets;
 }
