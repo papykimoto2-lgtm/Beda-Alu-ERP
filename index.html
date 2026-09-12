@@ -859,21 +859,81 @@ async function renderProjetForm(el){
 }
 
 /* ============================== PRODUITS ============================== */
+const PRODUIT_FAMILLES=['Fenêtre coulissante','Porte à la française','Porte coulissante','Coulissant galandage','Fenêtre jalousie','Moustiquaire fixe','Moustiquaire coulissante','Garde-corps inox','Verrière / mur rideau','Autre'];
+const FAMILLE_ICONS={'Fenêtre coulissante':'🪟','Porte à la française':'🚪','Porte coulissante':'🚪','Coulissant galandage':'🚪','Fenêtre jalousie':'🪟','Moustiquaire fixe':'🦟','Moustiquaire coulissante':'🦟','Garde-corps inox':'🛡️','Verrière / mur rideau':'🏢','Autre':'📦'};
+window._produitsView=window._produitsView||'grille';
 async function renderProduits(el){
   const {data,error}=await sb.from('produits').select('*').order('nom');
   if(error) throw error;
   window._produitsCache=data;
+  const famOptions=PRODUIT_FAMILLES.map(f=>`<option value="${f}">${f}</option>`).join('');
   el.innerHTML=`
-    <div class="flex justify-between items-center mb-4">
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
       <p class="text-sm text-gray-500 max-w-lg">Catalogue de référence utilisé dans les devis. Le % coût matériel sert à l'estimation financière prévisionnelle (approximatif).</p>
       <button class="btn btn-primary" onclick="window._editId=null;showPage('produits-add')">+ Ajouter</button>
     </div>
-    <div class="card overflow-x-auto">
-      <table><thead><tr><th>Désignation</th><th>Unité</th><th class="text-right">% coût matériel</th><th></th></tr></thead>
-      <tbody>${data.map(p=>`<tr><td>${escapeHtml(p.nom)}</td><td>${escapeHtml(p.unite)}</td><td class="text-right">${p.cout_materiel_pct}%</td>
-      <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${p.id}';showPage('produits-add')">Modifier</button>
-      <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('produits','${p.id}','produits')">Suppr.</button></td></tr>`).join('')}</tbody></table>
-    </div>`;
+    <div class="card mb-3">
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex-1 min-w-[200px]">${fieldWrap('🔎',`<input id="prFilterQ" placeholder="Rechercher un produit…" oninput="filterProduitsCatalogue()">`)}</div>
+        <div style="min-width:200px">${fieldWrap('🏷️',`<select id="prFilterFamille" onchange="filterProduitsCatalogue()"><option value="">Toutes les familles</option>${famOptions}</select>`)}</div>
+        <div class="flex rounded-lg border overflow-hidden shrink-0">
+          <button id="prViewGrille" class="px-3 py-2 text-sm font-semibold" onclick="setProduitsView('grille')">▦ Grille</button>
+          <button id="prViewListe" class="px-3 py-2 text-sm font-semibold border-l" onclick="setProduitsView('liste')">☰ Liste</button>
+        </div>
+      </div>
+    </div>
+    <div id="produitsCatalogue"></div>`;
+  updateProduitsViewButtons();
+  filterProduitsCatalogue();
+}
+function setProduitsView(v){ window._produitsView=v; updateProduitsViewButtons(); filterProduitsCatalogue(); }
+function updateProduitsViewButtons(){
+  const g=document.getElementById('prViewGrille'), l=document.getElementById('prViewListe');
+  if(!g||!l) return;
+  g.className='px-3 py-2 text-sm font-semibold '+(window._produitsView==='grille'?'bg-indigo-600 text-white':'bg-white text-gray-600');
+  l.className='px-3 py-2 text-sm font-semibold border-l '+(window._produitsView==='liste'?'bg-indigo-600 text-white':'bg-white text-gray-600');
+}
+function filterProduitsCatalogue(){
+  const data=window._produitsCache||[];
+  const q=(document.getElementById('prFilterQ')?.value||'').trim().toLowerCase();
+  const fam=document.getElementById('prFilterFamille')?.value||'';
+  const filtered=data.filter(p=>{
+    if(fam && (p.famille||'Autre')!==fam) return false;
+    if(q && !p.nom.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const groups={};
+  filtered.forEach(p=>{ const f=p.famille||'Autre'; (groups[f]=groups[f]||[]).push(p); });
+  const familles=PRODUIT_FAMILLES.filter(f=>groups[f]?.length);
+  const host=document.getElementById('produitsCatalogue');
+  if(!host) return;
+  if(!familles.length){ host.innerHTML='<div class="card text-center text-gray-400 p-8">Aucun produit.</div>'; return; }
+  host.innerHTML=familles.map(f=>`
+    <div class="mb-6">
+      <h3 class="text-sm font-bold text-gray-500 uppercase mb-2">${FAMILLE_ICONS[f]||'📦'} ${escapeHtml(f)} <span class="text-gray-400 font-normal">(${groups[f].length})</span></h3>
+      ${window._produitsView==='grille' ? `
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          ${groups[f].map(p=>`
+            <div class="card">
+              <div class="flex justify-between items-start gap-2">
+                <div class="text-2xl">${FAMILLE_ICONS[f]||'📦'}</div>
+                <span class="pill bg-gray-100 text-gray-600">${p.cout_materiel_pct}%</span>
+              </div>
+              <div class="font-semibold mt-2">${escapeHtml(p.nom)}</div>
+              <div class="text-xs text-gray-400">Unité : ${escapeHtml(p.unite)}</div>
+              <div class="flex justify-end gap-2 mt-3">
+                <button class="text-indigo-600 text-xs font-semibold" onclick="window._editId='${p.id}';showPage('produits-add')">Modifier</button>
+                <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('produits','${p.id}','produits')">Suppr.</button>
+              </div>
+            </div>`).join('')}
+        </div>` : `
+        <div class="card overflow-x-auto">
+          <table><thead><tr><th>Désignation</th><th>Unité</th><th class="text-right">% coût matériel</th><th></th></tr></thead>
+          <tbody>${groups[f].map(p=>`<tr><td>${escapeHtml(p.nom)}</td><td>${escapeHtml(p.unite)}</td><td class="text-right">${p.cout_materiel_pct}%</td>
+          <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${p.id}';showPage('produits-add')">Modifier</button>
+          <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('produits','${p.id}','produits')">Suppr.</button></td></tr>`).join('')}</tbody></table>
+        </div>`}
+    </div>`).join('');
 }
 async function renderProduitForm(el){
   let p={};
@@ -885,6 +945,7 @@ async function renderProduitForm(el){
       <form id="prodForm" class="grid sm:grid-cols-2 gap-4">
         <input type="hidden" id="prId" value="${p.id||''}">
         <div class="field sm:col-span-2"><label>Désignation</label>${fieldWrap('📦',`<input id="prNom" required value="${escapeHtml(p.nom||'')}">`)}</div>
+        <div class="field sm:col-span-2"><label>Famille</label>${fieldWrap('🏷️',`<select id="prFamille">${PRODUIT_FAMILLES.map(f=>`<option value="${f}" ${p.famille===f?'selected':''}>${f}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Unité</label>${fieldWrap('📐',`<select id="prUnite"><option value="unite" ${p.unite==='unite'?'selected':''}>Unité</option><option value="m2" ${p.unite==='m2'?'selected':''}>m²</option><option value="ml" ${p.unite==='ml'?'selected':''}>ml</option></select>`)}</div>
         <div class="field"><label>% coût matériel estimé</label>${fieldWrap('💰',`<input id="prPct" type="number" min="0" max="100" value="${p.cout_materiel_pct??60}">`)}</div>
         <div class="sm:col-span-2 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
@@ -892,7 +953,7 @@ async function renderProduitForm(el){
     </div>`;
   document.getElementById('prodForm').onsubmit=async (e)=>{
     e.preventDefault();
-    const rec={nom:val('prNom'),unite:val('prUnite'),cout_materiel_pct:+val('prPct')||60};
+    const rec={nom:val('prNom'),famille:val('prFamille'),unite:val('prUnite'),cout_materiel_pct:+val('prPct')||60};
     const id=val('prId');
     let error;
     if(id){ ({error}=await sb.from('produits').update(rec).eq('id',id)); }
