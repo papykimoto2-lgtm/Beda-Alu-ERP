@@ -914,6 +914,16 @@ async function renderProduits(el){
 }
 function setProduitsView(v){ window._produitsView=v; updateProduitsViewButtons(); filterProduitsCatalogue(); }
 function setProduitsFamFilter(f){ window._produitsFamFilter=f; showPage('produits'); }
+async function dupliquerProduit(id){
+  const {data:p,error:e1}=await sb.from('produits').select('*').eq('id',id).single();
+  if(e1){ toast(e1.message,'error'); return; }
+  const copy={...p}; delete copy.id; delete copy.created_at;
+  copy.nom=copy.nom+' (copie)';
+  const {data:newP,error}=await sb.from('produits').insert(copy).select().single();
+  if(error){ toast(error.message,'error'); return; }
+  toast('Produit dupliqué — modifiez ses caractéristiques.');
+  window._editId=newP.id; showPage('produits-add');
+}
 function updateProduitsViewButtons(){
   const g=document.getElementById('prViewGrille'), l=document.getElementById('prViewListe');
   if(!g||!l) return;
@@ -956,6 +966,7 @@ function filterProduitsCatalogue(){
               <div class="punite">${escapeHtml(p.unite)}</div>
               <div class="pactions">
                 <button style="color:${fc}" onclick="window._editId='${p.id}';showPage('produits-add')">✏️ Modifier</button>
+                <button class="text-gray-500" onclick="dupliquerProduit('${p.id}')">⧉ Dupliquer</button>
                 <button class="text-red-500" onclick="deleteRow('produits','${p.id}','produits')">🗑️ Suppr.</button>
               </div>
             </div>`).join('')}
@@ -964,6 +975,7 @@ function filterProduitsCatalogue(){
           <table><thead><tr><th>Désignation</th><th>Unité</th><th class="text-right">% coût matériel</th><th></th></tr></thead>
           <tbody>${groups[f].map(p=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(p.nom)}</td><td>${escapeHtml(p.unite)}</td><td class="text-right"><span class="produit-pct" style="--fc:${fc}">${p.cout_materiel_pct}%</span></td>
           <td class="text-right whitespace-nowrap"><button class="text-xs font-semibold mr-3" style="color:${fc}" onclick="window._editId='${p.id}';showPage('produits-add')">✏️ Modifier</button>
+          <button class="text-gray-500 text-xs font-semibold mr-3" onclick="dupliquerProduit('${p.id}')">⧉ Dupliquer</button>
           <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('produits','${p.id}','produits')">🗑️ Suppr.</button></td></tr>`).join('')}</tbody></table>
         </div>`}
     </div>`;
