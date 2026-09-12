@@ -341,7 +341,7 @@ async function enterApp(){
   document.getElementById('sbUserEmail').textContent=user.email;
   document.getElementById('hdrUserName').textContent=displayName;
   document.getElementById('hdrAvatar').textContent=displayName.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  const {count:nbAttente}=await sb.from('devis').select('*',{count:'exact',head:true}).eq('statut','en_attente');
+  const {count:nbAttente}=await sb.from('devis').select('*',{count:'exact',head:true}).eq('statut','en_attente').eq('is_current',true);
   const bell=document.getElementById('hdrBellCount');
   if(nbAttente){ bell.textContent=nbAttente; bell.classList.remove('hidden'); }
   refreshDevisBadges();
@@ -391,7 +391,7 @@ document.querySelectorAll('.nav-parent[data-toggle]').forEach(b=>{
 async function renderDashboard(el){
   const [{count:nbClients},{count:nbDevisEnCours},{count:nbChantiers},facturesRes]=await Promise.all([
     sb.from('clients').select('*',{count:'exact',head:true}),
-    sb.from('devis').select('*',{count:'exact',head:true}).in('statut',['en_attente','en_cours']),
+    sb.from('devis').select('*',{count:'exact',head:true}).in('statut',['en_attente','en_cours']).eq('is_current',true),
     sb.from('projets').select('*',{count:'exact',head:true}),
     sb.from('factures').select('total,statut').neq('statut','payee')
   ]);
@@ -1614,7 +1614,7 @@ const SIM_DEVIS_COLORS=['#6d28d9','#0891b2','#d97706','#dc2626','#059669','#4f46
 async function renderStockSimulateur(el){
   const {data:priceRows}=await sb.from('composants').select('code,prix_unitaire,standing').not('code','is',null);
   window._composantsPriceMap=buildComposantsPriceMap(priceRows);
-  const {data:devisList}=await sb.from('devis').select('id,libelle,client_id,statut,total,date_creation').in('statut',['en_attente','en_cours','accepte']).order('date_creation',{ascending:false});
+  const {data:devisList}=await sb.from('devis').select('id,libelle,client_id,statut,total,date_creation').in('statut',['en_attente','en_cours','accepte']).eq('is_current',true).order('date_creation',{ascending:false});
   const {data:clients}=await sb.from('clients').select('id,nom,prenoms');
   window._simDevisCache=devisList||[];
   window._simClientMap=Object.fromEntries((clients||[]).map(c=>[c.id,[c.nom,c.prenoms].filter(Boolean).join(' ')]));
@@ -2628,7 +2628,7 @@ function configurerProduitExistant(id){
 /* ============================== DEVIS ============================== */
 const PIPELINE_DEVIS_COLORS={en_attente:'#2563eb',en_cours:'#d97706',accepte:'#059669',refuse:'#dc2626',annule:'#6b7280'};
 async function renderDevisPipeline(el){
-  const {data,error}=await sb.from('devis').select('id,code,statut,total,date_creation,client_id').order('created_at',{ascending:false});
+  const {data,error}=await sb.from('devis').select('id,code,statut,total,date_creation,client_id').eq('is_current',true).order('created_at',{ascending:false});
   if(error) throw error;
   const {data:clients}=await sb.from('clients').select('id,nom,prenoms');
   const clientMap=Object.fromEntries((clients||[]).map(c=>[c.id,[c.nom,c.prenoms].filter(Boolean).join(' ')]));
@@ -2680,7 +2680,7 @@ async function onDevisPipelineDrop(e,statut){
   await deplacerDevisPipeline(id,statut);
 }
 async function renderDevis(el,filterStatut){
-  let q=sb.from('devis').select('*, clients(nom,prenoms), projets(libelle)').order('created_at',{ascending:false});
+  let q=sb.from('devis').select('*, clients(nom,prenoms), projets(libelle)').eq('is_current',true).order('created_at',{ascending:false});
   if(filterStatut) q=q.eq('statut',filterStatut);
   const {data,error}=await q;
   if(error) throw error;
@@ -2701,6 +2701,7 @@ async function renderDevis(el,filterStatut){
         <td class="text-right">${money(d.total)}</td><td>${badge(STATUT_DEVIS,d.statut)}</td>
         <td class="text-right whitespace-nowrap">
           <button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${d.id}';showPage('devis-add')">Modifier</button>
+          <button class="text-indigo-700 text-xs font-semibold mr-2" onclick="reviserDevis('${d.id}')" title="Créer une nouvelle version">↻</button>
           <button class="text-teal-600 text-xs font-semibold mr-2" onclick="printDevis('${d.id}')">🖨</button>
           <button class="text-purple-600 text-xs font-semibold mr-2" onclick="openEstimation('${d.id}')">📊</button>
           <button class="text-amber-600 text-xs font-semibold mr-2" onclick="genererFicheExecution('${d.id}')">🛠️</button>
@@ -2712,7 +2713,7 @@ async function renderDevis(el,filterStatut){
 }
 
 async function refreshDevisBadges(){
-  const {data,error}=await sb.from('devis').select('statut');
+  const {data,error}=await sb.from('devis').select('statut').eq('is_current',true);
   if(error) return;
   const counts={en_attente:0,en_cours:0,annule:0};
   data.forEach(d=>{ if(counts[d.statut]!==undefined) counts[d.statut]++; });
@@ -2972,22 +2973,32 @@ async function renderDevisDetail(el){
   const {data:d,error}=await sb.from('devis').select('*, clients(*), projets(libelle)').eq('id',devisId).single();
   if(error){ el.innerHTML=`<div class="text-red-600">${escapeHtml(error.message)}</div>`; return; }
   const {data:lignes}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
+  const {data:versions}=await sb.from('devis').select('id,code,version_number,statut,is_current,created_at').eq('racine_id',d.racine_id).order('version_number');
   const sousTotal=(lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100),0);
   const st=STATUT_DEVIS[d.statut]||{label:d.statut,color:'text-gray-500'};
   el.innerHTML=`
+    ${(versions&&versions.length>1)?`<div class="page-card mb-3 py-3">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-bold text-gray-500 uppercase">Versions de ce devis</span>
+        ${versions.map(v=>`<button onclick="window._editId='${v.id}';showPage('devis-view')" class="badge ${v.id===d.id?'bg-indigo-600 text-white':v.is_current?'bg-emerald-50 text-emerald-700':'bg-gray-100 text-gray-500'}" style="border:${v.id===d.id?'2px solid #4338ca':'none'}">V${v.version_number} — ${STATUT_DEVIS[v.statut]?.label||v.statut}${v.is_current?' (actuelle)':''}</button>`).join('')}
+      </div>
+      ${!d.is_current?`<div class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">⚠️ Vous consultez une version archivée (${escapeHtml(d.code)}). La version actuelle est <button class="underline font-semibold" onclick="window._editId='${(versions.find(v=>v.is_current)||{}).id}';showPage('devis-view')">V${(versions.find(v=>v.is_current)||{}).version_number}</button>.</div>`:''}
+    </div>`:''}
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
       <div class="flex gap-2 flex-wrap">
         <a href="mailto:${escapeHtml(d.clients?.email||'')}?subject=${encodeURIComponent('Devis '+d.code)}" class="btn btn-amber">✉ Envoyer</a>
         <button class="btn btn-green" onclick="convertirEnFacture('${d.id}','simple')">✔ Facture simple</button>
         <button class="btn" style="background:#92400e;color:#fff" onclick="convertirEnFacture('${d.id}','fne')">🧾 Facture FNE</button>
         <button class="btn btn-dark" onclick="printDevis('${d.id}')">🖨 Imprimer</button>
+        <button class="btn" style="background:#4338ca;color:#fff" onclick="reviserDevis('${d.id}')">↻ Réviser</button>
       </div>
       <div class="dropdown">
         <button class="btn btn-primary" onclick="toggleDropdown(event,'devisOptionsMenu')">⚙ Options ▾</button>
         <div class="dropdown-menu hidden" id="devisOptionsMenu">
           <button onclick="deleteRow('devis','${d.id}','devis')">Supprimer</button>
           <button onclick="window._editId='${d.id}';showPage('devis-add')">Modifier</button>
-          <button onclick="dupliquerDevis('${d.id}')">Dupliquer</button>
+          <button onclick="reviserDevis('${d.id}')">↻ Réviser (nouvelle version)</button>
+          <button onclick="dupliquerDevis('${d.id}')">Dupliquer (nouveau dossier)</button>
           <button onclick="printDevis('${d.id}')">Prévisualiser</button>
           <button onclick="ajouterRappel('${d.id}')">Ajouter un Rappel</button>
         </div>
@@ -3015,6 +3026,7 @@ async function dupliquerDevis(devisId){
   const {data:d}=await sb.from('devis').select('*').eq('id',devisId).single();
   const {data:lignes}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId);
   const copy={...d}; delete copy.id; delete copy.code; delete copy.created_at;
+  delete copy.racine_id; delete copy.version_number; delete copy.is_current;
   const {data:newDevis,error}=await sb.from('devis').insert(copy).select().single();
   if(error){ toast(error.message,'error'); return; }
   if(lignes?.length){
@@ -3022,6 +3034,29 @@ async function dupliquerDevis(devisId){
     await sb.from('devis_lignes').insert(rows);
   }
   toast('Devis dupliqué : '+newDevis.code); showPage('devis');
+}
+async function reviserDevis(devisId){
+  const {data:d,error:e1}=await sb.from('devis').select('*').eq('id',devisId).single();
+  if(e1){ toast(e1.message,'error'); return; }
+  const {data:lignes,error:e2}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
+  if(e2){ toast(e2.message,'error'); return; }
+  const {data:racine}=await sb.from('devis').select('code').eq('id',d.racine_id).single();
+  const {data:versions}=await sb.from('devis').select('version_number').eq('racine_id',d.racine_id);
+  const nextVersion=Math.max(1,...(versions||[]).map(v=>v.version_number||1))+1;
+  const baseCode=(racine?.code||d.code).replace(/-V\d+$/,'');
+  const copy={...d};
+  delete copy.id; delete copy.created_at;
+  Object.assign(copy,{code:`${baseCode}-V${nextVersion}`,version_number:nextVersion,is_current:true,statut:'en_attente',date_creation:new Date().toISOString().slice(0,10),created_by:CURRENT_USER.id});
+  const {data:newDevis,error}=await sb.from('devis').insert(copy).select().single();
+  if(error){ toast(error.message,'error'); return; }
+  if(lignes?.length){
+    const rows=lignes.map(l=>{ const c={...l}; delete c.id; delete c.created_at; c.devis_id=newDevis.id; return c; });
+    const {error:e3}=await sb.from('devis_lignes').insert(rows);
+    if(e3){ toast(e3.message,'error'); return; }
+  }
+  await sb.from('devis').update({is_current:false}).eq('id',devisId);
+  toast(`Révision ${newDevis.code} créée — statut réinitialisé à « En attente ».`);
+  window._editId=newDevis.id; showPage('devis-view');
 }
 function ajouterRappel(devisId){
   const date=prompt('Date du rappel (AAAA-MM-JJ) :', new Date().toISOString().slice(0,10));
