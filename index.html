@@ -179,6 +179,7 @@ window.SB_CFG = {
         <button class="nav-child" data-page="projets-termine">→ Projet terminé <span class="nav-badge nav-badge-green" id="badgeProjTermine">0</span></button>
         <button class="nav-child" data-page="projets-retard">→ Projet en retard <span class="nav-badge nav-badge-red" id="badgeProjRetard">0</span></button>
         <button class="nav-child" data-page="projets-annule">→ Projet Annulé <span class="nav-badge nav-badge-red" id="badgeProjAnnule">0</span></button>
+        <button class="nav-child" data-page="carte-chantiers">→ 🗺️ Carte des chantiers</button>
       </div>
 
       <div class="sidebar-group-title">Commercial</div>
@@ -324,9 +325,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients & Chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients & Chantiers','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g'};
 window._editId=null;
 async function showPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -572,6 +573,62 @@ function refreshCarteLayers(){
   if(bounds.length) _carteMap.fitBounds(bounds,{padding:[30,30]}); else _carteMap.setView([5.3364,-4.0267],6);
   const countEl=document.getElementById('carteCount');
   if(countEl) countEl.textContent=`${(window._carteClients||[]).length} client(s) géolocalisé(s) · ${(window._carteProjets||[]).length} chantier(s) géolocalisé(s)`;
+}
+
+/* ============================== CARTE DES CHANTIERS ============================== */
+const ETAPE_MAP_COLORS={en_attente:'#7c3aed',mesure_disponible:'#f59e0b',pret_fabrication:'#eab308',fabrication_en_cours:'#2563eb',installation_en_cours:'#0891b2',termine:'#059669',annule:'#9ca3af'};
+let _carteChantiersMap=null, _carteChantiersMarkers={};
+async function renderCarteChantiers(el){
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div style="min-width:220px">${fieldWrap('🏷️',`<select id="ccFilterEtape" onchange="refreshCarteChantiers()"><option value="">Toutes les étapes</option>${Object.entries(STATUT_PROJET).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('')}</select>`)}</div>
+      <div class="text-sm text-gray-500" id="ccCount">—</div>
+    </div>
+    <div class="flex flex-col lg:flex-row gap-3">
+      <div class="card overflow-hidden p-0 flex-1" style="min-width:0"><div id="ccMapEl" style="height:70vh;width:100%"></div></div>
+      <div class="card p-0 overflow-y-auto" style="width:100%;max-width:340px;height:70vh" id="ccListPanel"></div>
+    </div>`;
+  const {data:projets}=await sb.from('projets').select('id,code,libelle,commune,etape,latitude,longitude,date_debut,date_fin,clients(nom,prenoms)').not('latitude','is',null).not('longitude','is',null);
+  window._ccProjets=projets||[];
+  if(_carteChantiersMap){ _carteChantiersMap.remove(); _carteChantiersMap=null; }
+  _carteChantiersMap=L.map('ccMapEl');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(_carteChantiersMap);
+  refreshCarteChantiers();
+}
+function refreshCarteChantiers(){
+  if(!_carteChantiersMap) return;
+  const etapeFilter=document.getElementById('ccFilterEtape')?.value||'';
+  const all=window._ccProjets||[];
+  const filtered=all.filter(p=>!etapeFilter||p.etape===etapeFilter);
+  Object.values(_carteChantiersMarkers).forEach(m=>_carteChantiersMap.removeLayer(m));
+  _carteChantiersMarkers={};
+  const bounds=[];
+  const listHtml=filtered.map(p=>{
+    const color=ETAPE_MAP_COLORS[p.etape]||'#6b7280';
+    const st=STATUT_PROJET[p.etape]||{label:p.etape};
+    const clientNom=p.clients?[p.clients.nom,p.clients.prenoms].filter(Boolean).join(' '):'—';
+    const icon=L.divIcon({className:'',html:`<div style="width:16px;height:16px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 0 0 1px ${color}"></div>`,iconSize:[16,16]});
+    const marker=L.marker([p.latitude,p.longitude],{icon}).bindPopup(`<b>${escapeHtml(p.libelle)}</b><br>${escapeHtml(p.code)}<br>Client : ${escapeHtml(clientNom)}${p.commune?'<br>'+escapeHtml(p.commune):''}<br>Étape : ${escapeHtml(st.label)}<br><a href="#" onclick="window._editId='${p.id}';showPage('projets-add');return false;">Voir la fiche →</a>`).addTo(_carteChantiersMap);
+    _carteChantiersMarkers[p.id]=marker;
+    bounds.push([p.latitude,p.longitude]);
+    return `<div class="p-3 border-b cursor-pointer hover:bg-gray-50" onclick="focusChantier('${p.id}')">
+      <div class="flex items-center gap-2">
+        <span style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0"></span>
+        <span class="font-semibold text-sm truncate">${escapeHtml(p.libelle)}</span>
+      </div>
+      <div class="text-xs text-gray-400 mt-0.5">${escapeHtml(p.code)} · ${escapeHtml(clientNom)}</div>
+      <div class="text-xs mt-1" style="color:${color}">${escapeHtml(st.label)}</div>
+    </div>`;
+  }).join('')||'<div class="p-4 text-sm text-gray-400">Aucun chantier géolocalisé pour ce filtre.</div>';
+  const listPanel=document.getElementById('ccListPanel'); if(listPanel) listPanel.innerHTML=listHtml;
+  if(bounds.length) _carteChantiersMap.fitBounds(bounds,{padding:[30,30]}); else _carteChantiersMap.setView([5.3364,-4.0267],6);
+  const countEl=document.getElementById('ccCount');
+  if(countEl) countEl.textContent=`${filtered.length} chantier(s) géolocalisé(s) sur ${all.length} au total`;
+}
+function focusChantier(id){
+  const marker=_carteChantiersMarkers[id]; if(!marker||!_carteChantiersMap) return;
+  _carteChantiersMap.flyTo(marker.getLatLng(),16,{duration:0.6});
+  marker.openPopup();
 }
 
 /* ============================== CATÉGORIE CLIENTS ============================== */
