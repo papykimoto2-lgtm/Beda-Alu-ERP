@@ -981,7 +981,8 @@ async function renderDevisDetail(el){
       </table></div>
       <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0)}</div>
       ${DOC_NOTES_HTML}
-    </div>`;
+    </div>
+    ${await fichesExecutionSectionHtml(d.id)}`;
 }
 function toggleDropdown(e,id){
   e.stopPropagation();
@@ -1128,6 +1129,9 @@ async function printFacture(factureId){
 async function genererFicheExecution(devisId){
   const {data:existing}=await sb.from('fiches_execution').select('id').eq('devis_id',devisId).maybeSingle();
   if(existing){ openFicheExecution(existing.id); return; }
+  await creerNouvelleFiche(devisId,true);
+}
+async function creerNouvelleFiche(devisId,openAfter){
   const {data:d}=await sb.from('devis').select('*').eq('id',devisId).single();
   const {data:lignes}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
   const {data:fiche,error}=await sb.from('fiches_execution').insert({devis_id:devisId,projet_id:d.projet_id,commercial:d.commercial,lieu_affaire:d.lieu_affaire,created_by:CURRENT_USER.id}).select().single();
@@ -1137,17 +1141,54 @@ async function genererFicheExecution(devisId){
     await sb.from('fiche_execution_lignes').insert(rows);
   }
   toast('Fiche d\'exécution générée.');
-  openFicheExecution(fiche.id);
+  if(openAfter) openFicheExecution(fiche.id);
+  else showPage('devis-view');
+}
+async function deleteFiche(id){
+  if(!confirm('Supprimer cette fiche d\'exécution ?')) return;
+  const {error}=await sb.from('fiches_execution').delete().eq('id',id);
+  if(error){ toast(error.message,'error'); return; }
+  toast('Fiche supprimée.'); showPage('devis-view');
 }
 async function renderFiches(el){
   const {data,error}=await sb.from('fiches_execution').select('*, devis(code), clients:devis(client_id)').order('created_at',{ascending:false});
   if(error) throw error;
   el.innerHTML=`
-    <div class="text-sm text-gray-500 mb-4">${data.length} fiche(s) d'exécution — générées depuis un devis (bouton 🛠️).</div>
+    <div class="text-sm text-gray-500 mb-4">${data.length} fiche(s) d'exécution — générées depuis un devis.</div>
     <div class="card overflow-x-auto">
       <table><thead><tr><th>Code</th><th>Devis</th><th>Responsable</th><th>Statut</th><th></th></tr></thead>
       <tbody>${data.map(f=>`<tr><td class="font-semibold">${escapeHtml(f.code)}</td><td>${escapeHtml(f.devis?.code||'—')}</td><td>${escapeHtml(f.responsable_chantier||'—')}</td><td>${badge(STATUT_FICHE,f.statut)}</td>
       <td class="text-right"><button class="text-indigo-600 text-xs font-semibold" onclick="openFicheExecution('${f.id}')">Ouvrir</button></td></tr>`).join('')||'<tr><td colspan="5" class="text-gray-400 p-4">Aucune fiche.</td></tr>'}</tbody></table>
+    </div>`;
+}
+async function fichesExecutionSectionHtml(devisId){
+  const {data:fiches}=await sb.from('fiches_execution').select('*').eq('devis_id',devisId).order('created_at',{ascending:false});
+  const {data:profiles}=await sb.from('profiles').select('id,nom_complet');
+  const profMap={}; (profiles||[]).forEach(p=>profMap[p.id]=p.nom_complet);
+  const rows=(fiches||[]).map((f,i)=>`<tr>
+    <td>${i+1}</td>
+    <td class="font-semibold">${escapeHtml(f.code)}</td>
+    <td>${fmtDate(f.created_at)}</td>
+    <td>${fmtDate(f.updated_at)}</td>
+    <td>${escapeHtml(profMap[f.created_by]||'—')}</td>
+    <td>${badge(STATUT_FICHE,f.statut)}</td>
+    <td class="text-right whitespace-nowrap">
+      <button class="icon-btn" style="width:28px;height:28px;color:#dc2626" title="Supprimer" onclick="deleteFiche('${f.id}')">🗑</button>
+      <button class="icon-btn" style="width:28px;height:28px;color:#2563eb" title="Ouvrir" onclick="openFicheExecution('${f.id}')">⚙</button>
+      <button class="icon-btn" style="width:28px;height:28px;background:#f59e0b;color:#fff" title="Imprimer" onclick="printFicheExecutionById('${f.id}')">🖨</button>
+    </td>
+  </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucune fiche d\'exécution.</td></tr>';
+  return `
+    <div class="page-card mt-4">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-bold">Fiche D'exécution Du Chantier</h3>
+        <div class="flex gap-2">
+          <button class="icon-btn" style="background:#f59e0b;color:#fff" title="Imprimer la dernière" onclick="${fiches&&fiches.length?`printFicheExecutionById('${fiches[0].id}')`:''}">🖨</button>
+          <button class="icon-btn" style="background:#2563eb;color:#fff" title="Ajouter" onclick="creerNouvelleFiche('${devisId}',false)">+</button>
+        </div>
+      </div>
+      <div class="overflow-x-auto"><table><thead><tr><th>#</th><th>Code</th><th>Date Création</th><th>Date Mise à jours</th><th>Technicien</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
     </div>`;
 }
 async function openFicheExecution(ficheId){
@@ -1211,8 +1252,17 @@ async function updateFicheHeader(field,value){
 }
 function printFicheExecution(){
   const {f,lignes}=window._ficheCurrent;
+  buildAndOpenFicheExecutionPrint(f,lignes);
+}
+async function printFicheExecutionById(ficheId){
+  const {data:f}=await sb.from('fiches_execution').select('*, devis(*, clients(*), projets(*))').eq('id',ficheId).single();
+  const {data:lignes}=await sb.from('fiche_execution_lignes').select('*').eq('fiche_id',ficheId).order('ordre');
+  buildAndOpenFicheExecutionPrint(f,lignes);
+}
+async function buildAndOpenFicheExecutionPrint(f,lignes){
+  const {data:facture}=await sb.from('factures').select('code').eq('devis_id',f.devis.id).maybeSingle();
   const groupes={};
-  lignes.forEach(l=>{ (groupes[l.piece||'Non renseigné']=groupes[l.piece||'Non renseigné']||[]).push(l); });
+  (lignes||[]).forEach(l=>{ (groupes[l.piece||'Non renseigné']=groupes[l.piece||'Non renseigné']||[]).push(l); });
   const etatLabel={oui:'✔ Oui',non:'X Non',neant:'-- Néant','':''};
   let num=0, rowsHtml='';
   Object.entries(groupes).forEach(([piece,rows])=>{
@@ -1223,26 +1273,45 @@ function printFicheExecution(){
       <td>${etatLabel[l.pose_alu]||''}</td><td>${etatLabel[l.pose_vitrage]||''}</td>
       <td>${etatLabel[l.controle_re]||''}</td><td>${etatLabel[l.controle_termine]||''}</td><td></td></tr>`; });
   });
+  const lieuExecution=[f.devis.projets?.commune,f.devis.projets?.quartier].filter(Boolean).join(', ');
   const win=window.open('','_blank','width=1000,height=1200'); if(!win) return;
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fiche d'exécution — ${escapeHtml(f.code)}</title>
     <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111827;padding:28px;font-size:11.5px}
-    h1{font-size:17px;margin:0 0 14px}.hdr{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #111827;padding-bottom:10px;margin-bottom:14px}
+    h1{font-size:17px;margin:14px 0;text-align:center}
+    .hdr{display:flex;justify-content:space-between;gap:30px;border-bottom:2px solid #111827;padding-bottom:10px;margin-bottom:8px}
+    .hdr p{margin:2px 0}.hdr .right{text-align:right}
+    .objet{font-weight:700;margin:10px 0 14px}
     table{width:100%;border-collapse:collapse;margin-top:6px}th,td{border:1px solid #94a3b8;padding:5px 6px;text-align:center}
-    th{background:#e2e8f0;font-size:9.5px;text-transform:uppercase}.tl{text-align:left}.grp{background:#111a2e;color:#fff;font-weight:700;text-align:left;padding:6px 8px}
+    th{background:#1d3557;color:#fff;font-size:9.5px;text-transform:uppercase}
+    .tl{text-align:left}.grp{background:#fff;font-weight:700;text-align:left;padding:6px 8px}
     .foot{margin-top:20px;font-size:10.5px;color:#334155}.legend{display:flex;gap:20px;margin-top:10px}
     .sig{display:flex;justify-content:space-between;margin-top:50px}.sig div{width:45%;border-top:1px solid #334155;padding-top:4px}
     @media print{.noprint{display:none}}@page{size:A4 landscape;margin:12mm}</style></head><body>
     <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700">🖨 Imprimer</button></div>
     <div class="hdr">
-      <div><p><b>Client :</b> ${escapeHtml([f.devis.clients?.nom,f.devis.clients?.prenoms].filter(Boolean).join(' '))}</p><p><b>Tel :</b> ${escapeHtml(f.devis.clients?.telephone||'')}</p><p><b>Email :</b> ${escapeHtml(f.devis.clients?.email||'')}</p></div>
-      <div><p><b>Projet :</b> ${escapeHtml(f.devis.projets?.libelle||'')}</p><p><b>N° devis :</b> ${escapeHtml(f.devis.code)}</p><p><b>Lieu d'affaire :</b> ${escapeHtml(f.lieu_affaire||'')}</p></div>
-      <div><p><b>Commercial(e) :</b> ${escapeHtml(f.commercial||'.......................')}</p><p><b>Date de visite :</b> ${fmtDate(f.date_visite)||'.......................'}</p><p><b>Responsable chantier :</b> ${escapeHtml(f.responsable_chantier||'.......................')}</p></div>
+      <div>
+        <p><b>Client :</b> ${escapeHtml([f.devis.clients?.nom,f.devis.clients?.prenoms].filter(Boolean).join(' '))}</p>
+        <p><b>Réf Client :</b> ${escapeHtml(f.devis.clients?.code||'')}</p>
+        <p><b>Tel :</b> ${escapeHtml(f.devis.clients?.telephone||'')}</p>
+        <p><b>Email :</b> ${escapeHtml(f.devis.clients?.email||'')}</p>
+        <p><b>Chantier :</b> ${escapeHtml(f.devis.projets?.libelle||'')}</p>
+        <p><b>Lieu d'exécution du chantier :</b> ${escapeHtml(lieuExecution)}</p>
+      </div>
+      <div class="right">
+        <p><b>N° :</b> ${escapeHtml(f.code)}</p>
+        <p><b>N° FACTURE :</b> ${escapeHtml(facture?.code||'#')}</p>
+        <p><b>Commercial(e) :</b> ${escapeHtml(f.commercial||'.......................')}</p>
+        <p><b>Lieu d'affaire :</b> ${escapeHtml(f.lieu_affaire||'')}</p>
+        <p><b>Date de visite chantier :</b> ${f.date_visite?fmtDate(f.date_visite):'.......................'}</p>
+        <p><b>Responsable chantier (Chef d'équipe) :</b> ${escapeHtml(f.responsable_chantier||'.......................')}</p>
+      </div>
     </div>
-    <h1>FICHE D'EXÉCUTION CHANTIER — ${escapeHtml(f.code)}</h1>
+    <h1>FICHE D'EXÉCUTION CHANTIER</h1>
+    <p class="objet"><b>Objet :</b> ${escapeHtml(f.devis.libelle||'')}</p>
     <table><thead><tr><th rowspan="2">#</th><th rowspan="2">Produits</th><th colspan="2">Commande</th><th colspan="2">Mesure F</th><th colspan="2">Fabrication</th><th colspan="2">Pose</th><th colspan="2">Contrôle</th><th rowspan="2">Commentaires</th></tr>
     <tr><th>L</th><th>H</th><th>L</th><th>H</th><th>Alu&Acc</th><th>Vitrage</th><th>Alu</th><th>Vitrage</th><th>R.E</th><th>Terminé</th></tr></thead>
     <tbody>${rowsHtml}</tbody></table>
-    <div class="foot"><p><b>NB :</b></p><p>- La préparation du chantier (à la charge du client) doit se faire dans le respect strict des consignes laissées dans le tableau ci-dessus.</p>
+    <div class="foot"><p><b>Observations</b></p><p><b>NB :</b></p><p>- La préparation du chantier (à la charge du client) doit se faire dans le respect strict des consignes laissées dans le tableau ci-dessus.</p>
     <p>- Le délai d'exécution des travaux vous sera communiqué après la préparation définitive du chantier.</p>
     <div class="legend"><span>✔ Oui</span><span>X Non</span><span>-- Néant</span></div></div>
     <div class="sig"><div>Signature Client ou représentant</div><div>Technicien Contrôleur</div></div>
