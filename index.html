@@ -102,7 +102,17 @@ window.SB_CFG = {
         <button class="nav-child" data-page="clients-add">→ Ajouter un client</button>
         <button class="nav-child" data-page="clients">→ Liste des clients</button>
       </div>
-      <button class="nav-parent" data-toggle="projets-g">🏠 <span>Projets / Chantiers</span><span class="chev">▸</span></button>
+      <button class="nav-parent" data-toggle="prospects-g">🏠 <span>Prospects</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="prospects-g">
+        <button class="nav-child" data-page="prospects-add">→ Ajouter un prospect</button>
+        <button class="nav-child" data-page="prospects">→ Liste des prospects</button>
+      </div>
+      <button class="nav-parent" data-toggle="fournisseurs-g">🏠 <span>Fournisseurs</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="fournisseurs-g">
+        <button class="nav-child" data-page="fournisseurs-add">→ Ajouter un fournisseur</button>
+        <button class="nav-child" data-page="fournisseurs">→ Liste des fournisseurs</button>
+      </div>
+      <button class="nav-parent" data-toggle="projets-g">🏠 <span>Projet(s)</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="projets-g">
         <button class="nav-child" data-page="projets-add">→ Ajouter un projet</button>
         <button class="nav-child" data-page="projets">→ Liste des projets</button>
@@ -240,9 +250,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',clients:'Clients','clients-add':'Ajouter un client',projets:'Projets / Chantiers','projets-add':'Ajouter un projet',devis:'Devis','devis-add':'Ajouter un Devis',factures:'Factures',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit'};
-const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,'clients-add':renderClientForm,projets:renderProjets,'projets-add':renderProjetForm,devis:renderDevis,'devis-add':renderDevisEditorPage,factures:renderFactures,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','projets-add':'projets-g',projets:'projets-g','devis-add':'devis-g',devis:'devis-g',factures:'factures-g',fiches:'fiches-g','produits-add':'produits-g',produits:'produits-g'};
+const PAGE_TITLES={dashboard:'Accueil',clients:'Clients','clients-add':'Ajouter un client',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets / Chantiers','projets-add':'Ajouter un projet',devis:'Devis','devis-add':'Ajouter un Devis',factures:'Factures',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit'};
+const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,'clients-add':renderClientForm,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:renderProjets,'projets-add':renderProjetForm,devis:renderDevis,'devis-add':renderDevisEditorPage,factures:renderFactures,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','devis-add':'devis-g',devis:'devis-g',factures:'factures-g',fiches:'fiches-g','produits-add':'produits-g',produits:'produits-g'};
 window._editId=null;
 async function showPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -354,6 +364,116 @@ async function renderClientForm(el){
   };
 }
 function val(id){ return document.getElementById(id).value.trim(); }
+
+/* ============================== PROSPECTS ============================== */
+const STATUT_PROSPECT={nouveau:{label:'Nouveau',color:'bg-blue-50 text-blue-700'},contacte:{label:'Contacté',color:'bg-amber-50 text-amber-700'},qualifie:{label:'Qualifié',color:'bg-purple-50 text-purple-700'},gagne:{label:'Gagné',color:'bg-emerald-50 text-emerald-700'},perdu:{label:'Perdu',color:'bg-gray-100 text-gray-500'}};
+async function renderProspects(el){
+  const {data,error}=await sb.from('prospects').select('*').order('created_at',{ascending:false});
+  if(error) throw error;
+  el.innerHTML=`
+    <div class="flex justify-between items-center mb-4">
+      <div class="text-sm text-gray-500">${data.length} prospect(s)</div>
+      <button class="btn btn-primary" onclick="window._editId=null;showPage('prospects-add')">+ Ajouter un prospect</button>
+    </div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Code</th><th>Nom</th><th>Téléphone</th><th>Email</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${data.map(p=>`<tr>
+        <td class="font-semibold">${escapeHtml(p.code)}</td>
+        <td>${escapeHtml([p.civilite,p.nom,p.prenoms].filter(Boolean).join(' '))}${p.entreprise?`<div class="text-xs text-gray-400">${escapeHtml(p.entreprise)}</div>`:''}</td>
+        <td>${escapeHtml(p.telephone||'—')}</td><td>${escapeHtml(p.email||'—')}</td><td>${badge(STATUT_PROSPECT,p.statut)}</td>
+        <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${p.id}';showPage('prospects-add')">Modifier</button>
+        <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('prospects','${p.id}','prospects')">Suppr.</button></td>
+      </tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 p-4">Aucun prospect.</td></tr>'}</tbody></table>
+    </div>`;
+}
+async function renderProspectForm(el){
+  let p={};
+  if(window._editId){ const {data}=await sb.from('prospects').select('*').eq('id',window._editId).single(); p=data||{}; }
+  el.innerHTML=`
+    <div class="page-card max-w-4xl">
+      <h2>🎯 ${p.id?'Modifier':'Ajouter'} un prospect</h2>
+      <div class="divider"></div>
+      <form id="prospectForm" class="grid sm:grid-cols-3 gap-4">
+        <input type="hidden" id="prsId" value="${p.id||''}">
+        <div class="field"><label>Civilité</label>${fieldWrap('👤',`<select id="prsCivilite"><option ${p.civilite==='Monsieur'?'selected':''}>Monsieur</option><option ${p.civilite==='Madame'?'selected':''}>Madame</option><option ${p.civilite==='Entreprise'?'selected':''}>Entreprise</option></select>`)}</div>
+        <div class="field"><label>Nom</label>${fieldWrap('👤',`<input id="prsNom" required value="${escapeHtml(p.nom||'')}">`)}</div>
+        <div class="field"><label>Prénoms</label>${fieldWrap('👤',`<input id="prsPrenoms" value="${escapeHtml(p.prenoms||'')}">`)}</div>
+        <div class="field sm:col-span-2"><label>Nom de l'entreprise</label>${fieldWrap('🏢',`<input id="prsEntreprise" value="${escapeHtml(p.entreprise||'')}">`)}</div>
+        <div class="field"><label>Statut</label>${fieldWrap('🏷️',`<select id="prsStatut">${Object.entries(STATUT_PROSPECT).map(([k,v])=>`<option value="${k}" ${k===p.statut?'selected':''}>${v.label}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input id="prsTelephone" value="${escapeHtml(p.telephone||'')}">`)}</div>
+        <div class="field sm:col-span-2"><label>Email</label>${fieldWrap('✉️',`<input id="prsEmail" type="email" value="${escapeHtml(p.email||'')}">`)}</div>
+        <div class="field"><label>Pays</label>${fieldWrap('🌐',`<input id="prsPays" value="${escapeHtml(p.pays||"Côte d'Ivoire")}">`)}</div>
+        <div class="field"><label>Commune / Villes</label>${fieldWrap('🏙️',`<input id="prsCommune" value="${escapeHtml(p.commune||'')}">`)}</div>
+        <div class="field"><label>Quartier</label>${fieldWrap('📍',`<input id="prsQuartier" value="${escapeHtml(p.quartier||'')}">`)}</div>
+        <div class="field"><label>Source</label>${fieldWrap('🌐',`<input id="prsSource" value="${escapeHtml(p.source||'')}">`)}</div>
+        <div class="field sm:col-span-2"><label>Commercial</label>${fieldWrap('👤',`<input id="prsCommercial" value="${escapeHtml(p.commercial||'')}">`)}</div>
+        <div class="field sm:col-span-3"><label>Notes</label>${fieldWrap('📝',`<textarea id="prsNotes" rows="3">${escapeHtml(p.notes||'')}</textarea>`)}</div>
+        <div class="sm:col-span-3 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
+      </form>
+    </div>`;
+  document.getElementById('prospectForm').onsubmit=async (e)=>{
+    e.preventDefault();
+    const rec={civilite:val('prsCivilite'),nom:val('prsNom'),prenoms:val('prsPrenoms'),entreprise:val('prsEntreprise'),statut:val('prsStatut'),telephone:val('prsTelephone'),email:val('prsEmail'),pays:val('prsPays'),commune:val('prsCommune'),quartier:val('prsQuartier'),source:val('prsSource'),commercial:val('prsCommercial'),notes:val('prsNotes')};
+    const id=val('prsId');
+    let error;
+    if(id){ ({error}=await sb.from('prospects').update(rec).eq('id',id)); }
+    else { rec.created_by=CURRENT_USER.id; ({error}=await sb.from('prospects').insert(rec)); }
+    if(error){ toast(error.message,'error'); return; }
+    toast('Prospect enregistré.'); window._editId=null; showPage('prospects');
+  };
+}
+
+/* ============================== FOURNISSEURS ============================== */
+async function renderFournisseurs(el){
+  const {data,error}=await sb.from('fournisseurs').select('*').order('created_at',{ascending:false});
+  if(error) throw error;
+  el.innerHTML=`
+    <div class="flex justify-between items-center mb-4">
+      <div class="text-sm text-gray-500">${data.length} fournisseur(s)</div>
+      <button class="btn btn-primary" onclick="window._editId=null;showPage('fournisseurs-add')">+ Ajouter un fournisseur</button>
+    </div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Code</th><th>Nom</th><th>Contact</th><th>Téléphone</th><th>Catégorie</th><th></th></tr></thead>
+      <tbody>${data.map(f=>`<tr>
+        <td class="font-semibold">${escapeHtml(f.code)}</td><td>${escapeHtml(f.nom)}</td>
+        <td>${escapeHtml(f.contact_principal||'—')}</td><td>${escapeHtml(f.telephone||'—')}</td><td>${escapeHtml(f.categorie||'—')}</td>
+        <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${f.id}';showPage('fournisseurs-add')">Modifier</button>
+        <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('fournisseurs','${f.id}','fournisseurs')">Suppr.</button></td>
+      </tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 p-4">Aucun fournisseur.</td></tr>'}</tbody></table>
+    </div>`;
+}
+async function renderFournisseurForm(el){
+  let f={};
+  if(window._editId){ const {data}=await sb.from('fournisseurs').select('*').eq('id',window._editId).single(); f=data||{}; }
+  el.innerHTML=`
+    <div class="page-card max-w-4xl">
+      <h2>🏭 ${f.id?'Modifier':'Ajouter'} un fournisseur</h2>
+      <div class="divider"></div>
+      <form id="fournisseurForm" class="grid sm:grid-cols-3 gap-4">
+        <input type="hidden" id="foId" value="${f.id||''}">
+        <div class="field sm:col-span-2"><label>Nom / Raison sociale</label>${fieldWrap('🏢',`<input id="foNom" required value="${escapeHtml(f.nom||'')}">`)}</div>
+        <div class="field"><label>Catégorie</label>${fieldWrap('🏷️',`<select id="foCategorie"><option ${f.categorie==='Matériaux'?'selected':''}>Matériaux</option><option ${f.categorie==='Vitrage'?'selected':''}>Vitrage</option><option ${f.categorie==='Quincaillerie'?'selected':''}>Quincaillerie</option><option ${f.categorie==='Transport'?'selected':''}>Transport</option><option ${f.categorie==='Autre'?'selected':''}>Autre</option></select>`)}</div>
+        <div class="field"><label>Contact principal</label>${fieldWrap('👤',`<input id="foContact" value="${escapeHtml(f.contact_principal||'')}">`)}</div>
+        <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input id="foTelephone" value="${escapeHtml(f.telephone||'')}">`)}</div>
+        <div class="field"><label>Email</label>${fieldWrap('✉️',`<input id="foEmail" type="email" value="${escapeHtml(f.email||'')}">`)}</div>
+        <div class="field"><label>Pays</label>${fieldWrap('🌐',`<input id="foPays" value="${escapeHtml(f.pays||"Côte d'Ivoire")}">`)}</div>
+        <div class="field"><label>Commune / Villes</label>${fieldWrap('🏙️',`<input id="foCommune" value="${escapeHtml(f.commune||'')}">`)}</div>
+        <div class="field"><label>Quartier</label>${fieldWrap('📍',`<input id="foQuartier" value="${escapeHtml(f.quartier||'')}">`)}</div>
+        <div class="field sm:col-span-3"><label>Adresse</label>${fieldWrap('📍',`<input id="foAdresse" value="${escapeHtml(f.adresse||'')}">`)}</div>
+        <div class="sm:col-span-3 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
+      </form>
+    </div>`;
+  document.getElementById('fournisseurForm').onsubmit=async (e)=>{
+    e.preventDefault();
+    const rec={nom:val('foNom'),categorie:val('foCategorie'),contact_principal:val('foContact'),telephone:val('foTelephone'),email:val('foEmail'),pays:val('foPays'),commune:val('foCommune'),quartier:val('foQuartier'),adresse:val('foAdresse')};
+    const id=val('foId');
+    let error;
+    if(id){ ({error}=await sb.from('fournisseurs').update(rec).eq('id',id)); }
+    else { rec.created_by=CURRENT_USER.id; ({error}=await sb.from('fournisseurs').insert(rec)); }
+    if(error){ toast(error.message,'error'); return; }
+    toast('Fournisseur enregistré.'); window._editId=null; showPage('fournisseurs');
+  };
+}
 async function deleteRow(table,id,page){
   if(!confirm('Supprimer cet élément ?')) return;
   const {error}=await sb.from(table).delete().eq('id',id);
