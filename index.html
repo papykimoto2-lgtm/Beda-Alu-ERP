@@ -38,6 +38,8 @@ window.SB_CFG = {
   .nav-badge-blue{background:#2563eb}
   .nav-badge-amber{background:#d97706}
   .nav-badge-red{background:#dc2626}
+  .nav-badge-purple{background:#7c3aed}
+  .nav-badge-green{background:#059669}
   .btn{padding:8px 16px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;border:0;white-space:nowrap}
   .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-2)}
   .btn-green{background:#059669;color:#fff}.btn-green:hover{background:#047857}
@@ -121,8 +123,16 @@ window.SB_CFG = {
       </div>
       <button class="nav-parent" data-toggle="projets-g">🏠 <span>Projet(s)</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="projets-g">
-        <button class="nav-child" data-page="projets-add">→ Ajouter un projet</button>
-        <button class="nav-child" data-page="projets">→ Liste des projets</button>
+        <button class="nav-child" data-page="projets-add">→ Ajouter un Projet</button>
+        <button class="nav-child" data-page="projets">→ Tout afficher <span class="nav-badge nav-badge-gray" id="badgeProjTotal">0</span></button>
+        <button class="nav-child" data-page="projets-attente">→ Projet en attente <span class="nav-badge nav-badge-purple" id="badgeProjAttente">0</span></button>
+        <button class="nav-child" data-page="projets-mesure">→ Mesure disponible <span class="nav-badge nav-badge-amber" id="badgeProjMesure">0</span></button>
+        <button class="nav-child" data-page="projets-pret">→ Prêt pour fabrication <span class="nav-badge nav-badge-amber" id="badgeProjPret">0</span></button>
+        <button class="nav-child" data-page="projets-fabrication">→ Fabrication en cours <span class="nav-badge nav-badge-blue" id="badgeProjFabrication">0</span></button>
+        <button class="nav-child" data-page="projets-installation">→ Installation en cours <span class="nav-badge nav-badge-blue" id="badgeProjInstallation">0</span></button>
+        <button class="nav-child" data-page="projets-termine">→ Projet terminé <span class="nav-badge nav-badge-green" id="badgeProjTermine">0</span></button>
+        <button class="nav-child" data-page="projets-retard">→ Projet en retard <span class="nav-badge nav-badge-red" id="badgeProjRetard">0</span></button>
+        <button class="nav-child" data-page="projets-annule">→ Projet Annulé <span class="nav-badge nav-badge-red" id="badgeProjAnnule">0</span></button>
       </div>
 
       <div class="sidebar-group-title">Commercial</div>
@@ -254,6 +264,7 @@ async function enterApp(){
   const bell=document.getElementById('hdrBellCount');
   if(nbAttente){ bell.textContent=nbAttente; bell.classList.remove('hidden'); }
   refreshDevisBadges();
+  refreshProjetsBadges();
   showPage('dashboard');
 }
 (async function boot(){
@@ -262,9 +273,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets / Chantiers','projets-add':'Ajouter un projet',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit'};
-const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:renderProjets,'projets-add':renderProjetForm,devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','devis-add':'devis-g',devis:'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g',fiches:'fiches-g','produits-add':'produits-g',produits:'produits-g'};
+const PAGE_TITLES={dashboard:'Accueil',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit'};
+const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g',fiches:'fiches-g','produits-add':'produits-g',produits:'produits-g'};
 window._editId=null;
 async function showPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -525,28 +536,57 @@ async function deleteRow(table,id,page){
 }
 
 /* ============================== PROJETS / CHANTIERS ============================== */
-async function renderProjets(el){
-  const [{data,error}, clientsRes]=await Promise.all([
-    sb.from('projets').select('*, clients(nom,prenoms)').order('created_at',{ascending:false}),
-    sb.from('clients').select('id,nom,prenoms').order('nom')
-  ]);
+const STATUT_PROJET={en_attente:{label:'En attente',color:'bg-purple-50 text-purple-700'},mesure_disponible:{label:'Mesure disponible',color:'bg-amber-50 text-amber-700'},pret_fabrication:{label:'Prêt pour fabrication',color:'bg-amber-50 text-amber-700'},fabrication_en_cours:{label:'Fabrication en cours',color:'bg-blue-50 text-blue-700'},installation_en_cours:{label:'Installation en cours',color:'bg-blue-50 text-blue-700'},termine:{label:'Terminé',color:'bg-emerald-50 text-emerald-700'},annule:{label:'Annulé',color:'bg-gray-100 text-gray-500'}};
+async function refreshProjetsBadges(){
+  const {data,error}=await sb.from('projets').select('etape,date_fin');
+  if(error) return;
+  const today=new Date().toISOString().slice(0,10);
+  const counts={en_attente:0,mesure_disponible:0,pret_fabrication:0,fabrication_en_cours:0,installation_en_cours:0,termine:0,annule:0,retard:0};
+  data.forEach(p=>{
+    if(counts[p.etape]!==undefined) counts[p.etape]++;
+    if(p.date_fin && p.date_fin<today && !['termine','annule'].includes(p.etape)) counts.retard++;
+  });
+  const setTxt=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  setTxt('badgeProjTotal',data.length);
+  setTxt('badgeProjAttente',counts.en_attente);
+  setTxt('badgeProjMesure',counts.mesure_disponible);
+  setTxt('badgeProjPret',counts.pret_fabrication);
+  setTxt('badgeProjFabrication',counts.fabrication_en_cours);
+  setTxt('badgeProjInstallation',counts.installation_en_cours);
+  setTxt('badgeProjTermine',counts.termine);
+  setTxt('badgeProjRetard',counts.retard);
+  setTxt('badgeProjAnnule',counts.annule);
+}
+async function renderProjets(el,filterEtape){
+  let q=sb.from('projets').select('*, clients(nom,prenoms)').order('created_at',{ascending:false});
+  const today=new Date().toISOString().slice(0,10);
+  if(filterEtape==='retard'){ q=q.lt('date_fin',today).not('etape','in','(termine,annule)'); }
+  else if(filterEtape){ q=q.eq('etape',filterEtape); }
+  const [{data,error}, clientsRes]=await Promise.all([q, sb.from('clients').select('id,nom,prenoms').order('nom')]);
   if(error) throw error;
   window._clientsCache=clientsRes.data||[];
+  refreshProjetsBadges();
   el.innerHTML=`
     <div class="flex justify-between items-center mb-4">
       <div class="text-sm text-gray-500">${data.length} projet(s)</div>
       <button class="btn btn-primary" onclick="window._editId=null;showPage('projets-add')">+ Ajouter un projet</button>
     </div>
     <div class="card overflow-x-auto">
-      <table><thead><tr><th>Code</th><th>Libellé</th><th>Client</th><th>Début</th><th>Fin</th><th>Catégorie</th><th></th></tr></thead>
+      <table><thead><tr><th>Code</th><th>Libellé</th><th>Client</th><th>Début</th><th>Fin</th><th>Étape</th><th></th></tr></thead>
       <tbody>${data.map(p=>`<tr>
         <td class="font-semibold">${escapeHtml(p.code)}</td><td>${escapeHtml(p.libelle)}</td>
         <td>${escapeHtml(p.clients?[p.clients.nom,p.clients.prenoms].filter(Boolean).join(' '):'—')}</td>
-        <td>${fmtDate(p.date_debut)}</td><td>${fmtDate(p.date_fin)}</td><td>${escapeHtml(p.categorie||'—')}</td>
+        <td>${fmtDate(p.date_debut)}</td><td>${fmtDate(p.date_fin)}</td>
+        <td><select onchange="updateProjetEtape('${p.id}',this.value)" class="text-xs">${Object.entries(STATUT_PROJET).map(([k,v])=>`<option value="${k}" ${k===p.etape?'selected':''}>${v.label}</option>`).join('')}</select></td>
         <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${p.id}';showPage('projets-add')">Modifier</button>
         <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('projets','${p.id}','projets')">Suppr.</button></td>
       </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun projet.</td></tr>'}</tbody></table>
     </div>`;
+}
+async function updateProjetEtape(id,etape){
+  const {error}=await sb.from('projets').update({etape}).eq('id',id);
+  if(error){ toast(error.message,'error'); return; }
+  toast('Étape mise à jour.'); refreshProjetsBadges();
 }
 function clientOptions(selectedId){
   return (window._clientsCache||[]).map(c=>`<option value="${c.id}" ${c.id===selectedId?'selected':''}>${escapeHtml([c.nom,c.prenoms].filter(Boolean).join(' '))}</option>`).join('');
