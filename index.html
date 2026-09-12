@@ -107,8 +107,8 @@ window.SB_CFG = {
   .dropdown-menu{position:fixed;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.16);min-width:190px;z-index:200;overflow:hidden}
   .dropdown-menu button{width:100%;text-align:left;padding:9px 14px;font-size:13px;background:#fff;border:0;cursor:pointer;color:#374151;display:flex;align-items:center;gap:6px}
   .dropdown-menu button:hover{background:#f3f4f6}
-  .btn-icon-menu{width:30px;height:30px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-weight:900;font-size:15px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
-  .btn-icon-menu:hover{background:#f3f4f6;color:#374151;border-color:#d1d5db}
+  .btn-icon-menu{width:30px;height:30px;border-radius:8px;border:1px solid #ddd6fe;background:#f5f3ff;color:var(--accent);font-size:15px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+  .btn-icon-menu:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
   .fam-section-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
   .fam-section-head .bar{width:5px;height:20px;border-radius:3px}
   .fam-section-head h3{font-size:13px;font-weight:800;color:#111827;text-transform:none;letter-spacing:0}
@@ -460,7 +460,7 @@ function filterClientsTable(){
     <td>${escapeHtml(c.categorie||'—')}</td>
     <td class="text-right whitespace-nowrap">
       <div class="dropdown">
-        <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+        <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
         <div class="dropdown-menu hidden">
           <button style="color:#6b7280" onclick="printClientFiche('${c.id}')">🖨 Imprimer la fiche</button>
           <button style="color:#4f46e5" onclick="window._editId='${c.id}';showPage('clients-add')">✏️ Modifier</button>
@@ -766,7 +766,7 @@ async function renderProspects(el){
         <td>${escapeHtml(p.telephone||'—')}</td><td>${escapeHtml(p.email||'—')}</td><td>${badge(STATUT_PROSPECT,p.statut)}</td>
         <td class="text-right whitespace-nowrap">
           <div class="dropdown">
-            <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+            <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
             <div class="dropdown-menu hidden">
               <button style="color:#4f46e5" onclick="window._editId='${p.id}';showPage('prospects-add')">✏️ Modifier</button>
               <button style="color:#dc2626" onclick="deleteRow('prospects','${p.id}','prospects')">🗑️ Supprimer</button>
@@ -854,7 +854,7 @@ function filterFournisseursTable(){
     <td>${escapeHtml(f.contact_principal||'—')}</td><td>${escapeHtml(f.telephone||'—')}</td><td>${escapeHtml(f.categorie||'—')}</td>
     <td class="text-right whitespace-nowrap">
       <div class="dropdown">
-        <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+        <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
         <div class="dropdown-menu hidden">
           <button style="color:#6b7280" onclick="printFournisseurFiche('${f.id}')">🖨 Imprimer la fiche</button>
           <button style="color:#4f46e5" onclick="window._editId='${f.id}';showPage('fournisseurs-add')">✏️ Modifier</button>
@@ -984,7 +984,7 @@ async function renderProjets(el,filterEtape){
         <td><select onchange="updateProjetEtape('${p.id}',this.value)" class="text-xs">${Object.entries(STATUT_PROJET).map(([k,v])=>`<option value="${k}" ${k===p.etape?'selected':''}>${v.label}</option>`).join('')}</select></td>
         <td class="text-right whitespace-nowrap">
           <div class="dropdown">
-            <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+            <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
             <div class="dropdown-menu hidden">
               <button style="color:#4f46e5" onclick="window._editId='${p.id}';showPage('projets-add')">✏️ Modifier</button>
               <button style="color:#dc2626" onclick="deleteRow('projets','${p.id}','projets')">🗑️ Supprimer</button>
@@ -1134,7 +1134,7 @@ function filterProduitsCatalogue(){
               <div class="punite">${escapeHtml(p.unite)}</div>
               <div class="pactions">
                 <div class="dropdown">
-                  <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+                  <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
                   <div class="dropdown-menu hidden">
                     ${p.config_json?`<button style="color:${fc}" onclick="configurerProduitExistant('${p.id}')">🧩 Reconfigurer</button>`:`<button style="color:${fc}" onclick="window._editId='${p.id}';showPage('produits-add')">✏️ Modifier</button>`}
                     <button style="color:#6b7280" onclick="dupliquerProduit('${p.id}')">⧉ Dupliquer</button>
@@ -1149,7 +1149,7 @@ function filterProduitsCatalogue(){
           <tbody>${groups[f].map(p=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(p.nom)}${p.config_json?' 🧩':''}</td><td>${escapeHtml(p.unite)}</td><td class="text-right"><span class="produit-pct" style="--fc:${fc}">${p.cout_materiel_pct}%</span></td>
           <td class="text-right whitespace-nowrap">
             <div class="dropdown">
-              <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+              <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
               <div class="dropdown-menu hidden">
                 ${p.config_json?`<button style="color:${fc}" onclick="configurerProduitExistant('${p.id}')">🧩 Reconfigurer</button>`:`<button style="color:${fc}" onclick="window._editId='${p.id}';showPage('produits-add')">✏️ Modifier</button>`}
                 <button style="color:#6b7280" onclick="dupliquerProduit('${p.id}')">⧉ Dupliquer</button>
@@ -1288,7 +1288,7 @@ function filterComposantsCatalogue(){
               <div class="punite">${COMPOSANT_STANDINGS[c.standing||'standard']?.icon||''} ${COMPOSANT_STANDINGS[c.standing||'standard']?.label||''} · ${escapeHtml(c.unite)} · ${money(c.prix_unitaire)} · Stock : ${(+c.stock_actuel||0).toFixed(1)}</div>
               <div class="pactions">
                 <div class="dropdown">
-                  <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+                  <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
                   <div class="dropdown-menu hidden">
                     <button style="color:${fc}" onclick="window._editId='${c.id}';showPage('composants-add')">✏️ Modifier</button>
                     <button style="color:#6b7280" onclick="dupliquerComposant('${c.id}')">⧉ Dupliquer</button>
@@ -1303,7 +1303,7 @@ function filterComposantsCatalogue(){
           <tbody>${groups[f].map(c=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(c.nom)}${c.code?' 🧩':''}</td><td>${escapeHtml(c.type)}</td><td>${COMPOSANT_STANDINGS[c.standing||'standard']?.icon||''} ${COMPOSANT_STANDINGS[c.standing||'standard']?.label||''}</td><td>${escapeHtml(c.unite)}</td><td class="text-right">${money(c.prix_unitaire)}</td>
           <td class="text-right whitespace-nowrap">
             <div class="dropdown">
-              <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+              <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
               <div class="dropdown-menu hidden">
                 <button style="color:${fc}" onclick="window._editId='${c.id}';showPage('composants-add')">✏️ Modifier</button>
                 <button style="color:#6b7280" onclick="dupliquerComposant('${c.id}')">⧉ Dupliquer</button>
@@ -2751,7 +2751,7 @@ async function renderDevis(el,filterStatut){
         <td class="text-right">${money(d.total)}</td><td>${badge(STATUT_DEVIS,d.statut)}</td>
         <td class="text-right whitespace-nowrap">
           <div class="dropdown">
-            <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⋯</button>
+            <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
             <div class="dropdown-menu hidden">
               <button style="color:#4f46e5" onclick="window._editId='${d.id}';showPage('devis-add')">✏️ Modifier</button>
               <button style="color:#4338ca" onclick="reviserDevis('${d.id}')">↻ Réviser (nouvelle version)</button>
