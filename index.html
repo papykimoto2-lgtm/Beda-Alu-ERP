@@ -182,6 +182,7 @@ window.SB_CFG = {
       <button class="nav-parent" data-toggle="produits-g">🏠 <span>Produits</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="produits-g">
         <button class="nav-child" data-page="produits-add">→ Ajouter un produit</button>
+        <button class="nav-child" data-page="produits-config">→ Configurateur d'ouvrage</button>
         <button class="nav-child" data-page="produits">→ Liste des produits</button>
       </div>
 
@@ -299,9 +300,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g',produits:'produits-g'};
+const PAGE_TITLES={dashboard:'Accueil',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g'};
 window._editId=null;
 async function showPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -708,6 +709,175 @@ async function renderProduitForm(el){
     if(error){ toast(error.message,'error'); return; }
     toast('Produit enregistré.'); window._editId=null; showPage('produits');
   };
+}
+
+/* ============================== CONFIGURATEUR D'OUVRAGE ============================== */
+/* BOM paramétrique portée depuis sanix-alu-expet-erp.vercel.app (Configurateur d'ouvrage),
+   restreinte aux types du catalogue BEDA ALU. Les formules Fenêtre/Porte/Coulissant/
+   Coulissant galandage et Garde-corps inox sont reprises à l'identique ; Moustiquaire et
+   Fenêtre jalousie sont des formules analogues (pas d'équivalent côté Sanix). */
+const CONFIG_TYPES=['Fenêtre coulissante','Porte à la française','Porte coulissante','Coulissant galandage','Fenêtre jalousie','Moustiquaire fixe','Moustiquaire coulissante','Garde-corps inox'];
+function configCalculerBOM(type,w,h,leaves,qty,opts){
+  opts=opts||{};
+  const perimeter=2*(w+h);
+  let rows=[], alu=0, glassArea=0;
+  if(type==='Garde-corps inox'){
+    const spacing=Math.max(500,+opts.spacing||1500);
+    const infill=opts.infill||'cable';
+    const nPoteaux=Math.max(2,Math.ceil(w/spacing)+1);
+    const nPanels=nPoteaux-1;
+    glassArea=infill==='verre'?(w/nPanels*h/1000000)*nPanels*qty:0;
+    alu=(nPoteaux*h+w)*qty/1000;
+    rows=[
+      ['POT-GI-001','Poteau inox tube 42.4mm',nPoteaux*qty,h,nPoteaux*qty*h*22.5],
+      ['MC-GI-001','Main courante inox',qty,w,qty*w*16.8],
+      ['PLA-GI-001','Platine fixation inox',nPoteaux*qty,0,nPoteaux*qty*3800],
+      ...(infill==='cable' ? [
+        ['CAB-GI-001','Câble inox Ø6mm tendu',Math.ceil(h/110)*qty,w,Math.ceil(h/110)*qty*w*4.5/1000],
+        ['TEN-GI-001','Tendeur + terminaison sertie',2*Math.ceil(h/110)*qty,0,2*Math.ceil(h/110)*qty*1800]
+      ] : infill==='barreaudage' ? [
+        ['BAR-GI-001','Barreau vertical inox Ø12mm',Math.ceil(w/110)*qty,h,Math.ceil(w/110)*qty*h*8.2]
+      ] : [
+        ['VIT-GI-001','Verre feuilleté sécurit',nPanels*qty,Math.round(w/nPanels*h/1000),glassArea*9500],
+        ['PIN-GI-001','Pince de fixation verre inox',4*nPanels*qty,0,4*nPanels*qty*2400]
+      ])
+    ];
+  } else if(type==='Moustiquaire fixe' || type==='Moustiquaire coulissante'){
+    const isCoul=type==='Moustiquaire coulissante';
+    const ouvrantW=isCoul?Math.max(0,w/leaves):w;
+    glassArea=0;
+    alu=(perimeter+(isCoul?leaves*(2*ouvrantW+2*h):0))*qty/1000;
+    rows=[
+      ['CAD-MO-001','Cadre aluminium moustiquaire',isCoul?2*leaves*qty:2*qty,isCoul?ouvrantW:w,(isCoul?2*leaves*ouvrantW:2*w)*qty*3.8],
+      ['CAD-MO-002','Traverse aluminium moustiquaire',isCoul?2*leaves*qty:2*qty,h,(isCoul?2*leaves*h:2*h)*qty*3.8],
+      ['TUL-MO-001','Toile moustiquaire (fibre de verre)',qty,Math.round(w*h/1000),(w*h/1000000)*qty*3200],
+      ...(isCoul ? [
+        ['RAI-MO-001','Rail coulissant moustiquaire',qty,w,qty*w*4.2],
+        ['ROU-MO-001','Roulette coulissante',2*leaves*qty,0,2*leaves*qty*950]
+      ] : [
+        ['LOQ-MO-001','Loquet de fermeture',qty,0,qty*1200]
+      ])
+    ];
+  } else if(type==='Fenêtre jalousie'){
+    const nLames=Math.max(3,Math.round(h/120));
+    glassArea=(w*h/1000000)*qty;
+    alu=(perimeter+nLames*w/1000)*qty/1000;
+    rows=[
+      ['CAD-FJ-001','Cadre dormant jalousie',2*qty,w,2*w*qty*8.5],
+      ['CAD-FJ-002','Montant dormant jalousie',2*qty,h,2*h*qty*8.5],
+      ['LAM-FJ-001','Lame de verre jalousie 5mm',nLames*qty,w,glassArea*4800],
+      ['MEC-FJ-001','Mécanisme à manivelle',qty,0,qty*6500],
+      ['CLI-FJ-001','Clip de fixation lame',nLames*2*qty,0,nLames*2*qty*350]
+    ];
+  } else {
+    const jointType=opts.jointType||'onglet';
+    const gap=+opts.gap||5;
+    const isPorte=type==='Porte à la française';
+    const isGalandage=type==='Coulissant galandage';
+    const ouvrantW=Math.max(0,(w-(leaves-1)*45)/leaves);
+    const glassRebate=107+3;
+    const glassW=Math.max(0,ouvrantW-glassRebate-gap);
+    const glassH=Math.max(0,h-glassRebate-gap);
+    glassArea=glassW*glassH/1000000*leaves*qty;
+    alu=(perimeter+leaves*(2*ouvrantW+2*h))*qty/1000;
+    rows=[
+      ['P-STD-001','Dormant horizontal',2*qty,w,2*w*qty*8.5],
+      ['P-STD-002','Dormant vertical',2*qty,h,2*h*qty*8.5],
+      ['P-STD-003','Ouvrant horizontal',2*leaves*qty,ouvrantW,2*leaves*ouvrantW*qty*9.2],
+      ['P-STD-004','Ouvrant vertical',2*leaves*qty,h,2*leaves*h*qty*9.2],
+      ['P-PAR-001','Parclose',4*leaves*qty,glassW,4*leaves*glassW*qty*3.2],
+      ['VIT-001','Double vitrage 6/12/6',leaves*qty,glassW*glassH/1000000,glassArea*6500],
+      ['JNT-001','Joint vitrage',2*(glassW+glassH)*leaves*qty/1000,0,2*(glassW+glassH)*leaves*qty/1000*900],
+      ['QUI-001',isPorte?'Ensemble serrure + poignée':'Poignée',leaves*qty,0,leaves*qty*(isPorte?12500:4500)],
+      ['QUI-002',isPorte?'Paumelle renforcée':isGalandage?'Roulette renforcée galandage':'Paumelle',(isPorte?3:2)*leaves*qty,0,(isPorte?3:2)*leaves*qty*(isPorte?1600:isGalandage?2100:850)],
+      ...(isPorte ? [['P-SEU-001','Seuil bas renforcé',qty,w,qty*w*11.5],['QUI-003','Gâche + ferme-porte',qty,0,qty*7800]] : []),
+      ...(isGalandage ? [
+        ['CAI-001','Caisson de galandage',leaves*qty,ouvrantW,leaves*qty*ouvrantW*14.5],
+        ['RAIL-001','Rail double renforcé galandage',qty,w,qty*w*12.8],
+        ['SAN-001','Sangle de finition caisson',leaves*qty,h,leaves*qty*h*3.5],
+        ['BRO-001','Joint brosse étanchéité',2*leaves*qty,h,2*leaves*qty*h*1.1]
+      ] : []),
+      ['CON-001','Silicone',Math.max(1,Math.ceil(perimeter*qty/5000)),0,Math.max(1,Math.ceil(perimeter*qty/5000))*2800],
+      (()=>{
+        const n=4*(1+leaves)*qty;
+        const unit={onglet:1500,equerre:1200,about:900}[jointType]||1200;
+        const code={onglet:'JNT-ONG-001',equerre:'JNT-EQ-001',about:'JNT-ABT-001'}[jointType];
+        const label={onglet:"Jonction onglet 45° (colle+sertissage)",equerre:"Équerre d'angle mécanique",about:'Aboutage 90° + vis'}[jointType];
+        return [code,label,n,0,n*unit];
+      })()
+    ];
+  }
+  const coutMateriel=rows.reduce((s,r)=>s+r[4],0);
+  return {rows,alu,glassArea,coutMateriel,surface:w*h/1000000};
+}
+let configState=null;
+async function renderConfigurateur(el){
+  configState={type:CONFIG_TYPES[0],w:1200,h:1200,leaves:2,qty:1,marge:35,serie:'STD120',jointType:'onglet',gap:5,spacing:1500,infill:'cable'};
+  el.innerHTML=`<div id="configuratorRoot"></div>`;
+  renderConfiguratorBody();
+}
+function renderConfiguratorBody(){
+  const c=configState;
+  const isGC=c.type==='Garde-corps inox';
+  const isMousticoul=c.type==='Moustiquaire coulissante';
+  const showLeaves=!isGC && c.type!=='Moustiquaire fixe' && c.type!=='Fenêtre jalousie';
+  const showJoint=!isGC && !c.type.startsWith('Moustiquaire') && c.type!=='Fenêtre jalousie';
+  const res=configCalculerBOM(c.type,c.w,c.h,c.leaves,c.qty,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill});
+  const prixVente=Math.round(res.coutMateriel*(1+c.marge/100));
+  const pctCout=prixVente?Math.round(res.coutMateriel/prixVente*100):0;
+  document.getElementById('configuratorRoot').innerHTML=`
+    <div class="page-card mb-4">
+      <div class="flex justify-between items-center">
+        <h2>🧮 Configurateur d'ouvrage</h2>
+        <span class="badge bg-blue-50 text-blue-700">BOM paramétrique</span>
+      </div>
+      <p class="text-xs text-gray-500 mb-3">Les dimensions pilotent automatiquement la nomenclature (aluminium, vitrage, quincaillerie).</p>
+      <div class="divider"></div>
+      <div class="grid sm:grid-cols-3 gap-4">
+        <div class="field"><label>Type d'ouvrage</label>${fieldWrap('🏗️',`<select onchange="configUpdate('type',this.value)">${CONFIG_TYPES.map(t=>`<option ${t===c.type?'selected':''}>${t}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Série aluminium</label>${fieldWrap('📐',`<select onchange="configUpdate('serie',this.value)"><option value="STD120" ${c.serie==='STD120'?'selected':''}>Série Standard 120</option><option value="COUL120" ${c.serie==='COUL120'?'selected':''}>Série Coulissant 120</option><option value="PREM150" ${c.serie==='PREM150'?'selected':''}>Série Premium 150</option></select>`)}</div>
+        <div class="field"><label>Quantité</label>${fieldWrap('#',`<input type="number" min="1" value="${c.qty}" onchange="configUpdate('qty',+this.value||1)">`)}</div>
+        <div class="field"><label>Largeur (mm)</label>${fieldWrap('↔️',`<input type="number" value="${c.w}" onchange="configUpdate('w',+this.value||0)">`)}</div>
+        <div class="field"><label>Hauteur (mm)</label>${fieldWrap('↕️',`<input type="number" value="${c.h}" onchange="configUpdate('h',+this.value||0)">`)}</div>
+        ${showLeaves?`<div class="field"><label>Nombre de vantaux</label>${fieldWrap('🚪',`<input type="number" min="1" value="${c.leaves}" onchange="configUpdate('leaves',+this.value||1)">`)}</div>`:''}
+        ${showJoint?`<div class="field"><label>Type de jonction</label>${fieldWrap('🔗',`<select onchange="configUpdate('jointType',this.value)"><option value="onglet" ${c.jointType==='onglet'?'selected':''}>Onglet 45°</option><option value="equerre" ${c.jointType==='equerre'?'selected':''}>Équerre d'angle</option><option value="about" ${c.jointType==='about'?'selected':''}>Aboutage 90°</option></select>`)}</div>
+        <div class="field"><label>Jeu vitrage (mm)</label>${fieldWrap('📏',`<input type="number" value="${c.gap}" onchange="configUpdate('gap',+this.value||0)">`)}</div>`:''}
+        ${isGC?`<div class="field"><label>Espacement poteaux (mm)</label>${fieldWrap('📏',`<input type="number" min="500" value="${c.spacing}" onchange="configUpdate('spacing',+this.value||1500)">`)}</div>
+        <div class="field"><label>Remplissage</label>${fieldWrap('🧱',`<select onchange="configUpdate('infill',this.value)"><option value="cable" ${c.infill==='cable'?'selected':''}>Câble inox</option><option value="barreaudage" ${c.infill==='barreaudage'?'selected':''}>Barreaudage</option><option value="verre" ${c.infill==='verre'?'selected':''}>Verre feuilleté</option></select>`)}</div>`:''}
+        <div class="field"><label>Marge (%)</label>${fieldWrap('💰',`<input type="number" min="0" value="${c.marge}" onchange="configUpdate('marge',+this.value||0)">`)}</div>
+      </div>
+    </div>
+    <div class="grid sm:grid-cols-4 gap-4 mb-4">
+      <div class="card p-4"><div class="text-gray-400 text-xs">Surface</div><div class="text-lg font-black mt-1">${res.surface.toFixed(2)} m²</div></div>
+      <div class="card p-4"><div class="text-gray-400 text-xs">Aluminium</div><div class="text-lg font-black mt-1">${res.alu.toFixed(2)} ml</div></div>
+      <div class="card p-4"><div class="text-gray-400 text-xs">Vitrage</div><div class="text-lg font-black mt-1">${res.glassArea.toFixed(2)} m²</div></div>
+      <div class="card p-4"><div class="text-gray-400 text-xs">Coût matériel</div><div class="text-lg font-black mt-1 text-red-600">${money(res.coutMateriel)}</div></div>
+    </div>
+    <div class="page-card">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-bold text-sm">Nomenclature (BOM)</h3>
+        <div class="text-sm">Prix de vente suggéré : <b class="text-indigo-600">${money(prixVente)}</b> <span class="text-xs text-gray-400">(coût matériel ${pctCout}%)</span></div>
+      </div>
+      <div class="overflow-x-auto"><table><thead><tr><th>Code</th><th>Désignation</th><th class="text-right">Qté</th><th class="text-right">Longueur</th><th class="text-right">Montant</th></tr></thead>
+      <tbody>${res.rows.map(r=>`<tr><td class="font-semibold">${escapeHtml(r[0])}</td><td>${escapeHtml(r[1])}</td><td class="text-right">${Number(r[2]).toFixed(2)}</td><td class="text-right">${r[3]?Number(r[3]).toFixed(0)+' mm':'—'}</td><td class="text-right">${money(r[4])}</td></tr>`).join('')}</tbody>
+      <tfoot><tr class="font-bold border-t-2"><td colspan="4" class="p-2">Total matière</td><td class="text-right p-2">${money(res.coutMateriel)}</td></tr></tfoot></table></div>
+      <div class="flex justify-end mt-4">
+        <button class="btn btn-primary px-8 py-2.5" onclick="enregistrerProduitConfigure()">Enregistrer comme produit</button>
+      </div>
+    </div>`;
+}
+function configUpdate(field,value){ configState[field]=value; renderConfiguratorBody(); }
+async function enregistrerProduitConfigure(){
+  const c=configState;
+  const res=configCalculerBOM(c.type,c.w,c.h,c.leaves,c.qty,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill});
+  const prixVente=Math.round(res.coutMateriel*(1+c.marge/100));
+  const pctCout=prixVente?Math.round(res.coutMateriel/prixVente*100):60;
+  const showLeaves=!c.type.startsWith('Moustiquaire')&&c.type!=='Fenêtre jalousie'&&c.type!=='Garde-corps inox';
+  const nom=`${c.type} ${c.w}×${c.h}mm${showLeaves&&c.leaves>1?' — '+c.leaves+' vantaux':''} (${c.serie})`;
+  const rec={nom,unite:'unite',prix_vente:prixVente,cout_materiel:res.coutMateriel,cout_materiel_pct:pctCout,alu_ml:res.alu,glass_m2:res.glassArea,config_json:c};
+  const {error}=await sb.from('produits').insert(rec);
+  if(error){ toast(error.message,'error'); return; }
+  toast('Produit créé depuis le configurateur.'); showPage('produits');
 }
 
 /* ============================== DEVIS ============================== */
