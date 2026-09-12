@@ -93,6 +93,22 @@ window.SB_CFG = {
   .dropdown-menu{position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:180px;z-index:30;overflow:hidden}
   .dropdown-menu button{width:100%;text-align:left;padding:9px 14px;font-size:13px;background:#fff;border:0;cursor:pointer;color:#374151}
   .dropdown-menu button:hover{background:#f3f4f6}
+  .fam-section-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .fam-section-head .bar{width:5px;height:20px;border-radius:3px}
+  .fam-section-head h3{font-size:13px;font-weight:800;color:#111827;text-transform:none;letter-spacing:0}
+  .fam-section-head .count{background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px}
+  .produit-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;position:relative;overflow:hidden;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;cursor:default}
+  .produit-card::before{content:'';position:absolute;inset:0 0 auto 0;height:4px;background:var(--fc,var(--accent))}
+  .produit-card:hover{transform:translateY(-4px);box-shadow:0 14px 30px -10px rgba(17,24,39,.18);border-color:var(--fc,var(--accent))}
+  .produit-icon{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:22px;background:#f3f4f6;background:color-mix(in srgb, var(--fc,var(--accent)) 14%, white);box-shadow:inset 0 0 0 1px #e5e7eb;box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--fc,var(--accent)) 25%, white)}
+  .produit-pct{font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;background:#f3f4f6;background:color-mix(in srgb, var(--fc,var(--accent)) 14%, white);color:var(--fc,var(--accent))}
+  .produit-card .pname{font-weight:700;margin-top:12px;font-size:14px;color:#111827;line-height:1.3}
+  .produit-card .punite{font-size:11px;color:#9ca3af;margin-top:2px;text-transform:uppercase;letter-spacing:.03em;font-weight:700}
+  .produit-card .pactions{display:flex;justify-content:flex-end;gap:14px;margin-top:14px;padding-top:12px;border-top:1px solid #f1f5f9;opacity:0;transform:translateY(4px);transition:opacity .15s,transform .15s}
+  .produit-card:hover .pactions{opacity:1;transform:translateY(0)}
+  .produit-card .pactions button{font-size:11.5px;font-weight:700}
+  .view-toggle-btn{background:#fff;color:#6b7280;transition:background .15s,color .15s}
+  .view-toggle-btn.active{background:var(--accent);color:#fff}
   @media (max-width:900px){#sidebar{position:fixed;inset:0 20% 0 0;z-index:40;transform:translateX(-100%);transition:transform .2s;max-width:260px}#sidebar.open{transform:translateX(0)}#overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:35;opacity:0;pointer-events:none}#overlay.open{opacity:1;pointer-events:auto}}
 </style>
 </head>
@@ -861,6 +877,7 @@ async function renderProjetForm(el){
 /* ============================== PRODUITS ============================== */
 const PRODUIT_FAMILLES=['Fenêtre coulissante','Porte à la française','Porte coulissante','Coulissant galandage','Fenêtre jalousie','Moustiquaire fixe','Moustiquaire coulissante','Garde-corps inox','Verrière / mur rideau','Autre'];
 const FAMILLE_ICONS={'Fenêtre coulissante':'🪟','Porte à la française':'🚪','Porte coulissante':'🚪','Coulissant galandage':'🚪','Fenêtre jalousie':'🪟','Moustiquaire fixe':'🦟','Moustiquaire coulissante':'🦟','Garde-corps inox':'🛡️','Verrière / mur rideau':'🏢','Autre':'📦'};
+const FAMILLE_COLORS={'Fenêtre coulissante':'#2563eb','Porte à la française':'#d97706','Porte coulissante':'#ea580c','Coulissant galandage':'#0891b2','Fenêtre jalousie':'#7c3aed','Moustiquaire fixe':'#059669','Moustiquaire coulissante':'#0d9488','Garde-corps inox':'#475569','Verrière / mur rideau':'#db2777','Autre':'#6b7280'};
 window._produitsView=window._produitsView||'grille';
 async function renderProduits(el){
   const {data,error}=await sb.from('produits').select('*').order('nom');
@@ -877,8 +894,8 @@ async function renderProduits(el){
         <div class="flex-1 min-w-[200px]">${fieldWrap('🔎',`<input id="prFilterQ" placeholder="Rechercher un produit…" oninput="filterProduitsCatalogue()">`)}</div>
         <div style="min-width:200px">${fieldWrap('🏷️',`<select id="prFilterFamille" onchange="filterProduitsCatalogue()"><option value="">Toutes les familles</option>${famOptions}</select>`)}</div>
         <div class="flex rounded-lg border overflow-hidden shrink-0">
-          <button id="prViewGrille" class="px-3 py-2 text-sm font-semibold" onclick="setProduitsView('grille')">▦ Grille</button>
-          <button id="prViewListe" class="px-3 py-2 text-sm font-semibold border-l" onclick="setProduitsView('liste')">☰ Liste</button>
+          <button id="prViewGrille" class="view-toggle-btn px-3 py-2 text-sm font-semibold" onclick="setProduitsView('grille')">▦ Grille</button>
+          <button id="prViewListe" class="view-toggle-btn px-3 py-2 text-sm font-semibold border-l" onclick="setProduitsView('liste')">☰ Liste</button>
         </div>
       </div>
     </div>
@@ -890,8 +907,8 @@ function setProduitsView(v){ window._produitsView=v; updateProduitsViewButtons()
 function updateProduitsViewButtons(){
   const g=document.getElementById('prViewGrille'), l=document.getElementById('prViewListe');
   if(!g||!l) return;
-  g.className='px-3 py-2 text-sm font-semibold '+(window._produitsView==='grille'?'bg-indigo-600 text-white':'bg-white text-gray-600');
-  l.className='px-3 py-2 text-sm font-semibold border-l '+(window._produitsView==='liste'?'bg-indigo-600 text-white':'bg-white text-gray-600');
+  g.classList.toggle('active',window._produitsView==='grille');
+  l.classList.toggle('active',window._produitsView==='liste');
 }
 function filterProduitsCatalogue(){
   const data=window._produitsCache||[];
@@ -908,32 +925,39 @@ function filterProduitsCatalogue(){
   const host=document.getElementById('produitsCatalogue');
   if(!host) return;
   if(!familles.length){ host.innerHTML='<div class="card text-center text-gray-400 p-8">Aucun produit.</div>'; return; }
-  host.innerHTML=familles.map(f=>`
-    <div class="mb-6">
-      <h3 class="text-sm font-bold text-gray-500 uppercase mb-2">${FAMILLE_ICONS[f]||'📦'} ${escapeHtml(f)} <span class="text-gray-400 font-normal">(${groups[f].length})</span></h3>
+  host.innerHTML=familles.map(f=>{
+    const fc=FAMILLE_COLORS[f]||'#6d28d9';
+    return `
+    <div class="mb-7">
+      <div class="fam-section-head">
+        <div class="bar" style="background:${fc}"></div>
+        <h3>${FAMILLE_ICONS[f]||'📦'} ${escapeHtml(f)}</h3>
+        <span class="count">${groups[f].length}</span>
+      </div>
       ${window._produitsView==='grille' ? `
-        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           ${groups[f].map(p=>`
-            <div class="card">
-              <div class="flex justify-between items-start gap-2">
-                <div class="text-2xl">${FAMILLE_ICONS[f]||'📦'}</div>
-                <span class="pill bg-gray-100 text-gray-600">${p.cout_materiel_pct}%</span>
+            <div class="produit-card" style="--fc:${fc}">
+              <div class="flex justify-between items-start">
+                <div class="produit-icon">${FAMILLE_ICONS[f]||'📦'}</div>
+                <span class="produit-pct">${p.cout_materiel_pct}%</span>
               </div>
-              <div class="font-semibold mt-2">${escapeHtml(p.nom)}</div>
-              <div class="text-xs text-gray-400">Unité : ${escapeHtml(p.unite)}</div>
-              <div class="flex justify-end gap-2 mt-3">
-                <button class="text-indigo-600 text-xs font-semibold" onclick="window._editId='${p.id}';showPage('produits-add')">Modifier</button>
-                <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('produits','${p.id}','produits')">Suppr.</button>
+              <div class="pname">${escapeHtml(p.nom)}</div>
+              <div class="punite">${escapeHtml(p.unite)}</div>
+              <div class="pactions">
+                <button style="color:${fc}" onclick="window._editId='${p.id}';showPage('produits-add')">✏️ Modifier</button>
+                <button class="text-red-500" onclick="deleteRow('produits','${p.id}','produits')">🗑️ Suppr.</button>
               </div>
             </div>`).join('')}
         </div>` : `
         <div class="card overflow-x-auto">
           <table><thead><tr><th>Désignation</th><th>Unité</th><th class="text-right">% coût matériel</th><th></th></tr></thead>
-          <tbody>${groups[f].map(p=>`<tr><td>${escapeHtml(p.nom)}</td><td>${escapeHtml(p.unite)}</td><td class="text-right">${p.cout_materiel_pct}%</td>
-          <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${p.id}';showPage('produits-add')">Modifier</button>
-          <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('produits','${p.id}','produits')">Suppr.</button></td></tr>`).join('')}</tbody></table>
+          <tbody>${groups[f].map(p=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(p.nom)}</td><td>${escapeHtml(p.unite)}</td><td class="text-right"><span class="produit-pct" style="--fc:${fc}">${p.cout_materiel_pct}%</span></td>
+          <td class="text-right whitespace-nowrap"><button class="text-xs font-semibold mr-3" style="color:${fc}" onclick="window._editId='${p.id}';showPage('produits-add')">✏️ Modifier</button>
+          <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('produits','${p.id}','produits')">🗑️ Suppr.</button></td></tr>`).join('')}</tbody></table>
         </div>`}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 async function renderProduitForm(el){
   let p={};
