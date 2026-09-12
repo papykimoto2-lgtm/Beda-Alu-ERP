@@ -19,9 +19,19 @@ window.SB_CFG = {
   body{background:#f3f4f6;color:#111827;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif}
   .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700}
   .hidden{display:none!important}
-  .nav-item{color:#cbd5e1;transition:background .12s}
+  .nav-item{color:#cbd5e1;transition:background .12s;display:flex;align-items:center;gap:8px}
   .nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
   .nav-item.active{background:var(--accent);color:#fff}
+  .sidebar-group-title{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:800;padding:16px 12px 4px}
+  .nav-parent{width:100%;text-align:left;color:#cbd5e1;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;transition:background .12s}
+  .nav-parent:hover{background:rgba(255,255,255,.08);color:#fff}
+  .nav-parent .chev{margin-left:auto;transition:transform .15s;font-size:10px}
+  .nav-parent.open .chev{transform:rotate(90deg)}
+  .sidebar-children{max-height:0;overflow:hidden;transition:max-height .18s ease}
+  .sidebar-children.open{max-height:300px}
+  .nav-child{width:100%;text-align:left;color:#94a3b8;display:block;padding:8px 12px 8px 30px;font-size:12.5px;border-radius:8px}
+  .nav-child:hover{background:rgba(255,255,255,.06);color:#fff}
+  .nav-child.active{background:rgba(255,255,255,.1);color:#fff;font-weight:700}
   .btn{padding:8px 16px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;border:0;white-space:nowrap}
   .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-2)}
   .btn-green{background:#059669;color:#fff}.btn-green:hover{background:#047857}
@@ -30,6 +40,14 @@ window.SB_CFG = {
   .btn-outline{background:#fff;border:1px solid #d1d5db;color:#374151}.btn-outline:hover{background:#f9fafb}
   .btn-amber{background:#f59e0b;color:#fff}.btn-amber:hover{background:#d97706}
   .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px}
+  .page-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;border-top:4px solid var(--accent);padding:24px}
+  .page-card h2{font-size:16px;font-weight:800;color:#3b2170;display:flex;align-items:center;gap:8px}
+  .page-card .divider{border-top:1px solid #e5e7eb;margin:14px 0 20px}
+  .field label{font-size:11px;font-weight:700;color:#6b7280;display:block;margin-bottom:4px}
+  .field-input{display:flex;align-items:center;gap:8px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;background:#fff}
+  .field-input:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(109,40,217,.12)}
+  .field-input .fi{color:#9ca3af;font-size:14px;flex-shrink:0}
+  .field-input input,.field-input select{border:0!important;padding:9px 0!important;box-shadow:none!important}
   input,select,textarea{border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:13px;width:100%}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(109,40,217,.12)}
   table{width:100%;border-collapse:collapse;font-size:13px}
@@ -39,6 +57,10 @@ window.SB_CFG = {
   tbody tr:hover{background:#fafafa}
   .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
   .modal-box{background:#fff;border-radius:16px;padding:24px;max-width:900px;width:100%;max-height:92vh;overflow-y:auto}
+  .icon-btn{position:relative;width:36px;height:36px;border-radius:999px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:15px;color:#4b5563;border:0;cursor:pointer}
+  .icon-btn:hover{background:#e5e7eb}
+  .icon-btn .dot{position:absolute;top:-2px;right:-2px;background:var(--accent);color:#fff;font-size:9px;font-weight:800;border-radius:999px;min-width:15px;height:15px;display:flex;align-items:center;justify-content:center;padding:0 3px}
+  .avatar{width:34px;height:34px;border-radius:999px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
   @media (max-width:900px){#sidebar{position:fixed;inset:0 20% 0 0;z-index:40;transform:translateX(-100%);transition:transform .2s;max-width:260px}#sidebar.open{transform:translateX(0)}#overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:35;opacity:0;pointer-events:none}#overlay.open{opacity:1;pointer-events:auto}}
 </style>
 </head>
@@ -71,18 +93,44 @@ window.SB_CFG = {
       <div class="text-white text-lg font-black">BEDA<span style="color:#a78bfa">ALU</span></div>
       <button onclick="closeSidebar()" class="md:hidden text-slate-400 text-2xl leading-none">×</button>
     </div>
-    <nav class="flex-1 px-3 space-y-1 overflow-y-auto text-sm">
-      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="dashboard">🏠 Accueil</button>
-      <div class="text-[10px] uppercase text-slate-500 font-bold px-3 pt-4 pb-1">Clients</div>
-      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="clients">👤 Clients</button>
-      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="projets">🏗️ Projets / Chantiers</button>
-      <div class="text-[10px] uppercase text-slate-500 font-bold px-3 pt-4 pb-1">Commercial</div>
-      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="devis">📄 Devis</button>
-      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="factures">🧾 Factures</button>
-      <div class="text-[10px] uppercase text-slate-500 font-bold px-3 pt-4 pb-1">Chantier</div>
-      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="fiches">🛠️ Fiches d'exécution</button>
-      <div class="text-[10px] uppercase text-slate-500 font-bold px-3 pt-4 pb-1">Réglages</div>
-      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="produits">📦 Produits</button>
+    <nav class="flex-1 px-3 pb-4 overflow-y-auto text-sm" id="sidebarNav">
+      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="dashboard">🏠 <span>Accueil</span></button>
+
+      <div class="sidebar-group-title">Clients</div>
+      <button class="nav-parent" data-toggle="clients-g">🏠 <span>Clients</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="clients-g">
+        <button class="nav-child" data-page="clients-add">→ Ajouter un client</button>
+        <button class="nav-child" data-page="clients">→ Liste des clients</button>
+      </div>
+      <button class="nav-parent" data-toggle="projets-g">🏠 <span>Projets / Chantiers</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="projets-g">
+        <button class="nav-child" data-page="projets-add">→ Ajouter un projet</button>
+        <button class="nav-child" data-page="projets">→ Liste des projets</button>
+      </div>
+
+      <div class="sidebar-group-title">Commercial</div>
+      <button class="nav-parent" data-toggle="devis-g">🏠 <span>Devis</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="devis-g">
+        <button class="nav-child" data-page="devis-add">→ Ajouter un devis</button>
+        <button class="nav-child" data-page="devis">→ Liste des devis</button>
+      </div>
+      <button class="nav-parent" data-toggle="factures-g">🏠 <span>Factures</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="factures-g">
+        <button class="nav-child" data-page="factures">→ Liste des factures</button>
+      </div>
+
+      <div class="sidebar-group-title">Chantier</div>
+      <button class="nav-parent" data-toggle="fiches-g">🏠 <span>Fiches d'exécution</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="fiches-g">
+        <button class="nav-child" data-page="fiches">→ Liste des fiches</button>
+      </div>
+
+      <div class="sidebar-group-title">Produits</div>
+      <button class="nav-parent" data-toggle="produits-g">🏠 <span>Produits</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="produits-g">
+        <button class="nav-child" data-page="produits-add">→ Ajouter un produit</button>
+        <button class="nav-child" data-page="produits">→ Liste des produits</button>
+      </div>
     </nav>
     <div class="px-4 py-4 border-t border-white/10">
       <div id="sbUserEmail" class="text-xs text-slate-400 truncate mb-2"></div>
@@ -95,6 +143,15 @@ window.SB_CFG = {
       <div class="flex items-center gap-2 min-w-0">
         <button onclick="openSidebar()" class="md:hidden border rounded-lg px-2.5 py-1.5">☰</button>
         <h1 id="pageTitle" class="text-base sm:text-lg font-bold truncate">Accueil</h1>
+      </div>
+      <div class="flex items-center gap-3 shrink-0">
+        <button class="icon-btn" title="Messages">💬</button>
+        <button class="icon-btn" title="Notifications">🔔<span id="hdrBellCount" class="dot hidden">0</span></button>
+        <div class="hidden sm:block text-right leading-tight">
+          <div id="hdrUserName" class="text-sm font-semibold text-gray-700">—</div>
+          <div class="text-[11px] text-emerald-600">Connecté</div>
+        </div>
+        <div id="hdrAvatar" class="avatar">--</div>
       </div>
     </header>
     <div id="pageContent" class="p-4 sm:p-6"></div>
@@ -165,9 +222,16 @@ async function enterApp(){
   const {data:{user}}=await sb.auth.getUser();
   if(!user) return;
   CURRENT_USER=user;
+  const {data:profile}=await sb.from('profiles').select('nom_complet').eq('id',user.id).maybeSingle();
+  const displayName=profile?.nom_complet||user.email;
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('appScreen').classList.remove('hidden');
   document.getElementById('sbUserEmail').textContent=user.email;
+  document.getElementById('hdrUserName').textContent=displayName;
+  document.getElementById('hdrAvatar').textContent=displayName.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const {count:nbAttente}=await sb.from('devis').select('*',{count:'exact',head:true}).eq('statut','en_attente');
+  const bell=document.getElementById('hdrBellCount');
+  if(nbAttente){ bell.textContent=nbAttente; bell.classList.remove('hidden'); }
   showPage('dashboard');
 }
 (async function boot(){
@@ -176,10 +240,18 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',clients:'Clients',projets:'Projets / Chantiers',devis:'Devis',factures:'Factures',fiches:"Fiches d'exécution",produits:'Produits'};
-const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,projets:renderProjets,devis:renderDevis,factures:renderFactures,fiches:renderFiches,produits:renderProduits};
+const PAGE_TITLES={dashboard:'Accueil',clients:'Clients','clients-add':'Ajouter un client',projets:'Projets / Chantiers','projets-add':'Ajouter un projet',devis:'Devis','devis-add':'Ajouter un Devis',factures:'Factures',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit'};
+const PAGE_RENDERERS={dashboard:renderDashboard,clients:renderClients,'clients-add':renderClientForm,projets:renderProjets,'projets-add':renderProjetForm,devis:renderDevis,'devis-add':renderDevisEditorPage,factures:renderFactures,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','projets-add':'projets-g',projets:'projets-g','devis-add':'devis-g',devis:'devis-g',factures:'factures-g',fiches:'fiches-g','produits-add':'produits-g',produits:'produits-g'};
+window._editId=null;
 async function showPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
+  document.querySelectorAll('.nav-child').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
+  const groupKey=PAGE_TO_GROUP[page];
+  document.querySelectorAll('.nav-parent').forEach(b=>{
+    const isMatch=b.dataset.toggle===groupKey;
+    if(isMatch){ b.classList.add('open'); document.querySelector(`.sidebar-children[data-children="${groupKey}"]`).classList.add('open'); }
+  });
   document.getElementById('pageTitle').textContent=PAGE_TITLES[page]||'';
   const el=document.getElementById('pageContent');
   el.innerHTML='<div class="text-sm text-gray-400 p-8 text-center">Chargement…</div>';
@@ -187,7 +259,17 @@ async function showPage(page){
   try{ await PAGE_RENDERERS[page](el); }
   catch(err){ el.innerHTML=`<div class="text-sm text-red-600">${escapeHtml(err.message||String(err))}</div>`; }
 }
-document.querySelectorAll('.nav-item[data-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+document.querySelectorAll('.nav-item[data-page], .nav-child[data-page]').forEach(b=>b.onclick=()=>{ if(!b.classList.contains('nav-child')) window._editId=null; showPage(b.dataset.page); });
+document.querySelectorAll('.nav-parent[data-toggle]').forEach(b=>{
+  b.onclick=()=>{
+    const key=b.dataset.toggle;
+    const kids=document.querySelector(`.sidebar-children[data-children="${key}"]`);
+    const willOpen=!kids.classList.contains('open');
+    document.querySelectorAll('.sidebar-children').forEach(c=>c.classList.remove('open'));
+    document.querySelectorAll('.nav-parent').forEach(p=>p.classList.remove('open'));
+    if(willOpen){ kids.classList.add('open'); b.classList.add('open'); }
+  };
+});
 
 /* ============================== DASHBOARD ============================== */
 async function renderDashboard(el){
@@ -218,7 +300,7 @@ async function renderClients(el){
   el.innerHTML=`
     <div class="flex justify-between items-center mb-4">
       <div class="text-sm text-gray-500">${data.length} client(s)</div>
-      <button class="btn btn-primary" onclick="openClientForm()">+ Ajouter un client</button>
+      <button class="btn btn-primary" onclick="window._editId=null;showPage('clients-add')">+ Ajouter un client</button>
     </div>
     <div class="card overflow-x-auto">
       <table><thead><tr><th>Code</th><th>Nom</th><th>Téléphone</th><th>Email</th><th>Ville</th><th>Catégorie</th><th></th></tr></thead>
@@ -227,32 +309,39 @@ async function renderClients(el){
         <td>${escapeHtml([c.civilite,c.nom,c.prenoms].filter(Boolean).join(' '))}${c.entreprise?`<div class="text-xs text-gray-400">${escapeHtml(c.entreprise)}</div>`:''}</td>
         <td>${escapeHtml(c.telephone||'—')}</td><td>${escapeHtml(c.email||'—')}</td><td>${escapeHtml(c.commune||'—')}</td>
         <td>${escapeHtml(c.categorie||'—')}</td>
-        <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick='openClientForm(${JSON.stringify(c).replace(/'/g,"&#39;")})'>Modifier</button>
+        <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${c.id}';showPage('clients-add')">Modifier</button>
         <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('clients','${c.id}','clients')">Suppr.</button></td>
       </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun client.</td></tr>'}</tbody></table>
     </div>`;
 }
-function openClientForm(c){
-  c=c||{};
-  openModal(`
-    <div class="flex justify-between items-start mb-4"><h2 class="text-lg font-bold">${c.id?'Modifier':'Ajouter'} un client</h2><button onclick="closeModal()" class="text-gray-400 text-xl leading-none">×</button></div>
-    <form id="clientForm" class="grid sm:grid-cols-2 gap-3">
-      <input type="hidden" id="clId" value="${c.id||''}">
-      <select id="clCivilite"><option ${c.civilite==='Monsieur'?'selected':''}>Monsieur</option><option ${c.civilite==='Madame'?'selected':''}>Madame</option><option ${c.civilite==='Entreprise'?'selected':''}>Entreprise</option></select>
-      <input id="clNom" placeholder="Nom" required value="${escapeHtml(c.nom||'')}">
-      <input id="clPrenoms" placeholder="Prénoms" value="${escapeHtml(c.prenoms||'')}">
-      <input id="clEntreprise" placeholder="Nom de l'entreprise" value="${escapeHtml(c.entreprise||'')}">
-      <input id="clTelephone" placeholder="Téléphone" value="${escapeHtml(c.telephone||'')}">
-      <input id="clEmail" type="email" placeholder="Email" value="${escapeHtml(c.email||'')}">
-      <input id="clPays" placeholder="Pays" value="${escapeHtml(c.pays||"Côte d'Ivoire")}">
-      <input id="clCommune" placeholder="Commune / Ville" value="${escapeHtml(c.commune||'')}">
-      <input id="clQuartier" placeholder="Quartier" value="${escapeHtml(c.quartier||'')}">
-      <select id="clCategorie"><option ${c.categorie==='Particulier'?'selected':''}>Particulier</option><option ${c.categorie==='Entreprise'?'selected':''}>Entreprise</option></select>
-      <input id="clAdresse" placeholder="Adresse" class="sm:col-span-2" value="${escapeHtml(c.adresse||'')}">
-      <input id="clSource" placeholder="Source / Lieu d'affaire" value="${escapeHtml(c.source||'')}">
-      <input id="clCommercial" placeholder="Commercial" value="${escapeHtml(c.commercial||'')}">
-      <button type="submit" class="btn btn-primary sm:col-span-2 py-2.5">Sauvegarder</button>
-    </form>`);
+function fieldWrap(icon,inputHtml){ return `<div class="field-input"><span class="fi">${icon}</span>${inputHtml}</div>`; }
+async function renderClientForm(el){
+  let c={};
+  if(window._editId){ const {data}=await sb.from('clients').select('*').eq('id',window._editId).single(); c=data||{}; }
+  el.innerHTML=`
+    <div class="page-card max-w-4xl">
+      <h2>👤 ${c.id?'Modifier':'Ajouter'} un client</h2>
+      <div class="divider"></div>
+      <form id="clientForm" class="grid sm:grid-cols-3 gap-4">
+        <input type="hidden" id="clId" value="${c.id||''}">
+        <div class="field"><label>Civilité</label>${fieldWrap('👤',`<select id="clCivilite"><option ${c.civilite==='Monsieur'?'selected':''}>Monsieur</option><option ${c.civilite==='Madame'?'selected':''}>Madame</option><option ${c.civilite==='Entreprise'?'selected':''}>Entreprise</option></select>`)}</div>
+        <div class="field"><label>Nom</label>${fieldWrap('👤',`<input id="clNom" placeholder="Nom" required value="${escapeHtml(c.nom||'')}">`)}</div>
+        <div class="field"><label>Prénoms</label>${fieldWrap('👤',`<input id="clPrenoms" placeholder="Prénoms" value="${escapeHtml(c.prenoms||'')}">`)}</div>
+        <div class="field sm:col-span-3"><label>Nom de l'entreprise</label>${fieldWrap('🏢',`<input id="clEntreprise" placeholder="Raison sociale" value="${escapeHtml(c.entreprise||'')}">`)}</div>
+        <div class="field sm:col-span-1"><label>Téléphone</label>${fieldWrap('📞',`<input id="clTelephone" placeholder="Numéro de téléphone" value="${escapeHtml(c.telephone||'')}">`)}</div>
+        <div class="field sm:col-span-2"><label>Email</label>${fieldWrap('✉️',`<input id="clEmail" type="email" placeholder="Adresse e-mail" value="${escapeHtml(c.email||'')}">`)}</div>
+        <div class="field"><label>Pays</label>${fieldWrap('🌐',`<input id="clPays" value="${escapeHtml(c.pays||"Côte d'Ivoire")}">`)}</div>
+        <div class="field sm:col-span-2"><label>Commune / Villes</label>${fieldWrap('🏙️',`<input id="clCommune" value="${escapeHtml(c.commune||'')}">`)}</div>
+        <div class="field sm:col-span-3"><label>Quartier</label>${fieldWrap('📍',`<input id="clQuartier" value="${escapeHtml(c.quartier||'')}">`)}</div>
+        <div class="field"><label>Catégorie client</label>${fieldWrap('🏷️',`<select id="clCategorie"><option ${c.categorie==='Particulier'?'selected':''}>Particulier</option><option ${c.categorie==='Entreprise'?'selected':''}>Entreprise</option></select>`)}</div>
+        <div class="field sm:col-span-2"><label>Adresse</label>${fieldWrap('📍',`<input id="clAdresse" value="${escapeHtml(c.adresse||'')}">`)}</div>
+        <div class="field sm:col-span-2"><label>Source - Lieu d'affaire</label>${fieldWrap('🌐',`<input id="clSource" value="${escapeHtml(c.source||'')}">`)}</div>
+        <div class="field"><label>Commercial</label>${fieldWrap('👤',`<input id="clCommercial" value="${escapeHtml(c.commercial||'')}">`)}</div>
+        <div class="sm:col-span-3 flex justify-end pt-2">
+          <button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button>
+        </div>
+      </form>
+    </div>`;
   document.getElementById('clientForm').onsubmit=async (e)=>{
     e.preventDefault();
     const rec={civilite:val('clCivilite'),nom:val('clNom'),prenoms:val('clPrenoms'),entreprise:val('clEntreprise'),telephone:val('clTelephone'),email:val('clEmail'),pays:val('clPays'),commune:val('clCommune'),quartier:val('clQuartier'),categorie:val('clCategorie'),adresse:val('clAdresse'),source:val('clSource'),commercial:val('clCommercial')};
@@ -261,7 +350,7 @@ function openClientForm(c){
     if(id){ ({error}=await sb.from('clients').update(rec).eq('id',id)); }
     else { rec.created_by=CURRENT_USER.id; ({error}=await sb.from('clients').insert(rec)); }
     if(error){ toast(error.message,'error'); return; }
-    closeModal(); toast('Client enregistré.'); showPage('clients');
+    toast('Client enregistré.'); window._editId=null; showPage('clients');
   };
 }
 function val(id){ return document.getElementById(id).value.trim(); }
@@ -283,7 +372,7 @@ async function renderProjets(el){
   el.innerHTML=`
     <div class="flex justify-between items-center mb-4">
       <div class="text-sm text-gray-500">${data.length} projet(s)</div>
-      <button class="btn btn-primary" onclick="openProjetForm()">+ Ajouter un projet</button>
+      <button class="btn btn-primary" onclick="window._editId=null;showPage('projets-add')">+ Ajouter un projet</button>
     </div>
     <div class="card overflow-x-auto">
       <table><thead><tr><th>Code</th><th>Libellé</th><th>Client</th><th>Début</th><th>Fin</th><th>Catégorie</th><th></th></tr></thead>
@@ -291,7 +380,7 @@ async function renderProjets(el){
         <td class="font-semibold">${escapeHtml(p.code)}</td><td>${escapeHtml(p.libelle)}</td>
         <td>${escapeHtml(p.clients?[p.clients.nom,p.clients.prenoms].filter(Boolean).join(' '):'—')}</td>
         <td>${fmtDate(p.date_debut)}</td><td>${fmtDate(p.date_fin)}</td><td>${escapeHtml(p.categorie||'—')}</td>
-        <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick='openProjetForm(${JSON.stringify(p).replace(/'/g,"&#39;")})'>Modifier</button>
+        <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${p.id}';showPage('projets-add')">Modifier</button>
         <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('projets','${p.id}','projets')">Suppr.</button></td>
       </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun projet.</td></tr>'}</tbody></table>
     </div>`;
@@ -299,25 +388,31 @@ async function renderProjets(el){
 function clientOptions(selectedId){
   return (window._clientsCache||[]).map(c=>`<option value="${c.id}" ${c.id===selectedId?'selected':''}>${escapeHtml([c.nom,c.prenoms].filter(Boolean).join(' '))}</option>`).join('');
 }
-function openProjetForm(p){
-  p=p||{};
-  openModal(`
-    <div class="flex justify-between items-start mb-4"><h2 class="text-lg font-bold">${p.id?'Modifier':'Ajouter'} un projet</h2><button onclick="closeModal()" class="text-gray-400 text-xl leading-none">×</button></div>
-    <form id="projetForm" class="grid sm:grid-cols-2 gap-3">
-      <input type="hidden" id="pjId" value="${p.id||''}">
-      <input id="pjLibelle" placeholder="Libellé du projet" required class="sm:col-span-2" value="${escapeHtml(p.libelle||'')}">
-      <select id="pjClient" required><option value="">Sélectionner un client…</option>${clientOptions(p.client_id)}</select>
-      <select id="pjCategorie"><option ${p.categorie==='Habitation'?'selected':''}>Habitation</option><option ${p.categorie==='Bureau'?'selected':''}>Bureau</option><option ${p.categorie==='Commerce'?'selected':''}>Commerce</option><option ${p.categorie==='Industriel'?'selected':''}>Industriel</option></select>
-      <label class="text-xs font-semibold block">Date début<input id="pjDateDebut" type="date" value="${p.date_debut||''}"></label>
-      <label class="text-xs font-semibold block">Date fin<input id="pjDateFin" type="date" value="${p.date_fin||''}"></label>
-      <input id="pjPays" placeholder="Pays" value="${escapeHtml(p.pays||"Côte d'Ivoire")}">
-      <input id="pjCommune" placeholder="Commune / Ville" value="${escapeHtml(p.commune||'')}">
-      <input id="pjQuartier" placeholder="Quartier (lieu précis)" value="${escapeHtml(p.quartier||'')}">
-      <input id="pjSource" placeholder="Source / Lieu d'affaire" value="${escapeHtml(p.source||'')}">
-      <input id="pjResponsable" placeholder="Responsable chantier" value="${escapeHtml(p.responsable||'')}">
-      <textarea id="pjDescription" placeholder="Description" class="sm:col-span-2" rows="2">${escapeHtml(p.description||'')}</textarea>
-      <button type="submit" class="btn btn-primary sm:col-span-2 py-2.5">Sauvegarder</button>
-    </form>`);
+async function renderProjetForm(el){
+  const {data:clients}=await sb.from('clients').select('id,nom,prenoms').order('nom');
+  window._clientsCache=clients||[];
+  let p={};
+  if(window._editId){ const {data}=await sb.from('projets').select('*').eq('id',window._editId).single(); p=data||{}; }
+  el.innerHTML=`
+    <div class="page-card max-w-4xl">
+      <h2>🏗️ ${p.id?'Modifier':'Ajouter'} un projet</h2>
+      <div class="divider"></div>
+      <form id="projetForm" class="grid sm:grid-cols-3 gap-4">
+        <input type="hidden" id="pjId" value="${p.id||''}">
+        <div class="field sm:col-span-3"><label>Libellé du projet</label>${fieldWrap('🏠',`<input id="pjLibelle" required value="${escapeHtml(p.libelle||'')}">`)}</div>
+        <div class="field sm:col-span-2"><label>Client</label>${fieldWrap('👤',`<select id="pjClient" required><option value="">Sélectionner un client…</option>${clientOptions(p.client_id)}</select>`)}</div>
+        <div class="field"><label>Catégorie</label>${fieldWrap('🏷️',`<select id="pjCategorie"><option ${p.categorie==='Habitation'?'selected':''}>Habitation</option><option ${p.categorie==='Bureau'?'selected':''}>Bureau</option><option ${p.categorie==='Commerce'?'selected':''}>Commerce</option><option ${p.categorie==='Industriel'?'selected':''}>Industriel</option></select>`)}</div>
+        <div class="field"><label>Date début</label>${fieldWrap('📅',`<input id="pjDateDebut" type="date" value="${p.date_debut||''}">`)}</div>
+        <div class="field"><label>Date fin</label>${fieldWrap('📅',`<input id="pjDateFin" type="date" value="${p.date_fin||''}">`)}</div>
+        <div class="field"><label>Pays</label>${fieldWrap('🌐',`<input id="pjPays" value="${escapeHtml(p.pays||"Côte d'Ivoire")}">`)}</div>
+        <div class="field"><label>Commune / Villes</label>${fieldWrap('🏙️',`<input id="pjCommune" value="${escapeHtml(p.commune||'')}">`)}</div>
+        <div class="field"><label>Quartier (lieu précis)</label>${fieldWrap('📍',`<input id="pjQuartier" value="${escapeHtml(p.quartier||'')}">`)}</div>
+        <div class="field"><label>Source - Lieu d'affaire</label>${fieldWrap('🌐',`<input id="pjSource" value="${escapeHtml(p.source||'')}">`)}</div>
+        <div class="field sm:col-span-2"><label>Responsable chantier</label>${fieldWrap('👤',`<input id="pjResponsable" value="${escapeHtml(p.responsable||'')}">`)}</div>
+        <div class="field sm:col-span-3"><label>Description</label>${fieldWrap('📝',`<textarea id="pjDescription" rows="3">${escapeHtml(p.description||'')}</textarea>`)}</div>
+        <div class="sm:col-span-3 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
+      </form>
+    </div>`;
   document.getElementById('projetForm').onsubmit=async (e)=>{
     e.preventDefault();
     const rec={libelle:val('pjLibelle'),client_id:val('pjClient'),categorie:val('pjCategorie'),date_debut:val('pjDateDebut')||null,date_fin:val('pjDateFin')||null,pays:val('pjPays'),commune:val('pjCommune'),quartier:val('pjQuartier'),source:val('pjSource'),responsable:val('pjResponsable'),description:val('pjDescription')};
@@ -326,7 +421,7 @@ function openProjetForm(p){
     if(id){ ({error}=await sb.from('projets').update(rec).eq('id',id)); }
     else { rec.created_by=CURRENT_USER.id; ({error}=await sb.from('projets').insert(rec)); }
     if(error){ toast(error.message,'error'); return; }
-    closeModal(); toast('Projet enregistré.'); showPage('projets');
+    toast('Projet enregistré.'); window._editId=null; showPage('projets');
   };
 }
 
@@ -338,26 +433,30 @@ async function renderProduits(el){
   el.innerHTML=`
     <div class="flex justify-between items-center mb-4">
       <p class="text-sm text-gray-500 max-w-lg">Catalogue de référence utilisé dans les devis. Le % coût matériel sert à l'estimation financière prévisionnelle (approximatif).</p>
-      <button class="btn btn-primary" onclick="openProduitForm()">+ Ajouter</button>
+      <button class="btn btn-primary" onclick="window._editId=null;showPage('produits-add')">+ Ajouter</button>
     </div>
     <div class="card overflow-x-auto">
       <table><thead><tr><th>Désignation</th><th>Unité</th><th class="text-right">% coût matériel</th><th></th></tr></thead>
       <tbody>${data.map(p=>`<tr><td>${escapeHtml(p.nom)}</td><td>${escapeHtml(p.unite)}</td><td class="text-right">${p.cout_materiel_pct}%</td>
-      <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick='openProduitForm(${JSON.stringify(p).replace(/'/g,"&#39;")})'>Modifier</button>
+      <td class="text-right whitespace-nowrap"><button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${p.id}';showPage('produits-add')">Modifier</button>
       <button class="text-red-500 text-xs font-semibold" onclick="deleteRow('produits','${p.id}','produits')">Suppr.</button></td></tr>`).join('')}</tbody></table>
     </div>`;
 }
-function openProduitForm(p){
-  p=p||{};
-  openModal(`
-    <div class="flex justify-between items-start mb-4"><h2 class="text-lg font-bold">${p.id?'Modifier':'Ajouter'} un produit</h2><button onclick="closeModal()" class="text-gray-400 text-xl leading-none">×</button></div>
-    <form id="prodForm" class="grid sm:grid-cols-2 gap-3">
-      <input type="hidden" id="prId" value="${p.id||''}">
-      <input id="prNom" placeholder="Désignation" required class="sm:col-span-2" value="${escapeHtml(p.nom||'')}">
-      <select id="prUnite"><option value="unite" ${p.unite==='unite'?'selected':''}>Unité</option><option value="m2" ${p.unite==='m2'?'selected':''}>m²</option><option value="ml" ${p.unite==='ml'?'selected':''}>ml</option></select>
-      <label class="text-xs font-semibold block">% coût matériel estimé<input id="prPct" type="number" min="0" max="100" value="${p.cout_materiel_pct??60}"></label>
-      <button type="submit" class="btn btn-primary sm:col-span-2 py-2.5">Sauvegarder</button>
-    </form>`);
+async function renderProduitForm(el){
+  let p={};
+  if(window._editId){ const {data}=await sb.from('produits').select('*').eq('id',window._editId).single(); p=data||{}; }
+  el.innerHTML=`
+    <div class="page-card max-w-2xl">
+      <h2>📦 ${p.id?'Modifier':'Ajouter'} un produit</h2>
+      <div class="divider"></div>
+      <form id="prodForm" class="grid sm:grid-cols-2 gap-4">
+        <input type="hidden" id="prId" value="${p.id||''}">
+        <div class="field sm:col-span-2"><label>Désignation</label>${fieldWrap('📦',`<input id="prNom" required value="${escapeHtml(p.nom||'')}">`)}</div>
+        <div class="field"><label>Unité</label>${fieldWrap('📐',`<select id="prUnite"><option value="unite" ${p.unite==='unite'?'selected':''}>Unité</option><option value="m2" ${p.unite==='m2'?'selected':''}>m²</option><option value="ml" ${p.unite==='ml'?'selected':''}>ml</option></select>`)}</div>
+        <div class="field"><label>% coût matériel estimé</label>${fieldWrap('💰',`<input id="prPct" type="number" min="0" max="100" value="${p.cout_materiel_pct??60}">`)}</div>
+        <div class="sm:col-span-2 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
+      </form>
+    </div>`;
   document.getElementById('prodForm').onsubmit=async (e)=>{
     e.preventDefault();
     const rec={nom:val('prNom'),unite:val('prUnite'),cout_materiel_pct:+val('prPct')||60};
@@ -366,7 +465,7 @@ function openProduitForm(p){
     if(id){ ({error}=await sb.from('produits').update(rec).eq('id',id)); }
     else { ({error}=await sb.from('produits').insert(rec)); }
     if(error){ toast(error.message,'error'); return; }
-    closeModal(); toast('Produit enregistré.'); showPage('produits');
+    toast('Produit enregistré.'); window._editId=null; showPage('produits');
   };
 }
 
@@ -377,7 +476,7 @@ async function renderDevis(el){
   el.innerHTML=`
     <div class="flex justify-between items-center mb-4">
       <div class="text-sm text-gray-500">${data.length} devis</div>
-      <button class="btn btn-primary" onclick="openDevisEditor()">+ Ajouter un devis</button>
+      <button class="btn btn-primary" onclick="window._editId=null;showPage('devis-add')">+ Ajouter un devis</button>
     </div>
     <div class="card overflow-x-auto">
       <table><thead><tr><th>Code</th><th>Client</th><th>Projet</th><th>Date</th><th class="text-right">Total</th><th>Statut</th><th></th></tr></thead>
@@ -387,7 +486,7 @@ async function renderDevis(el){
         <td>${escapeHtml(d.projets?.libelle||'—')}</td><td>${fmtDate(d.date_creation)}</td>
         <td class="text-right">${money(d.total)}</td><td>${badge(STATUT_DEVIS,d.statut)}</td>
         <td class="text-right whitespace-nowrap">
-          <button class="text-indigo-600 text-xs font-semibold mr-2" onclick="openDevisEditor('${d.id}')">Modifier</button>
+          <button class="text-indigo-600 text-xs font-semibold mr-2" onclick="window._editId='${d.id}';showPage('devis-add')">Modifier</button>
           <button class="text-teal-600 text-xs font-semibold mr-2" onclick="printDevis('${d.id}')">🖨</button>
           <button class="text-purple-600 text-xs font-semibold mr-2" onclick="openEstimation('${d.id}')">📊</button>
           <button class="text-amber-600 text-xs font-semibold mr-2" onclick="genererFicheExecution('${d.id}')">🛠️</button>
@@ -399,7 +498,8 @@ async function renderDevis(el){
 }
 
 let devisEditorState=null;
-async function openDevisEditor(devisId){
+async function renderDevisEditorPage(el){
+  const devisId=window._editId;
   const [clientsRes, projetsRes, produitsRes] = await Promise.all([
     sb.from('clients').select('id,nom,prenoms').order('nom'),
     sb.from('projets').select('id,libelle,client_id').order('libelle'),
@@ -414,38 +514,43 @@ async function openDevisEditor(devisId){
     const {data:l}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
     devis=d; lignes=l||[];
   }
-  devisEditorState={devis,lignes};
-  renderDevisEditorModal();
+  devisEditorState={devis,lignes,el};
+  renderDevisEditorBody();
 }
-function renderDevisEditorModal(){
-  const {devis:d,lignes}=devisEditorState;
+function renderDevisEditorBody(){
+  const {devis:d,lignes,el}=devisEditorState;
   const total=lignes.reduce((s,l)=>s+ligneTotal(l),0);
-  openModal(`
-    <div class="flex justify-between items-start mb-4"><h2 class="text-lg font-bold">${d.id?'Modifier le devis '+escapeHtml(d.code):'Ajouter un Devis'}</h2><button onclick="closeModal()" class="text-gray-400 text-xl leading-none">×</button></div>
-    <form id="devisHeaderForm" class="grid sm:grid-cols-3 gap-3 mb-5 pb-5 border-b">
-      <input id="dvLibelle" placeholder="Libellé du devis" class="sm:col-span-3" value="${escapeHtml(d.libelle||'')}">
-      <select id="dvClient" required><option value="">Client…</option>${clientOptions(d.client_id)}</select>
-      <select id="dvProjet"><option value="">Aucun projet lié</option>${(window._projetsCache||[]).map(p=>`<option value="${p.id}" ${p.id===d.projet_id?'selected':''}>${escapeHtml(p.libelle)}</option>`).join('')}</select>
-      <select id="dvStatut">${Object.entries(STATUT_DEVIS).map(([k,v])=>`<option value="${k}" ${k===d.statut?'selected':''}>${v.label}</option>`).join('')}</select>
-      <label class="text-xs font-semibold block">Date création<input id="dvDate" type="date" value="${d.date_creation||''}"></label>
-      <label class="text-xs font-semibold block">Date échéance<input id="dvEcheance" type="date" value="${d.date_echeance||''}"></label>
-      <input id="dvCommercial" placeholder="Commercial(e)" value="${escapeHtml(d.commercial||'')}">
-      <input id="dvLieuAffaire" placeholder="Lieu d'affaire" value="${escapeHtml(d.lieu_affaire||'')}">
-      <input id="dvCommune" placeholder="Commune / Ville" value="${escapeHtml(d.commune||'')}">
-      <input id="dvQuartier" placeholder="Quartier" value="${escapeHtml(d.quartier||'')}">
-    </form>
-    <div class="flex justify-between items-center mb-2">
-      <h3 class="font-bold text-sm">Lignes du devis</h3>
-      <button type="button" class="btn btn-outline text-xs" onclick="addLigne()">+ Ajouter une ligne</button>
+  el.innerHTML=`
+    <div class="page-card mb-4">
+      <h2>📄 ${d.id?'Modifier le devis '+escapeHtml(d.code):'Ajouter un Devis'}</h2>
+      <div class="divider"></div>
+      <form id="devisHeaderForm" class="grid sm:grid-cols-3 gap-4">
+        <div class="field sm:col-span-3"><label>Libellé</label>${fieldWrap('📄',`<input id="dvLibelle" placeholder="Titre du devis" value="${escapeHtml(d.libelle||'')}">`)}</div>
+        <div class="field"><label>Client</label>${fieldWrap('👤',`<select id="dvClient" required><option value="">Client…</option>${clientOptions(d.client_id)}</select>`)}</div>
+        <div class="field"><label>Projet</label>${fieldWrap('🏗️',`<select id="dvProjet"><option value="">Aucun projet lié</option>${(window._projetsCache||[]).map(p=>`<option value="${p.id}" ${p.id===d.projet_id?'selected':''}>${escapeHtml(p.libelle)}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Statut du devis</label>${fieldWrap('🏷️',`<select id="dvStatut">${Object.entries(STATUT_DEVIS).map(([k,v])=>`<option value="${k}" ${k===d.statut?'selected':''}>${v.label}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Date de création</label>${fieldWrap('📅',`<input id="dvDate" type="date" value="${d.date_creation||''}">`)}</div>
+        <div class="field"><label>Date d'échéance</label>${fieldWrap('📅',`<input id="dvEcheance" type="date" value="${d.date_echeance||''}">`)}</div>
+        <div class="field"><label>Commercial(e)</label>${fieldWrap('👤',`<input id="dvCommercial" value="${escapeHtml(d.commercial||'')}">`)}</div>
+        <div class="field"><label>Lieu d'affaire</label>${fieldWrap('🌐',`<input id="dvLieuAffaire" value="${escapeHtml(d.lieu_affaire||'')}">`)}</div>
+        <div class="field"><label>Commune / Villes</label>${fieldWrap('🏙️',`<input id="dvCommune" value="${escapeHtml(d.commune||'')}">`)}</div>
+        <div class="field"><label>Quartier</label>${fieldWrap('📍',`<input id="dvQuartier" value="${escapeHtml(d.quartier||'')}">`)}</div>
+      </form>
     </div>
-    <div class="overflow-x-auto mb-3"><table id="lignesTable"><thead><tr><th>Pièce</th><th>Produit / Titre</th><th>L (cm)</th><th>H (cm)</th><th>Qté</th><th>Remise %</th><th>Prix</th><th class="text-right">Total</th><th></th></tr></thead>
-    <tbody>${lignes.map((l,i)=>ligneRowHtml(l,i)).join('')}</tbody></table></div>
-    <div class="flex justify-end gap-6 text-sm mb-5">
-      <div>Sous-total : <b>${money(total)}</b></div>
-    </div>
-    <div class="flex gap-2">
-      <button class="btn btn-primary flex-1 py-2.5" onclick="saveDevis()">Sauvegarder le devis</button>
-    </div>`);
+    <div class="page-card">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-bold text-sm">Lignes du devis</h3>
+        <button type="button" class="btn btn-outline text-xs" onclick="addLigne()">+ Ajouter une ligne</button>
+      </div>
+      <div class="overflow-x-auto mb-3"><table id="lignesTable"><thead><tr><th>Pièce</th><th>Produit / Titre</th><th>L (cm)</th><th>H (cm)</th><th>Qté</th><th>Remise %</th><th>Prix</th><th class="text-right">Total</th><th></th></tr></thead>
+      <tbody>${lignes.map((l,i)=>ligneRowHtml(l,i)).join('')}</tbody></table></div>
+      <div class="flex justify-end gap-6 text-sm mb-5">
+        <div>Sous-total : <b>${money(total)}</b></div>
+      </div>
+      <div class="flex justify-end">
+        <button class="btn btn-primary px-8 py-2.5" onclick="saveDevis()">SAUVEGARDER</button>
+      </div>
+    </div>`;
 }
 function ligneRowHtml(l,i){
   return `<tr data-idx="${i}">
@@ -467,8 +572,8 @@ function ligneRowHtml(l,i){
   </tr>`;
 }
 function ligneTotal(l){ return (+l.quantite||0) * (+l.prix_unitaire||0) * (1-(+l.remise_pct||0)/100); }
-function addLigne(){ devisEditorState.lignes.push({piece:'',titre:'',largeur:0,hauteur:0,quantite:1,remise_pct:0,prix_unitaire:0,cout_materiel_pct:60,ordre:devisEditorState.lignes.length}); renderDevisEditorModal(); }
-function removeLigne(i){ devisEditorState.lignes.splice(i,1); renderDevisEditorModal(); }
+function addLigne(){ devisEditorState.lignes.push({piece:'',titre:'',largeur:0,hauteur:0,quantite:1,remise_pct:0,prix_unitaire:0,cout_materiel_pct:60,ordre:devisEditorState.lignes.length}); renderDevisEditorBody(); }
+function removeLigne(i){ devisEditorState.lignes.splice(i,1); renderDevisEditorBody(); }
 function updateLigne(i,field,value){
   devisEditorState.lignes[i][field]=value;
   document.getElementById('ligneTotal'+i).textContent=money(ligneTotal(devisEditorState.lignes[i]));
@@ -477,7 +582,7 @@ function onProduitSelect(i,produitId){
   const p=(window._produitsCache||[]).find(x=>x.id===produitId);
   devisEditorState.lignes[i].produit_id=produitId||null;
   if(p){ devisEditorState.lignes[i].titre=p.nom; devisEditorState.lignes[i].cout_materiel_pct=p.cout_materiel_pct; }
-  renderDevisEditorModal();
+  renderDevisEditorBody();
 }
 async function saveDevis(){
   const header={libelle:val('dvLibelle'),client_id:val('dvClient'),projet_id:val('dvProjet')||null,statut:val('dvStatut'),date_creation:val('dvDate')||null,date_echeance:val('dvEcheance')||null,commercial:val('dvCommercial'),lieu_affaire:val('dvLieuAffaire'),commune:val('dvCommune'),quartier:val('dvQuartier')};
@@ -495,7 +600,7 @@ async function saveDevis(){
     const {error:e2}=await sb.from('devis_lignes').insert(rows);
     if(e2){ toast(e2.message,'error'); return; }
   }
-  closeModal(); toast('Devis enregistré.'); showPage('devis');
+  toast('Devis enregistré.'); window._editId=null; showPage('devis');
 }
 
 async function printDevis(devisId){
