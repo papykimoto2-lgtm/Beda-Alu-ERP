@@ -65,6 +65,13 @@ window.SB_CFG = {
   .smart-select-opt{padding:8px 10px;border-radius:6px;font-size:13px;cursor:pointer;color:#374151}
   .smart-select-opt:hover,.smart-select-opt.active{background:#f3e8ff;color:var(--accent)}
   .smart-select-empty{padding:10px;font-size:12px;color:#9ca3af;text-align:center}
+  .kanban-col{min-width:260px;max-width:260px;background:#f8fafc;border-radius:12px;border:1px solid #e5e7eb;display:flex;flex-direction:column;max-height:calc(100vh - 230px);transition:background .15s,border-color .15s}
+  .kanban-col.drag-over{background:#f3e8ff;border-color:var(--accent)}
+  .kanban-col-head{padding:10px 12px;border-bottom:1px solid #e5e7eb;border-radius:12px 12px 0 0;background:#fff}
+  .kanban-col-body{padding:8px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:8px}
+  .kanban-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:8px 10px;cursor:grab;transition:box-shadow .15s,transform .15s}
+  .kanban-card:hover{box-shadow:0 4px 14px -4px rgba(0,0,0,.18);transform:translateY(-1px)}
+  .kanban-card:active{cursor:grabbing}
   input,select,textarea{border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:13px;width:100%}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(109,40,217,.12)}
   table{width:100%;border-collapse:collapse;font-size:13px}
@@ -193,6 +200,7 @@ window.SB_CFG = {
       <button class="nav-parent" data-toggle="devis-g">🏠 <span>Devis</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="devis-g">
         <button class="nav-child" data-page="devis-add">→ Ajouter un Devis</button>
+        <button class="nav-child" data-page="devis-pipeline">→ Pipeline (Kanban)</button>
         <button class="nav-child" data-page="devis">→ Tout afficher <span class="nav-badge nav-badge-gray" id="badgeDevisTotal">0</span></button>
         <button class="nav-child" data-page="devis-attente">→ Devis en attente <span class="nav-badge nav-badge-blue" id="badgeDevisAttente">0</span></button>
         <button class="nav-child" data-page="devis-cours">→ Devis en cours <span class="nav-badge nav-badge-amber" id="badgeDevisCours">0</span></button>
@@ -348,9 +356,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients & Chantiers','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-simulateur':'stock-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients & Chantiers','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-simulateur':'stock-g'};
 window._editId=null;
 async function showPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -2618,6 +2626,59 @@ function configurerProduitExistant(id){
 }
 
 /* ============================== DEVIS ============================== */
+const PIPELINE_DEVIS_COLORS={en_attente:'#2563eb',en_cours:'#d97706',accepte:'#059669',refuse:'#dc2626',annule:'#6b7280'};
+async function renderDevisPipeline(el){
+  const {data,error}=await sb.from('devis').select('id,code,statut,total,date_creation,client_id').order('created_at',{ascending:false});
+  if(error) throw error;
+  const {data:clients}=await sb.from('clients').select('id,nom,prenoms');
+  const clientMap=Object.fromEntries((clients||[]).map(c=>[c.id,[c.nom,c.prenoms].filter(Boolean).join(' ')]));
+  const cols=Object.entries(STATUT_DEVIS).map(([k,v])=>{
+    const items=data.filter(d=>d.statut===k);
+    const total=items.reduce((s,d)=>s+(+d.total||0),0);
+    const cardsHtml=items.map(d=>`
+      <div class="kanban-card" draggable="true" ondragstart="event.dataTransfer.setData('text/plain','${d.id}')">
+        <div class="flex justify-between items-start gap-2">
+          <button class="font-semibold text-indigo-600 text-xs hover:underline text-left" onclick="window._editId='${d.id}';showPage('devis-view')">${escapeHtml(d.code)}</button>
+          <select class="text-[10px] border rounded px-1 py-0.5 bg-white" onclick="event.stopPropagation()" onchange="if(this.value){deplacerDevisPipeline('${d.id}',this.value);}">
+            <option value="">➜ Déplacer</option>
+            ${Object.entries(STATUT_DEVIS).filter(([k2])=>k2!==k).map(([k2,v2])=>`<option value="${k2}">${v2.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="text-xs text-gray-600 mt-1">${escapeHtml(clientMap[d.client_id]||'—')}</div>
+        <div class="flex justify-between items-center mt-1.5">
+          <span class="text-[10px] text-gray-400">${fmtDate(d.date_creation)}</span>
+          <span class="text-sm font-bold" style="color:${PIPELINE_DEVIS_COLORS[k]}">${money(d.total)}</span>
+        </div>
+      </div>`).join('')||'<div class="text-xs text-gray-300 text-center py-6">Aucun devis</div>';
+    return `<div class="kanban-col" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="onDevisPipelineDrop(event,'${k}')">
+      <div class="kanban-col-head" style="border-top:4px solid ${PIPELINE_DEVIS_COLORS[k]}">
+        <div class="flex justify-between items-center"><b class="text-sm">${v.label}</b><span class="badge bg-gray-100 text-gray-600">${items.length}</span></div>
+        <div class="text-xs text-gray-500 mt-1">${money(total)}</div>
+      </div>
+      <div class="kanban-col-body">${cardsHtml}</div>
+    </div>`;
+  }).join('');
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <p class="text-sm text-gray-500">Glissez-déposez une carte pour changer son statut, ou utilisez le sélecteur ➜.</p>
+      <button class="btn btn-primary" onclick="window._editId=null;showPage('devis-add')">+ Ajouter un devis</button>
+    </div>
+    <div class="flex gap-3 overflow-x-auto pb-2" style="align-items:flex-start">${cols}</div>`;
+}
+async function deplacerDevisPipeline(id,statut){
+  const {error}=await sb.from('devis').update({statut}).eq('id',id);
+  if(error){ toast(error.message,'error'); return; }
+  toast('Devis déplacé — '+STATUT_DEVIS[statut].label);
+  refreshDevisBadges();
+  showPage('devis-pipeline');
+}
+async function onDevisPipelineDrop(e,statut){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const id=e.dataTransfer.getData('text/plain');
+  if(!id) return;
+  await deplacerDevisPipeline(id,statut);
+}
 async function renderDevis(el,filterStatut){
   let q=sb.from('devis').select('*, clients(nom,prenoms), projets(libelle)').order('created_at',{ascending:false});
   if(filterStatut) q=q.eq('statut',filterStatut);
