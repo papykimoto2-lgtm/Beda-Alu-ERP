@@ -260,6 +260,7 @@ window.SB_CFG = {
         <h1 id="pageTitle" class="text-base sm:text-lg font-bold truncate">Accueil</h1>
       </div>
       <div class="flex items-center gap-3 shrink-0">
+        <button class="icon-btn" id="hdrPositionBtn" title="Partager ma position (commercial terrain)" onclick="partagerMaPosition()">📍</button>
         <button class="icon-btn" title="Messages">💬</button>
         <button class="icon-btn" title="Notifications">🔔<span id="hdrBellCount" class="dot hidden">0</span></button>
         <div class="hidden sm:block text-right leading-tight">
@@ -359,7 +360,7 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients & Chantiers','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers',parametres:'Paramètres'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers',parametres:'Paramètres'};
 const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,parametres:renderParametres};
 const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-simulateur':'stock-g'};
 window._editId=null;
@@ -651,39 +652,66 @@ function geolocateField(latId,lngId){
     {enableHighAccuracy:true,timeout:10000}
   );
 }
+function partagerMaPosition(){
+  if(!navigator.geolocation){ toast('Géolocalisation non disponible sur cet appareil.','error'); return; }
+  toast('Récupération de votre position…');
+  navigator.geolocation.getCurrentPosition(
+    async pos=>{
+      const {error}=await sb.from('profiles').update({latitude:pos.coords.latitude,longitude:pos.coords.longitude,position_updated_at:new Date().toISOString()}).eq('id',CURRENT_USER.id);
+      if(error){ toast(error.message,'error'); return; }
+      toast('📍 Position partagée avec l\'équipe.');
+      const btn=document.getElementById('hdrPositionBtn'); if(btn) btn.style.color='#059669';
+    },
+    err=>toast("Impossible d'obtenir la position : "+err.message,'error'),
+    {enableHighAccuracy:true,timeout:10000}
+  );
+}
 
 /* ============================== CARTE (CLIENTS & CHANTIERS) ============================== */
 let _carteMap=null;
 async function renderCarte(el){
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
-      <div class="flex gap-4 text-sm">
+      <div class="flex flex-wrap gap-4 text-sm">
         <label class="flex items-center gap-1.5"><input type="checkbox" id="carteShowClients" checked onchange="refreshCarteLayers()"> 🔵 Clients</label>
         <label class="flex items-center gap-1.5"><input type="checkbox" id="carteShowChantiers" checked onchange="refreshCarteLayers()"> 🟠 Chantiers</label>
+        <label class="flex items-center gap-1.5"><input type="checkbox" id="carteShowProspects" checked onchange="refreshCarteLayers()"> 🟣 Prospects</label>
+        <label class="flex items-center gap-1.5"><input type="checkbox" id="carteShowCommerciaux" checked onchange="refreshCarteLayers()"> 🟢 Commerciaux</label>
       </div>
       <div class="text-sm text-gray-500" id="carteCount">—</div>
     </div>
     <div class="card overflow-hidden p-0"><div id="carteEl" style="height:70vh;width:100%"></div></div>`;
-  const [{data:clients},{data:projets}]=await Promise.all([
+  const [{data:clients},{data:projets},{data:prospects},{data:commerciaux}]=await Promise.all([
     sb.from('clients').select('id,code,civilite,nom,prenoms,entreprise,commune,latitude,longitude').not('latitude','is',null).not('longitude','is',null),
-    sb.from('projets').select('id,code,libelle,commune,etape,latitude,longitude,clients(nom,prenoms)').not('latitude','is',null).not('longitude','is',null)
+    sb.from('projets').select('id,code,libelle,commune,etape,latitude,longitude,clients(nom,prenoms)').not('latitude','is',null).not('longitude','is',null),
+    sb.from('prospects').select('id,code,civilite,nom,prenoms,entreprise,commune,statut,latitude,longitude').not('latitude','is',null).not('longitude','is',null),
+    sb.from('profiles').select('id,nom_complet,latitude,longitude,position_updated_at').not('latitude','is',null).not('longitude','is',null)
   ]);
   window._carteClients=clients||[];
   window._carteProjets=projets||[];
+  window._carteProspects=prospects||[];
+  window._carteCommerciaux=commerciaux||[];
   if(_carteMap){ _carteMap.remove(); _carteMap=null; }
   _carteMap=L.map('carteEl');
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(_carteMap);
   window._carteClientLayer=L.layerGroup();
   window._carteProjetLayer=L.layerGroup();
+  window._carteProspectLayer=L.layerGroup();
+  window._carteCommercialLayer=L.layerGroup();
   refreshCarteLayers();
 }
 function refreshCarteLayers(){
   if(!_carteMap) return;
   const showClients=document.getElementById('carteShowClients')?.checked;
   const showChantiers=document.getElementById('carteShowChantiers')?.checked;
+  const showProspects=document.getElementById('carteShowProspects')?.checked;
+  const showCommerciaux=document.getElementById('carteShowCommerciaux')?.checked;
   window._carteClientLayer.clearLayers(); window._carteProjetLayer.clearLayers();
+  window._carteProspectLayer.clearLayers(); window._carteCommercialLayer.clearLayers();
   const clientIcon=L.divIcon({className:'',html:'<div style="width:14px;height:14px;border-radius:50%;background:#2563eb;border:2px solid #fff;box-shadow:0 0 0 1px #2563eb"></div>',iconSize:[14,14]});
   const chantierIcon=L.divIcon({className:'',html:'<div style="width:14px;height:14px;border-radius:50%;background:#f59e0b;border:2px solid #fff;box-shadow:0 0 0 1px #f59e0b"></div>',iconSize:[14,14]});
+  const prospectIcon=L.divIcon({className:'',html:'<div style="width:14px;height:14px;border-radius:50%;background:#7c3aed;border:2px solid #fff;box-shadow:0 0 0 1px #7c3aed"></div>',iconSize:[14,14]});
+  const commercialIcon=L.divIcon({className:'',html:'<div style="width:16px;height:16px;border-radius:50%;background:#059669;border:2px solid #fff;box-shadow:0 0 0 1px #059669;display:flex;align-items:center;justify-content:center;font-size:9px">👤</div>',iconSize:[16,16]});
   const bounds=[];
   (window._carteClients||[]).forEach(c=>{
     const nom=[c.civilite,c.nom,c.prenoms].filter(Boolean).join(' ')||c.entreprise||'—';
@@ -696,11 +724,24 @@ function refreshCarteLayers(){
     L.marker([p.latitude,p.longitude],{icon:chantierIcon}).bindPopup(`<b>🟠 ${escapeHtml(p.libelle)}</b><br>${escapeHtml(p.code)}${clientNom?'<br>Client : '+escapeHtml(clientNom):''}${p.commune?'<br>'+escapeHtml(p.commune):''}<br>Étape : ${escapeHtml(st.label)}<br><a href="#" onclick="window._editId='${p.id}';showPage('projets-add');return false;">Voir la fiche →</a>`).addTo(window._carteProjetLayer);
     bounds.push([p.latitude,p.longitude]);
   });
+  (window._carteProspects||[]).forEach(p=>{
+    const nom=[p.civilite,p.nom,p.prenoms].filter(Boolean).join(' ')||p.entreprise||'—';
+    const st=STATUT_PROSPECT[p.statut]||{label:p.statut};
+    L.marker([p.latitude,p.longitude],{icon:prospectIcon}).bindPopup(`<b>🟣 ${escapeHtml(nom)}</b><br>${escapeHtml(p.code)}${p.commune?'<br>'+escapeHtml(p.commune):''}<br>Statut : ${escapeHtml(st.label)}<br><a href="#" onclick="window._editId='${p.id}';showPage('prospects-add');return false;">Voir la fiche →</a>`).addTo(window._carteProspectLayer);
+    bounds.push([p.latitude,p.longitude]);
+  });
+  (window._carteCommerciaux||[]).forEach(c=>{
+    const maj=c.position_updated_at?new Date(c.position_updated_at).toLocaleString('fr-FR'):'—';
+    L.marker([c.latitude,c.longitude],{icon:commercialIcon}).bindPopup(`<b>🟢 ${escapeHtml(c.nom_complet||'Commercial')}</b><br>Position mise à jour : ${maj}`).addTo(window._carteCommercialLayer);
+    bounds.push([c.latitude,c.longitude]);
+  });
   if(showClients) window._carteClientLayer.addTo(_carteMap); else _carteMap.removeLayer(window._carteClientLayer);
   if(showChantiers) window._carteProjetLayer.addTo(_carteMap); else _carteMap.removeLayer(window._carteProjetLayer);
+  if(showProspects) window._carteProspectLayer.addTo(_carteMap); else _carteMap.removeLayer(window._carteProspectLayer);
+  if(showCommerciaux) window._carteCommercialLayer.addTo(_carteMap); else _carteMap.removeLayer(window._carteCommercialLayer);
   if(bounds.length) _carteMap.fitBounds(bounds,{padding:[30,30]}); else _carteMap.setView([5.3364,-4.0267],6);
   const countEl=document.getElementById('carteCount');
-  if(countEl) countEl.textContent=`${(window._carteClients||[]).length} client(s) géolocalisé(s) · ${(window._carteProjets||[]).length} chantier(s) géolocalisé(s)`;
+  if(countEl) countEl.textContent=`${(window._carteClients||[]).length} client(s) · ${(window._carteProjets||[]).length} chantier(s) · ${(window._carteProspects||[]).length} prospect(s) · ${(window._carteCommerciaux||[]).length} commercial(aux) géolocalisé(s)`;
 }
 
 /* ============================== CARTE DES CHANTIERS ============================== */
@@ -857,13 +898,16 @@ async function renderProspectForm(el){
         <div class="field"><label>Quartier</label>${fieldWrap('📍',`<input id="prsQuartier" value="${escapeHtml(p.quartier||'')}">`)}</div>
         <div class="field"><label>Source</label>${fieldWrap('🌐',`<input id="prsSource" value="${escapeHtml(p.source||'')}">`)}</div>
         <div class="field sm:col-span-2"><label>Commercial</label>${fieldWrap('👤',`<input id="prsCommercial" value="${escapeHtml(p.commercial||'')}">`)}</div>
+        <div class="field"><label>Latitude</label>${fieldWrap('🌍',`<input id="prsLat" type="number" step="any" value="${p.latitude??''}">`)}</div>
+        <div class="field"><label>Longitude</label>${fieldWrap('🌍',`<input id="prsLng" type="number" step="any" value="${p.longitude??''}">`)}</div>
+        <div class="field flex items-end"><button type="button" class="btn btn-dark w-full" onclick="geolocateField('prsLat','prsLng')">📍 Ma position</button></div>
         <div class="field sm:col-span-3"><label>Notes</label>${fieldWrap('📝',`<textarea id="prsNotes" rows="3">${escapeHtml(p.notes||'')}</textarea>`)}</div>
         <div class="sm:col-span-3 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
       </form>
     </div>`;
   document.getElementById('prospectForm').onsubmit=async (e)=>{
     e.preventDefault();
-    const rec={civilite:val('prsCivilite'),nom:val('prsNom'),prenoms:val('prsPrenoms'),entreprise:val('prsEntreprise'),statut:val('prsStatut'),telephone:val('prsTelephone'),email:val('prsEmail'),pays:val('prsPays'),commune:val('prsCommune'),quartier:val('prsQuartier'),source:val('prsSource'),commercial:val('prsCommercial'),notes:val('prsNotes')};
+    const rec={civilite:val('prsCivilite'),nom:val('prsNom'),prenoms:val('prsPrenoms'),entreprise:val('prsEntreprise'),statut:val('prsStatut'),telephone:val('prsTelephone'),email:val('prsEmail'),pays:val('prsPays'),commune:val('prsCommune'),quartier:val('prsQuartier'),source:val('prsSource'),commercial:val('prsCommercial'),notes:val('prsNotes'),latitude:val('prsLat')?+val('prsLat'):null,longitude:val('prsLng')?+val('prsLng'):null};
     const id=val('prsId');
     let error;
     if(id){ ({error}=await sb.from('prospects').update(rec).eq('id',id)); }
