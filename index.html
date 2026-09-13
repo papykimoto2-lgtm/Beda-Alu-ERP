@@ -244,6 +244,13 @@ window.SB_CFG = {
         <button class="nav-child" data-page="stock-simulateur">→ Simulateur multi-chantiers</button>
       </div>
 
+      <div class="sidebar-group-title">Site web</div>
+      <button class="nav-parent" data-toggle="realisations-g">🏠 <span>Réalisations</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="realisations-g">
+        <button class="nav-child" data-page="realisations-add">→ Ajouter une réalisation</button>
+        <button class="nav-child" data-page="realisations">→ Catalogue des réalisations</button>
+      </div>
+
       <div class="sidebar-group-title">Réglages</div>
       <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="parametres">⚙️ <span>Paramètres</span></button>
     </nav>
@@ -360,9 +367,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-simulateur':'stock-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-simulateur':'stock-g','realisations-add':'realisations-g',realisations:'realisations-g'};
 window._editId=null;
 async function showPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -3739,7 +3746,7 @@ function printEstimation(){
 }
 
 /* ============================== PARAMÉTRAGE : SOCIÉTÉ / LOGO / SUPABASE / SYNCHRO / SAUVEGARDE ============================== */
-const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','parametres'];
+const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres'];
 async function loadAppParams(){
   let {data}=await sb.from('parametres').select('*').limit(1).maybeSingle();
   if(!data){ const res=await sb.from('parametres').insert({}).select().single(); data=res.data; }
@@ -3841,14 +3848,24 @@ async function renderParametres(el){
             <label style="font-size:12px;color:#374151" for="ptActif">Portail actif (sinon le fichier généré affiche "service indisponible")</label>
           </div>
           <div class="field sm:col-span-2"><label>Nom affiché sur le portail</label>${fieldWrap('🏷️',`<input id="ptNom" placeholder="Laisser vide pour utiliser la raison sociale" value="${escapeHtml(p.portail_nom||'')}">`)}</div>
-          <div class="field sm:col-span-2"><label>Slogan</label>${fieldWrap('📢',`<input id="ptSlogan" placeholder="Ex : Suivez votre chantier en temps réel" value="${escapeHtml(p.portail_slogan||'')}">`)}</div>
+          <div class="field sm:col-span-2"><label>Slogan (accroche du site)</label>${fieldWrap('📢',`<input id="ptSlogan" placeholder="Ex : Votre menuiserie aluminium sur-mesure" value="${escapeHtml(p.portail_slogan||'')}">`)}</div>
           <div class="field"><label>Couleur principale</label>${fieldWrap('🎨',`<input id="ptCouleur" type="color" value="${escapeHtml(p.portail_couleur||'#1D3557')}" style="height:42px;padding:2px">`)}</div>
+          <div class="field sm:col-span-3"><label>À propos (présentation, page « Société »)</label>${fieldWrap('📝',`<textarea id="ptAPropos" rows="4" placeholder="Qui vous êtes, votre expertise, votre zone d'intervention…">${escapeHtml(p.site_a_propos||'')}</textarea>`)}</div>
+          <div class="field"><label>Facebook (URL)</label>${fieldWrap('📘',`<input id="ptFacebook" placeholder="https://facebook.com/…" value="${escapeHtml(p.site_facebook||'')}">`)}</div>
+          <div class="field"><label>Instagram (URL)</label>${fieldWrap('📸',`<input id="ptInstagram" placeholder="https://instagram.com/…" value="${escapeHtml(p.site_instagram||'')}">`)}</div>
           <div class="sm:col-span-2 flex justify-between items-center pt-2">
-            <button type="button" class="btn btn-dark" onclick="genererPortailClient()">📤 Générer le portail (.html)</button>
+            <button type="button" class="btn btn-dark" onclick="genererPortailClient()">📤 Générer le site + portail (.html)</button>
             <button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button>
           </div>
         </form>
         <div id="portailResult" class="text-sm mt-3"></div>
+      </div>
+      <div class="page-card max-w-3xl mt-4">
+        <h2>🛠️ Réalisations affichées sur le site</h2>
+        <div class="divider"></div>
+        <p class="text-xs text-gray-500 mb-3">Gérez la galerie de chantiers terminés qui apparaît sur le site public généré ci-dessus.</p>
+        <button class="btn btn-primary" onclick="window._editId=null;showPage('realisations-add')">+ Ajouter une réalisation</button>
+        <button class="btn btn-outline ml-2" onclick="showPage('realisations')">🖼️ Voir le catalogue</button>
       </div>
     </div>
 
@@ -3906,23 +3923,131 @@ async function renderParametres(el){
   };
   document.getElementById('portailForm').onsubmit=async(e)=>{
     e.preventDefault();
-    const rec={portail_actif:document.getElementById('ptActif').checked,portail_nom:val('ptNom'),portail_slogan:val('ptSlogan'),portail_couleur:val('ptCouleur')};
+    const rec={portail_actif:document.getElementById('ptActif').checked,portail_nom:val('ptNom'),portail_slogan:val('ptSlogan'),portail_couleur:val('ptCouleur'),site_a_propos:val('ptAPropos'),site_facebook:val('ptFacebook'),site_instagram:val('ptInstagram')};
     const {error}=await sb.from('parametres').update(rec).eq('id',p.id);
     if(error){ toast(error.message,'error'); return; }
     toast('Paramètres portail enregistrés.'); await loadAppParams();
   };
 }
+/* ============================== RÉALISATIONS (galerie du site public) ============================== */
+window._realisationsView=window._realisationsView||'grille';
+async function renderRealisations(el){
+  const {data,error}=await sb.from('realisations').select('*').order('ordre').order('created_at',{ascending:false});
+  if(error) throw error;
+  window._realisationsCache=data;
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <p class="text-sm text-gray-500">Galerie de chantiers terminés affichée sur le site public (onglet « Réalisations »). Seules les réalisations « Publiées » y apparaissent.</p>
+      <div class="flex items-center gap-2">
+        ${listViewToggleHtml('realisations','renderRealisationsBody')}
+        <button class="btn btn-primary" onclick="window._editId=null;showPage('realisations-add')">+ Ajouter</button>
+      </div>
+    </div>
+    <div id="realisationsList"></div>`;
+  renderRealisationsBody();
+}
+function renderRealisationsBody(){
+  const data=window._realisationsCache||[];
+  const host=document.getElementById('realisationsList'); if(!host) return;
+  const actionsHtml=r=>`<div class="dropdown">
+      <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
+      <div class="dropdown-menu hidden">
+        <button style="color:#4f46e5" onclick="window._editId='${r.id}';showPage('realisations-add')">✏️ Modifier</button>
+        <button style="color:#dc2626" onclick="deleteRow('realisations','${r.id}','realisations')">🗑️ Supprimer</button>
+      </div>
+    </div>`;
+  if(!data.length){ host.innerHTML='<div class="card text-center text-gray-400 p-8">Aucune réalisation. Ajoutez vos premiers chantiers terminés pour alimenter le site public.</div>'; return; }
+  if(getListView('realisations')==='grille'){
+    host.innerHTML=`<div class="entity-grid">${data.map(r=>{
+      const fc=FAMILLE_COLORS[r.famille]||'#6d28d9';
+      return `<div class="produit-card" style="--fc:${fc}">
+        ${r.photo_base64?`<img src="${r.photo_base64}" style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:10px">`:`<div class="produit-icon" style="margin-bottom:10px">${FAMILLE_ICONS[r.famille]||'🛠️'}</div>`}
+        <span class="produit-pct">${r.publie?'✅ Publiée':'🚫 Masquée'}</span>
+        <div class="pname">${escapeHtml(r.titre)}</div>
+        <div class="punite">${escapeHtml(r.famille||'—')}</div>
+        ${r.description?`<div class="text-xs text-gray-500 mt-1.5">${escapeHtml(r.description).slice(0,80)}${r.description.length>80?'…':''}</div>`:''}
+        <div class="pactions">${actionsHtml(r)}</div>
+      </div>`;
+    }).join('')}</div>`;
+  } else {
+    host.innerHTML=`<div class="card overflow-x-auto">
+      <table><thead><tr><th></th><th>Titre</th><th>Famille</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${data.map(r=>`<tr>
+        <td>${r.photo_base64?`<img src="${r.photo_base64}" style="width:44px;height:44px;object-fit:cover;border-radius:8px">`:'—'}</td>
+        <td class="font-semibold">${escapeHtml(r.titre)}</td>
+        <td>${escapeHtml(r.famille||'—')}</td>
+        <td>${r.publie?'<span class="badge bg-emerald-50 text-emerald-700">Publiée</span>':'<span class="badge bg-gray-100 text-gray-500">Masquée</span>'}</td>
+        <td class="text-right whitespace-nowrap">${actionsHtml(r)}</td>
+      </tr>`).join('')}</tbody></table>
+    </div>`;
+  }
+}
+async function renderRealisationForm(el){
+  let r={};
+  if(window._editId){ const {data}=await sb.from('realisations').select('*').eq('id',window._editId).single(); r=data||{}; }
+  el.innerHTML=`
+    <div class="page-card max-w-2xl">
+      <h2>🛠️ ${r.id?'Modifier':'Ajouter'} une réalisation</h2>
+      <div class="divider"></div>
+      <form id="realisationForm" class="grid sm:grid-cols-2 gap-4">
+        <input type="hidden" id="reId" value="${r.id||''}">
+        <div class="field sm:col-span-2">
+          <label>Photo</label>
+          <div id="rePhotoZone" onclick="document.getElementById('rePhotoInput').click()" style="width:100%;max-width:320px;height:180px;border:2px dashed #d1d5db;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#f9fafb;cursor:pointer;overflow:hidden">
+            ${r.photo_base64?`<img src="${r.photo_base64}" style="max-width:100%;max-height:100%;object-fit:cover">`:`<div class="text-center text-gray-400"><div style="font-size:28px">🖼️</div><div style="font-size:11px;margin-top:4px">Cliquer pour importer</div></div>`}
+          </div>
+          <input type="file" id="rePhotoInput" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="handleRealisationPhoto(event)">
+          <input type="hidden" id="rePhoto" value="${r.photo_base64||''}">
+        </div>
+        <div class="field sm:col-span-2"><label>Titre</label>${fieldWrap('🛠️',`<input id="reTitre" required value="${escapeHtml(r.titre||'')}">`)}</div>
+        <div class="field"><label>Famille</label>${fieldWrap('🏷️',`<select id="reFamille"><option value="">—</option>${PRODUIT_FAMILLES.map(f=>`<option value="${f}" ${r.famille===f?'selected':''}>${f}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Ordre d'affichage</label>${fieldWrap('#',`<input id="reOrdre" type="number" value="${r.ordre??0}">`)}</div>
+        <div class="field sm:col-span-2"><label>Description</label>${fieldWrap('📝',`<textarea id="reDescription" rows="3">${escapeHtml(r.description||'')}</textarea>`)}</div>
+        <div class="field sm:col-span-2 flex items-center gap-2">
+          <input type="checkbox" id="rePublie" ${r.publie===false?'':'checked'} style="width:16px;height:16px">
+          <label style="font-size:12px;color:#374151" for="rePublie">Publiée sur le site public</label>
+        </div>
+        <div class="sm:col-span-2 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
+      </form>
+    </div>`;
+  document.getElementById('realisationForm').onsubmit=async(e)=>{
+    e.preventDefault();
+    const rec={titre:val('reTitre'),famille:val('reFamille')||null,ordre:+val('reOrdre')||0,description:val('reDescription')||null,photo_base64:val('rePhoto')||null,publie:document.getElementById('rePublie').checked};
+    const id=val('reId');
+    let error;
+    if(id){ ({error}=await sb.from('realisations').update(rec).eq('id',id)); }
+    else { rec.created_by=CURRENT_USER.id; ({error}=await sb.from('realisations').insert(rec)); }
+    if(error){ toast(error.message,'error'); return; }
+    toast('Réalisation enregistrée.'); window._editId=null; showPage('realisations');
+  };
+}
+function handleRealisationPhoto(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    document.getElementById('rePhoto').value=reader.result;
+    document.getElementById('rePhotoZone').innerHTML=`<img src="${reader.result}" style="max-width:100%;max-height:100%;object-fit:cover">`;
+  };
+  reader.readAsDataURL(file);
+}
+
 /* ============================== PORTAIL CLIENT (fichier HTML unique généré) ============================== */
 function buildPortailBrand(){
   const p=window.APP_PARAMS||{};
   return {
     nom: p.portail_nom || p.raison_sociale || 'BEDA ALU',
-    slogan: p.portail_slogan || 'Suivez votre chantier en temps réel',
+    slogan: p.portail_slogan || 'Votre menuiserie aluminium sur-mesure',
     couleur: p.portail_couleur || '#1D3557',
     logo: p.logo_base64 || '',
     telephone: p.telephone || '',
     whatsapp: p.whatsapp || '',
-    email: p.email || ''
+    email: p.email || '',
+    adresse: p.adresse || '',
+    aPropos: p.site_a_propos || '',
+    facebook: p.site_facebook || '',
+    instagram: p.site_instagram || '',
+    rccm: p.rccm || '',
+    ncc: p.ncc || ''
   };
 }
 const PORTAIL_TEMPLATE = `<!DOCTYPE html>
@@ -3934,17 +4059,54 @@ const PORTAIL_TEMPLATE = `<!DOCTYPE html>
 <script src="https://cdn.tailwindcss.com"><\/script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"><\/script>
 <style>
-  body{font-family:Arial,sans-serif;background:#f3f4f6;min-height:100vh}
+  :root{ --pc:#1D3557; --pc2:#0d1f38; }
+  *{box-sizing:border-box}
+  body{font-family:Arial,sans-serif;background:#f8fafc;min-height:100vh;margin:0;color:#1f2937}
   .brand-bg{background:var(--pc)}
   .brand-text{color:var(--pc)}
+  .brand-grad{background:linear-gradient(135deg,var(--pc),var(--pc2))}
+  header.site-header{position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .nav-pill{padding:8px 16px;border-radius:999px;font-size:13px;font-weight:700;color:#6b7280;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+  .nav-pill.active{background:var(--pc);color:#fff}
+  .nav-pill:hover:not(.active){background:#f3f4f6}
+  .hero{background:linear-gradient(135deg,var(--pc),var(--pc2));color:#fff;padding:56px 20px;text-align:center}
+  .hero h1{font-size:28px;font-weight:900;margin:0 0 8px}
+  .hero p{font-size:14px;opacity:.9;max-width:520px;margin:0 auto}
+  .hero .cta{margin-top:22px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .btn-cta{padding:11px 22px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;border:0;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+  .btn-cta.solid{background:#fff;color:var(--pc)}
+  .btn-cta.outline{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.5)}
+  .section{max-width:1000px;margin:0 auto;padding:36px 20px}
+  .section-title{font-size:20px;font-weight:900;margin-bottom:6px}
+  .section-sub{font-size:13px;color:#6b7280;margin-bottom:24px}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px}
+  .grid-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+  .service-card{text-align:center}
+  .service-card .ic{width:52px;height:52px;border-radius:14px;background:color-mix(in srgb,var(--pc) 12%,white);color:var(--pc);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px}
+  .gallery-item{border-radius:14px;overflow:hidden;position:relative;aspect-ratio:4/3;background:#e5e7eb}
+  .gallery-item img{width:100%;height:100%;object-fit:cover}
+  .gallery-cap{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(0deg,rgba(0,0,0,.7),transparent);color:#fff;padding:14px 12px 8px;font-size:12px;font-weight:700}
   .step{display:flex;align-items:center;gap:10px;padding:10px 0;border-left:2px solid #e5e7eb;margin-left:9px;padding-left:18px;position:relative}
   .step:last-child{border-left-color:transparent}
   .step::before{content:'';position:absolute;left:-6px;top:14px;width:10px;height:10px;border-radius:50%;background:#d1d5db}
   .step.done::before{background:var(--pc)}
+  footer.site-footer{background:#0f172a;color:#cbd5e1;padding:32px 20px;text-align:center;font-size:12px}
+  footer.site-footer a{color:#fff;text-decoration:none}
+  .social-row{display:flex;gap:12px;justify-content:center;margin:14px 0}
+  .social-row a{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:#fff}
+  @media(max-width:640px){ .hero h1{font-size:22px} }
 </style>
 </head>
 <body>
-<div id="app" class="max-w-2xl mx-auto px-4 py-8"></div>
+<header class="site-header">
+  <div style="max-width:1000px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <div id="brandLogo" style="display:flex;align-items:center;gap:10px"></div>
+    <nav id="navTabs" style="display:flex;gap:4px;overflow-x:auto"></nav>
+  </div>
+</header>
+<div id="app"></div>
+<footer class="site-footer" id="siteFooter"></footer>
+
 <script>
 window.SB_CFG={ SUPABASE_URL:'__SB_URL__', SUPABASE_ANON_KEY:'__SB_KEY__' };
 window.BRAND=__PORTAIL_BRAND__;
@@ -3957,26 +4119,123 @@ function fmtDate(d){ return d ? new Date(d).toLocaleDateString('fr-FR') : '—';
 const ETAPES=['en_attente','mesure_disponible','pret_fabrication','fabrication_en_cours','installation_en_cours','termine'];
 const ETAPE_LABELS={en_attente:'En attente',mesure_disponible:'Mesure disponible',pret_fabrication:'Prêt pour fabrication',fabrication_en_cours:'Fabrication en cours',installation_en_cours:'Installation en cours',termine:'Terminé',annule:'Annulé'};
 const STATUT_LABELS={en_attente:'En attente',en_cours:'En cours',accepte:'Accepté',refuse:'Refusé',annule:'Annulé',payee:'Payée',payee_partielle:'Payée partielle',annulee:'Annulée'};
+const TABS=[
+  {key:'accueil',label:'🏠 Accueil'},
+  {key:'realisations',label:'🛠️ Réalisations'},
+  {key:'apropos',label:'🏢 À propos'},
+  {key:'contact',label:'✉️ Contact'},
+  {key:'client',label:'👤 Espace client'}
+];
+const waLink=()=>window.BRAND.whatsapp?('https://wa.me/'+String(window.BRAND.whatsapp).replace(/[^0-9]/g,'')):'';
+
+function renderHeader(){
+  const b=window.BRAND;
+  document.getElementById('brandLogo').innerHTML=b.logo
+    ? \`<img src="\${b.logo}" style="max-height:40px;max-width:150px;object-fit:contain">\`
+    : \`<div style="font-weight:900;font-size:16px" class="brand-text">\${esc(b.nom)}</div>\`;
+  document.getElementById('navTabs').innerHTML=TABS.map(t=>\`<button class="nav-pill" data-tab="\${t.key}" onclick="setTab('\${t.key}')">\${t.label}</button>\`).join('');
+  document.getElementById('siteFooter').innerHTML=\`
+    <div style="font-weight:800;color:#fff;margin-bottom:4px">\${esc(b.nom)}</div>
+    <div>\${[b.adresse,b.telephone].filter(Boolean).map(esc).join(' · ')}</div>
+    \${(b.facebook||b.instagram)?\`<div class="social-row">
+      \${b.facebook?\`<a href="\${esc(b.facebook)}" target="_blank">f</a>\`:''}
+      \${b.instagram?\`<a href="\${esc(b.instagram)}" target="_blank">ig</a>\`:''}
+    </div>\`:''}
+    <div style="margin-top:10px;font-size:11px;color:#94a3b8">\${[b.rccm?'RCCM '+esc(b.rccm):'',b.ncc?'NCC '+esc(b.ncc):''].filter(Boolean).join(' · ')}</div>
+    <div style="margin-top:10px;font-size:11px;color:#64748b">Propulsé par BEDA ALU ERP</div>\`;
+}
+function setTab(key){
+  document.querySelectorAll('.nav-pill').forEach(b=>b.classList.toggle('active',b.dataset.tab===key));
+  const renderers={accueil:renderAccueil,realisations:renderGalerie,apropos:renderAPropos,contact:renderContact,client:renderLogin};
+  (renderers[key]||renderAccueil)();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function renderAccueil(){
+  const b=window.BRAND;
+  const famillesMap={};
+  (b.produits||[]).forEach(p=>{ const f=p.famille||'Autre'; famillesMap[f]=(famillesMap[f]||0)+1; });
+  const familles=Object.keys(famillesMap);
+  const FAMILLE_ICONS={'Fenêtre coulissante':'🪟','Porte à la française':'🚪','Porte coulissante':'🚪','Coulissant galandage':'🚪','Fenêtre jalousie':'🪟','Moustiquaire fixe':'🦟','Moustiquaire coulissante':'🦟','Garde-corps inox':'🛡️','Verrière / mur rideau':'🏢','Autre':'📦'};
+  document.getElementById('app').innerHTML=\`
+    <section class="hero">
+      <h1>\${esc(b.nom)}</h1>
+      <p>\${esc(b.slogan)}</p>
+      <div class="cta">
+        \${waLink()?\`<a class="btn-cta solid" href="\${waLink()}" target="_blank">💬 Discuter sur WhatsApp</a>\`:''}
+        <a class="btn-cta outline" href="#" onclick="setTab('client');return false;">👤 Suivre mon dossier</a>
+      </div>
+    </section>
+    <div class="section">
+      <div class="section-title">Nos savoir-faire</div>
+      <div class="section-sub">Menuiserie aluminium sur-mesure, fabriquée et posée par nos équipes.</div>
+      <div class="grid-auto">
+        \${familles.length?familles.map(f=>\`<div class="card service-card"><div class="ic">\${FAMILLE_ICONS[f]||'🛠️'}</div><div style="font-weight:700;font-size:13px">\${esc(f)}</div></div>\`).join('')
+          :\`<div class="card service-card"><div class="ic">🛠️</div><div style="font-weight:700;font-size:13px">Menuiserie aluminium sur-mesure</div></div>\`}
+      </div>
+    </div>
+    \${(b.realisations||[]).length?\`<div class="section" style="padding-top:0">
+      <div class="section-title">Dernières réalisations</div>
+      <div class="section-sub">Un aperçu de nos chantiers récents.</div>
+      <div class="grid-auto">
+        \${b.realisations.slice(0,3).map(r=>\`<div class="gallery-item">\${r.photo_base64?\`<img src="\${r.photo_base64}">\`:''}<div class="gallery-cap">\${esc(r.titre)}</div></div>\`).join('')}
+      </div>
+      <div style="text-align:center;margin-top:18px"><a href="#" onclick="setTab('realisations');return false;" class="btn-cta" style="background:var(--pc);color:#fff">Voir toutes nos réalisations →</a></div>
+    </div>\`:''}
+  \`;
+}
+function renderGalerie(){
+  const items=window.BRAND.realisations||[];
+  document.getElementById('app').innerHTML=\`
+    <div class="section">
+      <div class="section-title">🛠️ Nos réalisations</div>
+      <div class="section-sub">\${items.length} chantier\${items.length>1?'s':''} réalisé\${items.length>1?'s':''}.</div>
+      \${items.length?\`<div class="grid-auto">\${items.map(r=>\`
+        <div class="gallery-item">\${r.photo_base64?\`<img src="\${r.photo_base64}">\`:''}<div class="gallery-cap">\${esc(r.titre)}\${r.famille?' · '+esc(r.famille):''}</div></div>\`).join('')}</div>\`
+        :'<div class="card text-center text-gray-400">Galerie en cours de constitution.</div>'}
+    </div>\`;
+}
+function renderAPropos(){
+  const b=window.BRAND;
+  document.getElementById('app').innerHTML=\`
+    <div class="section">
+      <div class="section-title">🏢 À propos de \${esc(b.nom)}</div>
+      <div class="card" style="white-space:pre-line;line-height:1.6;font-size:14px">\${esc(b.aPropos)||"Présentation à venir."}</div>
+    </div>\`;
+}
+function renderContact(){
+  const b=window.BRAND;
+  document.getElementById('app').innerHTML=\`
+    <div class="section">
+      <div class="section-title">✉️ Nous contacter</div>
+      <div class="grid-auto">
+        <div class="card">
+          <div style="font-weight:700;margin-bottom:10px">Coordonnées</div>
+          \${b.adresse?\`<div style="margin-bottom:8px">📍 \${esc(b.adresse)}</div>\`:''}
+          \${b.telephone?\`<div style="margin-bottom:8px">📞 <a href="tel:\${esc(b.telephone)}" class="brand-text">\${esc(b.telephone)}</a></div>\`:''}
+          \${b.email?\`<div style="margin-bottom:8px">✉️ <a href="mailto:\${esc(b.email)}" class="brand-text">\${esc(b.email)}</a></div>\`:''}
+        </div>
+        <div class="card" style="display:flex;flex-direction:column;gap:10px;justify-content:center">
+          \${waLink()?\`<a class="btn-cta solid" style="background:#16a34a;color:#fff;justify-content:center" href="\${waLink()}" target="_blank">💬 WhatsApp</a>\`:''}
+          \${b.telephone?\`<a class="btn-cta" style="background:var(--pc);color:#fff;justify-content:center" href="tel:\${esc(b.telephone)}">📞 Appeler</a>\`:''}
+        </div>
+      </div>
+    </div>\`;
+}
 function renderLogin(msg){
   const b=window.BRAND;
   document.getElementById('app').innerHTML=\`
-    <div class="text-center mb-6">
-      \${b.logo?\`<img src="\${b.logo}" style="max-height:64px;max-width:220px;object-fit:contain;margin:0 auto 10px">\`:\`<div class="text-2xl font-black brand-text">\${esc(b.nom)}</div>\`}
-      <div class="text-sm text-gray-500 mt-1">\${esc(b.slogan)}</div>
-    </div>
-    <div class="bg-white rounded-2xl shadow-sm p-6">
-      <h1 class="text-lg font-bold mb-1">Mon dossier</h1>
-      <p class="text-xs text-gray-500 mb-4">Saisissez votre code client et votre numéro de téléphone pour suivre votre chantier.</p>
-      \${msg?\`<div class="text-sm bg-red-50 text-red-700 rounded-lg px-3 py-2 mb-3">\${esc(msg)}</div>\`:''}
-      <form id="loginForm" class="space-y-3">
-        <input id="fCode" placeholder="Code client (ex : C-42)" required class="w-full border rounded-lg px-3 py-2.5 text-sm">
-        <input id="fTel" placeholder="Téléphone" required class="w-full border rounded-lg px-3 py-2.5 text-sm">
-        <button type="submit" class="w-full text-white rounded-lg py-2.5 font-semibold text-sm brand-bg">Voir mon dossier</button>
-      </form>
-    </div>
-    <div class="text-center text-xs text-gray-400 mt-6">
-      \${[b.telephone?('📞 '+esc(b.telephone)):'',b.whatsapp?('💬 '+esc(b.whatsapp)):'',b.email?esc(b.email):''].filter(Boolean).join(' · ')}
-      <div class="mt-1">Propulsé par BEDA ALU ERP</div>
+    <div class="section" style="max-width:480px">
+      <div class="card">
+        <h2 style="font-size:16px;font-weight:800;margin-bottom:4px">Mon dossier</h2>
+        <p style="font-size:12px;color:#6b7280;margin-bottom:16px">Saisissez votre code client et votre numéro de téléphone pour suivre l'avancement de votre chantier.</p>
+        \${msg?\`<div style="font-size:13px;background:#fef2f2;color:#b91c1c;border-radius:10px;padding:10px 12px;margin-bottom:12px">\${esc(msg)}</div>\`:''}
+        <form id="loginForm" style="display:flex;flex-direction:column;gap:10px">
+          <input id="fCode" placeholder="Code client (ex : C-42)" required style="width:100%;border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font-size:13px">
+          <input id="fTel" placeholder="Téléphone" required style="width:100%;border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font-size:13px">
+          <button type="submit" class="btn-cta" style="background:var(--pc);color:#fff;justify-content:center">Voir mon dossier</button>
+        </form>
+      </div>
     </div>\`;
   document.getElementById('loginForm').onsubmit=async(e)=>{
     e.preventDefault();
@@ -3994,48 +4253,56 @@ function renderLogin(msg){
   };
 }
 function renderDossier(data){
-  const b=window.BRAND, c=data.client;
+  const c=data.client;
   const nomComplet=[c.civilite,c.nom,c.prenoms].filter(Boolean).join(' ')||c.entreprise;
   const chantiersHtml=(data.projets||[]).map(p=>{
     const idx=ETAPES.indexOf(p.etape);
-    return \`<div class="bg-white rounded-2xl shadow-sm p-5 mb-4">
-      <div class="flex justify-between items-start mb-3">
-        <div><div class="font-bold">\${esc(p.libelle)}</div><div class="text-xs text-gray-400">\${esc(p.code)}\${p.commune?' · '+esc(p.commune):''}</div></div>
-        \${p.etape==='annule'?'<span class="text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-1">Annulé</span>':''}
+    return \`<div class="card" style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div><div style="font-weight:700">\${esc(p.libelle)}</div><div style="font-size:11px;color:#9ca3af">\${esc(p.code)}\${p.commune?' · '+esc(p.commune):''}</div></div>
+        \${p.etape==='annule'?'<span style="font-size:11px;background:#f3f4f6;color:#6b7280;border-radius:999px;padding:3px 10px">Annulé</span>':''}
       </div>
-      \${idx>=0?ETAPES.map((et,i)=>\`<div class="step \${i<=idx?'done':''}"><span class="text-sm \${i<=idx?'font-semibold':'text-gray-400'}">\${esc(ETAPE_LABELS[et])}</span></div>\`).join(''):''}
+      \${idx>=0?ETAPES.map((et,i)=>\`<div class="step \${i<=idx?'done':''}"><span style="font-size:13px" class="\${i<=idx?'font-bold':''}">\${esc(ETAPE_LABELS[et])}</span></div>\`).join(''):''}
     </div>\`;
-  }).join('')||'<div class="text-sm text-gray-400 mb-4">Aucun chantier enregistré.</div>';
-  const rowsTable=(arr,cols)=>arr.map(r=>\`<tr class="border-b">\${cols.map(c=>\`<td class="py-2 text-sm">\${c(r)}</td>\`).join('')}</tr>\`).join('')||\`<tr><td class="py-3 text-sm text-gray-400" colspan="\${cols.length}">Aucun élément.</td></tr>\`;
+  }).join('')||'<div style="font-size:13px;color:#9ca3af;margin-bottom:14px">Aucun chantier enregistré.</div>';
+  const rowsTable=(arr,cols)=>arr.map(r=>\`<tr style="border-bottom:1px solid #f1f5f9">\${cols.map(c=>\`<td style="padding:8px 0;font-size:13px">\${c(r)}</td>\`).join('')}</tr>\`).join('')||\`<tr><td style="padding:10px 0;font-size:13px;color:#9ca3af" colspan="\${cols.length}">Aucun élément.</td></tr>\`;
   document.getElementById('app').innerHTML=\`
-    <div class="flex justify-between items-center mb-6">
-      <div>\${b.logo?\`<img src="\${b.logo}" style="max-height:44px;max-width:160px;object-fit:contain">\`:\`<div class="text-lg font-black brand-text">\${esc(b.nom)}</div>\`}</div>
-      <button onclick="renderLogin()" class="text-xs text-gray-500">← Autre dossier</button>
-    </div>
-    <div class="mb-5"><div class="text-xl font-bold">\${esc(nomComplet)}</div><div class="text-xs text-gray-400">\${esc(c.code)}</div></div>
-    <h2 class="text-sm font-bold uppercase text-gray-500 mb-2">🏗️ Mes chantiers</h2>
-    \${chantiersHtml}
-    <h2 class="text-sm font-bold uppercase text-gray-500 mb-2 mt-2">📄 Mes devis</h2>
-    <div class="bg-white rounded-2xl shadow-sm p-4 mb-4 overflow-x-auto"><table class="w-full"><thead><tr class="text-left text-xs text-gray-400"><th class="pb-2">Code</th><th class="pb-2">Libellé</th><th class="pb-2">Statut</th><th class="pb-2 text-right">Montant</th></tr></thead><tbody>
-      \${rowsTable(data.devis,[d=>esc(d.code),d=>esc(d.libelle||'—'),d=>esc(STATUT_LABELS[d.statut]||d.statut),d=>'<span class="block text-right">'+money(d.total)+'</span>'])}
-    </tbody></table></div>
-    <h2 class="text-sm font-bold uppercase text-gray-500 mb-2">🧾 Mes factures</h2>
-    <div class="bg-white rounded-2xl shadow-sm p-4 mb-6 overflow-x-auto"><table class="w-full"><thead><tr class="text-left text-xs text-gray-400"><th class="pb-2">Code</th><th class="pb-2">Date</th><th class="pb-2">Statut</th><th class="pb-2 text-right">Montant</th></tr></thead><tbody>
-      \${rowsTable(data.factures,[f=>esc(f.code),f=>fmtDate(f.date_facture),f=>esc(STATUT_LABELS[f.statut]||f.statut),f=>'<span class="block text-right">'+money(f.total)+'</span>'])}
-    </tbody></table></div>
-    <div class="text-center text-xs text-gray-400 mb-4">
-      \${[b.telephone?('📞 '+esc(b.telephone)):'',b.whatsapp?('💬 '+esc(b.whatsapp)):''].filter(Boolean).join(' · ')}
+    <div class="section" style="max-width:640px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <div><div style="font-size:18px;font-weight:800">\${esc(nomComplet)}</div><div style="font-size:11px;color:#9ca3af">\${esc(c.code)}</div></div>
+        <button onclick="renderLogin()" style="font-size:11px;color:#6b7280;background:none;border:0;cursor:pointer">← Autre dossier</button>
+      </div>
+      <h3 style="font-size:12px;font-weight:800;text-transform:uppercase;color:#6b7280;margin-bottom:8px">🏗️ Mes chantiers</h3>
+      \${chantiersHtml}
+      <h3 style="font-size:12px;font-weight:800;text-transform:uppercase;color:#6b7280;margin-bottom:8px;margin-top:6px">📄 Mes devis</h3>
+      <div class="card" style="margin-bottom:14px;overflow-x:auto"><table style="width:100%"><thead><tr style="text-align:left;font-size:11px;color:#9ca3af"><th style="padding-bottom:8px">Code</th><th>Libellé</th><th>Statut</th><th style="text-align:right">Montant</th></tr></thead><tbody>
+        \${rowsTable(data.devis,[d=>esc(d.code),d=>esc(d.libelle||'—'),d=>esc(STATUT_LABELS[d.statut]||d.statut),d=>'<span style="display:block;text-align:right">'+money(d.total)+'</span>'])}
+      </tbody></table></div>
+      <h3 style="font-size:12px;font-weight:800;text-transform:uppercase;color:#6b7280;margin-bottom:8px">🧾 Mes factures</h3>
+      <div class="card" style="overflow-x:auto"><table style="width:100%"><thead><tr style="text-align:left;font-size:11px;color:#9ca3af"><th style="padding-bottom:8px">Code</th><th>Date</th><th>Statut</th><th style="text-align:right">Montant</th></tr></thead><tbody>
+        \${rowsTable(data.factures,[f=>esc(f.code),f=>fmtDate(f.date_facture),f=>esc(STATUT_LABELS[f.statut]||f.statut),f=>'<span style="display:block;text-align:right">'+money(f.total)+'</span>'])}
+      </tbody></table></div>
     </div>\`;
 }
-renderLogin();
+
+renderHeader();
+setTab('accueil');
 <\/script>
 </body>
-</html>`;
+</html>
+`;
 async function genererPortailClient(){
   const el=document.getElementById('portailResult');
   try{
     const brand=buildPortailBrand();
-    const bjson=JSON.stringify(brand).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
+    const [{data:realisations},{data:produits}]=await Promise.all([
+      sb.from('realisations').select('titre,description,famille,photo_base64').eq('publie',true).order('ordre'),
+      sb.from('produits').select('nom,famille').order('famille')
+    ]);
+    brand.realisations=realisations||[];
+    brand.produits=produits||[];
+    const bjson=JSON.stringify(brand).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
+
     let html=PORTAIL_TEMPLATE
       .split('__SB_URL__').join(window.SB_CFG.SUPABASE_URL)
       .split('__SB_KEY__').join(window.SB_CFG.SUPABASE_ANON_KEY)
