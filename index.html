@@ -7,6 +7,8 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
@@ -2294,7 +2296,7 @@ async function renderConfigurateur(el){
   configState={type:CONFIG_TYPES[0],w:1200,h:1200,leaves:2,qty:1,serie:'STD120',vitrage:'DV6-12-6',finition:'blanc9010',standing:'standard',jointType:'onglet',gap:5,spacing:1500,infill:'cable',
     barLen:6000,kerf:3,laborRate:3500,poseForfait:0,tauxEnergie:2,tauxAmortissement:3,tauxTransport:2,tauxFraisAtelier:5,tauxFraisAdmin:5,margin:25,remise:0,
     sheetW:3210,sheetH:2250,glassKerf:5,chuteMinReutilisable:500,chuteMinReutilisableVitrage:300,
-    activeTab:'config'};
+    activeTab:'config',schemaView:'vue2d',planCotes:[],planNotes:[],planHistory:[],planMode:'move'};
   let editBanner='';
   if(window._configEditId){
     const {data:p}=await sb.from('produits').select('*').eq('id',window._configEditId).single();
@@ -2367,29 +2369,14 @@ function renderTabConfig(){
     <div class="page-card mb-4">
       <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div>
-          <h3 class="font-bold">Schéma technique paramétrique</h3>
-          <p class="text-xs text-gray-500">Le dessin se met à jour avec la largeur, la hauteur et le nombre de vantaux.</p>
+          <h3 class="font-bold">Schéma technique</h3>
+          <p class="text-xs text-gray-500">Le dessin se met à jour avec la largeur, la hauteur, le nombre de vantaux, le système, la finition et le vitrage choisis.</p>
         </div>
-        <span class="badge bg-white text-gray-600 border">Vue façade</span>
-      </div>
-      <div class="bg-white rounded-xl border p-3 overflow-hidden">${svgSchemaParametrique(c,res)}</div>
-    </div>
-
-    <div class="page-card mb-4">
-      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div>
-          <h3 class="font-bold">Schéma technique fabrication — Bureau d'études</h3>
-          <p class="text-xs text-gray-500">Vue de fabrication paramétrique : cotes, repères profils, vitrage, coupes, débit et tolérances.</p>
+        <div class="flex rounded-lg border overflow-hidden text-xs">
+          ${[['vue2d','📐 Vue 2D'],['vue3d','🧊 Vue 3D'],['fabrication','📋 Plan de fabrication'],['editeur','✏️ Éditeur de plan']].map(([v,label])=>`<button class="schema-view-btn px-3 py-1.5 font-semibold ${(c.schemaView||'vue2d')===v?'bg-indigo-600 text-white':''}" data-view="${v}" onclick="setSchemaView('${v}')">${label}</button>`).join('')}
         </div>
-        <div class="flex gap-2"><span class="badge bg-white text-gray-600 border">A3 / Fabrication</span><span class="badge bg-blue-50 text-blue-700">Paramétrique</span></div>
       </div>
-      <div class="bg-white rounded-xl border overflow-auto">${svgSchemaFabrication(c,res)}</div>
-      <div class="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Cote hors tout</div><b>${c.w} × ${c.h} mm</b></div>
-        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Ouverture vitrage</div><b>${res.glassArea.toFixed(2)} m²</b></div>
-        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Tolérance</div><b>± 1 mm</b></div>
-        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Trait de scie</div><b>${c.kerf} mm</b></div>
-      </div>
+      <div id="schemaViewContent"></div>
     </div>
 
     ${showJoint?`<div class="page-card mb-4">
@@ -2411,6 +2398,7 @@ function renderTabConfig(){
     <div class="flex justify-end">
       <button class="btn btn-outline" onclick="showEtudeTab('bom')">Voir la nomenclature →</button>
     </div>`;
+  renderSchemaView();
 }
 /* ---------- Rendu SVG paramétrique à l'échelle réelle (mm→px), piloté par les catalogues ---------- */
 function niceScaleLength(scale){
@@ -2445,45 +2433,47 @@ function elevationGroup(c,res,uid,boxW,boxH){
     <pattern id="mesh-${uid}" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 0 L4 4 M4 0 L0 4" stroke="#8a94a3" stroke-width="0.5"/></pattern>
     <marker id="arrow-${uid}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2563eb"/></marker>`;
   const kind=geom.kind||'standard';
-  let inner='';
+  // Trois calques indépendants (structure fixe / éléments mobiles / remplissage) réutilisés
+  // tels quels par la Vue 2D, le plan de fabrication ET l'éditeur de plan (calques à bascule).
+  let sDormant='', sOuvrant='', sVitrage='';
   if(kind==='gardecorps'){
     const railPx=Math.max(4,40*scale), poteauPx=Math.max(2,26*scale), nPoteaux=Math.max(2,geom.nPoteaux||2);
-    inner+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${railPx.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`;
+    sDormant+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${railPx.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`;
     for(let i=0;i<nPoteaux;i++){
       const px=nPoteaux>1?(i/(nPoteaux-1))*(W-poteauPx):0;
-      inner+=`<rect x="${px.toFixed(1)}" y="0" width="${poteauPx.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`;
+      sDormant+=`<rect x="${px.toFixed(1)}" y="0" width="${poteauPx.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`;
     }
     if(geom.infill==='cable'){
       const nCables=Math.max(3,Math.ceil(h/110));
-      for(let i=1;i<=nCables;i++){ const cy=railPx+(i/(nCables+1))*(H-railPx); inner+=`<line x1="${poteauPx.toFixed(1)}" y1="${cy.toFixed(1)}" x2="${(W-poteauPx).toFixed(1)}" y2="${cy.toFixed(1)}" stroke="#8f98a3" stroke-width="1.3"/>`; }
+      for(let i=1;i<=nCables;i++){ const cy=railPx+(i/(nCables+1))*(H-railPx); sVitrage+=`<line x1="${poteauPx.toFixed(1)}" y1="${cy.toFixed(1)}" x2="${(W-poteauPx).toFixed(1)}" y2="${cy.toFixed(1)}" stroke="#8f98a3" stroke-width="1.3"/>`; }
     } else if(geom.infill==='barreaudage'){
       const nBars=Math.max(3,Math.ceil(w/110));
-      for(let i=1;i<nBars;i++){ const bx=(i/nBars)*W; inner+=`<line x1="${bx.toFixed(1)}" y1="${railPx.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${H.toFixed(1)}" stroke="#8f98a3" stroke-width="2"/>`; }
+      for(let i=1;i<nBars;i++){ const bx=(i/nBars)*W; sVitrage+=`<line x1="${bx.toFixed(1)}" y1="${railPx.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${H.toFixed(1)}" stroke="#8f98a3" stroke-width="2"/>`; }
     } else {
       for(let i=0;i<nPoteaux-1;i++){
         const x0=(i/(nPoteaux-1))*(W-poteauPx)+poteauPx, x1=((i+1)/(nPoteaux-1))*(W-poteauPx);
-        inner+=`<rect x="${x0.toFixed(1)}" y="${railPx.toFixed(1)}" width="${Math.max(0,x1-x0).toFixed(1)}" height="${(H-railPx).toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="1"/>`;
+        sVitrage+=`<rect x="${x0.toFixed(1)}" y="${railPx.toFixed(1)}" width="${Math.max(0,x1-x0).toFixed(1)}" height="${(H-railPx).toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="1"/>`;
       }
     }
   } else if(kind==='moustiquaire'){
     const border=Math.max(2,18*scale);
-    inner+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.2"/>`;
+    sDormant+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.2"/>`;
     const leaves=geom.isCoul?Math.max(1,geom.leaves||1):1;
     const meshGap=Math.max(2,6*scale);
     const lw=(W-2*border-(leaves-1)*meshGap)/leaves;
     let cx=border;
     for(let i=0;i<leaves;i++){
-      inner+=`<rect x="${cx.toFixed(1)}" y="${border.toFixed(1)}" width="${Math.max(0,lw).toFixed(1)}" height="${Math.max(0,H-2*border).toFixed(1)}" fill="url(#mesh-${uid})" stroke="#4a5568" stroke-width="1"/>`;
+      sVitrage+=`<rect x="${cx.toFixed(1)}" y="${border.toFixed(1)}" width="${Math.max(0,lw).toFixed(1)}" height="${Math.max(0,H-2*border).toFixed(1)}" fill="url(#mesh-${uid})" stroke="#4a5568" stroke-width="1"/>`;
       cx+=lw+meshGap;
     }
   } else if(kind==='jalousie'){
     const border=Math.max(2,18*scale), nLames=Math.max(3,geom.nLames||5), gap=Math.max(1,2*scale);
-    inner+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.2"/>`;
+    sDormant+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.2"/>`;
     const lameH=(H-2*border-(nLames-1)*gap)/nLames;
-    for(let i=0;i<nLames;i++){ const ly=border+i*(lameH+gap); inner+=`<rect x="${border.toFixed(1)}" y="${ly.toFixed(1)}" width="${(W-2*border).toFixed(1)}" height="${Math.max(1,lameH).toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="0.8"/>`; }
+    for(let i=0;i<nLames;i++){ const ly=border+i*(lameH+gap); sVitrage+=`<rect x="${border.toFixed(1)}" y="${ly.toFixed(1)}" width="${(W-2*border).toFixed(1)}" height="${Math.max(1,lameH).toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="0.8"/>`; }
   } else {
     const fb=Math.max(3,(sys.reservationVitrage||110)/2*scale);
-    inner+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.5"/>`;
+    sDormant+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.5"/>`;
     const leaves=Math.max(1,geom.leaves||1);
     const meneauPx=(leaves>1?45:0)*scale;
     // Largeur visuelle des vantaux recalculée pour tenir exactement dans la réservation du dormant
@@ -2491,24 +2481,25 @@ function elevationGroup(c,res,uid,boxW,boxH){
     const leafWpx=Math.max(0,W-2*fb-(leaves-1)*meneauPx)/leaves, leafH=Math.max(0,H-2*fb), ob=Math.max(1.5,fb*0.55);
     let cx=fb;
     for(let i=0;i<leaves;i++){
-      inner+=`<rect x="${cx.toFixed(1)}" y="${fb.toFixed(1)}" width="${leafWpx.toFixed(1)}" height="${leafH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`;
+      sOuvrant+=`<rect x="${cx.toFixed(1)}" y="${fb.toFixed(1)}" width="${leafWpx.toFixed(1)}" height="${leafH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`;
       const gx=cx+ob, gy=fb+ob, gw=Math.max(0,leafWpx-2*ob), gh=Math.max(0,leafH-2*ob);
-      inner+=`<rect x="${gx.toFixed(1)}" y="${gy.toFixed(1)}" width="${gw.toFixed(1)}" height="${gh.toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="1"/>`;
-      inner+=`<line x1="${(gx+gw*0.12).toFixed(1)}" y1="${(gy+gh*0.12).toFixed(1)}" x2="${(gx+gw*0.55).toFixed(1)}" y2="${(gy+gh*0.85).toFixed(1)}" stroke="#ffffff" stroke-opacity="0.4" stroke-width="${Math.max(1,gw*0.035).toFixed(1)}"/>`;
+      sVitrage+=`<rect x="${gx.toFixed(1)}" y="${gy.toFixed(1)}" width="${gw.toFixed(1)}" height="${gh.toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="1"/>`;
+      sVitrage+=`<line x1="${(gx+gw*0.12).toFixed(1)}" y1="${(gy+gh*0.12).toFixed(1)}" x2="${(gx+gw*0.55).toFixed(1)}" y2="${(gy+gh*0.85).toFixed(1)}" stroke="#ffffff" stroke-opacity="0.4" stroke-width="${Math.max(1,gw*0.035).toFixed(1)}"/>`;
       const handleY=fb+leafH*0.5, hOff=Math.max(4,fb*0.3);
       const handleX=(i%2===0)?(cx+leafWpx-ob-hOff):(cx+ob+hOff);
-      inner+=`<rect x="${(handleX-1.5).toFixed(1)}" y="${(handleY-Math.max(6,fb*0.5)).toFixed(1)}" width="3" height="${Math.max(12,fb).toFixed(1)}" rx="1.5" fill="${fin.hexDark}"/>`;
+      sOuvrant+=`<rect x="${(handleX-1.5).toFixed(1)}" y="${(handleY-Math.max(6,fb*0.5)).toFixed(1)}" width="3" height="${Math.max(12,fb).toFixed(1)}" rx="1.5" fill="${fin.hexDark}"/>`;
       cx+=leafWpx;
-      if(i<leaves-1){ inner+=`<rect x="${cx.toFixed(1)}" y="${fb.toFixed(1)}" width="${meneauPx.toFixed(1)}" height="${leafH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`; cx+=meneauPx; }
+      if(i<leaves-1){ sOuvrant+=`<rect x="${cx.toFixed(1)}" y="${fb.toFixed(1)}" width="${meneauPx.toFixed(1)}" height="${leafH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`; cx+=meneauPx; }
     }
     if(geom.isPorte){
       const r=Math.min(leafWpx,leafH);
-      inner+=`<path d="M ${fb.toFixed(1)} ${fb.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${(fb+r).toFixed(1)} ${(fb+r).toFixed(1)}" fill="none" stroke="#2563eb" stroke-width="1.2" stroke-dasharray="5 3"/>`;
+      sOuvrant+=`<path d="M ${fb.toFixed(1)} ${fb.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${(fb+r).toFixed(1)} ${(fb+r).toFixed(1)}" fill="none" stroke="#2563eb" stroke-width="1.2" stroke-dasharray="5 3"/>`;
     } else if(leaves>1){
       const midY=fb+leafH*0.5;
-      inner+=`<line x1="${(fb+leafWpx*0.65).toFixed(1)}" y1="${midY.toFixed(1)}" x2="${(fb+leafWpx*0.2).toFixed(1)}" y2="${midY.toFixed(1)}" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-${uid})"/>`;
+      sOuvrant+=`<line x1="${(fb+leafWpx*0.65).toFixed(1)}" y1="${midY.toFixed(1)}" x2="${(fb+leafWpx*0.2).toFixed(1)}" y2="${midY.toFixed(1)}" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-${uid})"/>`;
     }
   }
+  const inner=`<g class="layer-dormant">${sDormant}</g><g class="layer-ouvrant">${sOuvrant}</g><g class="layer-vitrage">${sVitrage}</g>`;
   return {defs,inner,W,H,scale};
 }
 /* Coupe A-A (dépouille du profil, à l'échelle du système réellement sélectionné) */
@@ -2728,6 +2719,396 @@ function svgJonctionAngle(c,res){
     <text x="${(hx+40)}" y="${(hy-barPx/2+4).toFixed(1)}" text-anchor="middle" font-size="10" fill="#64748b">${sys.profondeur} mm</text>
   </svg>`;
 }
+
+/* ============================== ÉDITEUR DE PLAN INTERACTIF ==============================
+   Calques Dormant/Ouvrant/Vitrage réutilisés depuis elevationGroup ; outils Cote/Annotation
+   qui convertissent les clics écran en coordonnées mm réelles via getScreenCTM (donc les
+   cotes restent justes si on zoome/scrolle) ; historique = tableau simple pour Annuler/Effacer.
+   Les cotes/annotations sont stockées en mm dans configState pour survivre à un changement
+   de dimensions (repositionnement proportionnel au prochain rendu) et sont sauvegardées avec
+   le produit (config_json) comme le reste de configState. */
+function renderPlanEditor(c,res){
+  const boxW=600,boxH=320,ox=110,oy=54;
+  const uid='pe';
+  const g=elevationGroup(c,res,uid,boxW,boxH);
+  window._planScale=g.scale;
+  const cx=ox+(boxW-g.W)/2, cy=oy+(boxH-g.H)/2;
+  const baseCotes=`<line x1="0" y1="-16" x2="${g.W.toFixed(1)}" y2="-16" stroke="#334155" stroke-width="1.3" marker-start="url(#peArrow)" marker-end="url(#peArrow)"/>
+    <text x="${(g.W/2).toFixed(1)}" y="-20" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">${c.w} mm</text>
+    <line x1="-16" y1="0" x2="-16" y2="${g.H.toFixed(1)}" stroke="#334155" stroke-width="1.3" marker-start="url(#peArrow)" marker-end="url(#peArrow)"/>
+    <text x="-24" y="${(g.H/2).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a" transform="rotate(-90 -24 ${(g.H/2).toFixed(1)})">${c.h} mm</text>`;
+  const viewW=ox+boxW+50, viewH=oy+boxH+40;
+  return `<div class="flex flex-wrap items-center gap-2 mb-3 text-xs">
+      <div class="flex rounded-lg border overflow-hidden">
+        <button class="plan-tool-btn px-3 py-1.5 font-semibold bg-indigo-600 text-white" data-tool="move" onclick="setPlanMode('move')">🖐️ Déplacer</button>
+        <button class="plan-tool-btn px-3 py-1.5 font-semibold" data-tool="cote" onclick="setPlanMode('cote')">📏 Cote</button>
+        <button class="plan-tool-btn px-3 py-1.5 font-semibold" data-tool="annotation" onclick="setPlanMode('annotation')">📝 Annotation</button>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="planUndo()">↩ Annuler</button>
+      <button class="btn btn-outline btn-sm" onclick="planClear()">🗑️ Effacer</button>
+      <label class="flex items-center gap-1"><input type="checkbox" checked onchange="togglePlanLayer('dormant',this.checked)"> Dormant</label>
+      <label class="flex items-center gap-1"><input type="checkbox" checked onchange="togglePlanLayer('ouvrant',this.checked)"> Ouvrant</label>
+      <label class="flex items-center gap-1"><input type="checkbox" checked onchange="togglePlanLayer('vitrage',this.checked)"> Vitrage</label>
+      <label class="flex items-center gap-1"><input type="checkbox" checked onchange="togglePlanLayer('cotes',this.checked)"> Cotes</label>
+      <button class="btn btn-primary btn-sm ml-auto" onclick="exportPlanPNG()">⬇️ Export PNG</button>
+    </div>
+    <div class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2" id="planHint">🖐️ Mode Déplacer : les outils Cote et Annotation sont désactivés. Cliquez « 📏 Cote » puis deux points pour coter, ou « 📝 Annotation » puis un point pour noter.</div>
+    <div class="bg-white rounded-xl border p-2 overflow-auto">
+      <svg id="planEditorSvg" viewBox="0 0 ${viewW} ${viewH}" class="w-full h-auto" role="img" aria-label="Éditeur de plan interactif">
+        <defs>${g.defs}
+          <marker id="peArrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker>
+          <marker id="userArrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#dc2626"/></marker>
+        </defs>
+        <g id="planDrawGroup" transform="translate(${cx.toFixed(1)},${cy.toFixed(1)})">
+          ${g.inner}
+          <g class="layer-cotes">${baseCotes}<g id="planUserLayer"></g></g>
+          <rect id="planCapture" x="0" y="0" width="${g.W.toFixed(1)}" height="${g.H.toFixed(1)}" fill="transparent"/>
+        </g>
+      </svg>
+    </div>`;
+}
+function initPlanEditor(){
+  const g=document.getElementById('planDrawGroup');
+  const capture=document.getElementById('planCapture');
+  if(!g||!capture) return;
+  window._planPendingPoint=null;
+  capture.onclick=function(evt){
+    const mode=configState.planMode||'move';
+    if(mode==='move') return;
+    const p=svgLocalPoint(g,evt);
+    if(mode==='cote'){
+      if(!window._planPendingPoint){ window._planPendingPoint=p; }
+      else { addPlanCote(window._planPendingPoint,p); window._planPendingPoint=null; }
+    } else if(mode==='annotation'){
+      const text=prompt('Texte de l\'annotation :');
+      if(text) addPlanNote(p,text);
+    }
+  };
+  renderPlanUserLayer();
+}
+function svgLocalPoint(groupEl,evt){
+  const svg=groupEl.ownerSVGElement;
+  const pt=svg.createSVGPoint();
+  pt.x=evt.clientX; pt.y=evt.clientY;
+  const ctm=groupEl.getScreenCTM();
+  if(!ctm) return {x:0,y:0};
+  const loc=pt.matrixTransform(ctm.inverse());
+  return {x:loc.x,y:loc.y};
+}
+function setPlanMode(mode){
+  configState.planMode=mode;
+  window._planPendingPoint=null;
+  document.querySelectorAll('.plan-tool-btn').forEach(b=>{ const on=b.dataset.tool===mode; b.classList.toggle('bg-indigo-600',on); b.classList.toggle('text-white',on); });
+  const capture=document.getElementById('planCapture');
+  if(capture) capture.style.cursor = mode==='move' ? 'default' : 'crosshair';
+  const hint=document.getElementById('planHint');
+  if(hint){
+    const hints={move:'🖐️ Mode Déplacer : les outils Cote et Annotation sont désactivés. Cliquez « 📏 Cote » puis deux points pour coter, ou « 📝 Annotation » puis un point pour noter.',
+      cote:'📏 Mode Cote : cliquez un premier point puis un second pour tracer une cote (distance calculée en mm réels).',
+      annotation:'📝 Mode Annotation : cliquez un point du plan pour y ajouter une note.'};
+    hint.textContent=hints[mode]||'';
+  }
+}
+function addPlanCote(a,b){
+  const scale=window._planScale||1;
+  const mmA={x:a.x/scale,y:a.y/scale}, mmB={x:b.x/scale,y:b.y/scale};
+  const mm=Math.round(Math.hypot(mmB.x-mmA.x,mmB.y-mmA.y));
+  const id='cote'+Date.now()+Math.random().toString(36).slice(2,6);
+  configState.planCotes=configState.planCotes||[];
+  configState.planHistory=configState.planHistory||[];
+  configState.planCotes.push({id,mmA,mmB,mm});
+  configState.planHistory.push({type:'cote',id});
+  renderPlanUserLayer();
+}
+function addPlanNote(p,text){
+  const scale=window._planScale||1;
+  const id='note'+Date.now()+Math.random().toString(36).slice(2,6);
+  configState.planNotes=configState.planNotes||[];
+  configState.planHistory=configState.planHistory||[];
+  configState.planNotes.push({id,mmX:p.x/scale,mmY:p.y/scale,text:String(text).slice(0,80)});
+  configState.planHistory.push({type:'note',id});
+  renderPlanUserLayer();
+}
+function planUndo(){
+  const h=configState.planHistory||[];
+  const last=h.pop();
+  if(!last) return;
+  if(last.type==='cote') configState.planCotes=(configState.planCotes||[]).filter(x=>x.id!==last.id);
+  else configState.planNotes=(configState.planNotes||[]).filter(x=>x.id!==last.id);
+  renderPlanUserLayer();
+}
+function planClear(){
+  configState.planCotes=[]; configState.planNotes=[]; configState.planHistory=[];
+  renderPlanUserLayer();
+}
+function renderPlanUserLayer(){
+  const container=document.getElementById('planUserLayer');
+  if(!container) return;
+  const scale=window._planScale||1;
+  let s='';
+  (configState.planCotes||[]).forEach(cd=>{
+    const x1=cd.mmA.x*scale, y1=cd.mmA.y*scale, x2=cd.mmB.x*scale, y2=cd.mmB.y*scale, mx=(x1+x2)/2, my=(y1+y2)/2;
+    s+=`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#dc2626" stroke-width="1.5" marker-start="url(#userArrow)" marker-end="url(#userArrow)"/>
+      <rect x="${(mx-20).toFixed(1)}" y="${(my-10).toFixed(1)}" width="40" height="14" fill="#fff" opacity="0.85"/>
+      <text x="${mx.toFixed(1)}" y="${(my+1).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="#dc2626">${cd.mm} mm</text>`;
+  });
+  (configState.planNotes||[]).forEach(nt=>{
+    const x=nt.mmX*scale, y=nt.mmY*scale, boxWpx=Math.min(220,16+nt.text.length*6);
+    s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#d97706"/>
+      <rect x="${(x+6).toFixed(1)}" y="${(y-14).toFixed(1)}" width="${boxWpx.toFixed(1)}" height="18" fill="#fef3c7" stroke="#d97706" stroke-width="1" rx="3"/>
+      <text x="${(x+10).toFixed(1)}" y="${(y-1).toFixed(1)}" font-size="11" fill="#78350f">${escapeHtml(nt.text)}</text>`;
+  });
+  container.innerHTML=s;
+}
+function togglePlanLayer(layer,visible){
+  document.querySelectorAll(`#planEditorSvg .layer-${layer}`).forEach(el=>{ el.style.display=visible?'':'none'; });
+}
+function exportPlanPNG(){
+  const svg=document.getElementById('planEditorSvg');
+  if(!svg) return;
+  const clone=svg.cloneNode(true);
+  clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  const vb=svg.viewBox.baseVal;
+  const svgStr=new XMLSerializer().serializeToString(clone);
+  const svgBlob=new Blob([svgStr],{type:'image/svg+xml;charset=utf-8'});
+  const url=URL.createObjectURL(svgBlob);
+  const img=new Image();
+  img.onload=function(){
+    const factor=2;
+    const canvas=document.createElement('canvas');
+    canvas.width=(vb.width||1200)*factor; canvas.height=(vb.height||800)*factor;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    URL.revokeObjectURL(url);
+    canvas.toBlob(function(blob){
+      if(!blob) return;
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=`plan-${String(configState.type||'ouvrage').replace(/\s+/g,'_')}.png`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    });
+  };
+  img.onerror=function(){ toast('Export PNG impossible pour ce navigateur.','error'); URL.revokeObjectURL(url); };
+  img.src=url;
+}
+
+/* ============================== VUE 3D (Three.js) ==============================
+   Extrusion réaliste (dormant/ouvrant/vitrage, ou poteaux/lisses pour un garde-corps,
+   cadre+toile pour une moustiquaire, lames empilées pour une jalousie) à partir des mêmes
+   données catalogue (système, finition, vitrage) que les schémas 2D. Le cycle de vie du
+   renderer WebGL est géré explicitement (destroy3DView) pour ne jamais empiler plusieurs
+   boucles d'animation quand on change d'onglet. */
+let _view3d=null;
+function destroy3DView(){
+  if(!_view3d) return;
+  cancelAnimationFrame(_view3d.animId);
+  try{ _view3d.controls&&_view3d.controls.dispose(); }catch(e){}
+  try{
+    if(_view3d.renderer){
+      _view3d.renderer.dispose();
+      const dom=_view3d.renderer.domElement;
+      if(dom&&dom.parentNode) dom.parentNode.removeChild(dom);
+    }
+  }catch(e){}
+  _view3d=null;
+}
+function build3DScene(c,res){
+  const THREE=window.THREE;
+  const scene=new THREE.Scene();
+  scene.background=new THREE.Color(0xeaf2fb);
+  const fin=res.finition, sys=res.system, geom=res.geom||{};
+  const group=new THREE.Group();
+  const mm=v=>v/1000;
+  const alu=new THREE.MeshStandardMaterial({color:new THREE.Color(fin.hex),metalness:0.55,roughness:0.35});
+  const aluDark=new THREE.MeshStandardMaterial({color:new THREE.Color(fin.hexDark),metalness:0.6,roughness:0.3});
+  const glassMat=new THREE.MeshPhysicalMaterial({color:0xbfe0f7,transparent:true,opacity:0.35,roughness:0.05,metalness:0,clearcoat:0.6,reflectivity:0.5});
+  const meshMat=new THREE.MeshStandardMaterial({color:0x8a94a3,transparent:true,opacity:0.5,side:THREE.DoubleSide,roughness:0.9});
+  function box(w,h,d,mat){ return new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.005,w),Math.max(0.005,h),Math.max(0.005,d)),mat); }
+  const depth=Math.max(0.02,mm((sys.profondeur||120)*0.55));
+  const kind=geom.kind||'standard';
+  if(kind==='gardecorps'){
+    const W=mm(c.w), H=mm(c.h), nPoteaux=Math.max(2,geom.nPoteaux||2);
+    const railD=Math.max(0.015,mm(40));
+    const rail=box(W,railD,railD,alu); rail.position.set(0,H/2-railD/2,0); group.add(rail);
+    const poteauR=Math.max(0.006,mm(42.4)/2);
+    for(let i=0;i<nPoteaux;i++){
+      const px=nPoteaux>1?(-W/2+(i/(nPoteaux-1))*W):0;
+      const p=new THREE.Mesh(new THREE.CylinderGeometry(poteauR,poteauR,H,16),aluDark);
+      p.position.set(px,0,0); group.add(p);
+    }
+    const nPanels=Math.max(1,nPoteaux-1);
+    for(let i=0;i<nPanels;i++){
+      const segW=W/nPanels;
+      const cx0=-W/2+segW*(i+0.5);
+      if(geom.infill==='verre'){
+        const glass=box(segW*0.92,H-railD-mm(60),0.008,glassMat); glass.position.set(cx0,-railD/2,0); group.add(glass);
+      } else if(geom.infill==='barreaudage'){
+        const nBars=4;
+        for(let bIdx=1;bIdx<nBars;bIdx++){
+          const bx=cx0-segW/2+segW*(bIdx/nBars);
+          const bar=new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.006,H-railD,8),aluDark);
+          bar.position.set(bx,-railD/2,0); group.add(bar);
+        }
+      } else {
+        const nCables=5;
+        for(let cIdx=1;cIdx<=nCables;cIdx++){
+          const cy=H/2-railD-((H-railD)*cIdx/(nCables+1));
+          const cable=new THREE.Mesh(new THREE.CylinderGeometry(0.003,0.003,segW*0.95,6),aluDark);
+          cable.rotation.z=Math.PI/2; cable.position.set(cx0,cy,0); group.add(cable);
+        }
+      }
+    }
+  } else if(kind==='moustiquaire'){
+    const W=mm(c.w), H=mm(c.h), fbm=Math.max(0.015,mm(18));
+    const top=box(W,fbm,depth*0.6,alu); top.position.set(0,H/2-fbm/2,0); group.add(top);
+    const bot=box(W,fbm,depth*0.6,alu); bot.position.set(0,-H/2+fbm/2,0); group.add(bot);
+    const lft=box(fbm,H-2*fbm,depth*0.6,alu); lft.position.set(-W/2+fbm/2,0,0); group.add(lft);
+    const rgt=box(fbm,H-2*fbm,depth*0.6,alu); rgt.position.set(W/2-fbm/2,0,0); group.add(rgt);
+    const mesh=box(W-2*fbm,H-2*fbm,0.004,meshMat); group.add(mesh);
+  } else if(kind==='jalousie'){
+    const W=mm(c.w), H=mm(c.h), fbm=Math.max(0.015,mm(18)), nLames=Math.max(3,geom.nLames||5);
+    const top=box(W,fbm,depth*0.6,alu); top.position.set(0,H/2-fbm/2,0); group.add(top);
+    const bot=box(W,fbm,depth*0.6,alu); bot.position.set(0,-H/2+fbm/2,0); group.add(bot);
+    const lft=box(fbm,H-2*fbm,depth*0.6,alu); lft.position.set(-W/2+fbm/2,0,0); group.add(lft);
+    const rgt=box(fbm,H-2*fbm,depth*0.6,alu); rgt.position.set(W/2-fbm/2,0,0); group.add(rgt);
+    const innerH=H-2*fbm, lameH=innerH/nLames;
+    for(let i=0;i<nLames;i++){
+      const ly=H/2-fbm-lameH*(i+0.5);
+      const lame=box(W-2*fbm-0.01,lameH*0.8,0.006,glassMat);
+      lame.rotation.x=Math.PI*0.06;
+      lame.position.set(0,ly,0);
+      group.add(lame);
+    }
+  } else {
+    const W=mm(c.w), H=mm(c.h);
+    const borderMM=(sys.reservationVitrage||110)/2;
+    const bW=Math.max(0.01,mm(borderMM));
+    const top=box(W,bW,depth,alu); top.position.set(0,H/2-bW/2,0); group.add(top);
+    const bottom=box(W,bW,depth,alu); bottom.position.set(0,-H/2+bW/2,0); group.add(bottom);
+    const left=box(bW,H-2*bW,depth,alu); left.position.set(-W/2+bW/2,0,0); group.add(left);
+    const right=box(bW,H-2*bW,depth,alu); right.position.set(W/2-bW/2,0,0); group.add(right);
+    const leaves=Math.max(1,geom.leaves||1);
+    const meneauMM=leaves>1?45:0, meneauM=mm(meneauMM);
+    const innerWmm=c.w-2*borderMM-(leaves-1)*meneauMM;
+    const leafWmm=Math.max(1,innerWmm/leaves);
+    const leafW=mm(leafWmm), leafH=H-2*bW, obM=mm(borderMM*0.5);
+    let curX=-W/2+bW;
+    for(let i=0;i<leaves;i++){
+      const leafCx=curX+leafW/2;
+      // Cadre d'ouvrant creux (4 barres), jamais une boîte pleine : sinon elle masquerait le vitrage.
+      const lTop=box(leafW,obM,depth*0.85,aluDark); lTop.position.set(leafCx,leafH/2-obM/2,depth*0.05); group.add(lTop);
+      const lBot=box(leafW,obM,depth*0.85,aluDark); lBot.position.set(leafCx,-leafH/2+obM/2,depth*0.05); group.add(lBot);
+      const lLeft=box(obM,Math.max(0.005,leafH-2*obM),depth*0.85,aluDark); lLeft.position.set(leafCx-leafW/2+obM/2,0,depth*0.05); group.add(lLeft);
+      const lRight=box(obM,Math.max(0.005,leafH-2*obM),depth*0.85,aluDark); lRight.position.set(leafCx+leafW/2-obM/2,0,depth*0.05); group.add(lRight);
+      const glass=box(Math.max(0.01,leafW-2*obM),Math.max(0.01,leafH-2*obM),depth*0.15,glassMat);
+      glass.position.set(leafCx,0,depth*0.3);
+      group.add(glass);
+      curX+=leafW;
+      if(i<leaves-1){
+        const men=box(meneauM,leafH,depth*0.85,aluDark);
+        men.position.set(curX+meneauM/2,0,depth*0.05);
+        group.add(men);
+        curX+=meneauM;
+      }
+    }
+  }
+  scene.add(group);
+  const groundSize=Math.max(mm(c.w),mm(c.h))*4+2;
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(groundSize,groundSize), new THREE.ShadowMaterial({opacity:0.22}));
+  ground.rotation.x=-Math.PI/2; ground.position.y=-mm(c.h)/2-0.002; ground.receiveShadow=true;
+  scene.add(ground);
+  const amb=new THREE.AmbientLight(0xffffff,0.65); scene.add(amb);
+  const sun=new THREE.DirectionalLight(0xffffff,0.9);
+  sun.position.set(mm(c.w)*0.8+0.5,mm(c.h)*1.2+0.8,mm(c.w)*0.6+0.8);
+  sun.castShadow=true;
+  sun.shadow.mapSize.set(1024,1024);
+  scene.add(sun);
+  group.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } });
+  return {scene,group,sun,ground};
+}
+function init3DView(c,res){
+  destroy3DView();
+  const THREE=window.THREE;
+  const container=document.getElementById('view3dContainer');
+  if(!container||typeof THREE==='undefined'){
+    if(container) container.innerHTML='<div class="flex items-center justify-center h-full text-sm text-gray-400 p-6 text-center">Vue 3D indisponible (librairie 3D non chargée — vérifiez la connexion réseau).</div>';
+    return;
+  }
+  const w=container.clientWidth||600, h=420;
+  const {scene,sun}=build3DScene(c,res);
+  const camera=new THREE.PerspectiveCamera(35,w/h,0.01,50);
+  const dist=Math.max(c.w,c.h)/1000*1.7+0.7;
+  const startPos=new THREE.Vector3(dist*0.72,dist*0.42,dist*0.92);
+  camera.position.copy(startPos);
+  camera.lookAt(0,0,0);
+  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+  renderer.setSize(w,h);
+  renderer.shadowMap.enabled=true;
+  container.innerHTML='';
+  container.appendChild(renderer.domElement);
+  const controls=new THREE.OrbitControls(camera,renderer.domElement);
+  controls.enableDamping=true; controls.dampingFactor=0.08;
+  controls.minDistance=dist*0.3; controls.maxDistance=dist*3;
+  controls.target.set(0,0,0);
+  _view3d={renderer,controls,camera,scene,sun,startPos,animId:0};
+  (function animate(){
+    _view3d.animId=requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene,camera);
+  })();
+}
+function reset3DView(){
+  if(!_view3d) return;
+  _view3d.camera.position.copy(_view3d.startPos);
+  _view3d.camera.lookAt(0,0,0);
+  _view3d.controls.target.set(0,0,0);
+  _view3d.controls.update();
+}
+function toggleEnsoleillement(){
+  if(!_view3d) return;
+  _view3d.sun.intensity = _view3d.sun.intensity>0.4 ? 0.12 : 0.9;
+}
+
+/* ============================== Sous-onglets du schéma (Vue 2D / Vue 3D / Fabrication / Éditeur) ============================== */
+function setSchemaView(view){
+  configState.schemaView=view;
+  document.querySelectorAll('.schema-view-btn').forEach(b=>{ const on=b.dataset.view===view; b.classList.toggle('bg-indigo-600',on); b.classList.toggle('text-white',on); });
+  renderSchemaView();
+}
+function renderSchemaView(){
+  const c=configState, res=configResultat();
+  const view=c.schemaView||'vue2d';
+  const el=document.getElementById('schemaViewContent');
+  if(!el) return;
+  destroy3DView();
+  if(view==='vue3d'){
+    el.innerHTML=`<div class="bg-white rounded-xl border p-3">
+      <div class="flex gap-2 mb-2 items-center flex-wrap">
+        <button class="btn btn-outline btn-sm" onclick="reset3DView()">↺ Réinitialiser</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleEnsoleillement()">☀️ Ensoleillement</button>
+        <span class="text-xs text-gray-400 ml-auto">Glisser pour tourner • Molette pour zoomer</span>
+      </div>
+      <div id="view3dContainer" style="width:100%;height:420px;border-radius:10px;overflow:hidden;background:#eaf2fb"></div>
+    </div>`;
+    init3DView(c,res);
+  } else if(view==='fabrication'){
+    el.innerHTML=`<div class="bg-white rounded-xl border overflow-auto">${svgSchemaFabrication(c,res)}</div>
+      <div class="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Cote hors tout</div><b>${c.w} × ${c.h} mm</b></div>
+        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Ouverture vitrage</div><b>${res.glassArea.toFixed(2)} m²</b></div>
+        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Tolérance</div><b>± 1 mm</b></div>
+        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Trait de scie</div><b>${c.kerf} mm</b></div>
+      </div>`;
+  } else if(view==='editeur'){
+    el.innerHTML=renderPlanEditor(c,res);
+    initPlanEditor();
+  } else {
+    el.innerHTML=`<div class="bg-white rounded-xl border p-3 overflow-hidden">${svgSchemaParametrique(c,res)}</div>`;
+  }
+}
+
 function renderTabBOM(){
   const res=configResultat();
   const groupsHtml=BOM_L1_CATEGORIES.map(cat=>{
