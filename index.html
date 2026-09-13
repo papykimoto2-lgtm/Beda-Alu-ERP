@@ -5274,7 +5274,11 @@ async function comptaRenderBrouillardCaisse(host){
     </div>
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
       <label class="flex items-center gap-2 text-xs text-gray-500"><input type="checkbox" id="brouillardMemoriser" ${f.memoriser?'checked':''} onchange="window._compta.brouillard.memoriser=this.checked"> Mémoriser automatiquement les comptes choisis manuellement comme règles</label>
-      <button class="btn btn-outline" onclick="caisseVentilationAutomatique()" ${aVentilerListe.length?'':'disabled'}>⚡ Ventilation automatique (${aVentilerListe.length})</button>
+      <div class="flex flex-wrap gap-2">
+        <button class="btn btn-outline" onclick="caisseOuvrirConfigRegles()">⚙️ Configurer les règles</button>
+        <button class="btn btn-outline" onclick="caisseGenererReglesHistorique()">🧠 Générer règles depuis l'historique</button>
+        <button class="btn btn-outline" onclick="caisseVentilationAutomatique()" ${aVentilerListe.length?'':'disabled'}>⚡ Ventilation automatique (${aVentilerListe.length})</button>
+      </div>
     </div>
     <div class="grid sm:grid-cols-3 gap-3 mb-4">
       <div class="card p-4"><div class="text-xs text-gray-400">Entrées</div><div class="text-xl font-black mt-1 text-emerald-600">${money(totalEntrees)}</div></div>
@@ -5567,6 +5571,116 @@ async function caisseVentilationAutomatique(){
   }
   if(!nbOk && !nbEchec){ toast('Aucun mouvement à ventiler ne correspond à une règle existante.','error'); return; }
   toast(`⚡ ${nbOk} mouvement(s) ventilé(s) automatiquement.`+(nbEchec?` ${nbEchec} échec(s) — voir le détail.`:''));
+  comptaRenderCycleView();
+}
+/* ---------- Configuration manuelle des règles de ventilation ---------- */
+async function caisseOuvrirConfigRegles(){
+  const {data:regles}=await sb.from('caisse_regles_ventilation').select('*').order('mot_cle');
+  window._reglesVentilationCache=regles||[];
+  openModal(caisseRegleConfigHtml());
+}
+function caisseRegleConfigHtml(){
+  return `
+    <h3 class="font-bold text-lg mb-4">⚙️ Règles de ventilation automatique</h3>
+    <p class="text-xs text-gray-500 mb-3">Un mouvement de caisse dont le motif contient ce mot-clé est ventilé automatiquement vers le compte associé (bouton « ⚡ Ventilation automatique » du Brouillard de caisse).</p>
+    <div class="grid sm:grid-cols-[1fr_1fr_auto] gap-2 mb-4 items-end">
+      <div class="field"><label>Mot-clé</label>${fieldWrap('🔎',`<input id="regleMotCle" placeholder="ex: Carburant">`)}</div>
+      <div class="field"><label>Compte de contrepartie</label>${fieldWrap('📗',`<select id="regleCompte"><option value="">Choisir…</option>${compteOptionsHtml('')}</select>`)}</div>
+      <button class="btn btn-primary" onclick="caisseAjouterRegleManuelle()">+ Ajouter</button>
+    </div>
+    <div class="card overflow-x-auto max-h-80 overflow-y-auto">
+      <table><thead><tr><th>Mot-clé</th><th>Compte</th><th></th></tr></thead>
+      <tbody>${caisseReglesListeHtml()}</tbody></table>
+    </div>
+    <div class="flex justify-end mt-4"><button class="btn btn-outline" onclick="closeModal()">Fermer</button></div>`;
+}
+function caisseReglesListeHtml(){
+  const regles=window._reglesVentilationCache||[];
+  if(!regles.length) return '<tr><td colspan="3" class="text-gray-400 p-4 text-center">Aucune règle définie pour le moment.</td></tr>';
+  return regles.map(r=>`<tr>
+    <td>${escapeHtml(r.mot_cle)}</td>
+    <td>${compteLabel(r.compte_code)}</td>
+    <td class="text-right"><button class="text-xs text-red-600" onclick="caisseSupprimerRegle('${r.id}')">🗑 Supprimer</button></td>
+  </tr>`).join('');
+}
+async function caisseAjouterRegleManuelle(){
+  const motCle=document.getElementById('regleMotCle').value.trim();
+  const compte=document.getElementById('regleCompte').value;
+  if(!motCle){ toast('Saisissez un mot-clé.','error'); return; }
+  if(!compte){ toast('Choisissez un compte.','error'); return; }
+  const {data:existe}=await sb.from('caisse_regles_ventilation').select('id').ilike('mot_cle',motCle).maybeSingle();
+  if(existe){ toast('Une règle existe déjà pour ce mot-clé.','error'); return; }
+  const {error}=await sb.from('caisse_regles_ventilation').insert({mot_cle:motCle,compte_code:compte});
+  if(error){ toast(error.message,'error'); return; }
+  toast('Règle ajoutée.');
+  await caisseOuvrirConfigRegles();
+}
+async function caisseSupprimerRegle(id){
+  await sb.from('caisse_regles_ventilation').delete().eq('id',id);
+  toast('Règle supprimée.');
+  await caisseOuvrirConfigRegles();
+}
+/* ---------- Génération de règles depuis l'historique déjà ventilé ---------- */
+window._crhSuggestions=window._crhSuggestions||[];
+async function caisseGenererReglesHistorique(){
+  const [{data:mvts},{data:reglesExistantes}]=await Promise.all([
+    sb.from('caisse_mouvements').select('motif,compte_ventile').eq('statut','ventile'),
+    sb.from('caisse_regles_ventilation').select('mot_cle')
+  ]);
+  const motsCouverts=new Set((reglesExistantes||[]).map(r=>String(r.mot_cle).toLowerCase()));
+  const stats={};
+  (mvts||[]).forEach(m=>{
+    if(!m.compte_ventile) return;
+    const motCle=(m.motif.split(/\s+/)[0]||'').trim();
+    if(!motCle||motCle.length<3) return;
+    if(motsCouverts.has(motCle.toLowerCase())) return;
+    stats[motCle]=stats[motCle]||{};
+    stats[motCle][m.compte_ventile]=(stats[motCle][m.compte_ventile]||0)+1;
+  });
+  window._crhSuggestions=Object.keys(stats).map(motCle=>{
+    const comptes=stats[motCle];
+    const best=Object.keys(comptes).sort((a,b)=>comptes[b]-comptes[a])[0];
+    const total=Object.values(comptes).reduce((s,n)=>s+n,0);
+    return {motCle,compte:best,occurrences:comptes[best],total,confiance:comptes[best]/total};
+  }).filter(s=>s.occurrences>=2).sort((a,b)=>b.occurrences-a.occurrences).slice(0,80);
+  openModal(caisseCrhModalHtml());
+}
+function caisseCrhModalHtml(){
+  const sugg=window._crhSuggestions||[];
+  return `
+    <h3 class="font-bold text-lg mb-4">🧠 Générer des règles depuis l'historique</h3>
+    ${!sugg.length
+      ? `<p class="text-sm text-gray-500 mb-4">Aucune règle exploitable trouvée (historique insuffisant, ou déjà couvert par les règles existantes).</p>`
+      : `<p class="text-xs text-gray-500 mb-3">${sugg.length} règle(s) suggérée(s) à partir des mouvements déjà ventilés manuellement — décochez celles à écarter.</p>
+      <div class="card overflow-x-auto max-h-80 overflow-y-auto mb-4">
+        <table><thead><tr><th></th><th>Mot-clé</th><th>Compte proposé</th><th class="text-right">Occurrences</th><th class="text-right">Confiance</th></tr></thead>
+        <tbody>${sugg.map((s,idx)=>`<tr>
+          <td><input type="checkbox" id="crh_${idx}" ${s.confiance>=0.7?'checked':''}></td>
+          <td>${escapeHtml(s.motCle)}</td>
+          <td>${compteLabel(s.compte)}</td>
+          <td class="text-right">${s.occurrences} / ${s.total}</td>
+          <td class="text-right ${s.confiance>=0.7?'text-emerald-600':'text-amber-600'}">${Math.round(s.confiance*100)}%</td>
+        </tr>`).join('')}</tbody></table>
+      </div>`}
+    <div class="flex justify-end gap-2">
+      <button class="btn btn-outline" onclick="closeModal()">Fermer</button>
+      ${sugg.length?`<button class="btn btn-primary" onclick="caisseGenererReglesHistoriqueAppliquer()">Ajouter les règles cochées</button>`:''}
+    </div>`;
+}
+async function caisseGenererReglesHistoriqueAppliquer(){
+  const sugg=window._crhSuggestions||[];
+  let n=0;
+  for(let idx=0; idx<sugg.length; idx++){
+    const cb=document.getElementById('crh_'+idx);
+    if(!cb||!cb.checked) continue;
+    const s=sugg[idx];
+    const {data:existe}=await sb.from('caisse_regles_ventilation').select('id').ilike('mot_cle',s.motCle).maybeSingle();
+    if(existe) continue;
+    const {error}=await sb.from('caisse_regles_ventilation').insert({mot_cle:s.motCle,compte_code:s.compte});
+    if(!error) n++;
+  }
+  toast(`✅ ${n} règle(s) ajoutée(s) à la ventilation automatique.`);
+  closeModal();
   comptaRenderCycleView();
 }
 async function caisseOuvrirTransfertModal(){
