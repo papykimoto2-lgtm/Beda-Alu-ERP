@@ -3241,7 +3241,16 @@ async function renderDevisDetail(el){
     </div>
     ${await fichesExecutionSectionHtml(d.id)}`;
 }
+/* Un ancêtre avec `transform` (ex: .produit-card:hover) devient le containing block de
+   tout descendant position:fixed — le menu se positionnait alors relativement à la carte
+   transformée (souvent hors champ / mal placé) et non au viewport comme prévu. On sort donc
+   le menu du DOM de la carte le temps qu'il soit ouvert (reparenté dans document.body), ce
+   qui garantit un position:fixed toujours relatif au viewport, quel que soit l'endroit où le
+   bouton ⚙ est utilisé. On le replace à son emplacement d'origine à la fermeture pour ne pas
+   perturber un futur re-rendu (.innerHTML=) de son parent d'origine. */
 function positionDropdown(btn,menu){
+  if(menu._origParent===undefined){ menu._origParent=menu.parentNode; menu._origNext=menu.nextSibling; }
+  document.body.appendChild(menu);
   const r=btn.getBoundingClientRect();
   menu.style.left='auto';
   menu.style.right=Math.max(8,window.innerWidth-r.right)+'px';
@@ -3252,27 +3261,32 @@ function positionDropdown(btn,menu){
     if(mr.left<8){ menu.style.right='auto'; menu.style.left='8px'; }
   });
 }
+function closeAllDropdowns(){
+  document.querySelectorAll('.dropdown-menu').forEach(m=>{
+    m.classList.add('hidden');
+    if(m._origParent){ m._origParent.insertBefore(m,m._origNext); }
+  });
+}
 function toggleDropdown(e,id){
   e.stopPropagation();
   const menu=document.getElementById(id);
-  document.querySelectorAll('.dropdown-menu').forEach(m=>{ if(m!==menu) m.classList.add('hidden'); });
   const willOpen=menu.classList.contains('hidden');
-  menu.classList.toggle('hidden');
-  if(willOpen) positionDropdown(e.currentTarget,menu);
+  closeAllDropdowns();
+  if(willOpen){ menu.classList.remove('hidden'); positionDropdown(e.currentTarget,menu); }
 }
-/* Menu ⋯ générique en bout de ligne (tableaux/grilles) — pas d'id requis : le menu est le
-   frère DOM du bouton déclencheur. position:fixed + positionDropdown() lui évite d'être
-   rogné par les conteneurs de tableau en overflow-x:auto. */
+/* Menu ⚙ générique en bout de ligne (tableaux/grilles) — pas d'id requis : le menu est
+   repéré via le bouton (frère DOM au premier appel, puis mis en cache sur le bouton lui-même
+   car positionDropdown() le déplace hors de sa position d'origine pendant qu'il est ouvert). */
 function toggleRowMenu(e){
   e.stopPropagation();
   const btn=e.currentTarget;
-  const menu=btn.nextElementSibling;
-  document.querySelectorAll('.dropdown-menu').forEach(m=>{ if(m!==menu) m.classList.add('hidden'); });
+  const menu=btn._menuEl||btn.nextElementSibling;
+  btn._menuEl=menu;
   const willOpen=menu.classList.contains('hidden');
-  menu.classList.toggle('hidden');
-  if(willOpen) positionDropdown(btn,menu);
+  closeAllDropdowns();
+  if(willOpen){ menu.classList.remove('hidden'); positionDropdown(btn,menu); }
 }
-document.addEventListener('click',()=>document.querySelectorAll('.dropdown-menu').forEach(m=>m.classList.add('hidden')));
+document.addEventListener('click',closeAllDropdowns);
 async function dupliquerDevis(devisId){
   const {data:d}=await sb.from('devis').select('*').eq('id',devisId).single();
   const {data:lignes}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId);
