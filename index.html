@@ -1678,6 +1678,10 @@ async function openMouvementModal(presetType,presetComposantId){
     if(!quantite && type!=='inventaire'){ toast('Quantité requise.','error'); return; }
     const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:val('mvRef')||null,p_prix_unitaire:prix});
     if(error){ toast(error.message,'error'); return; }
+    if(type==='entree' && prix>0){
+      const composantNom=(composants||[]).find(c=>c.id===composantId)?.nom;
+      await comptabiliserAchatMouvementStock(composantNom,quantite,prix,val('mvMotif'),val('mvRef'));
+    }
     toast('Mouvement enregistré.'); closeModal(); refreshStockAlertesBadge();
     showPage(PAGE_RENDERERS[currentPageKey()]?currentPageKey():'stock-mouvements');
   };
@@ -4938,13 +4942,71 @@ function comptaOuvrirBilanOuverture(){
 async function comptaRenderPlanComptable(host){
   await comptaChargerReferentiel(true);
   host.innerHTML=`
-    <div class="flex justify-between items-center mb-3">
-      <div class="text-sm text-gray-500">${window._compta.comptes.length} compte(s) actif(s)</div>
-      <button class="btn btn-primary btn-sm" onclick="comptaOuvrirCompteModal('')">+ Compte</button>
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+      <div class="text-sm text-gray-500">${window._compta.comptes.length} compte(s) actif(s) — plan SYSCOHADA révisé (personnalisable)</div>
+      <div class="flex gap-2">
+        <button class="btn btn-outline btn-sm" onclick="comptaOuvrirImportModal()">📤 Importer / mettre à jour (CSV)</button>
+        <button class="btn btn-primary btn-sm" onclick="comptaOuvrirCompteModal('')">+ Compte</button>
+      </div>
     </div>
     <div class="card overflow-x-auto"><table><thead><tr><th>Code</th><th>Libellé</th><th>Classe</th><th>Nature</th><th></th></tr></thead>
     <tbody>${window._compta.comptes.map(c=>`<tr><td class="font-semibold">${escapeHtml(c.code)}</td><td>${escapeHtml(c.libelle)}</td><td>${c.classe}</td><td>${escapeHtml(c.nature)}</td>
       <td class="text-right whitespace-nowrap"><button class="text-xs text-indigo-600 mr-2" onclick="comptaOuvrirCompteModal('${c.code}')">✎</button><button class="text-xs text-red-500" onclick="comptaDesactiverCompte('${c.code}')">Désactiver</button></td></tr>`).join('')}</tbody></table></div>`;
+}
+/* ---------- Import / mise à jour du plan comptable par CSV (le client fournit le sien au déploiement) ---------- */
+function comptaOuvrirImportModal(){
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">Importer / mettre à jour le plan comptable</h3>
+    <p class="text-sm text-gray-500 mb-3">Fichier CSV avec les colonnes <code>code,libelle,classe,nature</code> (nature : actif, passif, charge, produit, autre). Séparateur virgule ou point-virgule accepté, première ligne = en-têtes.</p>
+    <div class="field mb-3"><label>Fichier CSV</label>${fieldWrap('📄',`<input id="pcImportFile" type="file" accept=".csv,text/csv">`)}</div>
+    <div class="field mb-4"><label>Stratégie</label>${fieldWrap('⚙️',`<select id="pcImportStrategie">
+      <option value="fusion">Fusionner — met à jour les comptes existants et ajoute les nouveaux, garde le reste</option>
+      <option value="remplace">Remplacer — désactive tous les comptes actuels puis importe le fichier comme nouveau plan</option>
+    </select>`)}</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="comptaImporterPlanComptable()">Importer</button></div>`);
+}
+function parseCSVPlanComptable(text){
+  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if(!lines.length) return [];
+  const delim=lines[0].includes(';')?';':',';
+  const header=lines[0].split(delim).map(h=>h.trim().toLowerCase().replace(/^"|"$/g,''));
+  const idx={code:header.indexOf('code'),libelle:header.indexOf('libelle'),classe:header.indexOf('classe'),nature:header.indexOf('nature')};
+  if(idx.code<0||idx.libelle<0) throw new Error('Colonnes "code" et "libelle" requises dans l\'en-tête.');
+  const natures=['actif','passif','charge','produit','autre'];
+  return lines.slice(1).map(line=>{
+    const cols=line.split(delim).map(c=>c.trim().replace(/^"|"$/g,''));
+    const code=cols[idx.code], libelle=cols[idx.libelle];
+    if(!code||!libelle) return null;
+    const natureRaw=(idx.nature>=0?cols[idx.nature]:'').toLowerCase();
+    const classeRaw=idx.classe>=0?+cols[idx.classe]:0;
+    return {
+      code,libelle,
+      classe:classeRaw>=1&&classeRaw<=9?classeRaw:(+code[0]||1),
+      nature:natures.includes(natureRaw)?natureRaw:'autre',
+      actif:true
+    };
+  }).filter(Boolean);
+}
+async function comptaImporterPlanComptable(){
+  const file=document.getElementById('pcImportFile').files[0];
+  const strategie=document.getElementById('pcImportStrategie').value;
+  if(!file){ toast('Choisissez un fichier CSV.','error'); return; }
+  let rows;
+  try{ rows=parseCSVPlanComptable(await file.text()); }
+  catch(err){ toast('Erreur de lecture du CSV : '+err.message,'error'); return; }
+  if(!rows.length){ toast('Aucune ligne valide trouvée dans le fichier.','error'); return; }
+  if(strategie==='remplace' && !confirm(`Remplacer le plan comptable actuel par les ${rows.length} compte(s) du fichier ?\nLes comptes actuels non repris seront désactivés (jamais supprimés, pour préserver les écritures déjà passées).`)) return;
+  if(strategie==='remplace'){
+    const codesImportes=new Set(rows.map(r=>r.code));
+    const {data:existants}=await sb.from('compta_comptes').select('code').eq('actif',true);
+    const aDesactiver=(existants||[]).map(c=>c.code).filter(c=>!codesImportes.has(c));
+    if(aDesactiver.length) await sb.from('compta_comptes').update({actif:false}).in('code',aDesactiver);
+  }
+  const {error}=await sb.from('compta_comptes').upsert(rows,{onConflict:'code'});
+  if(error){ toast(error.message,'error'); return; }
+  toast(`${rows.length} compte(s) importé(s)/mis à jour.`); closeModal();
+  await comptaChargerReferentiel(true);
+  comptaRenderCycleView();
 }
 function comptaOuvrirCompteModal(code){
   const c=code?compteByCode(code):null;
@@ -5508,6 +5570,25 @@ async function enregistrerEncaissement(factureId){
   await sb.from('factures').update({statut:nouveauStatut}).eq('id',factureId);
   toast('Encaissement enregistré.'); closeModal();
   showPage('facture-view');
+}
+
+/* ---------- Intégration automatique : achat de stock (entrée avec prix) → écriture 601/401 ---------- */
+async function comptabiliserAchatMouvementStock(composantNom,quantite,prixUnitaire,motif,reference){
+  const montant=Math.round((+quantite||0)*(+prixUnitaire||0));
+  if(montant<=0) return null;
+  await comptaChargerReferentiel();
+  const today=new Date().toISOString().slice(0,10);
+  if(exerciceEstClos(today)){ toast('Achat non comptabilisé : exercice clôturé.','error'); return null; }
+  const annee=new Date().getFullYear();
+  const ref=await genererRefEcriture(annee);
+  const libelle=`Achat stock — ${composantNom||'composant'}${motif?' — '+motif:''}`;
+  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:today,journal_code:'AC',piece:reference||null,libelle,source:'auto',source_type:'mouvement_stock',created_by:CURRENT_USER.id}).select().single();
+  if(error) return null;
+  await sb.from('compta_lignes').insert([
+    {ecriture_id:ecr.id,compte_code:'601000',sens:'D',montant,libelle},
+    {ecriture_id:ecr.id,compte_code:'401000',sens:'C',montant,libelle}
+  ]);
+  return ecr;
 }
 
 /* ============================== RÉALISATIONS (galerie du site public) ============================== */
