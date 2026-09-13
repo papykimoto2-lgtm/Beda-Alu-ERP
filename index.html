@@ -2090,6 +2090,30 @@ function renderSimDebitResult(){
    Coulissant galandage et Garde-corps inox sont reprises à l'identique ; Moustiquaire et
    Fenêtre jalousie sont des formules analogues (pas d'équivalent côté Sanix). */
 const CONFIG_TYPES=['Fenêtre coulissante','Porte à la française','Porte coulissante','Coulissant galandage','Fenêtre jalousie','Moustiquaire fixe','Moustiquaire coulissante','Garde-corps inox'];
+/* ---------- Catalogue technique : systèmes profilés aluminium (sections réelles, mm) ----------
+   Source unique de vérité pour le calcul de BOM ET pour le dessin des coupes techniques :
+   plus aucune cote de schéma n'est codée en dur, tout dérive de ces enregistrements. */
+const CATALOGUE_SYSTEMES={
+  STD120:{label:'Série Standard 120 — Battant / Fixe',profondeur:120,epaisseurParoi:1.8,feuillure:20,reservationVitrage:110,nbChambres:2,rupturePontThermique:false,poidsMl:2.9,uf:3.4},
+  COUL120:{label:'Série Coulissant 120 — 2 à 4 rails',profondeur:120,epaisseurParoi:1.8,feuillure:16,reservationVitrage:110,nbChambres:2,rupturePontThermique:false,poidsMl:3.1,uf:3.6},
+  PREM150:{label:'Série Premium 150 RPT — Rupture de pont thermique',profondeur:150,epaisseurParoi:2.0,feuillure:24,reservationVitrage:130,nbChambres:3,rupturePontThermique:true,poidsMl:4.2,uf:1.4}
+};
+/* ---------- Catalogue technique : compositions de vitrage réelles (mm) ---------- */
+const CATALOGUE_VITRAGES={
+  'SV4':{label:'Vitrage simple 4 mm',layers:[{t:'verre',ep:4}],epaisseur:4,ug:5.8,facteurPrix:0.45},
+  'DV4-16-4':{label:'Double vitrage 4/16/4 (argon)',layers:[{t:'verre',ep:4},{t:'lame',ep:16},{t:'verre',ep:4}],epaisseur:24,ug:1.1,facteurPrix:1.15},
+  'DV6-12-6':{label:'Double vitrage 6/12/6',layers:[{t:'verre',ep:6},{t:'lame',ep:12},{t:'verre',ep:6}],epaisseur:24,ug:2.8,facteurPrix:1},
+  'FEUILLETE-33-2':{label:'Feuilleté sécurit 33.2',layers:[{t:'verre',ep:3},{t:'pvb',ep:1},{t:'verre',ep:3}],epaisseur:7,ug:5.6,facteurPrix:1.3},
+  'TRIPLE-4-16-4-16-4':{label:'Triple vitrage 4/16/4/16/4',layers:[{t:'verre',ep:4},{t:'lame',ep:16},{t:'verre',ep:4},{t:'lame',ep:16},{t:'verre',ep:4}],epaisseur:44,ug:0.6,facteurPrix:1.9}
+};
+/* ---------- Catalogue technique : finitions / teintes RAL réelles (rendu couleur des coupes) ---------- */
+const CATALOGUE_FINITIONS={
+  blanc9010:{label:'Blanc RAL 9010',hex:'#F1EEE6',hexDark:'#C9C5B9',hexLight:'#FFFFFF'},
+  gris7016:{label:'Gris anthracite RAL 7016',hex:'#3B4146',hexDark:'#22262A',hexLight:'#5B6268'},
+  noir9005:{label:'Noir RAL 9005',hex:'#232326',hexDark:'#0E0E10',hexLight:'#454548'},
+  bronze:{label:'Bronze anodisé',hex:'#6B5439',hexDark:'#453522',hexLight:'#8A7052'},
+  naturel:{label:'Naturel anodisé satiné',hex:'#C9CDD1',hexDark:'#9AA0A6',hexLight:'#E9EBED'}
+};
 /* Prix unitaires lus depuis la table composants (catalogue Composants & Consommables) — voir
    window._composantsPriceMap, chargée par buildComposantsPriceMap(). Structure : { code: { standing: prix } }.
    Le 3e argument de getPrix est un secours si le composant a été supprimé du catalogue,
@@ -2113,13 +2137,18 @@ function getPrix(code,standing,fallback){
 function configCalculerBOM(type,w,h,leaves,qty,opts){
   opts=opts||{};
   const standing=opts.standing||'standard';
+  const system=CATALOGUE_SYSTEMES[opts.serie]||CATALOGUE_SYSTEMES.STD120;
+  const vitrage=CATALOGUE_VITRAGES[opts.vitrage]||CATALOGUE_VITRAGES['DV6-12-6'];
+  const finition=CATALOGUE_FINITIONS[opts.finition]||CATALOGUE_FINITIONS.blanc9010;
   const perimeter=2*(w+h);
-  let rows=[], alu=0, glassArea=0, glassPanels=[];
+  let rows=[], alu=0, glassArea=0, glassPanels=[], geom={};
   if(type==='Garde-corps inox'){
     const spacing=Math.max(500,+opts.spacing||1500);
     const infill=opts.infill||'cable';
     const nPoteaux=Math.max(2,Math.ceil(w/spacing)+1);
     const nPanels=nPoteaux-1;
+    const panelW=w/nPanels;
+    const feuillete=CATALOGUE_VITRAGES['FEUILLETE-33-2'];
     glassArea=infill==='verre'?(w/nPanels*h/1000000)*nPanels*qty:0;
     alu=(nPoteaux*h+w)*qty/1000;
     rows=[
@@ -2132,11 +2161,12 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
       ] : infill==='barreaudage' ? [
         ['BAR-GI-001','Barreau vertical inox Ø12mm',Math.ceil(w/110)*qty,h,Math.ceil(w/110)*qty*(h/1000)*getPrix('BAR-GI-001',standing,8200)]
       ] : [
-        ['VIT-GI-001','Verre feuilleté sécurit',nPanels*qty,Math.round(w/nPanels*h/1000),glassArea*getPrix('VIT-GI-001',standing,9500)],
+        ['VIT-GI-001',`Verre feuilleté sécurit ${feuillete.epaisseur} mm (33.2)`,nPanels*qty,Math.round(w/nPanels*h/1000),glassArea*getPrix('VIT-GI-001',standing,9500)],
         ['PIN-GI-001','Pince de fixation verre inox',4*nPanels*qty,0,4*nPanels*qty*getPrix('PIN-GI-001',standing,2400)]
       ])
     ];
     if(infill==='verre') glassPanels=[{code:'VIT-GI-001',w:Math.round(w/nPanels),h,qty:nPanels*qty}];
+    geom={kind:'gardecorps',nPoteaux,nPanels,spacing,panelW,infill};
   } else if(type==='Moustiquaire fixe' || type==='Moustiquaire coulissante'){
     const isCoul=type==='Moustiquaire coulissante';
     const ouvrantW=isCoul?Math.max(0,w/leaves):w;
@@ -2153,6 +2183,7 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
         ['LOQ-MO-001','Loquet de fermeture',qty,0,qty*getPrix('LOQ-MO-001',standing,1200)]
       ])
     ];
+    geom={kind:'moustiquaire',isCoul,ouvrantW,leaves};
   } else if(type==='Fenêtre jalousie'){
     const nLames=Math.max(3,Math.round(h/120));
     glassArea=(w*h/1000000)*qty;
@@ -2165,13 +2196,14 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
       ['CLI-FJ-001','Clip de fixation lame',nLames*2*qty,0,nLames*2*qty*getPrix('CLI-FJ-001',standing,350)]
     ];
     glassPanels=[{code:'LAM-FJ-001',w,h:Math.round(h/nLames),qty:nLames*qty}];
+    geom={kind:'jalousie',nLames,lameH:h/nLames};
   } else {
     const jointType=opts.jointType||'onglet';
     const gap=+opts.gap||5;
     const isPorte=type==='Porte à la française';
     const isGalandage=type==='Coulissant galandage';
     const ouvrantW=Math.max(0,(w-(leaves-1)*45)/leaves);
-    const glassRebate=107+3;
+    const glassRebate=system.reservationVitrage;
     const glassW=Math.max(0,ouvrantW-glassRebate-gap);
     const glassH=Math.max(0,h-glassRebate-gap);
     glassArea=glassW*glassH/1000000*leaves*qty;
@@ -2184,7 +2216,7 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
       ['P-STD-003','Ouvrant horizontal',2*leaves*qty,ouvrantW,2*leaves*qty*(ouvrantW/1000)*getPrix('P-STD-003',standing,9200)],
       ['P-STD-004','Ouvrant vertical',2*leaves*qty,h,2*leaves*qty*(h/1000)*getPrix('P-STD-004',standing,9200)],
       ['P-PAR-001','Parclose',4*leaves*qty,glassW,4*leaves*qty*(glassW/1000)*getPrix('P-PAR-001',standing,3200)],
-      ['VIT-001','Double vitrage 6/12/6',leaves*qty,glassW*glassH/1000000,glassArea*getPrix('VIT-001',standing,6500)],
+      ['VIT-001',vitrage.label,leaves*qty,glassW*glassH/1000000,glassArea*getPrix('VIT-001',standing,Math.round(6500*vitrage.facteurPrix))],
       ['JNT-001','Joint vitrage',2*(glassW+glassH)*leaves*qty/1000,0,2*(glassW+glassH)*leaves*qty/1000*getPrix('JNT-001',standing,900)],
       [quiCode1,isPorte?'Ensemble serrure + poignée':'Poignée',leaves*qty,0,leaves*qty*getPrix(quiCode1,standing,isPorte?12500:4500)],
       [quiCode2,isPorte?'Paumelle renforcée':isGalandage?'Roulette renforcée galandage':'Paumelle',(isPorte?3:2)*leaves*qty,0,(isPorte?3:2)*leaves*qty*getPrix(quiCode2,standing,isPorte?1600:isGalandage?2100:850)],
@@ -2205,9 +2237,10 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
       })()
     ];
     glassPanels=[{code:'VIT-001',w:Math.round(glassW),h:Math.round(glassH),qty:leaves*qty}];
+    geom={kind:'standard',ouvrantW,glassW,glassH,glassRebate,gap,leaves,jointType,isPorte,isGalandage};
   }
   const coutMateriel=rows.reduce((s,r)=>s+r[4],0);
-  return {rows,alu,glassArea,coutMateriel,surface:w*h/1000000,glassPanels};
+  return {rows,alu,glassArea,coutMateriel,surface:w*h/1000000,glassPanels,system,vitrage,finition,geom};
 }
 /* ---------- Classification BOM (structure/mobile/vitrage/quincaillerie), portée de Sanix ---------- */
 const BOM_L1_CATEGORIES=[
@@ -2258,7 +2291,7 @@ let configState=null;
 async function renderConfigurateur(el){
   const {data:priceRows}=await sb.from('composants').select('code,prix_unitaire,standing').not('code','is',null);
   window._composantsPriceMap=buildComposantsPriceMap(priceRows);
-  configState={type:CONFIG_TYPES[0],w:1200,h:1200,leaves:2,qty:1,serie:'STD120',standing:'standard',jointType:'onglet',gap:5,spacing:1500,infill:'cable',
+  configState={type:CONFIG_TYPES[0],w:1200,h:1200,leaves:2,qty:1,serie:'STD120',vitrage:'DV6-12-6',finition:'blanc9010',standing:'standard',jointType:'onglet',gap:5,spacing:1500,infill:'cable',
     barLen:6000,kerf:3,laborRate:3500,poseForfait:0,tauxEnergie:2,tauxAmortissement:3,tauxTransport:2,tauxFraisAtelier:5,tauxFraisAdmin:5,margin:25,remise:0,
     sheetW:3210,sheetH:2250,glassKerf:5,chuteMinReutilisable:500,chuteMinReutilisableVitrage:300,
     activeTab:'config'};
@@ -2291,13 +2324,14 @@ function showEtudeTab(tab){
 function configUpdate(field,value){ configState[field]=value; showEtudeTab(configState.activeTab); }
 function configResultat(){
   const c=configState;
-  return configCalculerBOM(c.type,c.w,c.h,c.leaves,c.qty,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill,standing:c.standing});
+  return configCalculerBOM(c.type,c.w,c.h,c.leaves,c.qty,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill,standing:c.standing,serie:c.serie,vitrage:c.vitrage,finition:c.finition});
 }
 function renderTabConfig(){
   const c=configState;
   const isGC=c.type==='Garde-corps inox';
   const showLeaves=!isGC && c.type!=='Moustiquaire fixe' && c.type!=='Fenêtre jalousie';
   const showJoint=!isGC && !c.type.startsWith('Moustiquaire') && c.type!=='Fenêtre jalousie';
+  const showVitrage=showJoint || (isGC && (c.infill||'cable')==='verre');
   const res=configResultat();
   document.getElementById('etudeTabContent').innerHTML=`
     <div class="page-card mb-4">
@@ -2309,12 +2343,14 @@ function renderTabConfig(){
       <div class="divider"></div>
       <div class="grid sm:grid-cols-3 gap-4">
         <div class="field"><label>Type d'ouvrage</label>${fieldWrap('🏗️',`<select onchange="configUpdate('type',this.value)">${CONFIG_TYPES.map(t=>`<option ${t===c.type?'selected':''}>${t}</option>`).join('')}</select>`)}</div>
-        <div class="field"><label>Série aluminium</label>${fieldWrap('📐',`<select onchange="configUpdate('serie',this.value)"><option value="STD120" ${c.serie==='STD120'?'selected':''}>Série Standard 120</option><option value="COUL120" ${c.serie==='COUL120'?'selected':''}>Série Coulissant 120</option><option value="PREM150" ${c.serie==='PREM150'?'selected':''}>Série Premium 150</option></select>`)}</div>
+        <div class="field"><label>Série aluminium</label>${fieldWrap('📐',`<select onchange="configUpdate('serie',this.value)">${Object.entries(CATALOGUE_SYSTEMES).map(([k,v])=>`<option value="${k}" ${c.serie===k?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Finition / Couleur</label>${fieldWrap(`<span class="inline-block w-3.5 h-3.5 rounded-full border border-black/20 align-middle" style="background:${(CATALOGUE_FINITIONS[c.finition]||CATALOGUE_FINITIONS.blanc9010).hex}"></span>`,`<select onchange="configUpdate('finition',this.value)">${Object.entries(CATALOGUE_FINITIONS).map(([k,v])=>`<option value="${k}" ${(c.finition||'blanc9010')===k?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Standing</label>${fieldWrap('⭐',`<select onchange="configUpdate('standing',this.value)">${Object.entries(COMPOSANT_STANDINGS).map(([k,v])=>`<option value="${k}" ${(c.standing||'standard')===k?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Quantité</label>${fieldWrap('#',`<input type="number" min="1" value="${c.qty}" onchange="configUpdate('qty',+this.value||1)">`)}</div>
         <div class="field"><label>Largeur (mm)</label>${fieldWrap('↔️',`<input type="number" value="${c.w}" onchange="configUpdate('w',+this.value||0)">`)}</div>
         <div class="field"><label>Hauteur (mm)</label>${fieldWrap('↕️',`<input type="number" value="${c.h}" onchange="configUpdate('h',+this.value||0)">`)}</div>
         ${showLeaves?`<div class="field"><label>Nombre de vantaux</label>${fieldWrap('🚪',`<input type="number" min="1" value="${c.leaves}" onchange="configUpdate('leaves',+this.value||1)">`)}</div>`:''}
+        ${showVitrage?`<div class="field"><label>Type de vitrage</label>${fieldWrap('🪟',`<select onchange="configUpdate('vitrage',this.value)">${Object.entries(CATALOGUE_VITRAGES).map(([k,v])=>`<option value="${k}" ${(c.vitrage||'DV6-12-6')===k?'selected':''}>${escapeHtml(v.label)} — Ug ${v.ug}</option>`).join('')}</select>`)}</div>`:''}
         ${showJoint?`<div class="field"><label>Type de jonction</label>${fieldWrap('🔗',`<select onchange="configUpdate('jointType',this.value)"><option value="onglet" ${c.jointType==='onglet'?'selected':''}>Onglet 45°</option><option value="equerre" ${c.jointType==='equerre'?'selected':''}>Équerre d'angle</option><option value="about" ${c.jointType==='about'?'selected':''}>Aboutage 90°</option></select>`)}</div>
         <div class="field"><label>Jeu vitrage (mm)</label>${fieldWrap('📏',`<input type="number" value="${c.gap}" onchange="configUpdate('gap',+this.value||0)">`)}</div>`:''}
         ${isGC?`<div class="field"><label>Espacement poteaux (mm)</label>${fieldWrap('📏',`<input type="number" min="500" value="${c.spacing}" onchange="configUpdate('spacing',+this.value||1500)">`)}</div>
@@ -2363,7 +2399,7 @@ function renderTabConfig(){
           <p class="text-xs text-gray-500">Coupe agrandie de l'assemblage dormant/ouvrant à 45°.</p>
         </div>
       </div>
-      <div class="bg-white rounded-xl border p-3 overflow-hidden">${svgJonctionAngle(c)}</div>
+      <div class="bg-white rounded-xl border p-3 overflow-hidden">${svgJonctionAngle(c,res)}</div>
       <div class="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
         <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Angle</div><b>45°</b></div>
         <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Fixation</div><b>${({onglet:'2 vis Ø4',equerre:'Équerre + 4 vis',about:'Vis auto-taraudeuses'})[c.jointType]}</b></div>
@@ -2376,94 +2412,320 @@ function renderTabConfig(){
       <button class="btn btn-outline" onclick="showEtudeTab('bom')">Voir la nomenclature →</button>
     </div>`;
 }
+/* ---------- Rendu SVG paramétrique à l'échelle réelle (mm→px), piloté par les catalogues ---------- */
+function niceScaleLength(scale){
+  const candidates=[10,25,50,100,200,250,500,1000,2000,5000,10000];
+  let best=candidates[0],bestDiff=Infinity;
+  candidates.forEach(mm=>{ const px=mm*scale; const diff=Math.abs(px-130); if(diff<bestDiff){bestDiff=diff;best=mm;} });
+  return best;
+}
+function svgScaleBar(uid,scale){
+  const mm=niceScaleLength(scale);
+  const full=mm*scale, half=full/2;
+  return `<text x="${(full/2).toFixed(1)}" y="-8" text-anchor="middle" font-size="10" font-weight="700" fill="#64748b">ÉCHELLE GRAPHIQUE</text>
+    <rect x="0" y="0" width="${half.toFixed(1)}" height="6" fill="#0f172a"/>
+    <rect x="${half.toFixed(1)}" y="0" width="${half.toFixed(1)}" height="6" fill="#fff" stroke="#0f172a" stroke-width="1"/>
+    <rect x="0" y="0" width="${full.toFixed(1)}" height="6" fill="none" stroke="#0f172a" stroke-width="1"/>
+    <text x="0" y="18" font-size="9" fill="#334155">0</text>
+    <text x="${full.toFixed(1)}" y="18" text-anchor="end" font-size="9" fill="#334155">${mm} mm</text>`;
+}
+/* Vue de face à l'échelle : dispatch par nature d'ouvrage (res.geom.kind), seule source de géométrie
+   réutilisée à la fois par le schéma simple et par le plan de fabrication. */
+function elevationGroup(c,res,uid,boxW,boxH){
+  const fin=res.finition, sys=res.system, geom=res.geom||{};
+  const w=Math.max(1,c.w), h=Math.max(1,c.h);
+  const scale=Math.min(boxW/w, boxH/h);
+  const W=w*scale, H=h*scale;
+  const defs=`<linearGradient id="alu-${uid}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${fin.hexLight}"/><stop offset="50%" stop-color="${fin.hex}"/><stop offset="100%" stop-color="${fin.hexDark}"/>
+    </linearGradient>
+    <linearGradient id="glass-${uid}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef7ff"/><stop offset="45%" stop-color="#cfe8fb"/><stop offset="100%" stop-color="#93c5e8"/>
+    </linearGradient>
+    <pattern id="mesh-${uid}" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 0 L4 4 M4 0 L0 4" stroke="#8a94a3" stroke-width="0.5"/></pattern>
+    <marker id="arrow-${uid}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2563eb"/></marker>`;
+  const kind=geom.kind||'standard';
+  let inner='';
+  if(kind==='gardecorps'){
+    const railPx=Math.max(4,40*scale), poteauPx=Math.max(2,26*scale), nPoteaux=Math.max(2,geom.nPoteaux||2);
+    inner+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${railPx.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`;
+    for(let i=0;i<nPoteaux;i++){
+      const px=nPoteaux>1?(i/(nPoteaux-1))*(W-poteauPx):0;
+      inner+=`<rect x="${px.toFixed(1)}" y="0" width="${poteauPx.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`;
+    }
+    if(geom.infill==='cable'){
+      const nCables=Math.max(3,Math.ceil(h/110));
+      for(let i=1;i<=nCables;i++){ const cy=railPx+(i/(nCables+1))*(H-railPx); inner+=`<line x1="${poteauPx.toFixed(1)}" y1="${cy.toFixed(1)}" x2="${(W-poteauPx).toFixed(1)}" y2="${cy.toFixed(1)}" stroke="#8f98a3" stroke-width="1.3"/>`; }
+    } else if(geom.infill==='barreaudage'){
+      const nBars=Math.max(3,Math.ceil(w/110));
+      for(let i=1;i<nBars;i++){ const bx=(i/nBars)*W; inner+=`<line x1="${bx.toFixed(1)}" y1="${railPx.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${H.toFixed(1)}" stroke="#8f98a3" stroke-width="2"/>`; }
+    } else {
+      for(let i=0;i<nPoteaux-1;i++){
+        const x0=(i/(nPoteaux-1))*(W-poteauPx)+poteauPx, x1=((i+1)/(nPoteaux-1))*(W-poteauPx);
+        inner+=`<rect x="${x0.toFixed(1)}" y="${railPx.toFixed(1)}" width="${Math.max(0,x1-x0).toFixed(1)}" height="${(H-railPx).toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="1"/>`;
+      }
+    }
+  } else if(kind==='moustiquaire'){
+    const border=Math.max(2,18*scale);
+    inner+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.2"/>`;
+    const leaves=geom.isCoul?Math.max(1,geom.leaves||1):1;
+    const meshGap=Math.max(2,6*scale);
+    const lw=(W-2*border-(leaves-1)*meshGap)/leaves;
+    let cx=border;
+    for(let i=0;i<leaves;i++){
+      inner+=`<rect x="${cx.toFixed(1)}" y="${border.toFixed(1)}" width="${Math.max(0,lw).toFixed(1)}" height="${Math.max(0,H-2*border).toFixed(1)}" fill="url(#mesh-${uid})" stroke="#4a5568" stroke-width="1"/>`;
+      cx+=lw+meshGap;
+    }
+  } else if(kind==='jalousie'){
+    const border=Math.max(2,18*scale), nLames=Math.max(3,geom.nLames||5), gap=Math.max(1,2*scale);
+    inner+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.2"/>`;
+    const lameH=(H-2*border-(nLames-1)*gap)/nLames;
+    for(let i=0;i<nLames;i++){ const ly=border+i*(lameH+gap); inner+=`<rect x="${border.toFixed(1)}" y="${ly.toFixed(1)}" width="${(W-2*border).toFixed(1)}" height="${Math.max(1,lameH).toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="0.8"/>`; }
+  } else {
+    const fb=Math.max(3,(sys.reservationVitrage||110)/2*scale);
+    inner+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.5"/>`;
+    const leaves=Math.max(1,geom.leaves||1);
+    const meneauPx=(leaves>1?45:0)*scale;
+    // Largeur visuelle des vantaux recalculée pour tenir exactement dans la réservation du dormant
+    // (la largeur d'ouvrant du BOM mesure l'ouvrant en cotes de fabrication, pas la réservation visible).
+    const leafWpx=Math.max(0,W-2*fb-(leaves-1)*meneauPx)/leaves, leafH=Math.max(0,H-2*fb), ob=Math.max(1.5,fb*0.55);
+    let cx=fb;
+    for(let i=0;i<leaves;i++){
+      inner+=`<rect x="${cx.toFixed(1)}" y="${fb.toFixed(1)}" width="${leafWpx.toFixed(1)}" height="${leafH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`;
+      const gx=cx+ob, gy=fb+ob, gw=Math.max(0,leafWpx-2*ob), gh=Math.max(0,leafH-2*ob);
+      inner+=`<rect x="${gx.toFixed(1)}" y="${gy.toFixed(1)}" width="${gw.toFixed(1)}" height="${gh.toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="1"/>`;
+      inner+=`<line x1="${(gx+gw*0.12).toFixed(1)}" y1="${(gy+gh*0.12).toFixed(1)}" x2="${(gx+gw*0.55).toFixed(1)}" y2="${(gy+gh*0.85).toFixed(1)}" stroke="#ffffff" stroke-opacity="0.4" stroke-width="${Math.max(1,gw*0.035).toFixed(1)}"/>`;
+      const handleY=fb+leafH*0.5, hOff=Math.max(4,fb*0.3);
+      const handleX=(i%2===0)?(cx+leafWpx-ob-hOff):(cx+ob+hOff);
+      inner+=`<rect x="${(handleX-1.5).toFixed(1)}" y="${(handleY-Math.max(6,fb*0.5)).toFixed(1)}" width="3" height="${Math.max(12,fb).toFixed(1)}" rx="1.5" fill="${fin.hexDark}"/>`;
+      cx+=leafWpx;
+      if(i<leaves-1){ inner+=`<rect x="${cx.toFixed(1)}" y="${fb.toFixed(1)}" width="${meneauPx.toFixed(1)}" height="${leafH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`; cx+=meneauPx; }
+    }
+    if(geom.isPorte){
+      const r=Math.min(leafWpx,leafH);
+      inner+=`<path d="M ${fb.toFixed(1)} ${fb.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${(fb+r).toFixed(1)} ${(fb+r).toFixed(1)}" fill="none" stroke="#2563eb" stroke-width="1.2" stroke-dasharray="5 3"/>`;
+    } else if(leaves>1){
+      const midY=fb+leafH*0.5;
+      inner+=`<line x1="${(fb+leafWpx*0.65).toFixed(1)}" y1="${midY.toFixed(1)}" x2="${(fb+leafWpx*0.2).toFixed(1)}" y2="${midY.toFixed(1)}" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-${uid})"/>`;
+    }
+  }
+  return {defs,inner,W,H,scale};
+}
+/* Coupe A-A (dépouille du profil, à l'échelle du système réellement sélectionné) */
+function buildCoupeStandardAA(res,uid,boxW,boxH){
+  const sys=res.system, vit=res.vitrage, fin=res.finition;
+  const totalDepth=sys.profondeur;
+  const scale=Math.min(boxW/totalDepth, boxH/280);
+  const barH=Math.min(boxH,280*scale), barW=totalDepth*scale;
+  const dormantW=barW*0.52, gapW=Math.max(2,4*scale), ouvrantW=barW-dormantW-gapW;
+  const parcloseW=Math.max(3,8*scale);
+  const vitrageW=Math.max(1,Math.min(ouvrantW-2*parcloseW, vit.epaisseur*scale*1.15));
+  const vitrageX=dormantW+gapW+(ouvrantW-vitrageW)/2;
+  let s=`<rect x="0" y="0" width="${dormantW.toFixed(1)}" height="${barH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.5"/>`;
+  const nCh=Math.max(1,sys.nbChambres);
+  for(let i=1;i<nCh;i++){
+    const cxp=(dormantW/nCh)*i;
+    if(sys.rupturePontThermique && i===Math.ceil(nCh/2)){
+      const rptW=Math.max(3,3.5*scale);
+      s+=`<rect x="${(cxp-rptW/2).toFixed(1)}" y="0" width="${rptW.toFixed(1)}" height="${barH.toFixed(1)}" fill="#caa66b" stroke="#7a5c2e" stroke-width="0.6"/>`;
+    } else {
+      s+=`<line x1="${cxp.toFixed(1)}" y1="4" x2="${cxp.toFixed(1)}" y2="${(barH-4).toFixed(1)}" stroke="${fin.hexDark}" stroke-width="1" stroke-opacity="0.5"/>`;
+    }
+  }
+  s+=`<rect x="${(dormantW+gapW).toFixed(1)}" y="0" width="${ouvrantW.toFixed(1)}" height="${barH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.5"/>`;
+  let vx=vitrageX;
+  const layerScale=vitrageW/vit.epaisseur;
+  vit.layers.forEach(l=>{
+    const lw=Math.max(0.6,l.ep*layerScale);
+    const color=l.t==='verre'?`url(#glass-${uid})`:l.t==='pvb'?'#e8c56b':'#f4f8fb';
+    s+=`<rect x="${vx.toFixed(1)}" y="6" width="${lw.toFixed(1)}" height="${(barH-12).toFixed(1)}" fill="${color}" stroke="${l.t==='verre'?'#4a7ba6':'#c7d3dc'}" stroke-width="0.7"/>`;
+    vx+=lw;
+  });
+  s+=`<rect x="${(dormantW+gapW).toFixed(1)}" y="0" width="${parcloseW.toFixed(1)}" height="${barH.toFixed(1)}" fill="${fin.hex}" stroke="${fin.hexDark}" stroke-width="1"/>`;
+  s+=`<rect x="${(dormantW+gapW+ouvrantW-parcloseW).toFixed(1)}" y="0" width="${parcloseW.toFixed(1)}" height="${barH.toFixed(1)}" fill="${fin.hex}" stroke="${fin.hexDark}" stroke-width="1"/>`;
+  return {content:s,barW,barH,dormantW,ouvrantW,gapW};
+}
+/* Coupe B-B (rail bas / seuil, différenciée porte battante ↔ coulissant) */
+function buildCoupeStandardBB(c,res,uid,boxW,boxH){
+  const sys=res.system, fin=res.finition, geom=res.geom;
+  const leaves=Math.max(1,geom.leaves||1);
+  const railH=Math.max(10,Math.min(boxH*0.35,sys.profondeur*0.4));
+  const gap=6, leafW=(boxW-(leaves-1)*gap)/leaves;
+  let s=`<rect x="0" y="${(boxH-railH).toFixed(1)}" width="${boxW.toFixed(1)}" height="${railH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.5"/>`;
+  let cx=0;
+  for(let i=0;i<leaves;i++){
+    const ouvH=boxH-railH-6, pad=Math.max(3,leafW*0.12);
+    s+=`<rect x="${cx.toFixed(1)}" y="0" width="${leafW.toFixed(1)}" height="${ouvH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.2"/>`;
+    s+=`<rect x="${(cx+pad).toFixed(1)}" y="${pad.toFixed(1)}" width="${Math.max(0,leafW-2*pad).toFixed(1)}" height="${Math.max(0,ouvH-2*pad).toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="1"/>`;
+    if(geom.isPorte){
+      s+=`<circle cx="${(cx+leafW/2).toFixed(1)}" cy="${(boxH-railH/2).toFixed(1)}" r="${Math.max(3,railH*0.22).toFixed(1)}" fill="#e8e8ea" stroke="#111827" stroke-width="1.4"/>`;
+    } else {
+      s+=`<circle cx="${(cx+leafW*0.25).toFixed(1)}" cy="${(boxH-railH*0.3).toFixed(1)}" r="${Math.max(3,railH*0.22).toFixed(1)}" fill="#4b5563" stroke="#111827" stroke-width="1.2"/>`;
+      s+=`<circle cx="${(cx+leafW*0.75).toFixed(1)}" cy="${(boxH-railH*0.3).toFixed(1)}" r="${Math.max(3,railH*0.22).toFixed(1)}" fill="#4b5563" stroke="#111827" stroke-width="1.2"/>`;
+    }
+    cx+=leafW+gap;
+  }
+  return {content:s};
+}
+/* Coupes spécifiques aux ouvrages hors fenêtre/porte (garde-corps, moustiquaire, jalousie) */
+function buildCoupeAutre(kind,c,res,uid,boxW,boxH){
+  const geom=res.geom;
+  if(kind==='gardecorps'){
+    const tubeD=Math.min(boxW*0.3,50), cx=boxW/2;
+    const contentA=`<circle cx="${cx.toFixed(1)}" cy="${(boxH*0.35).toFixed(1)}" r="${(tubeD/2).toFixed(1)}" fill="#c7ccd1" stroke="#374151" stroke-width="2"/>
+      <text x="${cx.toFixed(1)}" y="${(boxH*0.35+tubeD/2+18).toFixed(1)}" text-anchor="middle" font-size="10" fill="#475569">Poteau inox Ø42.4 mm</text>
+      <rect x="${(cx-tubeD*0.9).toFixed(1)}" y="${(boxH*0.7).toFixed(1)}" width="${(tubeD*1.8).toFixed(1)}" height="14" fill="#9aa1a8" stroke="#111827" stroke-width="1.5"/>
+      <text x="${cx.toFixed(1)}" y="${(boxH*0.7+30).toFixed(1)}" text-anchor="middle" font-size="10" fill="#475569">Platine de fixation inox</text>`;
+    const infillLabel=geom.infill==='cable'?'Câble inox tendu Ø6 mm':geom.infill==='barreaudage'?'Barreaudage vertical Ø12 mm':'Verre feuilleté 33.2 + pince inox';
+    const contentB=`<text x="10" y="20" font-size="12" font-weight="700" fill="#0f172a">Remplissage</text>
+      <text x="10" y="42" font-size="11" fill="#475569">${escapeHtml(infillLabel)}</text>
+      <text x="10" y="64" font-size="11" fill="#475569">Espacement poteaux : ${geom.spacing} mm</text>`;
+    return {titleA:'COUPE POTEAU — FIXATION',contentA,titleB:'DÉTAIL REMPLISSAGE',contentB};
+  }
+  if(kind==='moustiquaire'){
+    const border=18;
+    const contentA=`<rect x="0" y="0" width="${boxW}" height="${(boxH*0.55).toFixed(1)}" fill="url(#alu-${uid})" stroke="#111827" stroke-width="2"/>
+      <rect x="${border}" y="${border}" width="${Math.max(0,boxW-2*border).toFixed(1)}" height="${Math.max(0,boxH*0.55-2*border).toFixed(1)}" fill="url(#mesh-${uid})" stroke="#4a5568" stroke-width="1"/>
+      <text x="${(boxW/2).toFixed(1)}" y="${(boxH*0.55+20).toFixed(1)}" text-anchor="middle" font-size="10" fill="#475569">Cadre + toile fibre de verre clipée (jonc)</text>`;
+    const contentB=geom.isCoul?`<text x="10" y="20" font-size="12" font-weight="700" fill="#0f172a">Rail coulissant</text><text x="10" y="42" font-size="11" fill="#475569">${geom.leaves} vantaux — roulettes latérales</text>`:`<text x="10" y="20" font-size="12" font-weight="700" fill="#0f172a">Cadre fixe</text><text x="10" y="42" font-size="11" fill="#475569">Loquets de fermeture périphériques</text>`;
+    return {titleA:'COUPE CADRE — TOILE MOUSTIQUAIRE',contentA,titleB:'DÉTAIL FIXATION',contentB};
+  }
+  if(kind==='jalousie'){
+    const nSample=Math.min(4,geom.nLames||3);
+    let contentA='';
+    for(let i=0;i<nSample;i++){
+      const ly=i*(boxH/nSample);
+      contentA+=`<rect x="0" y="${ly.toFixed(1)}" width="${boxW}" height="${(boxH/nSample-6).toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="1"/>`;
+      contentA+=`<circle cx="8" cy="${(ly+boxH/nSample/2-3).toFixed(1)}" r="3" fill="#111827"/>`;
+    }
+    contentA+=`<text x="${(boxW/2).toFixed(1)}" y="${(boxH+16).toFixed(1)}" text-anchor="middle" font-size="10" fill="#475569">Lames verre 5 mm — clips latéraux</text>`;
+    const contentB=`<text x="10" y="20" font-size="12" font-weight="700" fill="#0f172a">Mécanisme</text><text x="10" y="42" font-size="11" fill="#475569">Manivelle + biellette d'entraînement</text><text x="10" y="64" font-size="11" fill="#475569">${geom.nLames} lames</text>`;
+    return {titleA:'COUPE LAMES — DÉTAIL FIXATION',contentA,titleB:'MÉCANISME MANIVELLE',contentB};
+  }
+  return {titleA:'COUPE A-A',contentA:'',titleB:'COUPE B-B',contentB:''};
+}
 function svgSchemaParametrique(c,res){
-  const label=`${c.type} • ${c.leaves>1?c.leaves+' vantaux':'1 vantail'} • Série ${c.serie}`;
-  return `<svg viewBox="0 0 760 390" class="w-full h-auto" role="img" aria-label="Schéma technique de l'ouvrage">
-    <defs><marker id="pArrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker></defs>
-    <rect x="145" y="55" width="470" height="260" rx="2" fill="#e2e8f0" stroke="#0f172a" stroke-width="8"/>
-    <rect x="165" y="75" width="430" height="220" fill="#dbeafe" stroke="#64748b" stroke-width="4"/>
-    <line x1="380" y1="75" x2="380" y2="295" stroke="#64748b" stroke-width="5"/>
-    <circle cx="365" cy="185" r="4" fill="#0f172a"/><circle cx="395" cy="185" r="4" fill="#0f172a"/>
-    <line x1="145" y1="35" x2="615" y2="35" stroke="#334155" stroke-width="2" marker-start="url(#pArrow)" marker-end="url(#pArrow)"/>
-    <line x1="145" y1="42" x2="145" y2="55" stroke="#64748b"/><line x1="615" y1="42" x2="615" y2="55" stroke="#64748b"/>
-    <text x="380" y="27" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">${c.w} mm</text>
-    <line x1="120" y1="55" x2="120" y2="315" stroke="#334155" stroke-width="2" marker-start="url(#pArrow)" marker-end="url(#pArrow)"/>
-    <line x1="127" y1="55" x2="145" y2="55" stroke="#64748b"/><line x1="127" y1="315" x2="145" y2="315" stroke="#64748b"/>
-    <text x="98" y="190" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a" transform="rotate(-90 98 190)">${c.h} mm</text>
-    <text x="380" y="350" text-anchor="middle" font-size="15" fill="#475569">${escapeHtml(label)}</text>
+  const uid='ev'+Math.random().toString(36).slice(2,7);
+  const boxW=620,boxH=300,ox=120,oy=64;
+  const g=elevationGroup(c,res,uid,boxW,boxH);
+  const cx=ox+(boxW-g.W)/2, cy=oy+(boxH-g.H)/2;
+  const geom=res.geom;
+  let countLabel='1 élément';
+  if(geom.kind==='gardecorps') countLabel=`${geom.nPoteaux} poteaux`;
+  else if(geom.kind==='jalousie') countLabel=`${geom.nLames} lames`;
+  else if(geom.kind==='moustiquaire') countLabel=geom.isCoul?`${geom.leaves} vantaux`:'Fixe';
+  else countLabel=geom.leaves>1?`${geom.leaves} vantaux`:'1 vantail';
+  const label=`${c.type} • ${countLabel} • ${res.system.label} • ${res.finition.label}`;
+  return `<svg viewBox="0 0 860 440" class="w-full h-auto" role="img" aria-label="Schéma technique de l'ouvrage à l'échelle">
+    <defs>${g.defs}<marker id="dArrow-${uid}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker></defs>
+    <g transform="translate(${cx.toFixed(1)},${cy.toFixed(1)})">${g.inner}</g>
+    <line x1="${cx.toFixed(1)}" y1="${(cy-20).toFixed(1)}" x2="${(cx+g.W).toFixed(1)}" y2="${(cy-20).toFixed(1)}" stroke="#334155" stroke-width="1.5" marker-start="url(#dArrow-${uid})" marker-end="url(#dArrow-${uid})"/>
+    <line x1="${cx.toFixed(1)}" y1="${(cy-25).toFixed(1)}" x2="${cx.toFixed(1)}" y2="${(cy-15).toFixed(1)}" stroke="#64748b"/>
+    <line x1="${(cx+g.W).toFixed(1)}" y1="${(cy-25).toFixed(1)}" x2="${(cx+g.W).toFixed(1)}" y2="${(cy-15).toFixed(1)}" stroke="#64748b"/>
+    <text x="${(cx+g.W/2).toFixed(1)}" y="${(cy-28).toFixed(1)}" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a">${c.w} mm</text>
+    <line x1="${(cx-20).toFixed(1)}" y1="${cy.toFixed(1)}" x2="${(cx-20).toFixed(1)}" y2="${(cy+g.H).toFixed(1)}" stroke="#334155" stroke-width="1.5" marker-start="url(#dArrow-${uid})" marker-end="url(#dArrow-${uid})"/>
+    <line x1="${(cx-25).toFixed(1)}" y1="${cy.toFixed(1)}" x2="${(cx-15).toFixed(1)}" y2="${cy.toFixed(1)}" stroke="#64748b"/>
+    <line x1="${(cx-25).toFixed(1)}" y1="${(cy+g.H).toFixed(1)}" x2="${(cx-15).toFixed(1)}" y2="${(cy+g.H).toFixed(1)}" stroke="#64748b"/>
+    <text x="${(cx-32).toFixed(1)}" y="${(cy+g.H/2).toFixed(1)}" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a" transform="rotate(-90 ${(cx-32).toFixed(1)} ${(cy+g.H/2).toFixed(1)})">${c.h} mm</text>
+    <g transform="translate(${cx.toFixed(1)},${(oy+boxH+34).toFixed(1)})">${svgScaleBar(uid,g.scale)}</g>
+    <text x="${(cx+g.W).toFixed(1)}" y="${(oy+boxH+34).toFixed(1)}" text-anchor="end" font-size="11" font-weight="700" fill="#1d4ed8">ÉCHELLE 1:${Math.max(1,Math.round(1/g.scale))}</text>
+    <text x="430" y="425" text-anchor="middle" font-size="13" fill="#475569">${escapeHtml(label)}</text>
   </svg>`;
 }
 function svgSchemaFabrication(c,res){
-  const isPorte=c.type==='Porte à la française';
-  const isGC=c.type==='Garde-corps inox';
-  const openingLabel=isPorte?"Sens d'ouverture — porte battante":isGC?'Garde-corps — vue de face':c.leaves>1?`Sens d'ouverture — coulissant ${c.leaves} vantaux`:'Ouvrage fixe';
-  const cutRows=res.rows.slice(0,6).map((r,i)=>`<text x="620" y="${592+i*20}" font-size="11">${escapeHtml(r[0])}</text><text x="760" y="${592+i*20}" font-size="11">${escapeHtml(r[1]).slice(0,26)}</text><text x="965" y="${592+i*20}" font-size="11" text-anchor="end">${Number(r[2]).toFixed(0)}</text><text x="1100" y="${592+i*20}" font-size="11" text-anchor="end">${r[3]?Number(r[3]).toFixed(0):'—'}</text>`).join('');
-  return `<svg viewBox="0 0 1200 760" class="w-full min-w-[1050px] h-auto" aria-label="Plan technique de fabrication aluminium">
-    <defs><marker id="fabArrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker>
-    <pattern id="glassPattern" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0 8 L8 0" stroke="#93c5fd" stroke-width="1"/></pattern></defs>
-    <rect x="15" y="15" width="1170" height="730" fill="#fff" stroke="#0f172a" stroke-width="2"/>
+  const uid='fb'+Math.random().toString(36).slice(2,7);
+  const geom=res.geom, kind=geom.kind||'standard';
+  const sys=res.system, vit=res.vitrage, fin=res.finition;
+  const isPorte=geom.isPorte;
+  const openingLabel=isPorte?"Sens d'ouverture — porte battante":kind==='gardecorps'?'Garde-corps — vue de face':kind==='moustiquaire'?(geom.isCoul?`Moustiquaire coulissante — ${geom.leaves} vantaux`:'Moustiquaire fixe'):kind==='jalousie'?`Jalousie — ${geom.nLames} lames`:geom.leaves>1?`Sens de coulissement — ${geom.leaves} vantaux`:'Ouvrage fixe';
+  const elevBoxW=430,elevBoxH=330,evOxBase=90,evOyBase=140;
+  const ev=elevationGroup(c,res,uid,elevBoxW,elevBoxH);
+  const evOx=evOxBase+(elevBoxW-ev.W)/2, evOy=evOyBase+(elevBoxH-ev.H)/2;
+  const aaBoxX=650,aaBoxY=150,aaBoxW=220,aaBoxH=330;
+  const bbBoxX=90,bbBoxY=560,bbBoxW=430,bbBoxH=130;
+  let titleAA,titleBB,contentAA,contentBB;
+  if(kind==='standard'){
+    titleAA='COUPE A-A — DORMANT / OUVRANT / VITRAGE';
+    titleBB=isPorte?'COUPE B-B — SEUIL / PAUMELLES':'COUPE B-B — RAIL / OUVRANTS';
+    const aa=buildCoupeStandardAA(res,uid,aaBoxW-40,aaBoxH-60);
+    contentAA=`<g transform="translate(${(aaBoxX+20).toFixed(1)},${(aaBoxY+40).toFixed(1)})">${aa.content}
+      <line x1="0" y1="-10" x2="${aa.barW.toFixed(1)}" y2="-10" stroke="#334155" stroke-width="1.5" marker-start="url(#dArrow-${uid})" marker-end="url(#dArrow-${uid})"/>
+      <text x="${(aa.barW/2).toFixed(1)}" y="-16" text-anchor="middle" font-size="13" font-weight="700">${sys.profondeur} mm</text>
+      <text x="0" y="${(aa.barH+22).toFixed(1)}" font-size="10" fill="#475569">◀ Dormant</text>
+      <text x="${(aa.dormantW+aa.gapW+4).toFixed(1)}" y="${(aa.barH+22).toFixed(1)}" font-size="10" fill="#475569">Ouvrant ▶</text>
+      <text x="0" y="${(aa.barH+40).toFixed(1)}" font-size="10" fill="#475569">${escapeHtml(vit.label)}</text>
+    </g>`;
+    const bb=buildCoupeStandardBB(c,res,uid,bbBoxW-20,bbBoxH-30);
+    contentBB=`<g transform="translate(${(bbBoxX+10).toFixed(1)},${(bbBoxY+10).toFixed(1)})">${bb.content}</g>`;
+  } else {
+    const alt=buildCoupeAutre(kind,c,res,uid,aaBoxW-40,aaBoxH-60);
+    titleAA=alt.titleA; titleBB=alt.titleB;
+    contentAA=`<g transform="translate(${(aaBoxX+20).toFixed(1)},${(aaBoxY+40).toFixed(1)})">${alt.contentA}</g>`;
+    contentBB=alt.contentB?`<g transform="translate(${(bbBoxX+10).toFixed(1)},${(bbBoxY+10).toFixed(1)})">${alt.contentB}</g>`:'';
+  }
+  const cutRows=res.rows.slice(0,6).map((r,i)=>`<text x="660" y="${626+i*20}" font-size="11">${escapeHtml(r[0])}</text><text x="800" y="${626+i*20}" font-size="11">${escapeHtml(r[1]).slice(0,28)}</text><text x="1020" y="${626+i*20}" font-size="11" text-anchor="end">${Number(r[2]).toFixed(0)}</text><text x="1150" y="${626+i*20}" font-size="11" text-anchor="end">${r[3]?Number(r[3]).toFixed(0):'—'}</text>`).join('');
+  return `<svg viewBox="0 0 1200 800" class="w-full min-w-[1050px] h-auto" aria-label="Plan technique de fabrication aluminium à l'échelle">
+    <defs>${ev.defs}<marker id="dArrow-${uid}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker></defs>
+    <rect x="15" y="15" width="1170" height="770" fill="#fff" stroke="#0f172a" stroke-width="2"/>
     <text x="35" y="45" font-size="20" font-weight="800" fill="#0f172a">${escapeHtml(c.type.toUpperCase())} — PLAN DE FABRICATION</text>
-    <text x="1160" y="45" text-anchor="end" font-size="12" fill="#475569">B.E. BEDA ALU • V1.0</text>
-    <text x="55" y="78" font-size="14" font-weight="800" fill="#1d4ed8">VUE DE FACE — COTES HORS TOUT</text>
-    <rect x="70" y="105" width="500" height="390" fill="#e5e7eb" stroke="#111827" stroke-width="8"/>
-    <rect x="87" y="122" width="466" height="356" fill="url(#glassPattern)" stroke="#334155" stroke-width="4"/>
-    <line x1="320" y1="122" x2="320" y2="478" stroke="#475569" stroke-width="5"/>
-    <rect x="307" y="278" width="9" height="42" rx="2" fill="#111827"/><rect x="324" y="278" width="9" height="42" rx="2" fill="#111827"/>
-    <line x1="70" y1="88" x2="570" y2="88" stroke="#334155" stroke-width="2" marker-start="url(#fabArrow)" marker-end="url(#fabArrow)"/>
-    <line x1="70" y1="94" x2="70" y2="105" stroke="#64748b"/><line x1="570" y1="94" x2="570" y2="105" stroke="#64748b"/>
-    <text x="320" y="82" text-anchor="middle" font-size="15" font-weight="700">${c.w} mm</text>
-    <line x1="52" y1="105" x2="52" y2="495" stroke="#334155" stroke-width="2" marker-start="url(#fabArrow)" marker-end="url(#fabArrow)"/>
-    <line x1="58" y1="105" x2="70" y2="105" stroke="#64748b"/><line x1="58" y1="495" x2="70" y2="495" stroke="#64748b"/>
-    <text x="35" y="300" text-anchor="middle" font-size="15" font-weight="700" transform="rotate(-90 35 300)">${c.h} mm</text>
-    ${isPorte?`<line id="fabThreshold" x1="70" y1="495" x2="570" y2="495" stroke="#111827" stroke-width="6"/><path d="M 320 122 A 250 250 0 0 1 500 300" fill="none" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="4 3"/>`
-      :`<line x1="300" y1="250" x2="190" y2="250" stroke="#2563eb" stroke-width="3" marker-end="url(#fabArrow)"/><line x1="340" y1="350" x2="450" y2="350" stroke="#2563eb" stroke-width="3" marker-end="url(#fabArrow)"/>`}
-    <text x="320" y="525" text-anchor="middle" font-size="12" fill="#475569">${escapeHtml(openingLabel)}</text>
-    <g><text x="630" y="78" font-size="14" font-weight="800" fill="#1d4ed8">COUPE A-A — DORMANT / OUVRANT / VITRAGE</text>
-    <rect x="675" y="105" width="125" height="360" fill="#d1d5db" stroke="#111827" stroke-width="5"/>
-    <rect x="700" y="125" width="76" height="320" fill="url(#glassPattern)" stroke="#2563eb" stroke-width="4"/>
-    <rect x="682" y="150" width="32" height="270" fill="#9ca3af" stroke="#111827" stroke-width="3"/>
-    <rect x="746" y="150" width="32" height="270" fill="#9ca3af" stroke="#111827" stroke-width="3"/>
-    <line x1="675" y1="95" x2="800" y2="95" stroke="#334155" stroke-width="2" marker-start="url(#fabArrow)" marker-end="url(#fabArrow)"/>
-    <text x="737" y="88" text-anchor="middle" font-size="14" font-weight="700">${c.serie==='PREM150'?150:120} mm</text>
-    <line x1="820" y1="170" x2="920" y2="170" stroke="#64748b"/><text x="930" y="175" font-size="13" font-weight="700">AL-DOR-001 — Dormant</text>
-    <line x1="820" y1="245" x2="920" y2="245" stroke="#64748b"/><text x="930" y="250" font-size="13" font-weight="700">AL-OUV-001 — Ouvrant</text>
-    <line x1="820" y1="320" x2="920" y2="320" stroke="#64748b"/><text x="930" y="325" font-size="13" font-weight="700">VERRE 6/12/6</text>
-    <line x1="820" y1="395" x2="920" y2="395" stroke="#64748b"/><text x="930" y="400" font-size="13" font-weight="700">AL-PAR-001 — Parclose</text></g>
-    <g><text x="55" y="565" font-size="14" font-weight="800" fill="#1d4ed8">COUPE B-B — RAIL / OUVRANTS / VITRAGE</text>
-    <rect x="70" y="585" width="500" height="62" fill="#d1d5db" stroke="#111827" stroke-width="4"/>
-    <rect x="105" y="598" width="185" height="26" fill="url(#glassPattern)" stroke="#2563eb" stroke-width="3"/>
-    <rect x="350" y="598" width="185" height="26" fill="url(#glassPattern)" stroke="#2563eb" stroke-width="3"/>
-    <line x1="320" y1="585" x2="320" y2="647" stroke="#475569" stroke-width="4"/>
-    <circle cx="150" cy="638" r="7" fill="#111827"/><circle cx="500" cy="638" r="7" fill="#111827"/>
-    <text x="160" y="675" font-size="12" fill="#475569">Roulette</text><text x="490" y="675" font-size="12" fill="#475569">Roulette</text></g>
-    <rect x="600" y="525" width="550" height="190" fill="#fff" stroke="#0f172a" stroke-width="1.5"/>
-    <text x="615" y="548" font-size="14" font-weight="800">FICHE DE DÉBIT — EXTRAIT</text>
-    <line x1="610" y1="558" x2="1140" y2="558" stroke="#cbd5e1"/>
-    <text x="620" y="578" font-size="11" font-weight="700">REPÈRE</text><text x="760" y="578" font-size="11" font-weight="700">DÉSIGNATION</text>
-    <text x="965" y="578" font-size="11" font-weight="700" text-anchor="end">QTÉ</text><text x="1100" y="578" font-size="11" font-weight="700" text-anchor="end">MM</text>
+    <text x="1160" y="45" text-anchor="end" font-size="12" fill="#475569">B.E. BEDA ALU • ${escapeHtml(sys.label)}</text>
+    <text x="35" y="65" font-size="11" fill="#64748b">Finition ${escapeHtml(fin.label)}${kind==='standard'?' • '+escapeHtml(vit.label):''}</text>
+    <text x="90" y="100" font-size="14" font-weight="800" fill="#1d4ed8">VUE DE FACE — COTES HORS TOUT</text>
+    <g transform="translate(${evOx.toFixed(1)},${evOy.toFixed(1)})">${ev.inner}</g>
+    <line x1="${evOx.toFixed(1)}" y1="130" x2="${(evOx+ev.W).toFixed(1)}" y2="130" stroke="#334155" stroke-width="1.5" marker-start="url(#dArrow-${uid})" marker-end="url(#dArrow-${uid})"/>
+    <text x="${(evOx+ev.W/2).toFixed(1)}" y="124" text-anchor="middle" font-size="14" font-weight="700">${c.w} mm</text>
+    <line x1="70" y1="${evOy.toFixed(1)}" x2="70" y2="${(evOy+ev.H).toFixed(1)}" stroke="#334155" stroke-width="1.5" marker-start="url(#dArrow-${uid})" marker-end="url(#dArrow-${uid})"/>
+    <text x="55" y="${(evOy+ev.H/2).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="700" transform="rotate(-90 55 ${(evOy+ev.H/2).toFixed(1)})">${c.h} mm</text>
+    <text x="${(evOxBase+elevBoxW/2).toFixed(1)}" y="${(evOyBase+elevBoxH+18).toFixed(1)}" text-anchor="middle" font-size="12" fill="#475569">${escapeHtml(openingLabel)}</text>
+    <g transform="translate(90,${(evOyBase+elevBoxH+42).toFixed(1)})">${svgScaleBar(uid,ev.scale)}</g>
+    <text x="${aaBoxX}" y="100" font-size="14" font-weight="800" fill="#1d4ed8">${escapeHtml(titleAA)}</text>
+    ${contentAA}
+    <text x="${bbBoxX}" y="545" font-size="14" font-weight="800" fill="#1d4ed8">${escapeHtml(titleBB)}</text>
+    ${contentBB}
+    <rect x="650" y="555" width="510" height="180" fill="#fff" stroke="#0f172a" stroke-width="1.5"/>
+    <text x="665" y="578" font-size="14" font-weight="800">FICHE DE DÉBIT — EXTRAIT</text>
+    <line x1="660" y1="588" x2="1150" y2="588" stroke="#cbd5e1"/>
+    <text x="660" y="608" font-size="11" font-weight="700">REPÈRE</text><text x="800" y="608" font-size="11" font-weight="700">DÉSIGNATION</text>
+    <text x="1020" y="608" font-size="11" font-weight="700" text-anchor="end">QTÉ</text><text x="1150" y="608" font-size="11" font-weight="700" text-anchor="end">MM</text>
     ${cutRows}
-    <text x="620" y="705" font-size="11" fill="#475569">Tolérance générale : ±1 mm • Trait de scie : ${c.kerf} mm • Barre commerciale : ${c.barLen} mm</text>
+    <text x="35" y="760" font-size="11" fill="#475569">Tolérance générale : ±1 mm • Trait de scie : ${c.kerf} mm • Barre commerciale : ${c.barLen} mm • Système ${escapeHtml(sys.label)} (prof. ${sys.profondeur} mm${sys.rupturePontThermique?' — RPT':''}) • Uf ${sys.uf} W/m².K</text>
   </svg>`;
 }
-function svgJonctionAngle(c){
-  const jointLabels={onglet:'Onglet 45° serti + colle structurale',equerre:'Équerre mécanique aluminium',about:'Aboutage 90° + vis'};
-  return `<svg viewBox="0 0 500 320" class="w-full h-auto" role="img" aria-label="Détail de jonction d'angle">
-    <defs><marker id="jArrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker></defs>
+function svgJonctionAngle(c,res){
+  const sys=res.system, fin=res.finition;
+  const jointLabels={onglet:'Onglet 45° serti + colle structurale',equerre:"Équerre mécanique d'angle",about:'Aboutage 90° + vis'};
+  const uid='jt'+Math.random().toString(36).slice(2,7);
+  const barPx=Math.max(28,Math.min(60,sys.profondeur*0.42));
+  const hx=60,hy=100,hw=220;
+  const vx=hx+hw-barPx,vy=hy,vh=180;
+  const jt=c.jointType||'onglet';
+  const defs=`<linearGradient id="alu-${uid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${fin.hexLight}"/><stop offset="50%" stop-color="${fin.hex}"/><stop offset="100%" stop-color="${fin.hexDark}"/></linearGradient>`;
+  let content=`<rect x="${hx}" y="${(hy-barPx).toFixed(1)}" width="${hw}" height="${barPx.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="2"/>
+    <rect x="${vx.toFixed(1)}" y="${vy}" width="${barPx.toFixed(1)}" height="${vh}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="2"/>`;
+  if(jt==='onglet'){
+    content+=`<path d="M ${vx.toFixed(1)} ${hy} L ${vx.toFixed(1)} ${(hy-barPx).toFixed(1)} L ${(vx+barPx).toFixed(1)} ${(hy-barPx).toFixed(1)} Z" fill="${fin.hexLight}" stroke="${fin.hexDark}" stroke-width="1.5"/>
+      <line x1="${vx.toFixed(1)}" y1="${(hy-barPx).toFixed(1)}" x2="${(vx+barPx).toFixed(1)}" y2="${hy}" stroke="#0f172a" stroke-width="1.4"/>
+      <circle cx="${(vx+barPx*0.3).toFixed(1)}" cy="${(hy-barPx*0.15).toFixed(1)}" r="3" fill="#111827"/>
+      <circle cx="${(vx+barPx*0.75).toFixed(1)}" cy="${(hy-barPx*0.55).toFixed(1)}" r="3" fill="#111827"/>`;
+  } else if(jt==='equerre'){
+    const bl=barPx*0.85;
+    content+=`<rect x="${(vx+barPx/2-bl/2).toFixed(1)}" y="${(hy-bl/2).toFixed(1)}" width="${bl.toFixed(1)}" height="${bl.toFixed(1)}" fill="#9aa3ab" stroke="#111827" stroke-width="1.6"/>
+      <circle cx="${(vx+barPx/2-bl*0.25).toFixed(1)}" cy="${(hy-bl*0.25).toFixed(1)}" r="3" fill="#111827"/>
+      <circle cx="${(vx+barPx/2+bl*0.25).toFixed(1)}" cy="${(hy+bl*0.25).toFixed(1)}" r="3" fill="#111827"/>`;
+  } else {
+    content+=`<line x1="${vx.toFixed(1)}" y1="${(hy-barPx).toFixed(1)}" x2="${(vx+barPx).toFixed(1)}" y2="${(hy-barPx).toFixed(1)}" stroke="#0f172a" stroke-width="2"/>
+      <circle cx="${(vx+barPx*0.3).toFixed(1)}" cy="${(hy-barPx*0.55).toFixed(1)}" r="3" fill="#111827"/>
+      <line x1="${(vx-14).toFixed(1)}" y1="${(hy-barPx*0.55).toFixed(1)}" x2="${(vx+barPx*0.3).toFixed(1)}" y2="${(hy-barPx*0.55).toFixed(1)}" stroke="#111827" stroke-width="1.2" marker-end="url(#jArrow-${uid})"/>
+      <circle cx="${(vx+barPx*0.75).toFixed(1)}" cy="${(hy-barPx*0.55).toFixed(1)}" r="3" fill="#111827"/>`;
+  }
+  return `<svg viewBox="0 0 500 320" class="w-full h-auto" role="img" aria-label="Détail de jonction d'angle à l'échelle">
+    <defs>${defs}<marker id="jArrow-${uid}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#111827"/></marker></defs>
     <rect x="10" y="10" width="480" height="300" fill="#fff" stroke="#0f172a" stroke-width="1.5"/>
-    <g stroke="#0f172a" stroke-width="2" fill="#e2e8f0">
-      <rect x="60" y="60" width="220" height="46"/>
-      <rect x="216" y="106" width="46" height="180"/>
-    </g>
-    <path d="M262 60 L262 106 L280 106 Z" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
-    <rect x="230" y="90" width="60" height="32" fill="#94a3b8" stroke="#111827" stroke-width="2"/>
-    <circle cx="242" cy="106" r="4" fill="#111827"/><circle cx="278" cy="106" r="4" fill="#111827"/>
-    <line x1="216" y1="106" x2="262" y2="60" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="4 3"/>
-    <text x="130" y="45" font-size="13" font-weight="700" fill="#0f172a">Dormant horizontal</text>
-    <text x="330" y="200" font-size="13" font-weight="700" fill="#0f172a" transform="rotate(90 330 200)">Dormant vertical</text>
-    <text x="250" y="300" text-anchor="middle" font-size="13" fill="#475569">${escapeHtml(jointLabels[c.jointType]||'')}</text>
-    <text x="130" y="90" text-anchor="middle" font-size="11" fill="#64748b">Profil ${c.serie==='PREM150'?150:120} mm</text>
-    <line x1="330" y1="60" x2="330" y2="106" stroke="#334155" marker-start="url(#jArrow)" marker-end="url(#jArrow)"/>
-    <text x="345" y="87" font-size="11" fill="#64748b">45°</text>
+    ${content}
+    <text x="${(hx+hw/2)}" y="${(hy-barPx-14).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">Dormant horizontal</text>
+    <text x="${(vx-14).toFixed(1)}" y="${(vy+vh/2)}" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a" transform="rotate(-90 ${(vx-14).toFixed(1)} ${(vy+vh/2)})">Dormant vertical</text>
+    <text x="250" y="300" text-anchor="middle" font-size="13" fill="#475569">${escapeHtml(jointLabels[jt]||'')}</text>
+    <text x="${(hx+40)}" y="${(hy-barPx/2+4).toFixed(1)}" text-anchor="middle" font-size="10" fill="#64748b">${sys.profondeur} mm</text>
   </svg>`;
 }
 function renderTabBOM(){
