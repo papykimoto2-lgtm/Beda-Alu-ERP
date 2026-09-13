@@ -5318,6 +5318,14 @@ function caisseChangerMois(delta){
   window._caisse.moisRef=new Date(d.getFullYear(),d.getMonth()+delta,1);
   showPage('caisse');
 }
+function caisseOuvrirBrouillard(caisseId){
+  window._compta.cycleView='brouillard_caisse';
+  if(caisseId){
+    window._compta.brouillard=window._compta.brouillard||{debut:new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10),fin:new Date().toISOString().slice(0,10),statut:'',memoriser:true};
+    window._compta.brouillard.caisseId=caisseId;
+  }
+  showPage('comptabilite');
+}
 async function renderCaisse(el){
   const {debut,fin,label}=caissePeriode();
   const [{data:caisses},{data:sessionsOuvertes}]=await Promise.all([
@@ -5346,7 +5354,10 @@ async function renderCaisse(el){
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
       <div><h2>💰 Caisse</h2><p class="text-xs text-gray-500">Ouverture/clôture · Bons d'entrée & de sortie · Brouillard journalier · Transferts.</p></div>
-      <button class="btn btn-primary" onclick="caisseOuvrirNouvelleCaisseModal()">+ Nouvelle caisse</button>
+      <div class="flex gap-2">
+        <button class="btn btn-outline" onclick="caisseOuvrirBrouillard()">🧾 Brouillard de caisse${aVentiler.length?` (${aVentiler.length})`:''}</button>
+        <button class="btn btn-primary" onclick="caisseOuvrirNouvelleCaisseModal()">+ Nouvelle caisse</button>
+      </div>
     </div>
     <div class="page-card mb-4">
       <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
@@ -5358,7 +5369,7 @@ async function renderCaisse(el){
         <div class="card p-3" style="border-left:3px solid #4AC47A"><div class="text-xs text-gray-400">ENCAISSEMENTS</div><div class="text-lg font-black mt-1 text-emerald-600">${money(encaissements)}</div><div class="text-xs text-gray-400">${(mvtsPeriode||[]).filter(m=>m.type==='entree').length} bon(s)</div></div>
         <div class="card p-3" style="border-left:3px solid #E05252"><div class="text-xs text-gray-400">DÉCAISSEMENTS</div><div class="text-lg font-black mt-1 text-red-600">${money(decaissements)}</div><div class="text-xs text-gray-400">${(mvtsPeriode||[]).filter(m=>m.type==='sortie').length} bon(s)</div></div>
         <div class="card p-3"><div class="text-xs text-gray-400">FLUX NET</div><div class="text-lg font-black mt-1 ${encaissements-decaissements>=0?'text-emerald-600':'text-red-600'}">${money(encaissements-decaissements)}</div><div class="text-xs text-gray-400">Entrées − sorties</div></div>
-        <div class="card p-3"><div class="text-xs text-gray-400">À VENTILER</div><div class="text-lg font-black mt-1 ${aVentiler.length?'text-red-600':''}">${aVentiler.length} mvt</div><div class="text-xs text-gray-400">${money(aVentilerMontant)}</div></div>
+        <div class="card p-3 cursor-pointer hover:shadow-md" title="Ouvrir le Brouillard de caisse" onclick="caisseOuvrirBrouillard()"><div class="text-xs text-gray-400">À VENTILER</div><div class="text-lg font-black mt-1 ${aVentiler.length?'text-red-600':''}">${aVentiler.length} mvt</div><div class="text-xs text-gray-400">${money(aVentilerMontant)}</div></div>
         <div class="card p-3"><div class="text-xs text-gray-400">ÉCART CLÔTURE</div><div class="text-lg font-black mt-1 ${ecartCumule<0?'text-red-600':ecartCumule>0?'text-emerald-600':''}">${money(ecartCumule)}</div><div class="text-xs text-gray-400">Cumul période</div></div>
       </div>
       <div class="font-bold text-sm mb-2">Détail par caisse (${caisses.length} caisse(s))</div>
@@ -5381,7 +5392,7 @@ function caisseCardHtml(c,soldeInfo,mvtsPeriode){
       <div>Entrées <b class="text-emerald-600">${money(entrees)}</b></div>
       <div>Sorties <b class="text-red-600">${money(sorties)}</b></div>
       <div>Flux net <b class="${entrees-sorties>=0?'text-emerald-600':'text-red-600'}">${money(entrees-sorties)}</b></div>
-      <div>À ventiler <b class="${aVentiler.length?'text-red-600':''}">${aVentiler.length}</b></div>
+      <div>À ventiler <b class="${aVentiler.length?'text-red-600 cursor-pointer underline':''}" ${aVentiler.length?`onclick="caisseOuvrirBrouillard('${c.id}')" title="Ouvrir le Brouillard de caisse pour cette caisse"`:''}>${aVentiler.length}</b></div>
     </div>
     <button class="btn btn-outline btn-sm w-full" onclick="window._editId='${c.id}';showPage('caisse-detail')">Ouvrir →</button>
   </div>`;
