@@ -7,6 +7,8 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
@@ -244,6 +246,16 @@ window.SB_CFG = {
         <button class="nav-child" data-page="stock-simulateur">→ Simulateur multi-chantiers</button>
       </div>
 
+      <div class="sidebar-group-title">Finance</div>
+      <button class="nav-parent" data-toggle="comptabilite-g">🏠 <span>Comptabilité</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="comptabilite-g">
+        <button class="nav-child" data-page="comptabilite">→ Comptabilité SYSCOHADA</button>
+      </div>
+      <button class="nav-parent" data-toggle="caisse-g">🏠 <span>Caisse</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="caisse-g">
+        <button class="nav-child" data-page="caisse">→ Tableau de bord</button>
+      </div>
+
       <div class="sidebar-group-title">Site web</div>
       <button class="nav-parent" data-toggle="realisations-g">🏠 <span>Réalisations</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="realisations-g">
@@ -372,9 +384,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-simulateur':'stock-g','realisations-add':'realisations-g',realisations:'realisations-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-simulateur':'stock-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g'};
 window._editId=null;
 async function showPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -1666,6 +1678,10 @@ async function openMouvementModal(presetType,presetComposantId){
     if(!quantite && type!=='inventaire'){ toast('Quantité requise.','error'); return; }
     const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:val('mvRef')||null,p_prix_unitaire:prix});
     if(error){ toast(error.message,'error'); return; }
+    if(type==='entree' && prix>0){
+      const composantNom=(composants||[]).find(c=>c.id===composantId)?.nom;
+      await comptabiliserAchatMouvementStock(composantNom,quantite,prix,val('mvMotif'),val('mvRef'));
+    }
     toast('Mouvement enregistré.'); closeModal(); refreshStockAlertesBadge();
     showPage(PAGE_RENDERERS[currentPageKey()]?currentPageKey():'stock-mouvements');
   };
@@ -2090,6 +2106,30 @@ function renderSimDebitResult(){
    Coulissant galandage et Garde-corps inox sont reprises à l'identique ; Moustiquaire et
    Fenêtre jalousie sont des formules analogues (pas d'équivalent côté Sanix). */
 const CONFIG_TYPES=['Fenêtre coulissante','Porte à la française','Porte coulissante','Coulissant galandage','Fenêtre jalousie','Moustiquaire fixe','Moustiquaire coulissante','Garde-corps inox'];
+/* ---------- Catalogue technique : systèmes profilés aluminium (sections réelles, mm) ----------
+   Source unique de vérité pour le calcul de BOM ET pour le dessin des coupes techniques :
+   plus aucune cote de schéma n'est codée en dur, tout dérive de ces enregistrements. */
+const CATALOGUE_SYSTEMES={
+  STD120:{label:'Série Standard 120 — Battant / Fixe',profondeur:120,epaisseurParoi:1.8,feuillure:20,reservationVitrage:110,nbChambres:2,rupturePontThermique:false,poidsMl:2.9,uf:3.4},
+  COUL120:{label:'Série Coulissant 120 — 2 à 4 rails',profondeur:120,epaisseurParoi:1.8,feuillure:16,reservationVitrage:110,nbChambres:2,rupturePontThermique:false,poidsMl:3.1,uf:3.6},
+  PREM150:{label:'Série Premium 150 RPT — Rupture de pont thermique',profondeur:150,epaisseurParoi:2.0,feuillure:24,reservationVitrage:130,nbChambres:3,rupturePontThermique:true,poidsMl:4.2,uf:1.4}
+};
+/* ---------- Catalogue technique : compositions de vitrage réelles (mm) ---------- */
+const CATALOGUE_VITRAGES={
+  'SV4':{label:'Vitrage simple 4 mm',layers:[{t:'verre',ep:4}],epaisseur:4,ug:5.8,facteurPrix:0.45},
+  'DV4-16-4':{label:'Double vitrage 4/16/4 (argon)',layers:[{t:'verre',ep:4},{t:'lame',ep:16},{t:'verre',ep:4}],epaisseur:24,ug:1.1,facteurPrix:1.15},
+  'DV6-12-6':{label:'Double vitrage 6/12/6',layers:[{t:'verre',ep:6},{t:'lame',ep:12},{t:'verre',ep:6}],epaisseur:24,ug:2.8,facteurPrix:1},
+  'FEUILLETE-33-2':{label:'Feuilleté sécurit 33.2',layers:[{t:'verre',ep:3},{t:'pvb',ep:1},{t:'verre',ep:3}],epaisseur:7,ug:5.6,facteurPrix:1.3},
+  'TRIPLE-4-16-4-16-4':{label:'Triple vitrage 4/16/4/16/4',layers:[{t:'verre',ep:4},{t:'lame',ep:16},{t:'verre',ep:4},{t:'lame',ep:16},{t:'verre',ep:4}],epaisseur:44,ug:0.6,facteurPrix:1.9}
+};
+/* ---------- Catalogue technique : finitions / teintes RAL réelles (rendu couleur des coupes) ---------- */
+const CATALOGUE_FINITIONS={
+  blanc9010:{label:'Blanc RAL 9010',hex:'#F1EEE6',hexDark:'#C9C5B9',hexLight:'#FFFFFF'},
+  gris7016:{label:'Gris anthracite RAL 7016',hex:'#3B4146',hexDark:'#22262A',hexLight:'#5B6268'},
+  noir9005:{label:'Noir RAL 9005',hex:'#232326',hexDark:'#0E0E10',hexLight:'#454548'},
+  bronze:{label:'Bronze anodisé',hex:'#6B5439',hexDark:'#453522',hexLight:'#8A7052'},
+  naturel:{label:'Naturel anodisé satiné',hex:'#C9CDD1',hexDark:'#9AA0A6',hexLight:'#E9EBED'}
+};
 /* Prix unitaires lus depuis la table composants (catalogue Composants & Consommables) — voir
    window._composantsPriceMap, chargée par buildComposantsPriceMap(). Structure : { code: { standing: prix } }.
    Le 3e argument de getPrix est un secours si le composant a été supprimé du catalogue,
@@ -2113,13 +2153,18 @@ function getPrix(code,standing,fallback){
 function configCalculerBOM(type,w,h,leaves,qty,opts){
   opts=opts||{};
   const standing=opts.standing||'standard';
+  const system=CATALOGUE_SYSTEMES[opts.serie]||CATALOGUE_SYSTEMES.STD120;
+  const vitrage=CATALOGUE_VITRAGES[opts.vitrage]||CATALOGUE_VITRAGES['DV6-12-6'];
+  const finition=CATALOGUE_FINITIONS[opts.finition]||CATALOGUE_FINITIONS.blanc9010;
   const perimeter=2*(w+h);
-  let rows=[], alu=0, glassArea=0, glassPanels=[];
+  let rows=[], alu=0, glassArea=0, glassPanels=[], geom={};
   if(type==='Garde-corps inox'){
     const spacing=Math.max(500,+opts.spacing||1500);
     const infill=opts.infill||'cable';
     const nPoteaux=Math.max(2,Math.ceil(w/spacing)+1);
     const nPanels=nPoteaux-1;
+    const panelW=w/nPanels;
+    const feuillete=CATALOGUE_VITRAGES['FEUILLETE-33-2'];
     glassArea=infill==='verre'?(w/nPanels*h/1000000)*nPanels*qty:0;
     alu=(nPoteaux*h+w)*qty/1000;
     rows=[
@@ -2132,11 +2177,12 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
       ] : infill==='barreaudage' ? [
         ['BAR-GI-001','Barreau vertical inox Ø12mm',Math.ceil(w/110)*qty,h,Math.ceil(w/110)*qty*(h/1000)*getPrix('BAR-GI-001',standing,8200)]
       ] : [
-        ['VIT-GI-001','Verre feuilleté sécurit',nPanels*qty,Math.round(w/nPanels*h/1000),glassArea*getPrix('VIT-GI-001',standing,9500)],
+        ['VIT-GI-001',`Verre feuilleté sécurit ${feuillete.epaisseur} mm (33.2)`,nPanels*qty,Math.round(w/nPanels*h/1000),glassArea*getPrix('VIT-GI-001',standing,9500)],
         ['PIN-GI-001','Pince de fixation verre inox',4*nPanels*qty,0,4*nPanels*qty*getPrix('PIN-GI-001',standing,2400)]
       ])
     ];
     if(infill==='verre') glassPanels=[{code:'VIT-GI-001',w:Math.round(w/nPanels),h,qty:nPanels*qty}];
+    geom={kind:'gardecorps',nPoteaux,nPanels,spacing,panelW,infill};
   } else if(type==='Moustiquaire fixe' || type==='Moustiquaire coulissante'){
     const isCoul=type==='Moustiquaire coulissante';
     const ouvrantW=isCoul?Math.max(0,w/leaves):w;
@@ -2153,6 +2199,7 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
         ['LOQ-MO-001','Loquet de fermeture',qty,0,qty*getPrix('LOQ-MO-001',standing,1200)]
       ])
     ];
+    geom={kind:'moustiquaire',isCoul,ouvrantW,leaves};
   } else if(type==='Fenêtre jalousie'){
     const nLames=Math.max(3,Math.round(h/120));
     glassArea=(w*h/1000000)*qty;
@@ -2165,13 +2212,14 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
       ['CLI-FJ-001','Clip de fixation lame',nLames*2*qty,0,nLames*2*qty*getPrix('CLI-FJ-001',standing,350)]
     ];
     glassPanels=[{code:'LAM-FJ-001',w,h:Math.round(h/nLames),qty:nLames*qty}];
+    geom={kind:'jalousie',nLames,lameH:h/nLames};
   } else {
     const jointType=opts.jointType||'onglet';
     const gap=+opts.gap||5;
     const isPorte=type==='Porte à la française';
     const isGalandage=type==='Coulissant galandage';
     const ouvrantW=Math.max(0,(w-(leaves-1)*45)/leaves);
-    const glassRebate=107+3;
+    const glassRebate=system.reservationVitrage;
     const glassW=Math.max(0,ouvrantW-glassRebate-gap);
     const glassH=Math.max(0,h-glassRebate-gap);
     glassArea=glassW*glassH/1000000*leaves*qty;
@@ -2184,7 +2232,7 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
       ['P-STD-003','Ouvrant horizontal',2*leaves*qty,ouvrantW,2*leaves*qty*(ouvrantW/1000)*getPrix('P-STD-003',standing,9200)],
       ['P-STD-004','Ouvrant vertical',2*leaves*qty,h,2*leaves*qty*(h/1000)*getPrix('P-STD-004',standing,9200)],
       ['P-PAR-001','Parclose',4*leaves*qty,glassW,4*leaves*qty*(glassW/1000)*getPrix('P-PAR-001',standing,3200)],
-      ['VIT-001','Double vitrage 6/12/6',leaves*qty,glassW*glassH/1000000,glassArea*getPrix('VIT-001',standing,6500)],
+      ['VIT-001',vitrage.label,leaves*qty,glassW*glassH/1000000,glassArea*getPrix('VIT-001',standing,Math.round(6500*vitrage.facteurPrix))],
       ['JNT-001','Joint vitrage',2*(glassW+glassH)*leaves*qty/1000,0,2*(glassW+glassH)*leaves*qty/1000*getPrix('JNT-001',standing,900)],
       [quiCode1,isPorte?'Ensemble serrure + poignée':'Poignée',leaves*qty,0,leaves*qty*getPrix(quiCode1,standing,isPorte?12500:4500)],
       [quiCode2,isPorte?'Paumelle renforcée':isGalandage?'Roulette renforcée galandage':'Paumelle',(isPorte?3:2)*leaves*qty,0,(isPorte?3:2)*leaves*qty*getPrix(quiCode2,standing,isPorte?1600:isGalandage?2100:850)],
@@ -2205,9 +2253,10 @@ function configCalculerBOM(type,w,h,leaves,qty,opts){
       })()
     ];
     glassPanels=[{code:'VIT-001',w:Math.round(glassW),h:Math.round(glassH),qty:leaves*qty}];
+    geom={kind:'standard',ouvrantW,glassW,glassH,glassRebate,gap,leaves,jointType,isPorte,isGalandage};
   }
   const coutMateriel=rows.reduce((s,r)=>s+r[4],0);
-  return {rows,alu,glassArea,coutMateriel,surface:w*h/1000000,glassPanels};
+  return {rows,alu,glassArea,coutMateriel,surface:w*h/1000000,glassPanels,system,vitrage,finition,geom};
 }
 /* ---------- Classification BOM (structure/mobile/vitrage/quincaillerie), portée de Sanix ---------- */
 const BOM_L1_CATEGORIES=[
@@ -2258,10 +2307,10 @@ let configState=null;
 async function renderConfigurateur(el){
   const {data:priceRows}=await sb.from('composants').select('code,prix_unitaire,standing').not('code','is',null);
   window._composantsPriceMap=buildComposantsPriceMap(priceRows);
-  configState={type:CONFIG_TYPES[0],w:1200,h:1200,leaves:2,qty:1,serie:'STD120',standing:'standard',jointType:'onglet',gap:5,spacing:1500,infill:'cable',
+  configState={type:CONFIG_TYPES[0],w:1200,h:1200,leaves:2,qty:1,serie:'STD120',vitrage:'DV6-12-6',finition:'blanc9010',standing:'standard',jointType:'onglet',gap:5,spacing:1500,infill:'cable',
     barLen:6000,kerf:3,laborRate:3500,poseForfait:0,tauxEnergie:2,tauxAmortissement:3,tauxTransport:2,tauxFraisAtelier:5,tauxFraisAdmin:5,margin:25,remise:0,
     sheetW:3210,sheetH:2250,glassKerf:5,chuteMinReutilisable:500,chuteMinReutilisableVitrage:300,
-    activeTab:'config'};
+    activeTab:'config',schemaView:'vue2d',planCotes:[],planNotes:[],planHistory:[],planMode:'move'};
   let editBanner='';
   if(window._configEditId){
     const {data:p}=await sb.from('produits').select('*').eq('id',window._configEditId).single();
@@ -2291,13 +2340,14 @@ function showEtudeTab(tab){
 function configUpdate(field,value){ configState[field]=value; showEtudeTab(configState.activeTab); }
 function configResultat(){
   const c=configState;
-  return configCalculerBOM(c.type,c.w,c.h,c.leaves,c.qty,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill,standing:c.standing});
+  return configCalculerBOM(c.type,c.w,c.h,c.leaves,c.qty,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill,standing:c.standing,serie:c.serie,vitrage:c.vitrage,finition:c.finition});
 }
 function renderTabConfig(){
   const c=configState;
   const isGC=c.type==='Garde-corps inox';
   const showLeaves=!isGC && c.type!=='Moustiquaire fixe' && c.type!=='Fenêtre jalousie';
   const showJoint=!isGC && !c.type.startsWith('Moustiquaire') && c.type!=='Fenêtre jalousie';
+  const showVitrage=showJoint || (isGC && (c.infill||'cable')==='verre');
   const res=configResultat();
   document.getElementById('etudeTabContent').innerHTML=`
     <div class="page-card mb-4">
@@ -2309,12 +2359,14 @@ function renderTabConfig(){
       <div class="divider"></div>
       <div class="grid sm:grid-cols-3 gap-4">
         <div class="field"><label>Type d'ouvrage</label>${fieldWrap('🏗️',`<select onchange="configUpdate('type',this.value)">${CONFIG_TYPES.map(t=>`<option ${t===c.type?'selected':''}>${t}</option>`).join('')}</select>`)}</div>
-        <div class="field"><label>Série aluminium</label>${fieldWrap('📐',`<select onchange="configUpdate('serie',this.value)"><option value="STD120" ${c.serie==='STD120'?'selected':''}>Série Standard 120</option><option value="COUL120" ${c.serie==='COUL120'?'selected':''}>Série Coulissant 120</option><option value="PREM150" ${c.serie==='PREM150'?'selected':''}>Série Premium 150</option></select>`)}</div>
+        <div class="field"><label>Série aluminium</label>${fieldWrap('📐',`<select onchange="configUpdate('serie',this.value)">${Object.entries(CATALOGUE_SYSTEMES).map(([k,v])=>`<option value="${k}" ${c.serie===k?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Finition / Couleur</label>${fieldWrap(`<span class="inline-block w-3.5 h-3.5 rounded-full border border-black/20 align-middle" style="background:${(CATALOGUE_FINITIONS[c.finition]||CATALOGUE_FINITIONS.blanc9010).hex}"></span>`,`<select onchange="configUpdate('finition',this.value)">${Object.entries(CATALOGUE_FINITIONS).map(([k,v])=>`<option value="${k}" ${(c.finition||'blanc9010')===k?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Standing</label>${fieldWrap('⭐',`<select onchange="configUpdate('standing',this.value)">${Object.entries(COMPOSANT_STANDINGS).map(([k,v])=>`<option value="${k}" ${(c.standing||'standard')===k?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Quantité</label>${fieldWrap('#',`<input type="number" min="1" value="${c.qty}" onchange="configUpdate('qty',+this.value||1)">`)}</div>
         <div class="field"><label>Largeur (mm)</label>${fieldWrap('↔️',`<input type="number" value="${c.w}" onchange="configUpdate('w',+this.value||0)">`)}</div>
         <div class="field"><label>Hauteur (mm)</label>${fieldWrap('↕️',`<input type="number" value="${c.h}" onchange="configUpdate('h',+this.value||0)">`)}</div>
         ${showLeaves?`<div class="field"><label>Nombre de vantaux</label>${fieldWrap('🚪',`<input type="number" min="1" value="${c.leaves}" onchange="configUpdate('leaves',+this.value||1)">`)}</div>`:''}
+        ${showVitrage?`<div class="field"><label>Type de vitrage</label>${fieldWrap('🪟',`<select onchange="configUpdate('vitrage',this.value)">${Object.entries(CATALOGUE_VITRAGES).map(([k,v])=>`<option value="${k}" ${(c.vitrage||'DV6-12-6')===k?'selected':''}>${escapeHtml(v.label)} — Ug ${v.ug}</option>`).join('')}</select>`)}</div>`:''}
         ${showJoint?`<div class="field"><label>Type de jonction</label>${fieldWrap('🔗',`<select onchange="configUpdate('jointType',this.value)"><option value="onglet" ${c.jointType==='onglet'?'selected':''}>Onglet 45°</option><option value="equerre" ${c.jointType==='equerre'?'selected':''}>Équerre d'angle</option><option value="about" ${c.jointType==='about'?'selected':''}>Aboutage 90°</option></select>`)}</div>
         <div class="field"><label>Jeu vitrage (mm)</label>${fieldWrap('📏',`<input type="number" value="${c.gap}" onchange="configUpdate('gap',+this.value||0)">`)}</div>`:''}
         ${isGC?`<div class="field"><label>Espacement poteaux (mm)</label>${fieldWrap('📏',`<input type="number" min="500" value="${c.spacing}" onchange="configUpdate('spacing',+this.value||1500)">`)}</div>
@@ -2331,29 +2383,14 @@ function renderTabConfig(){
     <div class="page-card mb-4">
       <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div>
-          <h3 class="font-bold">Schéma technique paramétrique</h3>
-          <p class="text-xs text-gray-500">Le dessin se met à jour avec la largeur, la hauteur et le nombre de vantaux.</p>
+          <h3 class="font-bold">Schéma technique</h3>
+          <p class="text-xs text-gray-500">Le dessin se met à jour avec la largeur, la hauteur, le nombre de vantaux, le système, la finition et le vitrage choisis.</p>
         </div>
-        <span class="badge bg-white text-gray-600 border">Vue façade</span>
-      </div>
-      <div class="bg-white rounded-xl border p-3 overflow-hidden">${svgSchemaParametrique(c,res)}</div>
-    </div>
-
-    <div class="page-card mb-4">
-      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div>
-          <h3 class="font-bold">Schéma technique fabrication — Bureau d'études</h3>
-          <p class="text-xs text-gray-500">Vue de fabrication paramétrique : cotes, repères profils, vitrage, coupes, débit et tolérances.</p>
+        <div class="flex rounded-lg border overflow-hidden text-xs">
+          ${[['vue2d','📐 Vue 2D'],['vue3d','🧊 Vue 3D'],['fabrication','📋 Plan de fabrication'],['editeur','✏️ Éditeur de plan']].map(([v,label])=>`<button class="schema-view-btn px-3 py-1.5 font-semibold ${(c.schemaView||'vue2d')===v?'bg-indigo-600 text-white':''}" data-view="${v}" onclick="setSchemaView('${v}')">${label}</button>`).join('')}
         </div>
-        <div class="flex gap-2"><span class="badge bg-white text-gray-600 border">A3 / Fabrication</span><span class="badge bg-blue-50 text-blue-700">Paramétrique</span></div>
       </div>
-      <div class="bg-white rounded-xl border overflow-auto">${svgSchemaFabrication(c,res)}</div>
-      <div class="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Cote hors tout</div><b>${c.w} × ${c.h} mm</b></div>
-        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Ouverture vitrage</div><b>${res.glassArea.toFixed(2)} m²</b></div>
-        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Tolérance</div><b>± 1 mm</b></div>
-        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Trait de scie</div><b>${c.kerf} mm</b></div>
-      </div>
+      <div id="schemaViewContent"></div>
     </div>
 
     ${showJoint?`<div class="page-card mb-4">
@@ -2363,7 +2400,7 @@ function renderTabConfig(){
           <p class="text-xs text-gray-500">Coupe agrandie de l'assemblage dormant/ouvrant à 45°.</p>
         </div>
       </div>
-      <div class="bg-white rounded-xl border p-3 overflow-hidden">${svgJonctionAngle(c)}</div>
+      <div class="bg-white rounded-xl border p-3 overflow-hidden">${svgJonctionAngle(c,res)}</div>
       <div class="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
         <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Angle</div><b>45°</b></div>
         <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Fixation</div><b>${({onglet:'2 vis Ø4',equerre:'Équerre + 4 vis',about:'Vis auto-taraudeuses'})[c.jointType]}</b></div>
@@ -2375,97 +2412,717 @@ function renderTabConfig(){
     <div class="flex justify-end">
       <button class="btn btn-outline" onclick="showEtudeTab('bom')">Voir la nomenclature →</button>
     </div>`;
+  renderSchemaView();
+}
+/* ---------- Rendu SVG paramétrique à l'échelle réelle (mm→px), piloté par les catalogues ---------- */
+function niceScaleLength(scale){
+  const candidates=[10,25,50,100,200,250,500,1000,2000,5000,10000];
+  let best=candidates[0],bestDiff=Infinity;
+  candidates.forEach(mm=>{ const px=mm*scale; const diff=Math.abs(px-130); if(diff<bestDiff){bestDiff=diff;best=mm;} });
+  return best;
+}
+function svgScaleBar(uid,scale){
+  const mm=niceScaleLength(scale);
+  const full=mm*scale, half=full/2;
+  return `<text x="${(full/2).toFixed(1)}" y="-8" text-anchor="middle" font-size="10" font-weight="700" fill="#64748b">ÉCHELLE GRAPHIQUE</text>
+    <rect x="0" y="0" width="${half.toFixed(1)}" height="6" fill="#0f172a"/>
+    <rect x="${half.toFixed(1)}" y="0" width="${half.toFixed(1)}" height="6" fill="#fff" stroke="#0f172a" stroke-width="1"/>
+    <rect x="0" y="0" width="${full.toFixed(1)}" height="6" fill="none" stroke="#0f172a" stroke-width="1"/>
+    <text x="0" y="18" font-size="9" fill="#334155">0</text>
+    <text x="${full.toFixed(1)}" y="18" text-anchor="end" font-size="9" fill="#334155">${mm} mm</text>`;
+}
+/* Vue de face à l'échelle : dispatch par nature d'ouvrage (res.geom.kind), seule source de géométrie
+   réutilisée à la fois par le schéma simple et par le plan de fabrication. */
+function elevationGroup(c,res,uid,boxW,boxH){
+  const fin=res.finition, sys=res.system, geom=res.geom||{};
+  const w=Math.max(1,c.w), h=Math.max(1,c.h);
+  const scale=Math.min(boxW/w, boxH/h);
+  const W=w*scale, H=h*scale;
+  const defs=`<linearGradient id="alu-${uid}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${fin.hexLight}"/><stop offset="50%" stop-color="${fin.hex}"/><stop offset="100%" stop-color="${fin.hexDark}"/>
+    </linearGradient>
+    <linearGradient id="glass-${uid}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef7ff"/><stop offset="45%" stop-color="#cfe8fb"/><stop offset="100%" stop-color="#93c5e8"/>
+    </linearGradient>
+    <pattern id="mesh-${uid}" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 0 L4 4 M4 0 L0 4" stroke="#8a94a3" stroke-width="0.5"/></pattern>
+    <marker id="arrow-${uid}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2563eb"/></marker>`;
+  const kind=geom.kind||'standard';
+  // Trois calques indépendants (structure fixe / éléments mobiles / remplissage) réutilisés
+  // tels quels par la Vue 2D, le plan de fabrication ET l'éditeur de plan (calques à bascule).
+  let sDormant='', sOuvrant='', sVitrage='';
+  if(kind==='gardecorps'){
+    const railPx=Math.max(4,40*scale), poteauPx=Math.max(2,26*scale), nPoteaux=Math.max(2,geom.nPoteaux||2);
+    sDormant+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${railPx.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`;
+    for(let i=0;i<nPoteaux;i++){
+      const px=nPoteaux>1?(i/(nPoteaux-1))*(W-poteauPx):0;
+      sDormant+=`<rect x="${px.toFixed(1)}" y="0" width="${poteauPx.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`;
+    }
+    if(geom.infill==='cable'){
+      const nCables=Math.max(3,Math.ceil(h/110));
+      for(let i=1;i<=nCables;i++){ const cy=railPx+(i/(nCables+1))*(H-railPx); sVitrage+=`<line x1="${poteauPx.toFixed(1)}" y1="${cy.toFixed(1)}" x2="${(W-poteauPx).toFixed(1)}" y2="${cy.toFixed(1)}" stroke="#8f98a3" stroke-width="1.3"/>`; }
+    } else if(geom.infill==='barreaudage'){
+      const nBars=Math.max(3,Math.ceil(w/110));
+      for(let i=1;i<nBars;i++){ const bx=(i/nBars)*W; sVitrage+=`<line x1="${bx.toFixed(1)}" y1="${railPx.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${H.toFixed(1)}" stroke="#8f98a3" stroke-width="2"/>`; }
+    } else {
+      for(let i=0;i<nPoteaux-1;i++){
+        const x0=(i/(nPoteaux-1))*(W-poteauPx)+poteauPx, x1=((i+1)/(nPoteaux-1))*(W-poteauPx);
+        sVitrage+=`<rect x="${x0.toFixed(1)}" y="${railPx.toFixed(1)}" width="${Math.max(0,x1-x0).toFixed(1)}" height="${(H-railPx).toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="1"/>`;
+      }
+    }
+  } else if(kind==='moustiquaire'){
+    const border=Math.max(2,18*scale);
+    sDormant+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.2"/>`;
+    const leaves=geom.isCoul?Math.max(1,geom.leaves||1):1;
+    const meshGap=Math.max(2,6*scale);
+    const lw=(W-2*border-(leaves-1)*meshGap)/leaves;
+    let cx=border;
+    for(let i=0;i<leaves;i++){
+      sVitrage+=`<rect x="${cx.toFixed(1)}" y="${border.toFixed(1)}" width="${Math.max(0,lw).toFixed(1)}" height="${Math.max(0,H-2*border).toFixed(1)}" fill="url(#mesh-${uid})" stroke="#4a5568" stroke-width="1"/>`;
+      cx+=lw+meshGap;
+    }
+  } else if(kind==='jalousie'){
+    const border=Math.max(2,18*scale), nLames=Math.max(3,geom.nLames||5), gap=Math.max(1,2*scale);
+    sDormant+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.2"/>`;
+    const lameH=(H-2*border-(nLames-1)*gap)/nLames;
+    for(let i=0;i<nLames;i++){ const ly=border+i*(lameH+gap); sVitrage+=`<rect x="${border.toFixed(1)}" y="${ly.toFixed(1)}" width="${(W-2*border).toFixed(1)}" height="${Math.max(1,lameH).toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="0.8"/>`; }
+  } else {
+    const fb=Math.max(3,(sys.reservationVitrage||110)/2*scale);
+    sDormant+=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.5"/>`;
+    const leaves=Math.max(1,geom.leaves||1);
+    const meneauPx=(leaves>1?45:0)*scale;
+    // Largeur visuelle des vantaux recalculée pour tenir exactement dans la réservation du dormant
+    // (la largeur d'ouvrant du BOM mesure l'ouvrant en cotes de fabrication, pas la réservation visible).
+    const leafWpx=Math.max(0,W-2*fb-(leaves-1)*meneauPx)/leaves, leafH=Math.max(0,H-2*fb), ob=Math.max(1.5,fb*0.55);
+    let cx=fb;
+    for(let i=0;i<leaves;i++){
+      sOuvrant+=`<rect x="${cx.toFixed(1)}" y="${fb.toFixed(1)}" width="${leafWpx.toFixed(1)}" height="${leafH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`;
+      const gx=cx+ob, gy=fb+ob, gw=Math.max(0,leafWpx-2*ob), gh=Math.max(0,leafH-2*ob);
+      sVitrage+=`<rect x="${gx.toFixed(1)}" y="${gy.toFixed(1)}" width="${gw.toFixed(1)}" height="${gh.toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="1"/>`;
+      sVitrage+=`<line x1="${(gx+gw*0.12).toFixed(1)}" y1="${(gy+gh*0.12).toFixed(1)}" x2="${(gx+gw*0.55).toFixed(1)}" y2="${(gy+gh*0.85).toFixed(1)}" stroke="#ffffff" stroke-opacity="0.4" stroke-width="${Math.max(1,gw*0.035).toFixed(1)}"/>`;
+      const handleY=fb+leafH*0.5, hOff=Math.max(4,fb*0.3);
+      const handleX=(i%2===0)?(cx+leafWpx-ob-hOff):(cx+ob+hOff);
+      sOuvrant+=`<rect x="${(handleX-1.5).toFixed(1)}" y="${(handleY-Math.max(6,fb*0.5)).toFixed(1)}" width="3" height="${Math.max(12,fb).toFixed(1)}" rx="1.5" fill="${fin.hexDark}"/>`;
+      cx+=leafWpx;
+      if(i<leaves-1){ sOuvrant+=`<rect x="${cx.toFixed(1)}" y="${fb.toFixed(1)}" width="${meneauPx.toFixed(1)}" height="${leafH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1"/>`; cx+=meneauPx; }
+    }
+    if(geom.isPorte){
+      const r=Math.min(leafWpx,leafH);
+      sOuvrant+=`<path d="M ${fb.toFixed(1)} ${fb.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${(fb+r).toFixed(1)} ${(fb+r).toFixed(1)}" fill="none" stroke="#2563eb" stroke-width="1.2" stroke-dasharray="5 3"/>`;
+    } else if(leaves>1){
+      const midY=fb+leafH*0.5;
+      sOuvrant+=`<line x1="${(fb+leafWpx*0.65).toFixed(1)}" y1="${midY.toFixed(1)}" x2="${(fb+leafWpx*0.2).toFixed(1)}" y2="${midY.toFixed(1)}" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-${uid})"/>`;
+    }
+  }
+  const inner=`<g class="layer-dormant">${sDormant}</g><g class="layer-ouvrant">${sOuvrant}</g><g class="layer-vitrage">${sVitrage}</g>`;
+  return {defs,inner,W,H,scale};
+}
+/* Coupe A-A (dépouille du profil, à l'échelle du système réellement sélectionné) */
+function buildCoupeStandardAA(res,uid,boxW,boxH){
+  const sys=res.system, vit=res.vitrage, fin=res.finition;
+  const totalDepth=sys.profondeur;
+  const scale=Math.min(boxW/totalDepth, boxH/280);
+  const barH=Math.min(boxH,280*scale), barW=totalDepth*scale;
+  const dormantW=barW*0.52, gapW=Math.max(2,4*scale), ouvrantW=barW-dormantW-gapW;
+  const parcloseW=Math.max(3,8*scale);
+  const vitrageW=Math.max(1,Math.min(ouvrantW-2*parcloseW, vit.epaisseur*scale*1.15));
+  const vitrageX=dormantW+gapW+(ouvrantW-vitrageW)/2;
+  let s=`<rect x="0" y="0" width="${dormantW.toFixed(1)}" height="${barH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.5"/>`;
+  const nCh=Math.max(1,sys.nbChambres);
+  for(let i=1;i<nCh;i++){
+    const cxp=(dormantW/nCh)*i;
+    if(sys.rupturePontThermique && i===Math.ceil(nCh/2)){
+      const rptW=Math.max(3,3.5*scale);
+      s+=`<rect x="${(cxp-rptW/2).toFixed(1)}" y="0" width="${rptW.toFixed(1)}" height="${barH.toFixed(1)}" fill="#caa66b" stroke="#7a5c2e" stroke-width="0.6"/>`;
+    } else {
+      s+=`<line x1="${cxp.toFixed(1)}" y1="4" x2="${cxp.toFixed(1)}" y2="${(barH-4).toFixed(1)}" stroke="${fin.hexDark}" stroke-width="1" stroke-opacity="0.5"/>`;
+    }
+  }
+  s+=`<rect x="${(dormantW+gapW).toFixed(1)}" y="0" width="${ouvrantW.toFixed(1)}" height="${barH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.5"/>`;
+  let vx=vitrageX;
+  const layerScale=vitrageW/vit.epaisseur;
+  vit.layers.forEach(l=>{
+    const lw=Math.max(0.6,l.ep*layerScale);
+    const color=l.t==='verre'?`url(#glass-${uid})`:l.t==='pvb'?'#e8c56b':'#f4f8fb';
+    s+=`<rect x="${vx.toFixed(1)}" y="6" width="${lw.toFixed(1)}" height="${(barH-12).toFixed(1)}" fill="${color}" stroke="${l.t==='verre'?'#4a7ba6':'#c7d3dc'}" stroke-width="0.7"/>`;
+    vx+=lw;
+  });
+  s+=`<rect x="${(dormantW+gapW).toFixed(1)}" y="0" width="${parcloseW.toFixed(1)}" height="${barH.toFixed(1)}" fill="${fin.hex}" stroke="${fin.hexDark}" stroke-width="1"/>`;
+  s+=`<rect x="${(dormantW+gapW+ouvrantW-parcloseW).toFixed(1)}" y="0" width="${parcloseW.toFixed(1)}" height="${barH.toFixed(1)}" fill="${fin.hex}" stroke="${fin.hexDark}" stroke-width="1"/>`;
+  return {content:s,barW,barH,dormantW,ouvrantW,gapW};
+}
+/* Coupe B-B (rail bas / seuil, différenciée porte battante ↔ coulissant) */
+function buildCoupeStandardBB(c,res,uid,boxW,boxH){
+  const sys=res.system, fin=res.finition, geom=res.geom;
+  const leaves=Math.max(1,geom.leaves||1);
+  const railH=Math.max(10,Math.min(boxH*0.35,sys.profondeur*0.4));
+  const gap=6, leafW=(boxW-(leaves-1)*gap)/leaves;
+  let s=`<rect x="0" y="${(boxH-railH).toFixed(1)}" width="${boxW.toFixed(1)}" height="${railH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.5"/>`;
+  let cx=0;
+  for(let i=0;i<leaves;i++){
+    const ouvH=boxH-railH-6, pad=Math.max(3,leafW*0.12);
+    s+=`<rect x="${cx.toFixed(1)}" y="0" width="${leafW.toFixed(1)}" height="${ouvH.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.2"/>`;
+    s+=`<rect x="${(cx+pad).toFixed(1)}" y="${pad.toFixed(1)}" width="${Math.max(0,leafW-2*pad).toFixed(1)}" height="${Math.max(0,ouvH-2*pad).toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="1"/>`;
+    if(geom.isPorte){
+      s+=`<circle cx="${(cx+leafW/2).toFixed(1)}" cy="${(boxH-railH/2).toFixed(1)}" r="${Math.max(3,railH*0.22).toFixed(1)}" fill="#e8e8ea" stroke="#111827" stroke-width="1.4"/>`;
+    } else {
+      s+=`<circle cx="${(cx+leafW*0.25).toFixed(1)}" cy="${(boxH-railH*0.3).toFixed(1)}" r="${Math.max(3,railH*0.22).toFixed(1)}" fill="#4b5563" stroke="#111827" stroke-width="1.2"/>`;
+      s+=`<circle cx="${(cx+leafW*0.75).toFixed(1)}" cy="${(boxH-railH*0.3).toFixed(1)}" r="${Math.max(3,railH*0.22).toFixed(1)}" fill="#4b5563" stroke="#111827" stroke-width="1.2"/>`;
+    }
+    cx+=leafW+gap;
+  }
+  return {content:s};
+}
+/* Coupes spécifiques aux ouvrages hors fenêtre/porte (garde-corps, moustiquaire, jalousie) */
+function buildCoupeAutre(kind,c,res,uid,boxW,boxH){
+  const geom=res.geom;
+  if(kind==='gardecorps'){
+    const tubeD=Math.min(boxW*0.3,50), cx=boxW/2;
+    const contentA=`<circle cx="${cx.toFixed(1)}" cy="${(boxH*0.35).toFixed(1)}" r="${(tubeD/2).toFixed(1)}" fill="#c7ccd1" stroke="#374151" stroke-width="2"/>
+      <text x="${cx.toFixed(1)}" y="${(boxH*0.35+tubeD/2+18).toFixed(1)}" text-anchor="middle" font-size="10" fill="#475569">Poteau inox Ø42.4 mm</text>
+      <rect x="${(cx-tubeD*0.9).toFixed(1)}" y="${(boxH*0.7).toFixed(1)}" width="${(tubeD*1.8).toFixed(1)}" height="14" fill="#9aa1a8" stroke="#111827" stroke-width="1.5"/>
+      <text x="${cx.toFixed(1)}" y="${(boxH*0.7+30).toFixed(1)}" text-anchor="middle" font-size="10" fill="#475569">Platine de fixation inox</text>`;
+    const infillLabel=geom.infill==='cable'?'Câble inox tendu Ø6 mm':geom.infill==='barreaudage'?'Barreaudage vertical Ø12 mm':'Verre feuilleté 33.2 + pince inox';
+    const contentB=`<text x="10" y="20" font-size="12" font-weight="700" fill="#0f172a">Remplissage</text>
+      <text x="10" y="42" font-size="11" fill="#475569">${escapeHtml(infillLabel)}</text>
+      <text x="10" y="64" font-size="11" fill="#475569">Espacement poteaux : ${geom.spacing} mm</text>`;
+    return {titleA:'COUPE POTEAU — FIXATION',contentA,titleB:'DÉTAIL REMPLISSAGE',contentB};
+  }
+  if(kind==='moustiquaire'){
+    const border=18;
+    const contentA=`<rect x="0" y="0" width="${boxW}" height="${(boxH*0.55).toFixed(1)}" fill="url(#alu-${uid})" stroke="#111827" stroke-width="2"/>
+      <rect x="${border}" y="${border}" width="${Math.max(0,boxW-2*border).toFixed(1)}" height="${Math.max(0,boxH*0.55-2*border).toFixed(1)}" fill="url(#mesh-${uid})" stroke="#4a5568" stroke-width="1"/>
+      <text x="${(boxW/2).toFixed(1)}" y="${(boxH*0.55+20).toFixed(1)}" text-anchor="middle" font-size="10" fill="#475569">Cadre + toile fibre de verre clipée (jonc)</text>`;
+    const contentB=geom.isCoul?`<text x="10" y="20" font-size="12" font-weight="700" fill="#0f172a">Rail coulissant</text><text x="10" y="42" font-size="11" fill="#475569">${geom.leaves} vantaux — roulettes latérales</text>`:`<text x="10" y="20" font-size="12" font-weight="700" fill="#0f172a">Cadre fixe</text><text x="10" y="42" font-size="11" fill="#475569">Loquets de fermeture périphériques</text>`;
+    return {titleA:'COUPE CADRE — TOILE MOUSTIQUAIRE',contentA,titleB:'DÉTAIL FIXATION',contentB};
+  }
+  if(kind==='jalousie'){
+    const nSample=Math.min(4,geom.nLames||3);
+    let contentA='';
+    for(let i=0;i<nSample;i++){
+      const ly=i*(boxH/nSample);
+      contentA+=`<rect x="0" y="${ly.toFixed(1)}" width="${boxW}" height="${(boxH/nSample-6).toFixed(1)}" fill="url(#glass-${uid})" stroke="#4a7ba6" stroke-width="1"/>`;
+      contentA+=`<circle cx="8" cy="${(ly+boxH/nSample/2-3).toFixed(1)}" r="3" fill="#111827"/>`;
+    }
+    contentA+=`<text x="${(boxW/2).toFixed(1)}" y="${(boxH+16).toFixed(1)}" text-anchor="middle" font-size="10" fill="#475569">Lames verre 5 mm — clips latéraux</text>`;
+    const contentB=`<text x="10" y="20" font-size="12" font-weight="700" fill="#0f172a">Mécanisme</text><text x="10" y="42" font-size="11" fill="#475569">Manivelle + biellette d'entraînement</text><text x="10" y="64" font-size="11" fill="#475569">${geom.nLames} lames</text>`;
+    return {titleA:'COUPE LAMES — DÉTAIL FIXATION',contentA,titleB:'MÉCANISME MANIVELLE',contentB};
+  }
+  return {titleA:'COUPE A-A',contentA:'',titleB:'COUPE B-B',contentB:''};
 }
 function svgSchemaParametrique(c,res){
-  const label=`${c.type} • ${c.leaves>1?c.leaves+' vantaux':'1 vantail'} • Série ${c.serie}`;
-  return `<svg viewBox="0 0 760 390" class="w-full h-auto" role="img" aria-label="Schéma technique de l'ouvrage">
-    <defs><marker id="pArrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker></defs>
-    <rect x="145" y="55" width="470" height="260" rx="2" fill="#e2e8f0" stroke="#0f172a" stroke-width="8"/>
-    <rect x="165" y="75" width="430" height="220" fill="#dbeafe" stroke="#64748b" stroke-width="4"/>
-    <line x1="380" y1="75" x2="380" y2="295" stroke="#64748b" stroke-width="5"/>
-    <circle cx="365" cy="185" r="4" fill="#0f172a"/><circle cx="395" cy="185" r="4" fill="#0f172a"/>
-    <line x1="145" y1="35" x2="615" y2="35" stroke="#334155" stroke-width="2" marker-start="url(#pArrow)" marker-end="url(#pArrow)"/>
-    <line x1="145" y1="42" x2="145" y2="55" stroke="#64748b"/><line x1="615" y1="42" x2="615" y2="55" stroke="#64748b"/>
-    <text x="380" y="27" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">${c.w} mm</text>
-    <line x1="120" y1="55" x2="120" y2="315" stroke="#334155" stroke-width="2" marker-start="url(#pArrow)" marker-end="url(#pArrow)"/>
-    <line x1="127" y1="55" x2="145" y2="55" stroke="#64748b"/><line x1="127" y1="315" x2="145" y2="315" stroke="#64748b"/>
-    <text x="98" y="190" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a" transform="rotate(-90 98 190)">${c.h} mm</text>
-    <text x="380" y="350" text-anchor="middle" font-size="15" fill="#475569">${escapeHtml(label)}</text>
+  const uid='ev'+Math.random().toString(36).slice(2,7);
+  const boxW=620,boxH=300,ox=120,oy=64;
+  const g=elevationGroup(c,res,uid,boxW,boxH);
+  const cx=ox+(boxW-g.W)/2, cy=oy+(boxH-g.H)/2;
+  const geom=res.geom;
+  let countLabel='1 élément';
+  if(geom.kind==='gardecorps') countLabel=`${geom.nPoteaux} poteaux`;
+  else if(geom.kind==='jalousie') countLabel=`${geom.nLames} lames`;
+  else if(geom.kind==='moustiquaire') countLabel=geom.isCoul?`${geom.leaves} vantaux`:'Fixe';
+  else countLabel=geom.leaves>1?`${geom.leaves} vantaux`:'1 vantail';
+  const label=`${c.type} • ${countLabel} • ${res.system.label} • ${res.finition.label}`;
+  return `<svg viewBox="0 0 860 440" class="w-full h-auto" role="img" aria-label="Schéma technique de l'ouvrage à l'échelle">
+    <defs>${g.defs}<marker id="dArrow-${uid}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker></defs>
+    <g transform="translate(${cx.toFixed(1)},${cy.toFixed(1)})">${g.inner}</g>
+    <line x1="${cx.toFixed(1)}" y1="${(cy-20).toFixed(1)}" x2="${(cx+g.W).toFixed(1)}" y2="${(cy-20).toFixed(1)}" stroke="#334155" stroke-width="1.5" marker-start="url(#dArrow-${uid})" marker-end="url(#dArrow-${uid})"/>
+    <line x1="${cx.toFixed(1)}" y1="${(cy-25).toFixed(1)}" x2="${cx.toFixed(1)}" y2="${(cy-15).toFixed(1)}" stroke="#64748b"/>
+    <line x1="${(cx+g.W).toFixed(1)}" y1="${(cy-25).toFixed(1)}" x2="${(cx+g.W).toFixed(1)}" y2="${(cy-15).toFixed(1)}" stroke="#64748b"/>
+    <text x="${(cx+g.W/2).toFixed(1)}" y="${(cy-28).toFixed(1)}" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a">${c.w} mm</text>
+    <line x1="${(cx-20).toFixed(1)}" y1="${cy.toFixed(1)}" x2="${(cx-20).toFixed(1)}" y2="${(cy+g.H).toFixed(1)}" stroke="#334155" stroke-width="1.5" marker-start="url(#dArrow-${uid})" marker-end="url(#dArrow-${uid})"/>
+    <line x1="${(cx-25).toFixed(1)}" y1="${cy.toFixed(1)}" x2="${(cx-15).toFixed(1)}" y2="${cy.toFixed(1)}" stroke="#64748b"/>
+    <line x1="${(cx-25).toFixed(1)}" y1="${(cy+g.H).toFixed(1)}" x2="${(cx-15).toFixed(1)}" y2="${(cy+g.H).toFixed(1)}" stroke="#64748b"/>
+    <text x="${(cx-32).toFixed(1)}" y="${(cy+g.H/2).toFixed(1)}" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a" transform="rotate(-90 ${(cx-32).toFixed(1)} ${(cy+g.H/2).toFixed(1)})">${c.h} mm</text>
+    <g transform="translate(${cx.toFixed(1)},${(oy+boxH+34).toFixed(1)})">${svgScaleBar(uid,g.scale)}</g>
+    <text x="${(cx+g.W).toFixed(1)}" y="${(oy+boxH+34).toFixed(1)}" text-anchor="end" font-size="11" font-weight="700" fill="#1d4ed8">ÉCHELLE 1:${Math.max(1,Math.round(1/g.scale))}</text>
+    <text x="430" y="425" text-anchor="middle" font-size="13" fill="#475569">${escapeHtml(label)}</text>
   </svg>`;
 }
 function svgSchemaFabrication(c,res){
-  const isPorte=c.type==='Porte à la française';
-  const isGC=c.type==='Garde-corps inox';
-  const openingLabel=isPorte?"Sens d'ouverture — porte battante":isGC?'Garde-corps — vue de face':c.leaves>1?`Sens d'ouverture — coulissant ${c.leaves} vantaux`:'Ouvrage fixe';
-  const cutRows=res.rows.slice(0,6).map((r,i)=>`<text x="620" y="${592+i*20}" font-size="11">${escapeHtml(r[0])}</text><text x="760" y="${592+i*20}" font-size="11">${escapeHtml(r[1]).slice(0,26)}</text><text x="965" y="${592+i*20}" font-size="11" text-anchor="end">${Number(r[2]).toFixed(0)}</text><text x="1100" y="${592+i*20}" font-size="11" text-anchor="end">${r[3]?Number(r[3]).toFixed(0):'—'}</text>`).join('');
-  return `<svg viewBox="0 0 1200 760" class="w-full min-w-[1050px] h-auto" aria-label="Plan technique de fabrication aluminium">
-    <defs><marker id="fabArrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker>
-    <pattern id="glassPattern" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0 8 L8 0" stroke="#93c5fd" stroke-width="1"/></pattern></defs>
-    <rect x="15" y="15" width="1170" height="730" fill="#fff" stroke="#0f172a" stroke-width="2"/>
+  const uid='fb'+Math.random().toString(36).slice(2,7);
+  const geom=res.geom, kind=geom.kind||'standard';
+  const sys=res.system, vit=res.vitrage, fin=res.finition;
+  const isPorte=geom.isPorte;
+  const openingLabel=isPorte?"Sens d'ouverture — porte battante":kind==='gardecorps'?'Garde-corps — vue de face':kind==='moustiquaire'?(geom.isCoul?`Moustiquaire coulissante — ${geom.leaves} vantaux`:'Moustiquaire fixe'):kind==='jalousie'?`Jalousie — ${geom.nLames} lames`:geom.leaves>1?`Sens de coulissement — ${geom.leaves} vantaux`:'Ouvrage fixe';
+  const elevBoxW=430,elevBoxH=330,evOxBase=90,evOyBase=140;
+  const ev=elevationGroup(c,res,uid,elevBoxW,elevBoxH);
+  const evOx=evOxBase+(elevBoxW-ev.W)/2, evOy=evOyBase+(elevBoxH-ev.H)/2;
+  const aaBoxX=650,aaBoxY=150,aaBoxW=220,aaBoxH=330;
+  const bbBoxX=90,bbBoxY=560,bbBoxW=430,bbBoxH=130;
+  let titleAA,titleBB,contentAA,contentBB;
+  if(kind==='standard'){
+    titleAA='COUPE A-A — DORMANT / OUVRANT / VITRAGE';
+    titleBB=isPorte?'COUPE B-B — SEUIL / PAUMELLES':'COUPE B-B — RAIL / OUVRANTS';
+    const aa=buildCoupeStandardAA(res,uid,aaBoxW-40,aaBoxH-60);
+    contentAA=`<g transform="translate(${(aaBoxX+20).toFixed(1)},${(aaBoxY+40).toFixed(1)})">${aa.content}
+      <line x1="0" y1="-10" x2="${aa.barW.toFixed(1)}" y2="-10" stroke="#334155" stroke-width="1.5" marker-start="url(#dArrow-${uid})" marker-end="url(#dArrow-${uid})"/>
+      <text x="${(aa.barW/2).toFixed(1)}" y="-16" text-anchor="middle" font-size="13" font-weight="700">${sys.profondeur} mm</text>
+      <text x="0" y="${(aa.barH+22).toFixed(1)}" font-size="10" fill="#475569">◀ Dormant</text>
+      <text x="${(aa.dormantW+aa.gapW+4).toFixed(1)}" y="${(aa.barH+22).toFixed(1)}" font-size="10" fill="#475569">Ouvrant ▶</text>
+      <text x="0" y="${(aa.barH+40).toFixed(1)}" font-size="10" fill="#475569">${escapeHtml(vit.label)}</text>
+    </g>`;
+    const bb=buildCoupeStandardBB(c,res,uid,bbBoxW-20,bbBoxH-30);
+    contentBB=`<g transform="translate(${(bbBoxX+10).toFixed(1)},${(bbBoxY+10).toFixed(1)})">${bb.content}</g>`;
+  } else {
+    const alt=buildCoupeAutre(kind,c,res,uid,aaBoxW-40,aaBoxH-60);
+    titleAA=alt.titleA; titleBB=alt.titleB;
+    contentAA=`<g transform="translate(${(aaBoxX+20).toFixed(1)},${(aaBoxY+40).toFixed(1)})">${alt.contentA}</g>`;
+    contentBB=alt.contentB?`<g transform="translate(${(bbBoxX+10).toFixed(1)},${(bbBoxY+10).toFixed(1)})">${alt.contentB}</g>`:'';
+  }
+  const cutRows=res.rows.slice(0,6).map((r,i)=>`<text x="660" y="${626+i*20}" font-size="11">${escapeHtml(r[0])}</text><text x="800" y="${626+i*20}" font-size="11">${escapeHtml(r[1]).slice(0,28)}</text><text x="1020" y="${626+i*20}" font-size="11" text-anchor="end">${Number(r[2]).toFixed(0)}</text><text x="1150" y="${626+i*20}" font-size="11" text-anchor="end">${r[3]?Number(r[3]).toFixed(0):'—'}</text>`).join('');
+  return `<svg viewBox="0 0 1200 800" class="w-full min-w-[1050px] h-auto" aria-label="Plan technique de fabrication aluminium à l'échelle">
+    <defs>${ev.defs}<marker id="dArrow-${uid}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker></defs>
+    <rect x="15" y="15" width="1170" height="770" fill="#fff" stroke="#0f172a" stroke-width="2"/>
     <text x="35" y="45" font-size="20" font-weight="800" fill="#0f172a">${escapeHtml(c.type.toUpperCase())} — PLAN DE FABRICATION</text>
-    <text x="1160" y="45" text-anchor="end" font-size="12" fill="#475569">B.E. BEDA ALU • V1.0</text>
-    <text x="55" y="78" font-size="14" font-weight="800" fill="#1d4ed8">VUE DE FACE — COTES HORS TOUT</text>
-    <rect x="70" y="105" width="500" height="390" fill="#e5e7eb" stroke="#111827" stroke-width="8"/>
-    <rect x="87" y="122" width="466" height="356" fill="url(#glassPattern)" stroke="#334155" stroke-width="4"/>
-    <line x1="320" y1="122" x2="320" y2="478" stroke="#475569" stroke-width="5"/>
-    <rect x="307" y="278" width="9" height="42" rx="2" fill="#111827"/><rect x="324" y="278" width="9" height="42" rx="2" fill="#111827"/>
-    <line x1="70" y1="88" x2="570" y2="88" stroke="#334155" stroke-width="2" marker-start="url(#fabArrow)" marker-end="url(#fabArrow)"/>
-    <line x1="70" y1="94" x2="70" y2="105" stroke="#64748b"/><line x1="570" y1="94" x2="570" y2="105" stroke="#64748b"/>
-    <text x="320" y="82" text-anchor="middle" font-size="15" font-weight="700">${c.w} mm</text>
-    <line x1="52" y1="105" x2="52" y2="495" stroke="#334155" stroke-width="2" marker-start="url(#fabArrow)" marker-end="url(#fabArrow)"/>
-    <line x1="58" y1="105" x2="70" y2="105" stroke="#64748b"/><line x1="58" y1="495" x2="70" y2="495" stroke="#64748b"/>
-    <text x="35" y="300" text-anchor="middle" font-size="15" font-weight="700" transform="rotate(-90 35 300)">${c.h} mm</text>
-    ${isPorte?`<line id="fabThreshold" x1="70" y1="495" x2="570" y2="495" stroke="#111827" stroke-width="6"/><path d="M 320 122 A 250 250 0 0 1 500 300" fill="none" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="4 3"/>`
-      :`<line x1="300" y1="250" x2="190" y2="250" stroke="#2563eb" stroke-width="3" marker-end="url(#fabArrow)"/><line x1="340" y1="350" x2="450" y2="350" stroke="#2563eb" stroke-width="3" marker-end="url(#fabArrow)"/>`}
-    <text x="320" y="525" text-anchor="middle" font-size="12" fill="#475569">${escapeHtml(openingLabel)}</text>
-    <g><text x="630" y="78" font-size="14" font-weight="800" fill="#1d4ed8">COUPE A-A — DORMANT / OUVRANT / VITRAGE</text>
-    <rect x="675" y="105" width="125" height="360" fill="#d1d5db" stroke="#111827" stroke-width="5"/>
-    <rect x="700" y="125" width="76" height="320" fill="url(#glassPattern)" stroke="#2563eb" stroke-width="4"/>
-    <rect x="682" y="150" width="32" height="270" fill="#9ca3af" stroke="#111827" stroke-width="3"/>
-    <rect x="746" y="150" width="32" height="270" fill="#9ca3af" stroke="#111827" stroke-width="3"/>
-    <line x1="675" y1="95" x2="800" y2="95" stroke="#334155" stroke-width="2" marker-start="url(#fabArrow)" marker-end="url(#fabArrow)"/>
-    <text x="737" y="88" text-anchor="middle" font-size="14" font-weight="700">${c.serie==='PREM150'?150:120} mm</text>
-    <line x1="820" y1="170" x2="920" y2="170" stroke="#64748b"/><text x="930" y="175" font-size="13" font-weight="700">AL-DOR-001 — Dormant</text>
-    <line x1="820" y1="245" x2="920" y2="245" stroke="#64748b"/><text x="930" y="250" font-size="13" font-weight="700">AL-OUV-001 — Ouvrant</text>
-    <line x1="820" y1="320" x2="920" y2="320" stroke="#64748b"/><text x="930" y="325" font-size="13" font-weight="700">VERRE 6/12/6</text>
-    <line x1="820" y1="395" x2="920" y2="395" stroke="#64748b"/><text x="930" y="400" font-size="13" font-weight="700">AL-PAR-001 — Parclose</text></g>
-    <g><text x="55" y="565" font-size="14" font-weight="800" fill="#1d4ed8">COUPE B-B — RAIL / OUVRANTS / VITRAGE</text>
-    <rect x="70" y="585" width="500" height="62" fill="#d1d5db" stroke="#111827" stroke-width="4"/>
-    <rect x="105" y="598" width="185" height="26" fill="url(#glassPattern)" stroke="#2563eb" stroke-width="3"/>
-    <rect x="350" y="598" width="185" height="26" fill="url(#glassPattern)" stroke="#2563eb" stroke-width="3"/>
-    <line x1="320" y1="585" x2="320" y2="647" stroke="#475569" stroke-width="4"/>
-    <circle cx="150" cy="638" r="7" fill="#111827"/><circle cx="500" cy="638" r="7" fill="#111827"/>
-    <text x="160" y="675" font-size="12" fill="#475569">Roulette</text><text x="490" y="675" font-size="12" fill="#475569">Roulette</text></g>
-    <rect x="600" y="525" width="550" height="190" fill="#fff" stroke="#0f172a" stroke-width="1.5"/>
-    <text x="615" y="548" font-size="14" font-weight="800">FICHE DE DÉBIT — EXTRAIT</text>
-    <line x1="610" y1="558" x2="1140" y2="558" stroke="#cbd5e1"/>
-    <text x="620" y="578" font-size="11" font-weight="700">REPÈRE</text><text x="760" y="578" font-size="11" font-weight="700">DÉSIGNATION</text>
-    <text x="965" y="578" font-size="11" font-weight="700" text-anchor="end">QTÉ</text><text x="1100" y="578" font-size="11" font-weight="700" text-anchor="end">MM</text>
+    <text x="1160" y="45" text-anchor="end" font-size="12" fill="#475569">B.E. BEDA ALU • ${escapeHtml(sys.label)}</text>
+    <text x="35" y="65" font-size="11" fill="#64748b">Finition ${escapeHtml(fin.label)}${kind==='standard'?' • '+escapeHtml(vit.label):''}</text>
+    <text x="90" y="100" font-size="14" font-weight="800" fill="#1d4ed8">VUE DE FACE — COTES HORS TOUT</text>
+    <g transform="translate(${evOx.toFixed(1)},${evOy.toFixed(1)})">${ev.inner}</g>
+    <line x1="${evOx.toFixed(1)}" y1="130" x2="${(evOx+ev.W).toFixed(1)}" y2="130" stroke="#334155" stroke-width="1.5" marker-start="url(#dArrow-${uid})" marker-end="url(#dArrow-${uid})"/>
+    <text x="${(evOx+ev.W/2).toFixed(1)}" y="124" text-anchor="middle" font-size="14" font-weight="700">${c.w} mm</text>
+    <line x1="70" y1="${evOy.toFixed(1)}" x2="70" y2="${(evOy+ev.H).toFixed(1)}" stroke="#334155" stroke-width="1.5" marker-start="url(#dArrow-${uid})" marker-end="url(#dArrow-${uid})"/>
+    <text x="55" y="${(evOy+ev.H/2).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="700" transform="rotate(-90 55 ${(evOy+ev.H/2).toFixed(1)})">${c.h} mm</text>
+    <text x="${(evOxBase+elevBoxW/2).toFixed(1)}" y="${(evOyBase+elevBoxH+18).toFixed(1)}" text-anchor="middle" font-size="12" fill="#475569">${escapeHtml(openingLabel)}</text>
+    <g transform="translate(90,${(evOyBase+elevBoxH+42).toFixed(1)})">${svgScaleBar(uid,ev.scale)}</g>
+    <text x="${aaBoxX}" y="100" font-size="14" font-weight="800" fill="#1d4ed8">${escapeHtml(titleAA)}</text>
+    ${contentAA}
+    <text x="${bbBoxX}" y="545" font-size="14" font-weight="800" fill="#1d4ed8">${escapeHtml(titleBB)}</text>
+    ${contentBB}
+    <rect x="650" y="555" width="510" height="180" fill="#fff" stroke="#0f172a" stroke-width="1.5"/>
+    <text x="665" y="578" font-size="14" font-weight="800">FICHE DE DÉBIT — EXTRAIT</text>
+    <line x1="660" y1="588" x2="1150" y2="588" stroke="#cbd5e1"/>
+    <text x="660" y="608" font-size="11" font-weight="700">REPÈRE</text><text x="800" y="608" font-size="11" font-weight="700">DÉSIGNATION</text>
+    <text x="1020" y="608" font-size="11" font-weight="700" text-anchor="end">QTÉ</text><text x="1150" y="608" font-size="11" font-weight="700" text-anchor="end">MM</text>
     ${cutRows}
-    <text x="620" y="705" font-size="11" fill="#475569">Tolérance générale : ±1 mm • Trait de scie : ${c.kerf} mm • Barre commerciale : ${c.barLen} mm</text>
+    <text x="35" y="760" font-size="11" fill="#475569">Tolérance générale : ±1 mm • Trait de scie : ${c.kerf} mm • Barre commerciale : ${c.barLen} mm • Système ${escapeHtml(sys.label)} (prof. ${sys.profondeur} mm${sys.rupturePontThermique?' — RPT':''}) • Uf ${sys.uf} W/m².K</text>
   </svg>`;
 }
-function svgJonctionAngle(c){
-  const jointLabels={onglet:'Onglet 45° serti + colle structurale',equerre:'Équerre mécanique aluminium',about:'Aboutage 90° + vis'};
-  return `<svg viewBox="0 0 500 320" class="w-full h-auto" role="img" aria-label="Détail de jonction d'angle">
-    <defs><marker id="jArrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker></defs>
+function svgJonctionAngle(c,res){
+  const sys=res.system, fin=res.finition;
+  const jointLabels={onglet:'Onglet 45° serti + colle structurale',equerre:"Équerre mécanique d'angle",about:'Aboutage 90° + vis'};
+  const uid='jt'+Math.random().toString(36).slice(2,7);
+  const barPx=Math.max(28,Math.min(60,sys.profondeur*0.42));
+  const hx=60,hy=100,hw=220;
+  const vx=hx+hw-barPx,vy=hy,vh=180;
+  const jt=c.jointType||'onglet';
+  const defs=`<linearGradient id="alu-${uid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${fin.hexLight}"/><stop offset="50%" stop-color="${fin.hex}"/><stop offset="100%" stop-color="${fin.hexDark}"/></linearGradient>`;
+  let content=`<rect x="${hx}" y="${(hy-barPx).toFixed(1)}" width="${hw}" height="${barPx.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="2"/>
+    <rect x="${vx.toFixed(1)}" y="${vy}" width="${barPx.toFixed(1)}" height="${vh}" fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="2"/>`;
+  if(jt==='onglet'){
+    content+=`<path d="M ${vx.toFixed(1)} ${hy} L ${vx.toFixed(1)} ${(hy-barPx).toFixed(1)} L ${(vx+barPx).toFixed(1)} ${(hy-barPx).toFixed(1)} Z" fill="${fin.hexLight}" stroke="${fin.hexDark}" stroke-width="1.5"/>
+      <line x1="${vx.toFixed(1)}" y1="${(hy-barPx).toFixed(1)}" x2="${(vx+barPx).toFixed(1)}" y2="${hy}" stroke="#0f172a" stroke-width="1.4"/>
+      <circle cx="${(vx+barPx*0.3).toFixed(1)}" cy="${(hy-barPx*0.15).toFixed(1)}" r="3" fill="#111827"/>
+      <circle cx="${(vx+barPx*0.75).toFixed(1)}" cy="${(hy-barPx*0.55).toFixed(1)}" r="3" fill="#111827"/>`;
+  } else if(jt==='equerre'){
+    const bl=barPx*0.85;
+    content+=`<rect x="${(vx+barPx/2-bl/2).toFixed(1)}" y="${(hy-bl/2).toFixed(1)}" width="${bl.toFixed(1)}" height="${bl.toFixed(1)}" fill="#9aa3ab" stroke="#111827" stroke-width="1.6"/>
+      <circle cx="${(vx+barPx/2-bl*0.25).toFixed(1)}" cy="${(hy-bl*0.25).toFixed(1)}" r="3" fill="#111827"/>
+      <circle cx="${(vx+barPx/2+bl*0.25).toFixed(1)}" cy="${(hy+bl*0.25).toFixed(1)}" r="3" fill="#111827"/>`;
+  } else {
+    content+=`<line x1="${vx.toFixed(1)}" y1="${(hy-barPx).toFixed(1)}" x2="${(vx+barPx).toFixed(1)}" y2="${(hy-barPx).toFixed(1)}" stroke="#0f172a" stroke-width="2"/>
+      <circle cx="${(vx+barPx*0.3).toFixed(1)}" cy="${(hy-barPx*0.55).toFixed(1)}" r="3" fill="#111827"/>
+      <line x1="${(vx-14).toFixed(1)}" y1="${(hy-barPx*0.55).toFixed(1)}" x2="${(vx+barPx*0.3).toFixed(1)}" y2="${(hy-barPx*0.55).toFixed(1)}" stroke="#111827" stroke-width="1.2" marker-end="url(#jArrow-${uid})"/>
+      <circle cx="${(vx+barPx*0.75).toFixed(1)}" cy="${(hy-barPx*0.55).toFixed(1)}" r="3" fill="#111827"/>`;
+  }
+  return `<svg viewBox="0 0 500 320" class="w-full h-auto" role="img" aria-label="Détail de jonction d'angle à l'échelle">
+    <defs>${defs}<marker id="jArrow-${uid}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#111827"/></marker></defs>
     <rect x="10" y="10" width="480" height="300" fill="#fff" stroke="#0f172a" stroke-width="1.5"/>
-    <g stroke="#0f172a" stroke-width="2" fill="#e2e8f0">
-      <rect x="60" y="60" width="220" height="46"/>
-      <rect x="216" y="106" width="46" height="180"/>
-    </g>
-    <path d="M262 60 L262 106 L280 106 Z" fill="#cbd5e1" stroke="#0f172a" stroke-width="2"/>
-    <rect x="230" y="90" width="60" height="32" fill="#94a3b8" stroke="#111827" stroke-width="2"/>
-    <circle cx="242" cy="106" r="4" fill="#111827"/><circle cx="278" cy="106" r="4" fill="#111827"/>
-    <line x1="216" y1="106" x2="262" y2="60" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="4 3"/>
-    <text x="130" y="45" font-size="13" font-weight="700" fill="#0f172a">Dormant horizontal</text>
-    <text x="330" y="200" font-size="13" font-weight="700" fill="#0f172a" transform="rotate(90 330 200)">Dormant vertical</text>
-    <text x="250" y="300" text-anchor="middle" font-size="13" fill="#475569">${escapeHtml(jointLabels[c.jointType]||'')}</text>
-    <text x="130" y="90" text-anchor="middle" font-size="11" fill="#64748b">Profil ${c.serie==='PREM150'?150:120} mm</text>
-    <line x1="330" y1="60" x2="330" y2="106" stroke="#334155" marker-start="url(#jArrow)" marker-end="url(#jArrow)"/>
-    <text x="345" y="87" font-size="11" fill="#64748b">45°</text>
+    ${content}
+    <text x="${(hx+hw/2)}" y="${(hy-barPx-14).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">Dormant horizontal</text>
+    <text x="${(vx-14).toFixed(1)}" y="${(vy+vh/2)}" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a" transform="rotate(-90 ${(vx-14).toFixed(1)} ${(vy+vh/2)})">Dormant vertical</text>
+    <text x="250" y="300" text-anchor="middle" font-size="13" fill="#475569">${escapeHtml(jointLabels[jt]||'')}</text>
+    <text x="${(hx+40)}" y="${(hy-barPx/2+4).toFixed(1)}" text-anchor="middle" font-size="10" fill="#64748b">${sys.profondeur} mm</text>
   </svg>`;
 }
+
+/* ============================== ÉDITEUR DE PLAN INTERACTIF ==============================
+   Calques Dormant/Ouvrant/Vitrage réutilisés depuis elevationGroup ; outils Cote/Annotation
+   qui convertissent les clics écran en coordonnées mm réelles via getScreenCTM (donc les
+   cotes restent justes si on zoome/scrolle) ; historique = tableau simple pour Annuler/Effacer.
+   Les cotes/annotations sont stockées en mm dans configState pour survivre à un changement
+   de dimensions (repositionnement proportionnel au prochain rendu) et sont sauvegardées avec
+   le produit (config_json) comme le reste de configState. */
+function renderPlanEditor(c,res){
+  const boxW=600,boxH=320,ox=110,oy=54;
+  const uid='pe';
+  const g=elevationGroup(c,res,uid,boxW,boxH);
+  window._planScale=g.scale;
+  const cx=ox+(boxW-g.W)/2, cy=oy+(boxH-g.H)/2;
+  const baseCotes=`<line x1="0" y1="-16" x2="${g.W.toFixed(1)}" y2="-16" stroke="#334155" stroke-width="1.3" marker-start="url(#peArrow)" marker-end="url(#peArrow)"/>
+    <text x="${(g.W/2).toFixed(1)}" y="-20" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">${c.w} mm</text>
+    <line x1="-16" y1="0" x2="-16" y2="${g.H.toFixed(1)}" stroke="#334155" stroke-width="1.3" marker-start="url(#peArrow)" marker-end="url(#peArrow)"/>
+    <text x="-24" y="${(g.H/2).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a" transform="rotate(-90 -24 ${(g.H/2).toFixed(1)})">${c.h} mm</text>`;
+  const viewW=ox+boxW+50, viewH=oy+boxH+40;
+  return `<div class="flex flex-wrap items-center gap-2 mb-3 text-xs">
+      <div class="flex rounded-lg border overflow-hidden">
+        <button class="plan-tool-btn px-3 py-1.5 font-semibold bg-indigo-600 text-white" data-tool="move" onclick="setPlanMode('move')">🖐️ Déplacer</button>
+        <button class="plan-tool-btn px-3 py-1.5 font-semibold" data-tool="cote" onclick="setPlanMode('cote')">📏 Cote</button>
+        <button class="plan-tool-btn px-3 py-1.5 font-semibold" data-tool="annotation" onclick="setPlanMode('annotation')">📝 Annotation</button>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="planUndo()">↩ Annuler</button>
+      <button class="btn btn-outline btn-sm" onclick="planClear()">🗑️ Effacer</button>
+      <label class="flex items-center gap-1"><input type="checkbox" checked onchange="togglePlanLayer('dormant',this.checked)"> Dormant</label>
+      <label class="flex items-center gap-1"><input type="checkbox" checked onchange="togglePlanLayer('ouvrant',this.checked)"> Ouvrant</label>
+      <label class="flex items-center gap-1"><input type="checkbox" checked onchange="togglePlanLayer('vitrage',this.checked)"> Vitrage</label>
+      <label class="flex items-center gap-1"><input type="checkbox" checked onchange="togglePlanLayer('cotes',this.checked)"> Cotes</label>
+      <button class="btn btn-primary btn-sm ml-auto" onclick="exportPlanPNG()">⬇️ Export PNG</button>
+    </div>
+    <div class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2" id="planHint">🖐️ Mode Déplacer : les outils Cote et Annotation sont désactivés. Cliquez « 📏 Cote » puis deux points pour coter, ou « 📝 Annotation » puis un point pour noter.</div>
+    <div class="bg-white rounded-xl border p-2 overflow-auto">
+      <svg id="planEditorSvg" viewBox="0 0 ${viewW} ${viewH}" class="w-full h-auto" role="img" aria-label="Éditeur de plan interactif">
+        <defs>${g.defs}
+          <marker id="peArrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker>
+          <marker id="userArrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#dc2626"/></marker>
+        </defs>
+        <g id="planDrawGroup" transform="translate(${cx.toFixed(1)},${cy.toFixed(1)})">
+          ${g.inner}
+          <g class="layer-cotes">${baseCotes}<g id="planUserLayer"></g></g>
+          <rect id="planCapture" x="0" y="0" width="${g.W.toFixed(1)}" height="${g.H.toFixed(1)}" fill="transparent"/>
+        </g>
+      </svg>
+    </div>`;
+}
+function initPlanEditor(){
+  const g=document.getElementById('planDrawGroup');
+  const capture=document.getElementById('planCapture');
+  if(!g||!capture) return;
+  window._planPendingPoint=null;
+  capture.onclick=function(evt){
+    const mode=configState.planMode||'move';
+    if(mode==='move') return;
+    const p=svgLocalPoint(g,evt);
+    if(mode==='cote'){
+      if(!window._planPendingPoint){ window._planPendingPoint=p; }
+      else { addPlanCote(window._planPendingPoint,p); window._planPendingPoint=null; }
+    } else if(mode==='annotation'){
+      const text=prompt('Texte de l\'annotation :');
+      if(text) addPlanNote(p,text);
+    }
+  };
+  renderPlanUserLayer();
+}
+function svgLocalPoint(groupEl,evt){
+  const svg=groupEl.ownerSVGElement;
+  const pt=svg.createSVGPoint();
+  pt.x=evt.clientX; pt.y=evt.clientY;
+  const ctm=groupEl.getScreenCTM();
+  if(!ctm) return {x:0,y:0};
+  const loc=pt.matrixTransform(ctm.inverse());
+  return {x:loc.x,y:loc.y};
+}
+function setPlanMode(mode){
+  configState.planMode=mode;
+  window._planPendingPoint=null;
+  document.querySelectorAll('.plan-tool-btn').forEach(b=>{ const on=b.dataset.tool===mode; b.classList.toggle('bg-indigo-600',on); b.classList.toggle('text-white',on); });
+  const capture=document.getElementById('planCapture');
+  if(capture) capture.style.cursor = mode==='move' ? 'default' : 'crosshair';
+  const hint=document.getElementById('planHint');
+  if(hint){
+    const hints={move:'🖐️ Mode Déplacer : les outils Cote et Annotation sont désactivés. Cliquez « 📏 Cote » puis deux points pour coter, ou « 📝 Annotation » puis un point pour noter.',
+      cote:'📏 Mode Cote : cliquez un premier point puis un second pour tracer une cote (distance calculée en mm réels).',
+      annotation:'📝 Mode Annotation : cliquez un point du plan pour y ajouter une note.'};
+    hint.textContent=hints[mode]||'';
+  }
+}
+function addPlanCote(a,b){
+  const scale=window._planScale||1;
+  const mmA={x:a.x/scale,y:a.y/scale}, mmB={x:b.x/scale,y:b.y/scale};
+  const mm=Math.round(Math.hypot(mmB.x-mmA.x,mmB.y-mmA.y));
+  const id='cote'+Date.now()+Math.random().toString(36).slice(2,6);
+  configState.planCotes=configState.planCotes||[];
+  configState.planHistory=configState.planHistory||[];
+  configState.planCotes.push({id,mmA,mmB,mm});
+  configState.planHistory.push({type:'cote',id});
+  renderPlanUserLayer();
+}
+function addPlanNote(p,text){
+  const scale=window._planScale||1;
+  const id='note'+Date.now()+Math.random().toString(36).slice(2,6);
+  configState.planNotes=configState.planNotes||[];
+  configState.planHistory=configState.planHistory||[];
+  configState.planNotes.push({id,mmX:p.x/scale,mmY:p.y/scale,text:String(text).slice(0,80)});
+  configState.planHistory.push({type:'note',id});
+  renderPlanUserLayer();
+}
+function planUndo(){
+  const h=configState.planHistory||[];
+  const last=h.pop();
+  if(!last) return;
+  if(last.type==='cote') configState.planCotes=(configState.planCotes||[]).filter(x=>x.id!==last.id);
+  else configState.planNotes=(configState.planNotes||[]).filter(x=>x.id!==last.id);
+  renderPlanUserLayer();
+}
+function planClear(){
+  configState.planCotes=[]; configState.planNotes=[]; configState.planHistory=[];
+  renderPlanUserLayer();
+}
+function renderPlanUserLayer(){
+  const container=document.getElementById('planUserLayer');
+  if(!container) return;
+  const scale=window._planScale||1;
+  let s='';
+  (configState.planCotes||[]).forEach(cd=>{
+    const x1=cd.mmA.x*scale, y1=cd.mmA.y*scale, x2=cd.mmB.x*scale, y2=cd.mmB.y*scale, mx=(x1+x2)/2, my=(y1+y2)/2;
+    s+=`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#dc2626" stroke-width="1.5" marker-start="url(#userArrow)" marker-end="url(#userArrow)"/>
+      <rect x="${(mx-20).toFixed(1)}" y="${(my-10).toFixed(1)}" width="40" height="14" fill="#fff" opacity="0.85"/>
+      <text x="${mx.toFixed(1)}" y="${(my+1).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="#dc2626">${cd.mm} mm</text>`;
+  });
+  (configState.planNotes||[]).forEach(nt=>{
+    const x=nt.mmX*scale, y=nt.mmY*scale, boxWpx=Math.min(220,16+nt.text.length*6);
+    s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#d97706"/>
+      <rect x="${(x+6).toFixed(1)}" y="${(y-14).toFixed(1)}" width="${boxWpx.toFixed(1)}" height="18" fill="#fef3c7" stroke="#d97706" stroke-width="1" rx="3"/>
+      <text x="${(x+10).toFixed(1)}" y="${(y-1).toFixed(1)}" font-size="11" fill="#78350f">${escapeHtml(nt.text)}</text>`;
+  });
+  container.innerHTML=s;
+}
+function togglePlanLayer(layer,visible){
+  document.querySelectorAll(`#planEditorSvg .layer-${layer}`).forEach(el=>{ el.style.display=visible?'':'none'; });
+}
+function exportPlanPNG(){
+  const svg=document.getElementById('planEditorSvg');
+  if(!svg) return;
+  const clone=svg.cloneNode(true);
+  clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
+  const vb=svg.viewBox.baseVal;
+  const svgStr=new XMLSerializer().serializeToString(clone);
+  const svgBlob=new Blob([svgStr],{type:'image/svg+xml;charset=utf-8'});
+  const url=URL.createObjectURL(svgBlob);
+  const img=new Image();
+  img.onload=function(){
+    const factor=2;
+    const canvas=document.createElement('canvas');
+    canvas.width=(vb.width||1200)*factor; canvas.height=(vb.height||800)*factor;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    URL.revokeObjectURL(url);
+    canvas.toBlob(function(blob){
+      if(!blob) return;
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=`plan-${String(configState.type||'ouvrage').replace(/\s+/g,'_')}.png`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    });
+  };
+  img.onerror=function(){ toast('Export PNG impossible pour ce navigateur.','error'); URL.revokeObjectURL(url); };
+  img.src=url;
+}
+
+/* ============================== VUE 3D (Three.js) ==============================
+   Extrusion réaliste (dormant/ouvrant/vitrage, ou poteaux/lisses pour un garde-corps,
+   cadre+toile pour une moustiquaire, lames empilées pour une jalousie) à partir des mêmes
+   données catalogue (système, finition, vitrage) que les schémas 2D. Le cycle de vie du
+   renderer WebGL est géré explicitement (destroy3DView) pour ne jamais empiler plusieurs
+   boucles d'animation quand on change d'onglet. */
+let _view3d=null;
+function destroy3DView(){
+  if(!_view3d) return;
+  cancelAnimationFrame(_view3d.animId);
+  try{ _view3d.controls&&_view3d.controls.dispose(); }catch(e){}
+  try{
+    if(_view3d.renderer){
+      _view3d.renderer.dispose();
+      const dom=_view3d.renderer.domElement;
+      if(dom&&dom.parentNode) dom.parentNode.removeChild(dom);
+    }
+  }catch(e){}
+  _view3d=null;
+}
+function build3DScene(c,res){
+  const THREE=window.THREE;
+  const scene=new THREE.Scene();
+  scene.background=new THREE.Color(0xeaf2fb);
+  const fin=res.finition, sys=res.system, geom=res.geom||{};
+  const group=new THREE.Group();
+  const mm=v=>v/1000;
+  const alu=new THREE.MeshStandardMaterial({color:new THREE.Color(fin.hex),metalness:0.55,roughness:0.35});
+  const aluDark=new THREE.MeshStandardMaterial({color:new THREE.Color(fin.hexDark),metalness:0.6,roughness:0.3});
+  const glassMat=new THREE.MeshPhysicalMaterial({color:0xbfe0f7,transparent:true,opacity:0.35,roughness:0.05,metalness:0,clearcoat:0.6,reflectivity:0.5});
+  const meshMat=new THREE.MeshStandardMaterial({color:0x8a94a3,transparent:true,opacity:0.5,side:THREE.DoubleSide,roughness:0.9});
+  function box(w,h,d,mat){ return new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.005,w),Math.max(0.005,h),Math.max(0.005,d)),mat); }
+  const depth=Math.max(0.02,mm((sys.profondeur||120)*0.55));
+  const kind=geom.kind||'standard';
+  if(kind==='gardecorps'){
+    const W=mm(c.w), H=mm(c.h), nPoteaux=Math.max(2,geom.nPoteaux||2);
+    const railD=Math.max(0.015,mm(40));
+    const rail=box(W,railD,railD,alu); rail.position.set(0,H/2-railD/2,0); group.add(rail);
+    const poteauR=Math.max(0.006,mm(42.4)/2);
+    for(let i=0;i<nPoteaux;i++){
+      const px=nPoteaux>1?(-W/2+(i/(nPoteaux-1))*W):0;
+      const p=new THREE.Mesh(new THREE.CylinderGeometry(poteauR,poteauR,H,16),aluDark);
+      p.position.set(px,0,0); group.add(p);
+    }
+    const nPanels=Math.max(1,nPoteaux-1);
+    for(let i=0;i<nPanels;i++){
+      const segW=W/nPanels;
+      const cx0=-W/2+segW*(i+0.5);
+      if(geom.infill==='verre'){
+        const glass=box(segW*0.92,H-railD-mm(60),0.008,glassMat); glass.position.set(cx0,-railD/2,0); group.add(glass);
+      } else if(geom.infill==='barreaudage'){
+        const nBars=4;
+        for(let bIdx=1;bIdx<nBars;bIdx++){
+          const bx=cx0-segW/2+segW*(bIdx/nBars);
+          const bar=new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.006,H-railD,8),aluDark);
+          bar.position.set(bx,-railD/2,0); group.add(bar);
+        }
+      } else {
+        const nCables=5;
+        for(let cIdx=1;cIdx<=nCables;cIdx++){
+          const cy=H/2-railD-((H-railD)*cIdx/(nCables+1));
+          const cable=new THREE.Mesh(new THREE.CylinderGeometry(0.003,0.003,segW*0.95,6),aluDark);
+          cable.rotation.z=Math.PI/2; cable.position.set(cx0,cy,0); group.add(cable);
+        }
+      }
+    }
+  } else if(kind==='moustiquaire'){
+    const W=mm(c.w), H=mm(c.h), fbm=Math.max(0.015,mm(18));
+    const top=box(W,fbm,depth*0.6,alu); top.position.set(0,H/2-fbm/2,0); group.add(top);
+    const bot=box(W,fbm,depth*0.6,alu); bot.position.set(0,-H/2+fbm/2,0); group.add(bot);
+    const lft=box(fbm,H-2*fbm,depth*0.6,alu); lft.position.set(-W/2+fbm/2,0,0); group.add(lft);
+    const rgt=box(fbm,H-2*fbm,depth*0.6,alu); rgt.position.set(W/2-fbm/2,0,0); group.add(rgt);
+    const mesh=box(W-2*fbm,H-2*fbm,0.004,meshMat); group.add(mesh);
+  } else if(kind==='jalousie'){
+    const W=mm(c.w), H=mm(c.h), fbm=Math.max(0.015,mm(18)), nLames=Math.max(3,geom.nLames||5);
+    const top=box(W,fbm,depth*0.6,alu); top.position.set(0,H/2-fbm/2,0); group.add(top);
+    const bot=box(W,fbm,depth*0.6,alu); bot.position.set(0,-H/2+fbm/2,0); group.add(bot);
+    const lft=box(fbm,H-2*fbm,depth*0.6,alu); lft.position.set(-W/2+fbm/2,0,0); group.add(lft);
+    const rgt=box(fbm,H-2*fbm,depth*0.6,alu); rgt.position.set(W/2-fbm/2,0,0); group.add(rgt);
+    const innerH=H-2*fbm, lameH=innerH/nLames;
+    for(let i=0;i<nLames;i++){
+      const ly=H/2-fbm-lameH*(i+0.5);
+      const lame=box(W-2*fbm-0.01,lameH*0.8,0.006,glassMat);
+      lame.rotation.x=Math.PI*0.06;
+      lame.position.set(0,ly,0);
+      group.add(lame);
+    }
+  } else {
+    const W=mm(c.w), H=mm(c.h);
+    const borderMM=(sys.reservationVitrage||110)/2;
+    const bW=Math.max(0.01,mm(borderMM));
+    const top=box(W,bW,depth,alu); top.position.set(0,H/2-bW/2,0); group.add(top);
+    const bottom=box(W,bW,depth,alu); bottom.position.set(0,-H/2+bW/2,0); group.add(bottom);
+    const left=box(bW,H-2*bW,depth,alu); left.position.set(-W/2+bW/2,0,0); group.add(left);
+    const right=box(bW,H-2*bW,depth,alu); right.position.set(W/2-bW/2,0,0); group.add(right);
+    const leaves=Math.max(1,geom.leaves||1);
+    const meneauMM=leaves>1?45:0, meneauM=mm(meneauMM);
+    const innerWmm=c.w-2*borderMM-(leaves-1)*meneauMM;
+    const leafWmm=Math.max(1,innerWmm/leaves);
+    const leafW=mm(leafWmm), leafH=H-2*bW, obM=mm(borderMM*0.5);
+    let curX=-W/2+bW;
+    for(let i=0;i<leaves;i++){
+      const leafCx=curX+leafW/2;
+      // Cadre d'ouvrant creux (4 barres), jamais une boîte pleine : sinon elle masquerait le vitrage.
+      const lTop=box(leafW,obM,depth*0.85,aluDark); lTop.position.set(leafCx,leafH/2-obM/2,depth*0.05); group.add(lTop);
+      const lBot=box(leafW,obM,depth*0.85,aluDark); lBot.position.set(leafCx,-leafH/2+obM/2,depth*0.05); group.add(lBot);
+      const lLeft=box(obM,Math.max(0.005,leafH-2*obM),depth*0.85,aluDark); lLeft.position.set(leafCx-leafW/2+obM/2,0,depth*0.05); group.add(lLeft);
+      const lRight=box(obM,Math.max(0.005,leafH-2*obM),depth*0.85,aluDark); lRight.position.set(leafCx+leafW/2-obM/2,0,depth*0.05); group.add(lRight);
+      const glass=box(Math.max(0.01,leafW-2*obM),Math.max(0.01,leafH-2*obM),depth*0.15,glassMat);
+      glass.position.set(leafCx,0,depth*0.3);
+      group.add(glass);
+      curX+=leafW;
+      if(i<leaves-1){
+        const men=box(meneauM,leafH,depth*0.85,aluDark);
+        men.position.set(curX+meneauM/2,0,depth*0.05);
+        group.add(men);
+        curX+=meneauM;
+      }
+    }
+  }
+  scene.add(group);
+  const groundSize=Math.max(mm(c.w),mm(c.h))*4+2;
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(groundSize,groundSize), new THREE.ShadowMaterial({opacity:0.22}));
+  ground.rotation.x=-Math.PI/2; ground.position.y=-mm(c.h)/2-0.002; ground.receiveShadow=true;
+  scene.add(ground);
+  const amb=new THREE.AmbientLight(0xffffff,0.65); scene.add(amb);
+  const sun=new THREE.DirectionalLight(0xffffff,0.9);
+  sun.position.set(mm(c.w)*0.8+0.5,mm(c.h)*1.2+0.8,mm(c.w)*0.6+0.8);
+  sun.castShadow=true;
+  sun.shadow.mapSize.set(1024,1024);
+  scene.add(sun);
+  group.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } });
+  return {scene,group,sun,ground};
+}
+function init3DView(c,res){
+  destroy3DView();
+  const THREE=window.THREE;
+  const container=document.getElementById('view3dContainer');
+  if(!container||typeof THREE==='undefined'){
+    if(container) container.innerHTML='<div class="flex items-center justify-center h-full text-sm text-gray-400 p-6 text-center">Vue 3D indisponible (librairie 3D non chargée — vérifiez la connexion réseau).</div>';
+    return;
+  }
+  const w=container.clientWidth||600, h=420;
+  const {scene,sun}=build3DScene(c,res);
+  const camera=new THREE.PerspectiveCamera(35,w/h,0.01,50);
+  const dist=Math.max(c.w,c.h)/1000*1.7+0.7;
+  const startPos=new THREE.Vector3(dist*0.72,dist*0.42,dist*0.92);
+  camera.position.copy(startPos);
+  camera.lookAt(0,0,0);
+  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+  renderer.setSize(w,h);
+  renderer.shadowMap.enabled=true;
+  container.innerHTML='';
+  container.appendChild(renderer.domElement);
+  const controls=new THREE.OrbitControls(camera,renderer.domElement);
+  controls.enableDamping=true; controls.dampingFactor=0.08;
+  controls.minDistance=dist*0.3; controls.maxDistance=dist*3;
+  controls.target.set(0,0,0);
+  _view3d={renderer,controls,camera,scene,sun,startPos,animId:0};
+  (function animate(){
+    _view3d.animId=requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene,camera);
+  })();
+}
+function reset3DView(){
+  if(!_view3d) return;
+  _view3d.camera.position.copy(_view3d.startPos);
+  _view3d.camera.lookAt(0,0,0);
+  _view3d.controls.target.set(0,0,0);
+  _view3d.controls.update();
+}
+function toggleEnsoleillement(){
+  if(!_view3d) return;
+  _view3d.sun.intensity = _view3d.sun.intensity>0.4 ? 0.12 : 0.9;
+}
+
+/* ============================== Sous-onglets du schéma (Vue 2D / Vue 3D / Fabrication / Éditeur) ============================== */
+function setSchemaView(view){
+  configState.schemaView=view;
+  document.querySelectorAll('.schema-view-btn').forEach(b=>{ const on=b.dataset.view===view; b.classList.toggle('bg-indigo-600',on); b.classList.toggle('text-white',on); });
+  renderSchemaView();
+}
+function renderSchemaView(){
+  const c=configState, res=configResultat();
+  const view=c.schemaView||'vue2d';
+  const el=document.getElementById('schemaViewContent');
+  if(!el) return;
+  destroy3DView();
+  if(view==='vue3d'){
+    el.innerHTML=`<div class="bg-white rounded-xl border p-3">
+      <div class="flex gap-2 mb-2 items-center flex-wrap">
+        <button class="btn btn-outline btn-sm" onclick="reset3DView()">↺ Réinitialiser</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleEnsoleillement()">☀️ Ensoleillement</button>
+        <span class="text-xs text-gray-400 ml-auto">Glisser pour tourner • Molette pour zoomer</span>
+      </div>
+      <div id="view3dContainer" style="width:100%;height:420px;border-radius:10px;overflow:hidden;background:#eaf2fb"></div>
+    </div>`;
+    init3DView(c,res);
+  } else if(view==='fabrication'){
+    el.innerHTML=`<div class="bg-white rounded-xl border overflow-auto">${svgSchemaFabrication(c,res)}</div>
+      <div class="mt-3 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Cote hors tout</div><b>${c.w} × ${c.h} mm</b></div>
+        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Ouverture vitrage</div><b>${res.glassArea.toFixed(2)} m²</b></div>
+        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Tolérance</div><b>± 1 mm</b></div>
+        <div class="bg-white border rounded-xl p-3"><div class="text-xs text-gray-500">Trait de scie</div><b>${c.kerf} mm</b></div>
+      </div>`;
+  } else if(view==='editeur'){
+    el.innerHTML=renderPlanEditor(c,res);
+    initPlanEditor();
+  } else {
+    el.innerHTML=`<div class="bg-white rounded-xl border p-3 overflow-hidden">${svgSchemaParametrique(c,res)}</div>`;
+  }
+}
+
 function renderTabBOM(){
   const res=configResultat();
   const groupsHtml=BOM_L1_CATEGORIES.map(cat=>{
@@ -3456,14 +4113,22 @@ async function renderFactureDetail(el){
   const {data:f,error}=await sb.from('factures').select('*, clients(*), devis(*, projets(libelle))').eq('id',factureId).single();
   if(error){ el.innerHTML=`<div class="text-red-600">${escapeHtml(error.message)}</div>`; return; }
   const d=f.devis||{};
-  const {data:lignes}=d.id ? await sb.from('devis_lignes').select('*').eq('devis_id',d.id).order('ordre') : {data:[]};
+  const [{data:lignes},{data:paiements}]=await Promise.all([
+    d.id ? sb.from('devis_lignes').select('*').eq('devis_id',d.id).order('ordre') : Promise.resolve({data:[]}),
+    sb.from('paiements').select('*, caisses(nom)').eq('facture_id',factureId).order('date_paiement',{ascending:false})
+  ]);
   const sousTotal=(lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100),0);
   const st=STATUT_FACTURE[f.statut]||{label:f.statut,color:'text-gray-500'};
+  const totalPaye=(paiements||[]).reduce((s,p)=>s+(+p.montant||0),0);
+  const resteAPayer=Math.max(0,(+f.total||0)-totalPaye);
+  window._factureDetailCache={facture:f};
+  const modeLabels={espece:'Espèces',banque:'Virement',mobile_money:'Mobile Money',cheque:'Chèque'};
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
       <div class="flex gap-2 flex-wrap">
         <a href="mailto:${escapeHtml(f.clients?.email||'')}?subject=${encodeURIComponent('Facture '+f.code)}" class="btn btn-amber">✉ Envoyer</a>
         <button class="btn btn-dark" onclick="printFacture('${f.id}')">🖨 Imprimer</button>
+        ${resteAPayer>0?`<button class="btn btn-primary" onclick="ouvrirEncaissementModal('${f.id}',${resteAPayer})">💰 Encaissement</button>`:''}
       </div>
       <div class="dropdown">
         <button class="btn btn-primary" onclick="toggleDropdown(event,'factureOptionsMenu')">⚙ Options ▾</button>
@@ -3483,6 +4148,15 @@ async function renderFactureDetail(el){
       </table></div>
       <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0)}</div>
       ${DOC_NOTES_HTML}
+    </div>
+    <div class="page-card mt-4">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-bold">💰 Encaissements</h3>
+        <div class="text-sm">Payé : <b class="text-emerald-600">${money(totalPaye)}</b> &nbsp;·&nbsp; Reste à payer : <b class="${resteAPayer>0?'text-red-600':'text-gray-400'}">${money(resteAPayer)}</b></div>
+      </div>
+      ${(paiements||[]).length?`<div class="overflow-x-auto"><table><thead><tr><th>Date</th><th>Mode</th><th>Caisse</th><th>Référence</th><th class="text-right">Montant</th></tr></thead>
+        <tbody>${paiements.map(p=>`<tr><td>${fmtDate(p.date_paiement)}</td><td>${modeLabels[p.mode]||p.mode}</td><td>${escapeHtml(p.caisses?.nom||'—')}</td><td>${escapeHtml(p.reference||'—')}</td><td class="text-right font-semibold">${money(p.montant)}</td></tr>`).join('')}</tbody></table></div>`
+        :'<div class="text-sm text-gray-400 text-center py-4">Aucun encaissement enregistré.</div>'}
     </div>`;
 }
 async function printFacture(factureId){
@@ -3818,7 +4492,7 @@ function printEstimation(){
 }
 
 /* ============================== PARAMÉTRAGE : SOCIÉTÉ / LOGO / SUPABASE / SYNCHRO / SAUVEGARDE ============================== */
-const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres'];
+const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','paiements'];
 async function loadAppParams(){
   let {data}=await sb.from('parametres').select('*').limit(1).maybeSingle();
   if(!data){ const res=await sb.from('parametres').insert({}).select().single(); data=res.data; }
@@ -3834,11 +4508,14 @@ function applyLogoToSidebar(){
 }
 async function renderParametres(el){
   const p=window.APP_PARAMS || await loadAppParams();
+  await comptaChargerReferentiel();
+  const comptesDefaut=p.comptes_defaut||{};
   el.innerHTML=`
     <div class="flex flex-wrap gap-2 mb-4 border-b pb-2">
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white" data-paramtab="societe" onclick="switchParamTab('societe')">🏢 Société</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="fne" onclick="switchParamTab('fne')">🧾 FNE (DGI)</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="portail" onclick="switchParamTab('portail')">🌐 Portail client</button>
+      <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="compta" onclick="switchParamTab('compta')">📗 Comptabilité</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="supabase" onclick="switchParamTab('supabase')">☁️ Supabase</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="synchro" onclick="switchParamTab('synchro')">🔄 Synchro</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="sauvegarde" onclick="switchParamTab('sauvegarde')">💾 Sauvegarde</button>
@@ -3965,6 +4642,18 @@ async function renderParametres(el){
       </div>
     </div>
 
+    <div id="paramTab-compta" class="param-tab hidden">
+      <div class="page-card max-w-3xl">
+        <h2>📗 Comptes comptables par défaut</h2>
+        <div class="divider"></div>
+        <p class="text-xs text-gray-500 mb-4">Comptes utilisés par la comptabilisation automatique (ventes, encaissements, achats de stock, écarts de caisse). Modifiables à tout moment sans casser les écritures déjà passées — elles gardent le compte qui était en vigueur au moment de leur génération.</p>
+        <form id="comptaDefautForm" class="grid sm:grid-cols-2 gap-4">
+          ${COMPTES_DEFAUT_CLES.map(d=>`<div class="field"><label>${escapeHtml(d.label)}</label>${fieldWrap('📘',`<select id="cd_${d.cle}"><option value="">— Par défaut (${escapeHtml(d.fallback)}) —</option>${compteOptionsHtml(comptesDefaut[d.cle]||'')}</select>`)}</div>`).join('')}
+          <div class="sm:col-span-2 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
+        </form>
+      </div>
+    </div>
+
     <div id="paramTab-sauvegarde" class="param-tab hidden">
       <div class="page-card max-w-2xl">
         <h2>💾 Export / Import de sauvegarde</h2>
@@ -4000,7 +4689,1007 @@ async function renderParametres(el){
     if(error){ toast(error.message,'error'); return; }
     toast('Paramètres portail enregistrés.'); await loadAppParams();
   };
+  document.getElementById('comptaDefautForm').onsubmit=async(e)=>{
+    e.preventDefault();
+    const nouveauxComptes={};
+    COMPTES_DEFAUT_CLES.forEach(d=>{ const v=val('cd_'+d.cle); if(v) nouveauxComptes[d.cle]=v; });
+    const {error}=await sb.from('parametres').update({comptes_defaut:nouveauxComptes}).eq('id',p.id);
+    if(error){ toast(error.message,'error'); return; }
+    toast('Comptes par défaut enregistrés.'); await loadAppParams();
+  };
 }
+/* ============================== COMPTABILITÉ SYSCOHADA ============================== */
+/* Plan comptable, journaux et écritures en partie double, avec contrôle d'équilibre,
+   garde-fou "compte hors plan", visa/intangibilité (contre-passation) et clôture
+   d'exercice (soldes 6/7 → résultat + à-nouveaux). Inspiré du module Comptabilité
+   SYSCOHADA de l'application sœur ImmoSuite (menko-holding), mais avec un schéma
+   Supabase relationnel classique — cohérent avec le reste de Beda Alu — plutôt que
+   le stockage documentaire (jsonb) utilisé là-bas. */
+window._compta=window._compta||{comptes:[],journaux:[],exercices:[],annee:new Date().getFullYear(),cycleView:'journal',filtreJournal:''};
+async function comptaChargerReferentiel(force){
+  const C=window._compta;
+  if(C.comptes.length && !force) return C;
+  const [{data:comptes},{data:journaux},{data:exercices}]=await Promise.all([
+    sb.from('compta_comptes').select('*').eq('actif',true).order('code'),
+    sb.from('compta_journaux').select('*').order('code'),
+    sb.from('compta_exercices').select('*').order('annee',{ascending:false})
+  ]);
+  C.comptes=comptes||[]; C.journaux=journaux||[]; C.exercices=exercices||[];
+  if(!C.exercices.find(e=>e.annee===C.annee)) C.annee=(C.exercices[0]&&C.exercices[0].annee)||new Date().getFullYear();
+  return C;
+}
+function compteByCode(code){ return (window._compta.comptes||[]).find(c=>c.code===code); }
+function compteLabel(code){ const c=compteByCode(code); return c?`${c.code} — ${c.libelle}`:(code||'—'); }
+function compteOptionsHtml(selected){
+  return (window._compta.comptes||[]).map(c=>`<option value="${escapeHtml(c.code)}" ${c.code===selected?'selected':''}>${escapeHtml(c.code)} — ${escapeHtml(c.libelle)}</option>`).join('');
+}
+function exerciceParAnnee(annee){ return (window._compta.exercices||[]).find(e=>e.annee===annee); }
+function exerciceActif(){ return exerciceParAnnee(window._compta.annee); }
+function exerciceEstClos(dateStr){
+  if(!dateStr) return false;
+  const ex=exerciceParAnnee(new Date(dateStr).getFullYear());
+  return !!(ex && ex.statut==='cloture');
+}
+/* ---------- Comptes par défaut de la comptabilisation automatique (Paramétrage → Comptabilité) ---------- */
+const COMPTES_DEFAUT_CLES=[
+  {cle:'caisse',label:'Trésorerie — Caisse (par défaut)',fallback:'571000'},
+  {cle:'banque',label:'Trésorerie — Banque / Mobile Money',fallback:'512000'},
+  {cle:'clients',label:'Clients',fallback:'411000'},
+  {cle:'ventes',label:'Ventes',fallback:'701000'},
+  {cle:'tva_collectee',label:'TVA facturée (collectée)',fallback:'443000'},
+  {cle:'fournisseurs',label:'Fournisseurs',fallback:'401000'},
+  {cle:'achats',label:'Achats de matières / fournitures',fallback:'601000'},
+  {cle:'virement_interne',label:'Virement interne (transferts entre caisses)',fallback:'585000'},
+  {cle:'excedent_caisse',label:'Excédent de caisse',fallback:'758000'},
+  {cle:'manquant_caisse',label:'Manquant de caisse',fallback:'658000'}
+];
+function requireCompteDefaut(cle){
+  const custom=(window.APP_PARAMS&&window.APP_PARAMS.comptes_defaut)||{};
+  if(custom[cle]) return custom[cle];
+  const def=COMPTES_DEFAUT_CLES.find(c=>c.cle===cle);
+  return def?def.fallback:null;
+}
+async function genererRefEcriture(annee){
+  const {count}=await sb.from('compta_ecritures').select('id',{count:'exact',head:true}).eq('exercice_annee',annee);
+  return `JL-${annee}-${String((count||0)+1).padStart(5,'0')}`;
+}
+function detecterJournal(lignes){
+  const codes=(lignes||[]).map(l=>l.compte_code||'');
+  if(codes.some(c=>c.startsWith('571')||c.startsWith('572'))) return 'CA';
+  if(codes.some(c=>c.startsWith('512'))) return 'BQ';
+  if(codes.some(c=>c.startsWith('701')||c.startsWith('706')||c.startsWith('75')||c.startsWith('77'))) return 'VE';
+  if(/^6[0-3]/.test(codes.find(c=>/^6[0-3]/.test(c))||'')) return 'AC';
+  return 'OD';
+}
+function ecrEquilibre(lignes){
+  const totD=(lignes||[]).reduce((s,l)=>s+(l.sens==='D'?(+l.montant||0):0),0);
+  const totC=(lignes||[]).reduce((s,l)=>s+(l.sens==='C'?(+l.montant||0):0),0);
+  return {totD,totC,ok:Math.abs(totD-totC)<1};
+}
+function ecrEstValidee(e){ return !!(e&&e.valide_le); }
+function ecrStatutBadge(e){ return ecrEstValidee(e)?'<span class="badge bg-emerald-50 text-emerald-700">✔ Validée</span>':'<span class="badge bg-amber-50 text-amber-700">✎ Brouillard</span>'; }
+
+/* ---------- Saisie d'écriture (modal, lignes dynamiques, équilibre temps réel) ---------- */
+async function openEcritureModal(prefill){
+  await comptaChargerReferentiel();
+  const p=prefill||{};
+  window._ecrLignes=(p.lignes&&p.lignes.length)?p.lignes.map(l=>({...l})):[{compte_code:'',sens:'D',montant:'',libelle:''},{compte_code:'',sens:'C',montant:'',libelle:''}];
+  openModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">${p.id?"Modifier l'écriture":'Nouvelle écriture'}</h3>
+      <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-3 mb-3">
+      <div class="field"><label>Date</label>${fieldWrap('📅',`<input id="ecrDate" type="date" value="${p.date_ecriture||new Date().toISOString().slice(0,10)}">`)}</div>
+      <div class="field"><label>Journal</label>${fieldWrap('📘',`<select id="ecrJournal"><option value="">(détection auto)</option>${(window._compta.journaux||[]).map(j=>`<option value="${j.code}" ${j.code===p.journal_code?'selected':''}>${j.code} — ${escapeHtml(j.libelle)}</option>`).join('')}</select>`)}</div>
+      <div class="field"><label>N° pièce</label>${fieldWrap('#',`<input id="ecrPiece" value="${escapeHtml(p.piece||'')}">`)}</div>
+    </div>
+    <div class="field mb-3"><label>Libellé</label>${fieldWrap('📝',`<input id="ecrLibelle" value="${escapeHtml(p.libelle||'')}" placeholder="Objet de l'écriture">`)}</div>
+    <div class="card p-3 mb-3">
+      <div class="flex justify-between items-center mb-2">
+        <b class="text-sm">Lignes</b>
+        <button type="button" class="btn btn-outline btn-sm" onclick="ecrAjouterLigne()">+ Ligne</button>
+      </div>
+      <div id="ecrLignesHost"></div>
+      <div id="ecrEquilibreBar" class="mt-2 text-sm font-semibold"></div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveEcriture('${p.id||''}')">Enregistrer</button>
+    </div>`);
+  ecrRenderLignes();
+}
+function ecrRenderLignes(){
+  const host=document.getElementById('ecrLignesHost'); if(!host) return;
+  host.innerHTML=window._ecrLignes.map((l,i)=>`
+    <div class="grid gap-2 mb-2 items-center" style="grid-template-columns:2fr 90px 130px 1.4fr 32px">
+      <select onchange="ecrMajLigne(${i},'compte_code',this.value)"><option value="">Compte…</option>${compteOptionsHtml(l.compte_code)}</select>
+      <select onchange="ecrMajLigne(${i},'sens',this.value)"><option value="D" ${l.sens==='D'?'selected':''}>Débit</option><option value="C" ${l.sens==='C'?'selected':''}>Crédit</option></select>
+      <input type="number" step="1" placeholder="Montant" value="${l.montant||''}" onchange="ecrMajLigne(${i},'montant',this.value)">
+      <input placeholder="Libellé ligne" value="${escapeHtml(l.libelle||'')}" onchange="ecrMajLigne(${i},'libelle',this.value)">
+      <button type="button" title="Supprimer" class="text-red-500" onclick="ecrSupprimerLigne(${i})">✕</button>
+    </div>`).join('');
+  ecrCheckEquilibre();
+}
+function ecrAjouterLigne(){ window._ecrLignes.push({compte_code:'',sens:'D',montant:'',libelle:''}); ecrRenderLignes(); }
+function ecrSupprimerLigne(i){ if(window._ecrLignes.length<=2){ toast('Une écriture nécessite au moins 2 lignes.','error'); return; } window._ecrLignes.splice(i,1); ecrRenderLignes(); }
+function ecrMajLigne(i,field,value){ window._ecrLignes[i][field]=value; ecrCheckEquilibre(); }
+function ecrCheckEquilibre(){
+  const bar=document.getElementById('ecrEquilibreBar'); if(!bar) return false;
+  const {totD,totC,ok}=ecrEquilibre(window._ecrLignes);
+  bar.innerHTML=`Débit : <b>${money(totD)}</b> &nbsp;·&nbsp; Crédit : <b>${money(totC)}</b> &nbsp;·&nbsp; ${ok?'<span class="text-emerald-600">✔ Équilibrée</span>':`<span class="text-red-600">✕ Écart de ${money(Math.abs(totD-totC))}</span>`}`;
+  return ok;
+}
+async function saveEcriture(id){
+  await comptaChargerReferentiel();
+  const date=document.getElementById('ecrDate').value;
+  const libelle=document.getElementById('ecrLibelle').value.trim();
+  const piece=document.getElementById('ecrPiece').value.trim();
+  let journal=document.getElementById('ecrJournal').value;
+  if(!date){ toast('Date requise.','error'); return; }
+  if(!libelle){ toast('Libellé requis.','error'); return; }
+  if(exerciceEstClos(date)){ toast('Exercice clôturé pour cette date : saisie impossible.','error'); return; }
+  const lignes=window._ecrLignes.filter(l=>l.compte_code && (+l.montant||0)>0);
+  if(lignes.length<2){ toast('Au moins 2 lignes valides (compte + montant) sont requises.','error'); return; }
+  if(!lignes.some(l=>l.sens==='D') || !lignes.some(l=>l.sens==='C')){ toast("Il faut au moins une ligne au débit et une au crédit.",'error'); return; }
+  for(const l of lignes){ if(!compteByCode(l.compte_code)){ toast(`Compte ${l.compte_code} introuvable dans le plan comptable.`,'error'); return; } }
+  if(!ecrCheckEquilibre()){ toast("L'écriture n'est pas équilibrée (Débit ≠ Crédit).",'error'); return; }
+  const annee=new Date(date).getFullYear();
+  if(!journal) journal=detecterJournal(lignes);
+  let ecritureId=id||null;
+  if(!ecritureId){
+    const ref=await genererRefEcriture(annee);
+    const {data,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:date,journal_code:journal,piece:piece||null,libelle,source:'manuel',created_by:CURRENT_USER.id}).select().single();
+    if(error){ toast(error.message,'error'); return; }
+    ecritureId=data.id;
+  } else {
+    const {data:existing}=await sb.from('compta_ecritures').select('valide_le').eq('id',ecritureId).single();
+    if(existing?.valide_le){ toast("Écriture validée : intangible. Passez une contre-passation.",'error'); return; }
+    const {error}=await sb.from('compta_ecritures').update({date_ecriture:date,journal_code:journal,piece:piece||null,libelle}).eq('id',ecritureId);
+    if(error){ toast(error.message,'error'); return; }
+    await sb.from('compta_lignes').delete().eq('ecriture_id',ecritureId);
+  }
+  const rows=lignes.map(l=>({ecriture_id:ecritureId,compte_code:l.compte_code,sens:l.sens,montant:+l.montant,libelle:l.libelle||null}));
+  const {error:e2}=await sb.from('compta_lignes').insert(rows);
+  if(e2){ toast(e2.message,'error'); return; }
+  toast('Écriture enregistrée.'); closeModal();
+  comptaRenderCycleView();
+}
+function ecrOpenEdit(id){
+  const e=(window._comptaEcrituresCache||[]).find(x=>x.id===id);
+  if(!e) return;
+  openEcritureModal({id:e.id,date_ecriture:e.date_ecriture,journal_code:e.journal_code,piece:e.piece,libelle:e.libelle,lignes:(e.compta_lignes||[]).map(l=>({compte_code:l.compte_code,sens:l.sens,montant:l.montant,libelle:l.libelle}))});
+}
+async function contrePasserEcriture(id){
+  if(!confirm('Passer une écriture de contre-passation (annulation) pour cette écriture validée ?')) return;
+  const {data:e}=await sb.from('compta_ecritures').select('*, compta_lignes(*)').eq('id',id).single();
+  if(!e){ toast('Écriture introuvable.','error'); return; }
+  const today=new Date().toISOString().slice(0,10);
+  if(exerciceEstClos(today)){ toast('Exercice courant clôturé.','error'); return; }
+  const annee=new Date().getFullYear();
+  const ref=await genererRefEcriture(annee);
+  const {data:newE,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:today,journal_code:e.journal_code,piece:e.piece,libelle:'Contre-passation — '+e.libelle,source:'manuel',contre_passation_de:id,created_by:CURRENT_USER.id}).select().single();
+  if(error){ toast(error.message,'error'); return; }
+  const lignesInv=(e.compta_lignes||[]).map(l=>({ecriture_id:newE.id,compte_code:l.compte_code,sens:l.sens==='D'?'C':'D',montant:l.montant,libelle:l.libelle}));
+  await sb.from('compta_lignes').insert(lignesInv);
+  toast('Contre-passation enregistrée.');
+  comptaRenderCycleView();
+}
+async function validerEcritures(ids){
+  if(!ids||!ids.length) return;
+  const now=new Date().toISOString();
+  const {error}=await sb.from('compta_ecritures').update({valide_le:now,valide_par:CURRENT_USER.email}).in('id',ids).is('valide_le',null);
+  if(error){ toast(error.message,'error'); return; }
+  toast(`${ids.length} écriture(s) validée(s).`);
+  comptaRenderCycleView();
+}
+function validerSelection(){
+  const ids=[...document.querySelectorAll('.visaCheck:checked')].map(c=>c.value);
+  if(!ids.length){ toast('Sélectionnez au moins une écriture.','error'); return; }
+  validerEcritures(ids);
+}
+
+/* ---------- Journal / listing des écritures ---------- */
+async function comptaChargerEcritures(filtres){
+  filtres=filtres||{};
+  let q=sb.from('compta_ecritures').select('*, compta_lignes(*)').eq('exercice_annee',window._compta.annee).order('date_ecriture',{ascending:false}).order('ref',{ascending:false});
+  if(filtres.journal) q=q.eq('journal_code',filtres.journal);
+  const {data,error}=await q;
+  if(error){ toast(error.message,'error'); return []; }
+  return data||[];
+}
+async function comptaRenderJournal(host){
+  const ecritures=await comptaChargerEcritures(window._compta.filtreJournal?{journal:window._compta.filtreJournal}:{});
+  window._comptaEcrituresCache=ecritures;
+  host.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+      <select onchange="window._compta.filtreJournal=this.value;comptaRenderCycleView()">
+        <option value="">Tous les journaux</option>
+        ${(window._compta.journaux||[]).map(j=>`<option value="${j.code}" ${j.code===window._compta.filtreJournal?'selected':''}>${j.code} — ${escapeHtml(j.libelle)}</option>`).join('')}
+      </select>
+      <button class="btn btn-primary" onclick="openEcritureModal()">+ Écriture</button>
+    </div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Réf.</th><th>Date</th><th>Journal</th><th>Libellé</th><th class="text-right">Débit</th><th class="text-right">Crédit</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${ecritures.map(e=>{
+        const {totD,totC}=ecrEquilibre(e.compta_lignes||[]);
+        return `<tr>
+          <td class="font-semibold">${escapeHtml(e.ref)}</td><td>${fmtDate(e.date_ecriture)}</td>
+          <td>${escapeHtml(e.journal_code)}</td><td>${escapeHtml(e.libelle)}</td>
+          <td class="text-right">${money(totD)}</td><td class="text-right">${money(totC)}</td>
+          <td>${ecrStatutBadge(e)}</td>
+          <td class="text-right whitespace-nowrap">${ecrEstValidee(e)?`<button class="text-xs text-amber-600" onclick="contrePasserEcriture('${e.id}')">↩ Contre-passer</button>`:`<button class="text-xs text-indigo-600" onclick="ecrOpenEdit('${e.id}')">✎ Modifier</button>`}</td>
+        </tr>`;
+      }).join('')||'<tr><td colspan="8" class="text-gray-400 p-4 text-center">Aucune écriture.</td></tr>'}</tbody></table>
+    </div>`;
+}
+
+/* ---------- Grand livre ---------- */
+async function comptaRenderGrandLivre(host){
+  const compteSel=window._compta.grandLivreCompte||'';
+  const ecritures=await comptaChargerEcritures({});
+  const lignes=[];
+  ecritures.forEach(e=>(e.compta_lignes||[]).forEach(l=>{ if(!compteSel||l.compte_code===compteSel) lignes.push({...l,ref:e.ref,date:e.date_ecriture,journal:e.journal_code,ecrLibelle:e.libelle}); }));
+  lignes.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+  let solde=0;
+  const rows=lignes.map(l=>{ solde+=(l.sens==='D'?(+l.montant||0):-(+l.montant||0)); return {...l,solde}; });
+  host.innerHTML=`
+    <div class="mb-3"><select onchange="window._compta.grandLivreCompte=this.value;comptaRenderCycleView()"><option value="">— Choisir un compte —</option>${compteOptionsHtml(compteSel)}</select></div>
+    ${compteSel?`<div class="card overflow-x-auto"><table><thead><tr><th>Date</th><th>Réf.</th><th>Journal</th><th>Libellé</th><th class="text-right">Débit</th><th class="text-right">Crédit</th><th class="text-right">Solde</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${fmtDate(r.date)}</td><td>${escapeHtml(r.ref)}</td><td>${escapeHtml(r.journal)}</td><td>${escapeHtml(r.libelle||r.ecrLibelle)}</td><td class="text-right">${r.sens==='D'?money(r.montant):''}</td><td class="text-right">${r.sens==='C'?money(r.montant):''}</td><td class="text-right font-semibold">${money(r.solde)}</td></tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4 text-center">Aucun mouvement.</td></tr>'}</tbody></table></div>`
+    :'<div class="card text-center text-gray-400 p-8">Sélectionnez un compte pour afficher son grand livre.</div>'}`;
+}
+
+/* ---------- Balance générale ---------- */
+async function comptaCalculerBalance(){
+  const ecritures=await comptaChargerEcritures({});
+  const map={};
+  ecritures.forEach(e=>(e.compta_lignes||[]).forEach(l=>{
+    map[l.compte_code]=map[l.compte_code]||{debit:0,credit:0};
+    if(l.sens==='D') map[l.compte_code].debit+=+l.montant; else map[l.compte_code].credit+=+l.montant;
+  }));
+  return Object.entries(map).map(([code,v])=>({code,debit:v.debit,credit:v.credit,solde:v.debit-v.credit})).sort((a,b)=>a.code.localeCompare(b.code));
+}
+function comptaSoldePrefixes(balance,prefixes){
+  return balance.filter(b=>prefixes.some(p=>b.code.startsWith(p))).reduce((s,b)=>s+b.solde,0);
+}
+async function comptaRenderBalance(host){
+  const balance=await comptaCalculerBalance();
+  const totD=balance.reduce((s,b)=>s+b.debit,0), totC=balance.reduce((s,b)=>s+b.credit,0);
+  host.innerHTML=`<div class="card overflow-x-auto"><table><thead><tr><th>Compte</th><th>Libellé</th><th class="text-right">Débit</th><th class="text-right">Crédit</th><th class="text-right">Solde débiteur</th><th class="text-right">Solde créditeur</th></tr></thead>
+    <tbody>${balance.map(b=>`<tr><td class="font-semibold">${escapeHtml(b.code)}</td><td>${escapeHtml(compteByCode(b.code)?.libelle||'⚠️ Compte hors plan')}</td><td class="text-right">${money(b.debit)}</td><td class="text-right">${money(b.credit)}</td><td class="text-right">${b.solde>0?money(b.solde):''}</td><td class="text-right">${b.solde<0?money(-b.solde):''}</td></tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 p-4 text-center">Aucun mouvement.</td></tr>'}</tbody>
+    <tfoot><tr class="font-bold border-t-2"><td colspan="2">TOTAL</td><td class="text-right">${money(totD)}</td><td class="text-right">${money(totC)}</td><td colspan="2" class="text-right">${Math.abs(totD-totC)<1?'✔ Équilibrée':'✕ Écart '+money(Math.abs(totD-totC))}</td></tr></tfoot>
+    </table></div>`;
+}
+
+/* ---------- Validation / Visa ---------- */
+async function comptaRenderValidation(host){
+  const ecritures=(await comptaChargerEcritures({})).filter(e=>!ecrEstValidee(e));
+  window._comptaEcrituresCache=ecritures;
+  host.innerHTML=`
+    <div class="flex justify-between items-center mb-3"><div class="text-sm text-gray-500">${ecritures.length} écriture(s) en brouillard</div></div>
+    <div class="card overflow-x-auto"><table><thead><tr><th></th><th>Réf.</th><th>Date</th><th>Journal</th><th>Libellé</th><th class="text-right">Montant</th></tr></thead>
+    <tbody>${ecritures.map(e=>{const {totD}=ecrEquilibre(e.compta_lignes||[]);return `<tr><td><input type="checkbox" class="visaCheck" value="${e.id}"></td><td class="font-semibold">${escapeHtml(e.ref)}</td><td>${fmtDate(e.date_ecriture)}</td><td>${escapeHtml(e.journal_code)}</td><td>${escapeHtml(e.libelle)}</td><td class="text-right">${money(totD)}</td></tr>`;}).join('')||'<tr><td colspan="6" class="text-gray-400 p-4 text-center">Rien à valider.</td></tr>'}</tbody></table></div>
+    ${ecritures.length?`<div class="flex justify-end mt-3"><button class="btn btn-primary" onclick="validerSelection()">✔ Valider la sélection</button></div>`:''}`;
+}
+
+/* ---------- Bilan d'ouverture (raccourci vers une écriture journal AN) ---------- */
+function comptaOuvrirBilanOuverture(){
+  const ex=exerciceActif();
+  if(!ex){ toast('Aucun exercice actif.','error'); return; }
+  openEcritureModal({journal_code:'AN',date_ecriture:ex.date_debut,piece:'BO-'+ex.annee,libelle:"Bilan d'ouverture "+ex.annee});
+}
+
+/* ---------- Plan comptable ---------- */
+async function comptaRenderPlanComptable(host){
+  await comptaChargerReferentiel(true);
+  host.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+      <div class="text-sm text-gray-500">${window._compta.comptes.length} compte(s) actif(s) — plan SYSCOHADA révisé (personnalisable)</div>
+      <div class="flex gap-2">
+        <button class="btn btn-outline btn-sm" onclick="comptaOuvrirImportModal()">📤 Importer / mettre à jour (CSV)</button>
+        <button class="btn btn-primary btn-sm" onclick="comptaOuvrirCompteModal('')">+ Compte</button>
+      </div>
+    </div>
+    <div class="card overflow-x-auto"><table><thead><tr><th>Code</th><th>Libellé</th><th>Classe</th><th>Nature</th><th></th></tr></thead>
+    <tbody>${window._compta.comptes.map(c=>`<tr><td class="font-semibold">${escapeHtml(c.code)}</td><td>${escapeHtml(c.libelle)}</td><td>${c.classe}</td><td>${escapeHtml(c.nature)}</td>
+      <td class="text-right whitespace-nowrap"><button class="text-xs text-indigo-600 mr-2" onclick="comptaOuvrirCompteModal('${c.code}')">✎</button><button class="text-xs text-red-500" onclick="comptaDesactiverCompte('${c.code}')">Désactiver</button></td></tr>`).join('')}</tbody></table></div>`;
+}
+/* ---------- Import / mise à jour du plan comptable par CSV (le client fournit le sien au déploiement) ---------- */
+function comptaOuvrirImportModal(){
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">Importer / mettre à jour le plan comptable</h3>
+    <p class="text-sm text-gray-500 mb-3">Fichier CSV avec les colonnes <code>code,libelle,classe,nature</code> (nature : actif, passif, charge, produit, autre). Séparateur virgule ou point-virgule accepté, première ligne = en-têtes.</p>
+    <div class="field mb-3"><label>Fichier CSV</label>${fieldWrap('📄',`<input id="pcImportFile" type="file" accept=".csv,text/csv">`)}</div>
+    <div class="field mb-4"><label>Stratégie</label>${fieldWrap('⚙️',`<select id="pcImportStrategie">
+      <option value="fusion">Fusionner — met à jour les comptes existants et ajoute les nouveaux, garde le reste</option>
+      <option value="remplace">Remplacer — désactive tous les comptes actuels puis importe le fichier comme nouveau plan</option>
+    </select>`)}</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="comptaImporterPlanComptable()">Importer</button></div>`);
+}
+function parseCSVPlanComptable(text){
+  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if(!lines.length) return [];
+  const delim=lines[0].includes(';')?';':',';
+  const header=lines[0].split(delim).map(h=>h.trim().toLowerCase().replace(/^"|"$/g,''));
+  const idx={code:header.indexOf('code'),libelle:header.indexOf('libelle'),classe:header.indexOf('classe'),nature:header.indexOf('nature')};
+  if(idx.code<0||idx.libelle<0) throw new Error('Colonnes "code" et "libelle" requises dans l\'en-tête.');
+  const natures=['actif','passif','charge','produit','autre'];
+  return lines.slice(1).map(line=>{
+    const cols=line.split(delim).map(c=>c.trim().replace(/^"|"$/g,''));
+    const code=cols[idx.code], libelle=cols[idx.libelle];
+    if(!code||!libelle) return null;
+    const natureRaw=(idx.nature>=0?cols[idx.nature]:'').toLowerCase();
+    const classeRaw=idx.classe>=0?+cols[idx.classe]:0;
+    return {
+      code,libelle,
+      classe:classeRaw>=1&&classeRaw<=9?classeRaw:(+code[0]||1),
+      nature:natures.includes(natureRaw)?natureRaw:'autre',
+      actif:true
+    };
+  }).filter(Boolean);
+}
+async function comptaImporterPlanComptable(){
+  const file=document.getElementById('pcImportFile').files[0];
+  const strategie=document.getElementById('pcImportStrategie').value;
+  if(!file){ toast('Choisissez un fichier CSV.','error'); return; }
+  let rows;
+  try{ rows=parseCSVPlanComptable(await file.text()); }
+  catch(err){ toast('Erreur de lecture du CSV : '+err.message,'error'); return; }
+  if(!rows.length){ toast('Aucune ligne valide trouvée dans le fichier.','error'); return; }
+  if(strategie==='remplace' && !confirm(`Remplacer le plan comptable actuel par les ${rows.length} compte(s) du fichier ?\nLes comptes actuels non repris seront désactivés (jamais supprimés, pour préserver les écritures déjà passées).`)) return;
+  if(strategie==='remplace'){
+    const codesImportes=new Set(rows.map(r=>r.code));
+    const {data:existants}=await sb.from('compta_comptes').select('code').eq('actif',true);
+    const aDesactiver=(existants||[]).map(c=>c.code).filter(c=>!codesImportes.has(c));
+    if(aDesactiver.length) await sb.from('compta_comptes').update({actif:false}).in('code',aDesactiver);
+  }
+  const {error}=await sb.from('compta_comptes').upsert(rows,{onConflict:'code'});
+  if(error){ toast(error.message,'error'); return; }
+  toast(`${rows.length} compte(s) importé(s)/mis à jour.`); closeModal();
+  await comptaChargerReferentiel(true);
+  comptaRenderCycleView();
+}
+function comptaOuvrirCompteModal(code){
+  const c=code?compteByCode(code):null;
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">${c?'Modifier le compte':'Nouveau compte'}</h3>
+    <div class="field mb-3"><label>Code</label>${fieldWrap('#',`<input id="cptCode" value="${escapeHtml(c?.code||'')}" ${c?'readonly':''} placeholder="ex: 411000">`)}</div>
+    <div class="field mb-3"><label>Libellé</label>${fieldWrap('📝',`<input id="cptLibelle" value="${escapeHtml(c?.libelle||'')}">`)}</div>
+    <div class="grid sm:grid-cols-2 gap-3 mb-4">
+      <div class="field"><label>Classe</label>${fieldWrap('#',`<select id="cptClasse">${[1,2,3,4,5,6,7,8,9].map(n=>`<option value="${n}" ${n===(c?.classe||1)?'selected':''}>${n}</option>`).join('')}</select>`)}</div>
+      <div class="field"><label>Nature</label>${fieldWrap('◐',`<select id="cptNature">${['actif','passif','charge','produit','autre'].map(n=>`<option value="${n}" ${c?.nature===n?'selected':''}>${n.charAt(0).toUpperCase()+n.slice(1)}</option>`).join('')}</select>`)}</div>
+    </div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="comptaSauverCompte('${c?.code||''}')">Enregistrer</button></div>`);
+}
+async function comptaSauverCompte(codeOriginal){
+  const code=document.getElementById('cptCode').value.trim();
+  const libelle=document.getElementById('cptLibelle').value.trim();
+  const classe=+document.getElementById('cptClasse').value;
+  const nature=document.getElementById('cptNature').value;
+  if(!code||!libelle){ toast('Code et libellé requis.','error'); return; }
+  const rec={code,libelle,classe,nature,actif:true};
+  const {error}=codeOriginal?await sb.from('compta_comptes').update(rec).eq('code',codeOriginal):await sb.from('compta_comptes').insert(rec);
+  if(error){ toast(error.message,'error'); return; }
+  toast('Compte enregistré.'); closeModal();
+  await comptaChargerReferentiel(true);
+  comptaRenderCycleView();
+}
+async function comptaDesactiverCompte(code){
+  if(!confirm(`Désactiver le compte ${code} ? Il restera visible dans l'historique mais ne sera plus proposé en saisie.`)) return;
+  await sb.from('compta_comptes').update({actif:false}).eq('code',code);
+  await comptaChargerReferentiel(true);
+  comptaRenderCycleView();
+}
+
+/* ---------- Bilan & Compte de résultat (agrégation par préfixe de compte, comme ImmoSuite) ---------- */
+async function comptaRenderBilan(host){
+  const balance=await comptaCalculerBalance();
+  const g=(prefixes)=>comptaSoldePrefixes(balance,prefixes);
+  const immos=g(['2']);
+  const stocks=g(['3']);
+  const creances=g(['409000','411000','416000','418000','422000','445000','444900']);
+  const treso=g(['5']);
+  const totalActif=immos+stocks+creances+treso;
+
+  const capitaux=-g(['101000','106000','110000']);
+  const chargesTot=g(['60','61','62','63','64','65','66','67','68','89']);
+  const produitsTot=-g(['70','75','77']);
+  const resultat=produitsTot-chargesTot;
+  const dettesFin=-g(['162000','168000']);
+  const fournisseurs=-g(['401000','408000']);
+  const dettesFiscales=-g(['419000','421000','431000','441000','443000','444100','447000']);
+  const totalPassif=capitaux+resultat+dettesFin+fournisseurs+dettesFiscales;
+  const ligne=(label,val,bold)=>`<tr class="${bold?'font-bold border-t':''}"><td>${label}</td><td class="text-right">${money(val)}</td></tr>`;
+  host.innerHTML=`
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="card p-4"><h3 class="font-bold mb-2">ACTIF</h3><table class="w-full text-sm">
+        ${ligne('Immobilisations nettes (classe 2)',immos)}${ligne('Stocks (classe 3)',stocks)}${ligne('Créances & emplois assimilés',creances)}${ligne('Trésorerie — actif',treso)}${ligne('TOTAL ACTIF',totalActif,true)}
+      </table></div>
+      <div class="card p-4"><h3 class="font-bold mb-2">PASSIF</h3><table class="w-full text-sm">
+        ${ligne('Capitaux propres',capitaux)}${ligne("Résultat net de l'exercice",resultat)}${ligne('Dettes financières',dettesFin)}${ligne('Fournisseurs',fournisseurs)}${ligne('Dettes fiscales & sociales',dettesFiscales)}${ligne('TOTAL PASSIF',totalPassif,true)}
+      </table></div>
+    </div>
+    <div class="mt-3 text-center text-sm font-semibold ${Math.abs(totalActif-totalPassif)<100?'text-emerald-600':'text-red-600'}">${Math.abs(totalActif-totalPassif)<100?'✔ Bilan équilibré':'✕ Écart de '+money(Math.abs(totalActif-totalPassif))}</div>`;
+}
+async function comptaRenderCompteResultat(host){
+  const balance=await comptaCalculerBalance();
+  const g=(prefixes)=>comptaSoldePrefixes(balance,prefixes);
+  const achats=g(['60']),transports=g(['61']),servExtA=g(['62']),servExtB=g(['63']),impotsTaxes=g(['64']),autresCharges=g(['65']),chargesPersonnel=g(['66']),fraisFin=g(['67']),dotations=g(['68']),impotResultat=g(['89']);
+  const ventes=-g(['70']),autresProduits=-g(['75']),produitsFin=-g(['77']);
+  const ca=ventes+autresProduits;
+  const va=ca-achats-transports-servExtA-servExtB;
+  const ebe=va-chargesPersonnel-impotsTaxes;
+  const resExploit=ebe-dotations;
+  const resFin=produitsFin-fraisFin;
+  const resAvantImpot=resExploit+resFin;
+  const resNet=resAvantImpot-impotResultat;
+  const ligne=(label,val,bold)=>`<tr class="${bold?'font-bold border-t':''}"><td>${label}</td><td class="text-right">${money(val)}</td></tr>`;
+  host.innerHTML=`
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="card p-4"><h3 class="font-bold mb-2 text-red-700">CHARGES</h3><table class="w-full text-sm">
+        ${ligne('Achats consommés',achats)}${ligne('Transports',transports)}${ligne('Services extérieurs A',servExtA)}${ligne('Services extérieurs B',servExtB)}${ligne('Impôts et taxes',impotsTaxes)}${ligne('Autres charges',autresCharges)}${ligne('Charges de personnel',chargesPersonnel)}${ligne('Frais financiers',fraisFin)}${ligne('Dotations aux amortissements',dotations)}${ligne('Impôt sur le résultat',impotResultat)}
+      </table></div>
+      <div class="card p-4"><h3 class="font-bold mb-2 text-emerald-700">PRODUITS</h3><table class="w-full text-sm">${ligne('Ventes',ventes)}${ligne('Autres produits',autresProduits)}${ligne('Produits financiers',produitsFin)}</table></div>
+    </div>
+    <div class="card p-4 mt-4"><h3 class="font-bold mb-2">Soldes intermédiaires de gestion</h3><table class="w-full text-sm">
+      ${ligne("Chiffre d'affaires",ca)}${ligne('Valeur ajoutée',va)}${ligne("Excédent brut d'exploitation (EBE)",ebe)}${ligne("Résultat d'exploitation",resExploit)}${ligne('Résultat financier',resFin)}${ligne('Résultat avant impôt',resAvantImpot)}${ligne("RÉSULTAT NET DE L'EXERCICE",resNet,true)}
+    </table></div>`;
+}
+
+/* ---------- Clôture d'exercice (solde 6/7/89 → résultat, verrouille, génère les à-nouveaux) ---------- */
+async function comptaRenderCloture(host){
+  const ex=exerciceActif();
+  host.innerHTML=`<div class="card p-4">
+    <h3 class="font-bold mb-2">Clôture de l'exercice ${ex?.annee||''}</h3>
+    <p class="text-sm text-gray-500 mb-4">${ex?.statut==='cloture'?'Cet exercice est clôturé : aucune nouvelle écriture ne peut y être saisie.':"Solde les comptes de charges et produits vers le résultat, verrouille l'exercice et génère les à-nouveaux sur l'exercice suivant."}</p>
+    ${ex?.statut==='cloture'?`<span class="badge bg-gray-100 text-gray-500">🔒 Clôturé le ${fmtDate(ex.cloture_le)} par ${escapeHtml(ex.cloture_par||'')}</span>`:`<button class="btn btn-primary" onclick="comptaCloturerExercice()">🔒 Clôturer l'exercice ${ex?.annee||''}</button>`}
+  </div>`;
+}
+async function comptaCloturerExercice(){
+  await comptaChargerReferentiel();
+  const ex=exerciceActif();
+  if(!ex){ toast('Aucun exercice actif.','error'); return; }
+  if(ex.statut==='cloture'){ toast('Exercice déjà clôturé.','error'); return; }
+  const balanceAvant=await comptaCalculerBalance();
+  const lignesCloture=[];
+  balanceAvant.filter(b=>/^(6|7|89)/.test(b.code)).forEach(b=>{
+    if(Math.abs(b.solde)<1) return;
+    if(b.solde>0) lignesCloture.push({compte_code:b.code,sens:'C',montant:b.solde,libelle:'Solde de clôture'});
+    else lignesCloture.push({compte_code:b.code,sens:'D',montant:-b.solde,libelle:'Solde de clôture'});
+  });
+  const totD=lignesCloture.reduce((s,l)=>s+(l.sens==='D'?l.montant:0),0);
+  const totC=lignesCloture.reduce((s,l)=>s+(l.sens==='C'?l.montant:0),0);
+  const ecart=totD-totC;
+  const resultat=ecart;
+  if(ecart>0) lignesCloture.push({compte_code:'120000',sens:'C',montant:ecart,libelle:'Résultat net — bénéfice'});
+  else if(ecart<0) lignesCloture.push({compte_code:'129000',sens:'D',montant:-ecart,libelle:'Résultat net — perte'});
+  if(!confirm(`Clôturer l'exercice ${ex.annee} ?\nRésultat net : ${money(resultat)} (${resultat>=0?'bénéfice':'perte'}).\nCette action verrouille toute nouvelle écriture sur ${ex.annee} et génère les à-nouveaux sur ${ex.annee+1}.`)) return;
+
+  const refCloture=await genererRefEcriture(ex.annee);
+  const {data:ecrCloture,error:errC}=await sb.from('compta_ecritures').insert({ref:refCloture,exercice_annee:ex.annee,date_ecriture:ex.date_fin,journal_code:'CLO',libelle:"Clôture de l'exercice "+ex.annee,source:'auto',valide_le:new Date().toISOString(),valide_par:CURRENT_USER.email,created_by:CURRENT_USER.id}).select().single();
+  if(errC){ toast(errC.message,'error'); return; }
+  if(lignesCloture.length) await sb.from('compta_lignes').insert(lignesCloture.map(l=>({...l,ecriture_id:ecrCloture.id})));
+
+  const anneeSuivante=ex.annee+1;
+  let exSuivant=exerciceParAnnee(anneeSuivante);
+  if(!exSuivant){
+    const {data:newEx,error:errEx}=await sb.from('compta_exercices').insert({annee:anneeSuivante,date_debut:`${anneeSuivante}-01-01`,date_fin:`${anneeSuivante}-12-31`,statut:'ouvert'}).select().single();
+    if(errEx){ toast(errEx.message,'error'); return; }
+    exSuivant=newEx; window._compta.exercices.push(newEx);
+  }
+  const balanceApres=await comptaCalculerBalance();
+  const lignesAN=[];
+  balanceApres.filter(b=>/^[12345]/.test(b.code)).forEach(b=>{
+    if(Math.abs(b.solde)<1) return;
+    if(b.solde>0) lignesAN.push({compte_code:b.code,sens:'D',montant:b.solde,libelle:'À-nouveau'});
+    else lignesAN.push({compte_code:b.code,sens:'C',montant:-b.solde,libelle:'À-nouveau'});
+  });
+  if(lignesAN.length){
+    const refAN=await genererRefEcriture(anneeSuivante);
+    const {data:ecrAN,error:errAN}=await sb.from('compta_ecritures').insert({ref:refAN,exercice_annee:anneeSuivante,date_ecriture:exSuivant.date_debut,journal_code:'AN',libelle:"À-nouveaux depuis clôture "+ex.annee,source:'auto',valide_le:new Date().toISOString(),valide_par:CURRENT_USER.email,created_by:CURRENT_USER.id}).select().single();
+    if(!errAN) await sb.from('compta_lignes').insert(lignesAN.map(l=>({...l,ecriture_id:ecrAN.id})));
+  }
+  await sb.from('compta_exercices').update({statut:'cloture',cloture_le:new Date().toISOString(),cloture_par:CURRENT_USER.email}).eq('id',ex.id);
+  await comptaChargerReferentiel(true);
+  toast(`Exercice ${ex.annee} clôturé. Résultat net : ${money(resultat)}.`);
+  comptaRenderCycleView();
+}
+
+/* ---------- Tableau de bord Comptabilité (cycle Ouverture → Saisie → Contrôle → Visa → États → Clôture) ---------- */
+const COMPTA_CYCLE=[
+  {icon:'①',label:'OUVERTURE',items:[{v:'plan_comptable',label:'Plan comptable'},{v:'bilan_ouverture',label:"Bilan d'ouverture",action:"comptaOuvrirBilanOuverture()"}]},
+  {icon:'②',label:'SAISIE',items:[{v:'journal',label:'Journal'}]},
+  {icon:'③',label:'CONTRÔLE',items:[{v:'grand_livre',label:'Grand livre'},{v:'balance',label:'Balance'},{v:'brouillard_caisse',label:'Brouillards caisse'}]},
+  {icon:'④',label:'VISA',items:[{v:'validation',label:'Validation'}]},
+  {icon:'⑤',label:'ÉTATS',items:[{v:'bilan',label:'Bilan'},{v:'resultat',label:'Compte de résultat'}]},
+  {icon:'⑥',label:'CLÔTURE',items:[{v:'cloture',label:'Clôture'}]}
+];
+async function renderComptabilite(el){
+  await comptaChargerReferentiel();
+  if(!window._compta.cycleView) window._compta.cycleView='journal';
+  el.innerHTML=`
+    <div class="page-card mb-4">
+      <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+        <div><h2>📗 Comptabilité SYSCOHADA</h2><p class="text-xs text-gray-500">Cycle complet — ouverture, saisie, contrôle, visa, états, clôture.</p></div>
+        <div class="flex gap-2 items-center flex-wrap">
+          <select onchange="window._compta.annee=+this.value;comptaRenderCycleView()">${window._compta.exercices.map(e=>`<option value="${e.annee}" ${e.annee===window._compta.annee?'selected':''}>${e.annee} ${e.statut==='cloture'?'🔒':''}</option>`).join('')}</select>
+          <button class="btn btn-primary" onclick="openEcritureModal()">+ Écriture</button>
+        </div>
+      </div>
+      <div class="grid sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        ${COMPTA_CYCLE.map(block=>`<div class="card p-3">
+          <div class="text-xs font-bold text-gray-400 mb-2">${block.icon} ${block.label}</div>
+          ${block.items.map(it=>`<button class="block w-full text-left text-sm py-1 hover:text-indigo-600 ${window._compta.cycleView===it.v?'text-indigo-600 font-semibold':''}" onclick="${it.action||`window._compta.cycleView='${it.v}';comptaRenderCycleView()`}">${it.label}</button>`).join('')}
+        </div>`).join('')}
+      </div>
+    </div>
+    <div id="comptaCycleContent" class="page-card"></div>`;
+  comptaRenderCycleView();
+}
+async function comptaRenderCycleView(){
+  const host=document.getElementById('comptaCycleContent');
+  if(!host) return;
+  host.innerHTML='<div class="text-sm text-gray-400 p-8 text-center">Chargement…</div>';
+  const renderers={journal:comptaRenderJournal,grand_livre:comptaRenderGrandLivre,balance:comptaRenderBalance,brouillard_caisse:comptaRenderBrouillardCaisse,validation:comptaRenderValidation,bilan:comptaRenderBilan,resultat:comptaRenderCompteResultat,cloture:comptaRenderCloture,plan_comptable:comptaRenderPlanComptable};
+  const fn=renderers[window._compta.cycleView]||comptaRenderJournal;
+  await fn(host);
+}
+
+/* ---------- Brouillard de caisse (mouvements toutes séances, ventilation hors contexte) ---------- */
+async function comptaRenderBrouillardCaisse(host){
+  window._compta.brouillard=window._compta.brouillard||{caisseId:'',debut:new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10),fin:new Date().toISOString().slice(0,10),statut:''};
+  const f=window._compta.brouillard;
+  const {data:caisses}=await sb.from('caisses').select('*').order('nom');
+  let q=sb.from('caisse_mouvements').select('*, caisses(nom,compte_code)').gte('date_mouvement',f.debut).lte('date_mouvement',f.fin).order('date_mouvement',{ascending:false}).order('created_at',{ascending:false});
+  if(f.caisseId) q=q.eq('caisse_id',f.caisseId);
+  if(f.statut) q=q.eq('statut',f.statut);
+  const {data:mvts,error}=await q;
+  if(error){ toast(error.message,'error'); return; }
+  const totalEntrees=(mvts||[]).filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
+  const totalSorties=(mvts||[]).filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
+  const aVentiler=(mvts||[]).filter(m=>m.statut==='a_ventiler').length;
+  host.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+      <h3 class="font-bold">Brouillard de caisse</h3>
+      <div class="flex flex-wrap gap-2 items-center">
+        <select onchange="window._compta.brouillard.caisseId=this.value;comptaRenderCycleView()">
+          <option value="">Toutes les caisses</option>
+          ${(caisses||[]).map(c=>`<option value="${c.id}" ${c.id===f.caisseId?'selected':''}>${escapeHtml(c.nom)}</option>`).join('')}
+        </select>
+        <input type="date" value="${f.debut}" onchange="window._compta.brouillard.debut=this.value;comptaRenderCycleView()">
+        <input type="date" value="${f.fin}" onchange="window._compta.brouillard.fin=this.value;comptaRenderCycleView()">
+        <select onchange="window._compta.brouillard.statut=this.value;comptaRenderCycleView()">
+          <option value="">Tous statuts</option>
+          <option value="a_ventiler" ${f.statut==='a_ventiler'?'selected':''}>À ventiler</option>
+          <option value="ventile" ${f.statut==='ventile'?'selected':''}>Ventilé</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-3 mb-4">
+      <div class="card p-4"><div class="text-xs text-gray-400">Entrées</div><div class="text-xl font-black mt-1 text-emerald-600">${money(totalEntrees)}</div></div>
+      <div class="card p-4"><div class="text-xs text-gray-400">Sorties</div><div class="text-xl font-black mt-1 text-red-600">${money(totalSorties)}</div></div>
+      <div class="card p-4"><div class="text-xs text-gray-400">À ventiler</div><div class="text-xl font-black mt-1 ${aVentiler?'text-amber-600':''}">${aVentiler}</div></div>
+    </div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Date</th><th>Caisse</th><th>N°</th><th>Type</th><th>Motif</th><th class="text-right">Montant</th><th>Compte ventilé</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${(mvts||[]).map(m=>`<tr>
+        <td>${fmtDate(m.date_mouvement)}</td>
+        <td>${escapeHtml(m.caisses?.nom||'—')}</td>
+        <td>${escapeHtml(m.numero||'—')}</td>
+        <td><span class="${m.type==='entree'?'text-emerald-600':'text-red-600'}">${m.type==='entree'?'▲ Entrée':'▼ Sortie'}</span></td>
+        <td>${escapeHtml(m.motif)}${m.beneficiaire?' — '+escapeHtml(m.beneficiaire):''}</td>
+        <td class="text-right font-semibold">${money(m.montant)}</td>
+        <td>${m.compte_ventile?compteLabel(m.compte_ventile):'—'}</td>
+        <td>${m.statut==='ventile'?`<span class="badge bg-emerald-50 text-emerald-700">✔ Ventilé</span>`:'<span class="badge bg-amber-50 text-amber-700">À ventiler</span>'}</td>
+        <td class="text-right">${m.statut==='a_ventiler'?`<button class="text-xs text-indigo-600" onclick="caisseOuvrirVentilerModal('${m.id}','brouillard')">Ventiler</button>`:''}</td>
+      </tr>`).join('')||'<tr><td colspan="9" class="text-gray-400 p-4 text-center">Aucun mouvement sur la période.</td></tr>'}</tbody></table>
+    </div>`;
+}
+
+/* ============================== CAISSE (multi-caisses) ============================== */
+window._caisse=window._caisse||{moisRef:new Date()};
+function caissePeriode(){
+  const d=window._caisse.moisRef;
+  const debut=new Date(d.getFullYear(),d.getMonth(),1);
+  const fin=new Date(d.getFullYear(),d.getMonth()+1,0);
+  return {debut:debut.toISOString().slice(0,10),fin:fin.toISOString().slice(0,10),label:debut.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})};
+}
+function caisseChangerMois(delta){
+  const d=window._caisse.moisRef;
+  window._caisse.moisRef=new Date(d.getFullYear(),d.getMonth()+delta,1);
+  showPage('caisse');
+}
+async function renderCaisse(el){
+  const {debut,fin,label}=caissePeriode();
+  const [{data:caisses},{data:sessionsOuvertes}]=await Promise.all([
+    sb.from('caisses').select('*, projets(libelle)').eq('actif',true).order('created_at'),
+    sb.from('caisse_sessions').select('*').eq('statut','ouverte')
+  ]);
+  const sessionIds=(sessionsOuvertes||[]).map(s=>s.id);
+  const {data:mvtsOuverts}=sessionIds.length?await sb.from('caisse_mouvements').select('*').in('session_id',sessionIds):{data:[]};
+  const {data:mvtsPeriode}=await sb.from('caisse_mouvements').select('*').gte('date_mouvement',debut).lte('date_mouvement',fin);
+
+  const soldeParCaisse={};
+  (sessionsOuvertes||[]).forEach(s=>{
+    const mvts=(mvtsOuverts||[]).filter(m=>m.session_id===s.id);
+    const entrees=mvts.filter(m=>m.type==='entree').reduce((sum,m)=>sum+(+m.montant||0),0);
+    const sorties=mvts.filter(m=>m.type==='sortie').reduce((sum,m)=>sum+(+m.montant||0),0);
+    soldeParCaisse[s.caisse_id]={session:s,solde:(+s.fond_ouverture||0)+entrees-sorties};
+  });
+  const soldeGlobal=Object.values(soldeParCaisse).reduce((s,x)=>s+x.solde,0);
+  const encaissements=(mvtsPeriode||[]).filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
+  const decaissements=(mvtsPeriode||[]).filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
+  const aVentiler=(mvtsPeriode||[]).filter(m=>m.statut==='a_ventiler');
+  const aVentilerMontant=aVentiler.reduce((s,m)=>s+(+m.montant||0),0);
+  const {data:sessionsClotureesPeriode}=await sb.from('caisse_sessions').select('ecart').eq('statut','cloturee').gte('date_session',debut).lte('date_session',fin);
+  const ecartCumule=(sessionsClotureesPeriode||[]).reduce((s,x)=>s+(+x.ecart||0),0);
+
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div><h2>💰 Caisse</h2><p class="text-xs text-gray-500">Ouverture/clôture · Bons d'entrée & de sortie · Brouillard journalier · Transferts.</p></div>
+      <button class="btn btn-primary" onclick="caisseOuvrirNouvelleCaisseModal()">+ Nouvelle caisse</button>
+    </div>
+    <div class="page-card mb-4">
+      <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+        <b>Tableau de bord — Caisse · ${label}</b>
+        <div class="flex gap-2 items-center"><button class="btn btn-outline btn-sm" onclick="caisseChangerMois(-1)">◀</button><button class="btn btn-outline btn-sm" onclick="caisseChangerMois(1)">▶</button></div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+        <div class="card p-3"><div class="text-xs text-gray-400">SOLDE TEMPS RÉEL</div><div class="text-lg font-black mt-1">${money(soldeGlobal)}</div><div class="text-xs text-gray-400">${Object.keys(soldeParCaisse).length} / ${caisses.length} ouverte(s)</div></div>
+        <div class="card p-3" style="border-left:3px solid #4AC47A"><div class="text-xs text-gray-400">ENCAISSEMENTS</div><div class="text-lg font-black mt-1 text-emerald-600">${money(encaissements)}</div><div class="text-xs text-gray-400">${(mvtsPeriode||[]).filter(m=>m.type==='entree').length} bon(s)</div></div>
+        <div class="card p-3" style="border-left:3px solid #E05252"><div class="text-xs text-gray-400">DÉCAISSEMENTS</div><div class="text-lg font-black mt-1 text-red-600">${money(decaissements)}</div><div class="text-xs text-gray-400">${(mvtsPeriode||[]).filter(m=>m.type==='sortie').length} bon(s)</div></div>
+        <div class="card p-3"><div class="text-xs text-gray-400">FLUX NET</div><div class="text-lg font-black mt-1 ${encaissements-decaissements>=0?'text-emerald-600':'text-red-600'}">${money(encaissements-decaissements)}</div><div class="text-xs text-gray-400">Entrées − sorties</div></div>
+        <div class="card p-3"><div class="text-xs text-gray-400">À VENTILER</div><div class="text-lg font-black mt-1 ${aVentiler.length?'text-red-600':''}">${aVentiler.length} mvt</div><div class="text-xs text-gray-400">${money(aVentilerMontant)}</div></div>
+        <div class="card p-3"><div class="text-xs text-gray-400">ÉCART CLÔTURE</div><div class="text-lg font-black mt-1 ${ecartCumule<0?'text-red-600':ecartCumule>0?'text-emerald-600':''}">${money(ecartCumule)}</div><div class="text-xs text-gray-400">Cumul période</div></div>
+      </div>
+      <div class="font-bold text-sm mb-2">Détail par caisse (${caisses.length} caisse(s))</div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">${caisses.map(c=>caisseCardHtml(c,soldeParCaisse[c.id],mvtsPeriode)).join('')||'<div class="text-gray-400 p-4">Aucune caisse. Créez-en une.</div>'}</div>
+    </div>`;
+}
+function caisseCardHtml(c,soldeInfo,mvtsPeriode){
+  const mvtsCaisse=(mvtsPeriode||[]).filter(m=>m.caisse_id===c.id);
+  const entrees=mvtsCaisse.filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
+  const sorties=mvtsCaisse.filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
+  const aVentiler=mvtsCaisse.filter(m=>m.statut==='a_ventiler');
+  const ouverte=!!soldeInfo;
+  return `<div class="card p-3">
+    <div class="flex justify-between items-start mb-2">
+      <div><b>${escapeHtml(c.nom)}</b><div class="text-xs text-gray-400">${escapeHtml(c.projets?.libelle||'—')}</div></div>
+      <span class="badge ${ouverte?'bg-emerald-50 text-emerald-700':'bg-gray-100 text-gray-500'}">${ouverte?'OUVERTE':'FERMÉE'}</span>
+    </div>
+    ${ouverte?`<div class="text-xl font-black mb-2" style="color:var(--accent)">${money(soldeInfo.solde)}</div>`:''}
+    <div class="grid grid-cols-2 gap-2 text-xs mb-2">
+      <div>Entrées <b class="text-emerald-600">${money(entrees)}</b></div>
+      <div>Sorties <b class="text-red-600">${money(sorties)}</b></div>
+      <div>Flux net <b class="${entrees-sorties>=0?'text-emerald-600':'text-red-600'}">${money(entrees-sorties)}</b></div>
+      <div>À ventiler <b class="${aVentiler.length?'text-red-600':''}">${aVentiler.length}</b></div>
+    </div>
+    <button class="btn btn-outline btn-sm w-full" onclick="window._editId='${c.id}';showPage('caisse-detail')">Ouvrir →</button>
+  </div>`;
+}
+function caisseOuvrirNouvelleCaisseModal(){
+  Promise.all([comptaChargerReferentiel(),sb.from('projets').select('id,libelle').order('libelle')]).then(([,{data:projets}])=>{
+    openModal(`
+      <h3 class="font-bold text-lg mb-4">Nouvelle caisse</h3>
+      <div class="field mb-3"><label>Nom</label>${fieldWrap('💰',`<input id="ncNom" placeholder="ex: Caisse chantier Cocody">`)}</div>
+      <div class="field mb-3"><label>Chantier associé (optionnel)</label>${fieldWrap('🏗️',`<select id="ncProjet"><option value="">— Aucun —</option>${(projets||[]).map(p=>`<option value="${p.id}">${escapeHtml(p.libelle)}</option>`).join('')}</select>`)}</div>
+      <div class="field mb-3"><label>Responsable</label>${fieldWrap('👤',`<input id="ncResponsable">`)}</div>
+      <div class="field mb-4"><label>Compte comptable</label>${fieldWrap('📗',`<select id="ncCompte">${compteOptionsHtml('571000')}</select>`)}</div>
+      <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseSauverNouvelle()">Créer</button></div>`);
+  });
+}
+async function caisseSauverNouvelle(){
+  const nom=document.getElementById('ncNom').value.trim();
+  if(!nom){ toast('Nom requis.','error'); return; }
+  const rec={nom,projet_id:document.getElementById('ncProjet').value||null,responsable:document.getElementById('ncResponsable').value.trim()||null,compte_code:document.getElementById('ncCompte').value};
+  const {error}=await sb.from('caisses').insert(rec);
+  if(error){ toast(error.message,'error'); return; }
+  toast('Caisse créée.'); closeModal(); showPage('caisse');
+}
+
+/* ---------- Détail d'une caisse : session, mouvements, ventilation, transferts ---------- */
+async function renderCaisseDetail(el){
+  const caisseId=window._editId;
+  const {data:c}=await sb.from('caisses').select('*, projets(libelle)').eq('id',caisseId).single();
+  if(!c){ el.innerHTML='<div class="text-red-600">Caisse introuvable.</div>'; return; }
+  await comptaChargerReferentiel();
+  const {data:session}=await sb.from('caisse_sessions').select('*').eq('caisse_id',caisseId).eq('statut','ouverte').maybeSingle();
+  let mvts=[];
+  if(session){ const {data}=await sb.from('caisse_mouvements').select('*').eq('session_id',session.id).order('created_at',{ascending:false}); mvts=data||[]; }
+  const entrees=mvts.filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
+  const sorties=mvts.filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
+  const solde=session?(+session.fond_ouverture||0)+entrees-sorties:0;
+  window._caisseDetailCache={caisse:c,session,mvts};
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div><h2>${escapeHtml(c.nom)}</h2><p class="text-xs text-gray-500">${escapeHtml(c.projets?.libelle||'Aucun chantier associé')} · Compte ${compteLabel(c.compte_code)}</p></div>
+      <button class="btn btn-outline" onclick="showPage('caisse')">← Retour</button>
+    </div>
+    ${session?`
+      <div class="grid sm:grid-cols-4 gap-3 mb-4">
+        <div class="card p-4"><div class="text-xs text-gray-400">Solde temps réel</div><div class="text-xl font-black mt-1">${money(solde)}</div></div>
+        <div class="card p-4"><div class="text-xs text-gray-400">Entrées (session)</div><div class="text-xl font-black mt-1 text-emerald-600">${money(entrees)}</div></div>
+        <div class="card p-4"><div class="text-xs text-gray-400">Sorties (session)</div><div class="text-xl font-black mt-1 text-red-600">${money(sorties)}</div></div>
+        <div class="card p-4"><div class="text-xs text-gray-400">Fond d'ouverture</div><div class="text-xl font-black mt-1">${money(session.fond_ouverture)}</div></div>
+      </div>
+      <div class="flex flex-wrap gap-2 mb-4">
+        <button class="btn btn-primary" onclick="caisseOuvrirBonModal('entree')">+ Bon d'entrée</button>
+        <button class="btn btn-outline" onclick="caisseOuvrirBonModal('sortie')">− Bon de sortie</button>
+        <button class="btn btn-outline" onclick="caisseOuvrirTransfertModal()">⇄ Transfert</button>
+        <button class="btn btn-outline text-red-600" onclick="caisseOuvrirClotureModal()">🔒 Clôturer la séance</button>
+      </div>
+      <div class="card overflow-x-auto">
+        <table><thead><tr><th>Date</th><th>N°</th><th>Type</th><th>Motif</th><th class="text-right">Montant</th><th>Statut</th><th></th></tr></thead>
+        <tbody>${mvts.map(m=>`<tr>
+          <td>${fmtDate(m.date_mouvement)}</td><td>${escapeHtml(m.numero||'—')}</td>
+          <td><span class="${m.type==='entree'?'text-emerald-600':'text-red-600'}">${m.type==='entree'?'▲ Entrée':'▼ Sortie'}</span></td>
+          <td>${escapeHtml(m.motif)}${m.beneficiaire?' — '+escapeHtml(m.beneficiaire):''}</td>
+          <td class="text-right font-semibold">${money(m.montant)}</td>
+          <td>${m.statut==='ventile'?`<span class="badge bg-emerald-50 text-emerald-700">✔ Ventilé</span>`:'<span class="badge bg-amber-50 text-amber-700">À ventiler</span>'}</td>
+          <td class="text-right">${m.statut==='a_ventiler'?`<button class="text-xs text-indigo-600" onclick="caisseOuvrirVentilerModal('${m.id}')">Ventiler</button>`:''}</td>
+        </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4 text-center">Aucun mouvement dans cette séance.</td></tr>'}</tbody></table>
+      </div>`
+      :`<div class="card p-6 text-center"><p class="text-gray-500 mb-4">Aucune séance ouverte pour cette caisse.</p><button class="btn btn-primary" onclick="caisseOuvrirSessionModal()">🔓 Ouvrir la caisse</button></div>`}`;
+}
+function caisseOuvrirSessionModal(){
+  const c=window._caisseDetailCache.caisse;
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">Ouvrir la caisse « ${escapeHtml(c.nom)} »</h3>
+    <div class="field mb-4"><label>Fond d'ouverture (FCFA)</label>${fieldWrap('💵',`<input id="csFond" type="number" value="0">`)}</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseConfirmerOuverture('${c.id}')">Ouvrir</button></div>`);
+}
+async function caisseConfirmerOuverture(caisseId){
+  const fond=+document.getElementById('csFond').value||0;
+  const {data:existe}=await sb.from('caisse_sessions').select('id').eq('caisse_id',caisseId).eq('statut','ouverte').maybeSingle();
+  if(existe){ toast('Une séance est déjà ouverte pour cette caisse.','error'); return; }
+  const {error}=await sb.from('caisse_sessions').insert({caisse_id:caisseId,date_session:new Date().toISOString().slice(0,10),fond_ouverture:fond,statut:'ouverte',ouverte_par:CURRENT_USER.email});
+  if(error){ toast(error.message,'error'); return; }
+  toast('Caisse ouverte.'); closeModal();
+  window._editId=caisseId; showPage('caisse-detail');
+}
+function caisseOuvrirBonModal(type){
+  const {session}=window._caisseDetailCache;
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">${type==='entree'?"+ Bon d'entrée":'− Bon de sortie'}</h3>
+    <div class="grid sm:grid-cols-2 gap-3 mb-3">
+      <div class="field"><label>Date</label>${fieldWrap('📅',`<input id="bonDate" type="date" value="${new Date().toISOString().slice(0,10)}">`)}</div>
+      <div class="field"><label>Montant (FCFA)</label>${fieldWrap('💵',`<input id="bonMontant" type="number" min="1">`)}</div>
+    </div>
+    <div class="field mb-3"><label>Motif</label>${fieldWrap('📝',`<input id="bonMotif" placeholder="ex: Achat quincaillerie chantier X">`)}</div>
+    <div class="field mb-4"><label>${type==='entree'?'Provenance':'Bénéficiaire'}</label>${fieldWrap('👤',`<input id="bonBeneficiaire">`)}</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseSauverBon('${type}','${session.id}')">Enregistrer</button></div>`);
+}
+async function caisseSauverBon(type,sessionId){
+  const date_mouvement=document.getElementById('bonDate').value;
+  const montant=+document.getElementById('bonMontant').value||0;
+  const motif=document.getElementById('bonMotif').value.trim();
+  const beneficiaire=document.getElementById('bonBeneficiaire').value.trim();
+  if(!montant||montant<=0){ toast('Montant invalide.','error'); return; }
+  if(!motif){ toast('Motif requis.','error'); return; }
+  const {caisse}=window._caisseDetailCache;
+  const {count}=await sb.from('caisse_mouvements').select('id',{count:'exact',head:true}).eq('caisse_id',caisse.id);
+  const numero=`${type==='entree'?'BE':'BS'}-${String((count||0)+1).padStart(5,'0')}`;
+  const {error}=await sb.from('caisse_mouvements').insert({session_id:sessionId,caisse_id:caisse.id,numero,date_mouvement,type,montant,motif,beneficiaire:beneficiaire||null,statut:'a_ventiler',created_by:CURRENT_USER.id});
+  if(error){ toast(error.message,'error'); return; }
+  toast('Bon enregistré.'); closeModal();
+  showPage('caisse-detail');
+}
+async function caisseOuvrirVentilerModal(mvtId,contexte){
+  const [{data:regles},{data:mvt}]=await Promise.all([
+    sb.from('caisse_regles_ventilation').select('*'),
+    sb.from('caisse_mouvements').select('*, caisses(compte_code,nom)').eq('id',mvtId).single()
+  ]);
+  if(!mvt){ toast('Mouvement introuvable.','error'); return; }
+  const suggestion=(regles||[]).find(r=>mvt.motif.toLowerCase().includes(String(r.mot_cle).toLowerCase()));
+  window._ventilationCourante={mvt,contexte};
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">Ventiler le mouvement</h3>
+    <p class="text-sm text-gray-500 mb-1">${escapeHtml(mvt.caisses?.nom||'')} — ${fmtDate(mvt.date_mouvement)}</p>
+    <p class="text-sm text-gray-500 mb-3">${escapeHtml(mvt.motif)} — <b>${money(mvt.montant)}</b> (${mvt.type==='entree'?'entrée':'sortie'})</p>
+    <div class="field mb-4"><label>Compte de contrepartie</label>${fieldWrap('📗',`<select id="ventCompte"><option value="">Choisir…</option>${compteOptionsHtml(suggestion?.compte_code||'')}</select>`)}</div>
+    <label class="flex items-center gap-2 text-sm mb-4"><input type="checkbox" id="ventMemoriser" checked> Mémoriser une règle pour les prochains mouvements similaires</label>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseVentiler()">Ventiler</button></div>`);
+}
+async function caisseVentiler(){
+  const compte=document.getElementById('ventCompte').value;
+  const memoriser=document.getElementById('ventMemoriser').checked;
+  if(!compte){ toast('Choisissez un compte.','error'); return; }
+  const {mvt,contexte}=window._ventilationCourante||{};
+  if(!mvt) return;
+  const caisseCompte=mvt.caisses?.compte_code;
+  if(exerciceEstClos(mvt.date_mouvement)){ toast('Exercice clôturé pour cette date.','error'); return; }
+  const annee=new Date(mvt.date_mouvement).getFullYear();
+  const ref=await genererRefEcriture(annee);
+  const lignes=mvt.type==='entree'
+    ?[{compte_code:caisseCompte,sens:'D',montant:mvt.montant,libelle:mvt.motif},{compte_code:compte,sens:'C',montant:mvt.montant,libelle:mvt.motif}]
+    :[{compte_code:compte,sens:'D',montant:mvt.montant,libelle:mvt.motif},{compte_code:caisseCompte,sens:'C',montant:mvt.montant,libelle:mvt.motif}];
+  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:mvt.date_mouvement,journal_code:'CA',piece:mvt.numero,libelle:mvt.motif,source:'auto',source_type:'caisse_mouvement',source_id:mvt.id,created_by:CURRENT_USER.id}).select().single();
+  if(error){ toast(error.message,'error'); return; }
+  await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
+  await sb.from('caisse_mouvements').update({statut:'ventile',compte_ventile:compte,ecriture_id:ecr.id}).eq('id',mvt.id);
+  if(memoriser){
+    const motCle=(mvt.motif.split(/\s+/)[0]||'').trim();
+    if(motCle && motCle.length>=3){
+      const {data:existeRegle}=await sb.from('caisse_regles_ventilation').select('id').ilike('mot_cle',motCle).maybeSingle();
+      if(!existeRegle) await sb.from('caisse_regles_ventilation').insert({mot_cle:motCle,compte_code:compte});
+    }
+  }
+  toast('Mouvement ventilé et écriture générée.'); closeModal();
+  if(contexte==='brouillard') comptaRenderCycleView(); else showPage('caisse-detail');
+}
+async function caisseOuvrirTransfertModal(){
+  const {data:caisses}=await sb.from('caisses').select('*').eq('actif',true).neq('id',window._caisseDetailCache.caisse.id);
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">Transfert vers une autre caisse</h3>
+    <div class="field mb-3"><label>Caisse destination</label>${fieldWrap('💰',`<select id="trfDest"><option value="">Choisir…</option>${(caisses||[]).map(c=>`<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('')}</select>`)}</div>
+    <div class="field mb-4"><label>Montant (FCFA)</label>${fieldWrap('💵',`<input id="trfMontant" type="number" min="1">`)}</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseConfirmerTransfert()">Transférer</button></div>`);
+}
+async function caisseConfirmerTransfert(){
+  const destId=document.getElementById('trfDest').value;
+  const montant=+document.getElementById('trfMontant').value||0;
+  if(!destId){ toast('Choisissez une caisse destination.','error'); return; }
+  if(!montant||montant<=0){ toast('Montant invalide.','error'); return; }
+  const {data:destSession}=await sb.from('caisse_sessions').select('*').eq('caisse_id',destId).eq('statut','ouverte').maybeSingle();
+  if(!destSession){ toast('La caisse destination doit être ouverte (créez-y une séance).','error'); return; }
+  const {data:destCaisse}=await sb.from('caisses').select('nom').eq('id',destId).single();
+  const {caisse,session}=window._caisseDetailCache;
+  const transfertId=uid();
+  const date_mouvement=new Date().toISOString().slice(0,10);
+  const {data:mSortie,error:e1}=await sb.from('caisse_mouvements').insert({session_id:session.id,caisse_id:caisse.id,numero:'TRF-OUT',date_mouvement,type:'sortie',montant,motif:`Transfert vers ${destCaisse?.nom||'caisse'}`,statut:'a_ventiler',transfert_id:transfertId,created_by:CURRENT_USER.id}).select().single();
+  if(e1){ toast(e1.message,'error'); return; }
+  const {error:e2}=await sb.from('caisse_mouvements').insert({session_id:destSession.id,caisse_id:destId,numero:'TRF-IN',date_mouvement,type:'entree',montant,motif:`Transfert depuis ${escapeHtml(caisse.nom)}`,statut:'a_ventiler',transfert_id:transfertId,created_by:CURRENT_USER.id});
+  if(e2){ toast(e2.message,'error'); return; }
+  toast('Transfert enregistré des deux côtés (à ventiler — suggestion : compte 585000).'); closeModal();
+  showPage('caisse-detail');
+}
+function caisseOuvrirClotureModal(){
+  const {session,mvts}=window._caisseDetailCache;
+  const entrees=mvts.filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
+  const sorties=mvts.filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
+  const theorique=(+session.fond_ouverture||0)+entrees-sorties;
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">Clôturer la séance</h3>
+    <p class="text-sm text-gray-500 mb-3">Solde théorique : <b>${money(theorique)}</b></p>
+    <div class="field mb-4"><label>Comptage physique réel (FCFA)</label>${fieldWrap('🧮',`<input id="clFondReel" type="number" value="${theorique}">`)}</div>
+    <div id="clEcartPreview" class="text-sm font-semibold mb-4"></div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseConfirmerCloture(${theorique})">Clôturer</button></div>`);
+  const upd=()=>{
+    const reel=+document.getElementById('clFondReel').value||0;
+    const ecart=reel-theorique;
+    document.getElementById('clEcartPreview').innerHTML=ecart===0?'<span class="text-emerald-600">✔ Aucun écart</span>':`<span class="${ecart>0?'text-emerald-600':'text-red-600'}">Écart : ${ecart>0?'+':''}${money(ecart)}</span>`;
+  };
+  document.getElementById('clFondReel').oninput=upd; upd();
+}
+async function caisseConfirmerCloture(theorique){
+  const {session,caisse}=window._caisseDetailCache;
+  const reel=+document.getElementById('clFondReel').value||0;
+  const ecart=reel-theorique;
+  if(!confirm(`Clôturer la séance avec un solde réel de ${money(reel)}${ecart!==0?` (écart de ${money(ecart)})`:''} ?`)) return;
+  let ecartEcritureId=null;
+  const today=new Date().toISOString().slice(0,10);
+  if(Math.abs(ecart)>=1 && !exerciceEstClos(today)){
+    const annee=new Date().getFullYear();
+    const ref=await genererRefEcriture(annee);
+    const compteEcart=ecart>0?requireCompteDefaut('excedent_caisse'):requireCompteDefaut('manquant_caisse');
+    const lignes=ecart>0
+      ?[{compte_code:caisse.compte_code,sens:'D',montant:ecart,libelle:'Excédent de caisse'},{compte_code:compteEcart,sens:'C',montant:ecart,libelle:'Excédent de caisse'}]
+      :[{compte_code:compteEcart,sens:'D',montant:-ecart,libelle:'Manquant de caisse'},{compte_code:caisse.compte_code,sens:'C',montant:-ecart,libelle:'Manquant de caisse'}];
+    const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:today,journal_code:'CA',libelle:`Écart de clôture — ${caisse.nom}`,source:'auto',source_type:'caisse_session',source_id:session.id,created_by:CURRENT_USER.id}).select().single();
+    if(!error){ await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id}))); ecartEcritureId=ecr.id; }
+  }
+  await sb.from('caisse_sessions').update({statut:'cloturee',fond_cloture_theorique:theorique,fond_cloture_reel:reel,ecart,cloturee_par:CURRENT_USER.email,cloturee_le:new Date().toISOString(),ecart_ecriture_id:ecartEcritureId}).eq('id',session.id);
+  toast('Séance clôturée.'); closeModal();
+  showPage('caisse-detail');
+}
+
+/* ============================== INTÉGRATION FACTURES → COMPTABILITÉ ============================== */
+async function comptaFactureDejaComptabilisee(factureId){
+  const {data}=await sb.from('compta_ecritures').select('id').eq('source_type','facture').eq('source_id',factureId).eq('journal_code','VE').maybeSingle();
+  return !!data;
+}
+async function comptabiliserVenteFacture(factureId){
+  await comptaChargerReferentiel();
+  const {data:f}=await sb.from('factures').select('*, clients(nom,prenoms)').eq('id',factureId).single();
+  if(!f) return null;
+  if(await comptaFactureDejaComptabilisee(factureId)) return null;
+  const dateFacture=f.date_facture||new Date().toISOString().slice(0,10);
+  if(exerciceEstClos(dateFacture)){ toast('Exercice clôturé pour la date de cette facture.','error'); return null; }
+  const p=window.APP_PARAMS||{};
+  const tvaPct=+p.tva_pct||0;
+  const ttc=+f.total||0;
+  const ht=tvaPct>0?Math.round(ttc/(1+tvaPct/100)):ttc;
+  const tva=ttc-ht;
+  const annee=new Date(dateFacture).getFullYear();
+  const ref=await genererRefEcriture(annee);
+  const lignes=[{compte_code:requireCompteDefaut('clients'),sens:'D',montant:ttc,libelle:'Facture '+f.code},{compte_code:requireCompteDefaut('ventes'),sens:'C',montant:ht,libelle:'Facture '+f.code}];
+  if(tva>0) lignes.push({compte_code:requireCompteDefaut('tva_collectee'),sens:'C',montant:tva,libelle:'TVA sur facture '+f.code});
+  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:dateFacture,journal_code:'VE',piece:f.code,libelle:`Vente — ${f.code}${f.clients?' — '+[f.clients.nom,f.clients.prenoms].filter(Boolean).join(' '):''}`,source:'auto',source_type:'facture',source_id:factureId,created_by:CURRENT_USER.id}).select().single();
+  if(error){ toast(error.message,'error'); return null; }
+  await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
+  return ecr;
+}
+function ouvrirEncaissementModal(factureId,montantRestant){
+  sb.from('caisses').select('id,nom').eq('actif',true).then(({data:caisses})=>{
+    openModal(`
+      <h3 class="font-bold text-lg mb-4">Enregistrer un encaissement</h3>
+      <p class="text-sm text-gray-500 mb-3">Reste à payer : <b>${money(montantRestant)}</b></p>
+      <div class="grid sm:grid-cols-2 gap-3 mb-3">
+        <div class="field"><label>Date</label>${fieldWrap('📅',`<input id="encDate" type="date" value="${new Date().toISOString().slice(0,10)}">`)}</div>
+        <div class="field"><label>Montant (FCFA)</label>${fieldWrap('💵',`<input id="encMontant" type="number" value="${montantRestant}">`)}</div>
+      </div>
+      <div class="field mb-3"><label>Mode de paiement</label>${fieldWrap('💳',`<select id="encMode" onchange="document.getElementById('encCaisseWrap').style.display=this.value==='espece'?'':'none'"><option value="espece">Espèces</option><option value="banque">Virement bancaire</option><option value="mobile_money">Mobile Money</option><option value="cheque">Chèque</option></select>`)}</div>
+      <div class="field mb-4" id="encCaisseWrap"><label>Caisse</label>${fieldWrap('💰',`<select id="encCaisse"><option value="">— Choisir —</option>${(caisses||[]).map(c=>`<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('')}</select>`)}</div>
+      <div class="field mb-4"><label>Référence (optionnel)</label>${fieldWrap('#',`<input id="encReference">`)}</div>
+      <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="enregistrerEncaissement('${factureId}')">Enregistrer</button></div>`);
+  });
+}
+async function enregistrerEncaissement(factureId){
+  await comptaChargerReferentiel();
+  const date_paiement=document.getElementById('encDate').value;
+  const montant=+document.getElementById('encMontant').value||0;
+  const mode=document.getElementById('encMode').value;
+  const caisseId=document.getElementById('encCaisse').value||null;
+  const reference=document.getElementById('encReference').value.trim()||null;
+  if(!montant||montant<=0){ toast('Montant invalide.','error'); return; }
+  if(mode==='espece' && !caisseId){ toast("Choisissez la caisse qui reçoit l'encaissement.",'error'); return; }
+  if(exerciceEstClos(date_paiement)){ toast('Exercice clôturé pour cette date.','error'); return; }
+  const {data:f}=await sb.from('factures').select('*').eq('id',factureId).single();
+  if(!f) return;
+  await comptabiliserVenteFacture(factureId);
+  let sessionOuverte=null, caisseCompte=null;
+  if(mode==='espece'){
+    const [{data:s},{data:c}]=await Promise.all([
+      sb.from('caisse_sessions').select('*').eq('caisse_id',caisseId).eq('statut','ouverte').maybeSingle(),
+      sb.from('caisses').select('compte_code').eq('id',caisseId).single()
+    ]);
+    if(!s){ toast("La caisse choisie n'a pas de séance ouverte.",'error'); return; }
+    sessionOuverte=s; caisseCompte=c?.compte_code;
+  }
+  const compteTreso=requireCompteDefaut('banque');
+  const annee=new Date(date_paiement).getFullYear();
+  const ref=await genererRefEcriture(annee);
+  const lignes=[
+    {compte_code:mode==='espece'?caisseCompte:compteTreso,sens:'D',montant,libelle:'Encaissement '+f.code},
+    {compte_code:requireCompteDefaut('clients'),sens:'C',montant,libelle:'Encaissement '+f.code}
+  ];
+  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:date_paiement,journal_code:mode==='espece'?'CA':(mode==='mobile_money'?'MM':'BQ'),piece:reference,libelle:`Encaissement facture ${f.code}`,source:'auto',source_type:'paiement',created_by:CURRENT_USER.id}).select().single();
+  if(error){ toast(error.message,'error'); return; }
+  await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
+  const {data:paiement,error:errP}=await sb.from('paiements').insert({facture_id:factureId,date_paiement,montant,mode,caisse_id:caisseId,reference,ecriture_id:ecr.id,created_by:CURRENT_USER.id}).select().single();
+  if(errP){ toast(errP.message,'error'); return; }
+  await sb.from('compta_ecritures').update({source_id:paiement.id}).eq('id',ecr.id);
+  if(mode==='espece' && sessionOuverte){
+    await sb.from('caisse_mouvements').insert({session_id:sessionOuverte.id,caisse_id:caisseId,numero:'ENC-'+f.code,date_mouvement:date_paiement,type:'entree',montant,motif:'Encaissement facture '+f.code,statut:'ventile',compte_ventile:requireCompteDefaut('clients'),ecriture_id:ecr.id,created_by:CURRENT_USER.id});
+  }
+  const {data:paiements}=await sb.from('paiements').select('montant').eq('facture_id',factureId);
+  const totalPaye=(paiements||[]).reduce((s,pp)=>s+(+pp.montant||0),0);
+  const nouveauStatut=totalPaye>=(+f.total||0)-1?'payee':(totalPaye>0?'payee_partielle':'en_attente');
+  await sb.from('factures').update({statut:nouveauStatut}).eq('id',factureId);
+  toast('Encaissement enregistré.'); closeModal();
+  showPage('facture-view');
+}
+
+/* ---------- Intégration automatique : achat de stock (entrée avec prix) → écriture 601/401 ---------- */
+async function comptabiliserAchatMouvementStock(composantNom,quantite,prixUnitaire,motif,reference){
+  const montant=Math.round((+quantite||0)*(+prixUnitaire||0));
+  if(montant<=0) return null;
+  await comptaChargerReferentiel();
+  const today=new Date().toISOString().slice(0,10);
+  if(exerciceEstClos(today)){ toast('Achat non comptabilisé : exercice clôturé.','error'); return null; }
+  const annee=new Date().getFullYear();
+  const ref=await genererRefEcriture(annee);
+  const libelle=`Achat stock — ${composantNom||'composant'}${motif?' — '+motif:''}`;
+  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:today,journal_code:'AC',piece:reference||null,libelle,source:'auto',source_type:'mouvement_stock',created_by:CURRENT_USER.id}).select().single();
+  if(error) return null;
+  await sb.from('compta_lignes').insert([
+    {ecriture_id:ecr.id,compte_code:requireCompteDefaut('achats'),sens:'D',montant,libelle},
+    {ecriture_id:ecr.id,compte_code:requireCompteDefaut('fournisseurs'),sens:'C',montant,libelle}
+  ]);
+  return ecr;
+}
+
 /* ============================== RÉALISATIONS (galerie du site public) ============================== */
 window._realisationsView=window._realisationsView||'grille';
 async function renderRealisations(el){
