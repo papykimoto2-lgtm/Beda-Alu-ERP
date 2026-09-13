@@ -5238,20 +5238,26 @@ async function comptaRenderCycleView(){
 
 /* ---------- Brouillard de caisse (mouvements toutes séances, ventilation hors contexte) ---------- */
 async function comptaRenderBrouillardCaisse(host){
-  window._compta.brouillard=window._compta.brouillard||{caisseId:'',debut:new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10),fin:new Date().toISOString().slice(0,10),statut:''};
+  window._compta.brouillard=window._compta.brouillard||{caisseId:'',debut:new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10),fin:new Date().toISOString().slice(0,10),statut:'',memoriser:true};
   const f=window._compta.brouillard;
-  const {data:caisses}=await sb.from('caisses').select('*').order('nom');
-  let q=sb.from('caisse_mouvements').select('*, caisses(nom,compte_code)').gte('date_mouvement',f.debut).lte('date_mouvement',f.fin).order('date_mouvement',{ascending:false}).order('created_at',{ascending:false});
+  await comptaChargerReferentiel();
+  const [{data:caisses},{data:regles}]=await Promise.all([
+    sb.from('caisses').select('*').order('nom'),
+    sb.from('caisse_regles_ventilation').select('*')
+  ]);
+  let q=sb.from('caisse_mouvements').select('*, caisses(nom,compte_code), caisse_sessions(statut)').gte('date_mouvement',f.debut).lte('date_mouvement',f.fin).order('date_mouvement',{ascending:false}).order('created_at',{ascending:false});
   if(f.caisseId) q=q.eq('caisse_id',f.caisseId);
   if(f.statut) q=q.eq('statut',f.statut);
-  const {data:mvts,error}=await q;
+  const {data:mvtsBrut,error}=await q;
   if(error){ toast(error.message,'error'); return; }
-  const totalEntrees=(mvts||[]).filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
-  const totalSorties=(mvts||[]).filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
-  const aVentiler=(mvts||[]).filter(m=>m.statut==='a_ventiler').length;
+  const mvts=(mvtsBrut||[]).filter(m=>m.caisse_sessions?.statut==='cloturee');
+  const totalEntrees=mvts.filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
+  const totalSorties=mvts.filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
+  const aVentilerListe=mvts.filter(m=>m.statut==='a_ventiler');
   host.innerHTML=`
-    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
-      <h3 class="font-bold">Brouillard de caisse</h3>
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-1">
+      <div><h3 class="font-bold">🧾 Ventilation comptable des mouvements de caisse</h3>
+      <p class="text-xs text-gray-500">Seuls les mouvements des séances <b>clôturées</b> apparaissent ici (les séances encore ouvertes se ventilent depuis leur page « Détail caisse »).</p></div>
       <div class="flex flex-wrap gap-2 items-center">
         <select onchange="window._compta.brouillard.caisseId=this.value;comptaRenderCycleView()">
           <option value="">Toutes les caisses</option>
@@ -5266,24 +5272,32 @@ async function comptaRenderBrouillardCaisse(host){
         </select>
       </div>
     </div>
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <label class="flex items-center gap-2 text-xs text-gray-500"><input type="checkbox" id="brouillardMemoriser" ${f.memoriser?'checked':''} onchange="window._compta.brouillard.memoriser=this.checked"> Mémoriser automatiquement les comptes choisis manuellement comme règles</label>
+      <button class="btn btn-outline" onclick="caisseVentilationAutomatique()" ${aVentilerListe.length?'':'disabled'}>⚡ Ventilation automatique (${aVentilerListe.length})</button>
+    </div>
     <div class="grid sm:grid-cols-3 gap-3 mb-4">
       <div class="card p-4"><div class="text-xs text-gray-400">Entrées</div><div class="text-xl font-black mt-1 text-emerald-600">${money(totalEntrees)}</div></div>
       <div class="card p-4"><div class="text-xs text-gray-400">Sorties</div><div class="text-xl font-black mt-1 text-red-600">${money(totalSorties)}</div></div>
-      <div class="card p-4"><div class="text-xs text-gray-400">À ventiler</div><div class="text-xl font-black mt-1 ${aVentiler?'text-amber-600':''}">${aVentiler}</div></div>
+      <div class="card p-4"><div class="text-xs text-gray-400">À ventiler</div><div class="text-xl font-black mt-1 ${aVentilerListe.length?'text-amber-600':''}">${aVentilerListe.length}</div></div>
     </div>
     <div class="card overflow-x-auto">
-      <table><thead><tr><th>Date</th><th>Caisse</th><th>N°</th><th>Type</th><th>Motif</th><th class="text-right">Montant</th><th>Compte ventilé</th><th>Statut</th><th></th></tr></thead>
-      <tbody>${(mvts||[]).map(m=>`<tr>
+      <table><thead><tr><th>Date</th><th>Caisse</th><th>N°</th><th>Type</th><th>Motif</th><th class="text-right">Montant</th><th>Compte de contrepartie</th><th></th></tr></thead>
+      <tbody>${mvts.map(m=>{
+        const suggestion=(regles||[]).find(r=>m.motif.toLowerCase().includes(String(r.mot_cle).toLowerCase()));
+        return `<tr>
         <td>${fmtDate(m.date_mouvement)}</td>
         <td>${escapeHtml(m.caisses?.nom||'—')}</td>
         <td>${escapeHtml(m.numero||'—')}</td>
         <td><span class="${m.type==='entree'?'text-emerald-600':'text-red-600'}">${m.type==='entree'?'▲ Entrée':'▼ Sortie'}</span></td>
         <td>${escapeHtml(m.motif)}${m.beneficiaire?' — '+escapeHtml(m.beneficiaire):''}</td>
         <td class="text-right font-semibold">${money(m.montant)}</td>
-        <td>${m.compte_ventile?compteLabel(m.compte_ventile):'—'}</td>
-        <td>${m.statut==='ventile'?`<span class="badge bg-emerald-50 text-emerald-700">✔ Ventilé</span>`:'<span class="badge bg-amber-50 text-amber-700">À ventiler</span>'}</td>
-        <td class="text-right">${m.statut==='a_ventiler'?`<button class="text-xs text-indigo-600" onclick="caisseOuvrirVentilerModal('${m.id}','brouillard')">Ventiler</button>`:''}</td>
-      </tr>`).join('')||'<tr><td colspan="9" class="text-gray-400 p-4 text-center">Aucun mouvement sur la période.</td></tr>'}</tbody></table>
+        <td>${m.statut==='ventile'?compteLabel(m.compte_ventile):`
+          ${suggestion?`<div class="text-xs text-indigo-500 mb-1">💡 Suggestion : ${compteLabel(suggestion.compte_code)}</div>`:''}
+          <select id="cvCompte_${m.id}" class="text-xs w-full"><option value="">Choisir…</option>${compteOptionsHtml(suggestion?.compte_code||'')}</select>`}</td>
+        <td class="text-right">${m.statut==='a_ventiler'?`<button class="text-xs text-indigo-600" onclick="caisseVentilerLigne('${m.id}')">✔ Ventiler</button>`:''}</td>
+      </tr>`;
+      }).join('')||'<tr><td colspan="8" class="text-gray-400 p-4 text-center">Aucun mouvement de séance clôturée sur cette période.</td></tr>'}</tbody></table>
     </div>`;
 }
 
@@ -5491,21 +5505,17 @@ async function caisseOuvrirVentilerModal(mvtId,contexte){
     <label class="flex items-center gap-2 text-sm mb-4"><input type="checkbox" id="ventMemoriser" checked> Mémoriser une règle pour les prochains mouvements similaires</label>
     <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseVentiler()">Ventiler</button></div>`);
 }
-async function caisseVentiler(){
-  const compte=document.getElementById('ventCompte').value;
-  const memoriser=document.getElementById('ventMemoriser').checked;
-  if(!compte){ toast('Choisissez un compte.','error'); return; }
-  const {mvt,contexte}=window._ventilationCourante||{};
-  if(!mvt) return;
+async function caisseExecuterVentilation(mvt,compte,memoriser){
+  if(!compte) return {ok:false,message:'Choisissez un compte.'};
   const caisseCompte=mvt.caisses?.compte_code;
-  if(exerciceEstClos(mvt.date_mouvement)){ toast('Exercice clôturé pour cette date.','error'); return; }
+  if(exerciceEstClos(mvt.date_mouvement)) return {ok:false,message:'Exercice clôturé pour cette date.'};
   const annee=new Date(mvt.date_mouvement).getFullYear();
   const ref=await genererRefEcriture(annee);
   const lignes=mvt.type==='entree'
     ?[{compte_code:caisseCompte,sens:'D',montant:mvt.montant,libelle:mvt.motif},{compte_code:compte,sens:'C',montant:mvt.montant,libelle:mvt.motif}]
     :[{compte_code:compte,sens:'D',montant:mvt.montant,libelle:mvt.motif},{compte_code:caisseCompte,sens:'C',montant:mvt.montant,libelle:mvt.motif}];
   const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:mvt.date_mouvement,journal_code:'CA',piece:mvt.numero,libelle:mvt.motif,source:'auto',source_type:'caisse_mouvement',source_id:mvt.id,created_by:CURRENT_USER.id}).select().single();
-  if(error){ toast(error.message,'error'); return; }
+  if(error) return {ok:false,message:error.message};
   await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
   await sb.from('caisse_mouvements').update({statut:'ventile',compte_ventile:compte,ecriture_id:ecr.id}).eq('id',mvt.id);
   if(memoriser){
@@ -5515,8 +5525,49 @@ async function caisseVentiler(){
       if(!existeRegle) await sb.from('caisse_regles_ventilation').insert({mot_cle:motCle,compte_code:compte});
     }
   }
+  return {ok:true,ecr};
+}
+async function caisseVentiler(){
+  const compte=document.getElementById('ventCompte').value;
+  const memoriser=document.getElementById('ventMemoriser').checked;
+  const {mvt,contexte}=window._ventilationCourante||{};
+  if(!mvt) return;
+  const res=await caisseExecuterVentilation(mvt,compte,memoriser);
+  if(!res.ok){ toast(res.message,'error'); return; }
   toast('Mouvement ventilé et écriture générée.'); closeModal();
   if(contexte==='brouillard') comptaRenderCycleView(); else showPage('caisse-detail');
+}
+/* ---------- Ventilation inline (écran Brouillard de caisse) ---------- */
+async function caisseVentilerLigne(mvtId){
+  const sel=document.getElementById('cvCompte_'+mvtId);
+  const compte=sel?sel.value:'';
+  if(!compte){ toast('Choisissez un compte de contrepartie.','error'); return; }
+  const {data:mvt}=await sb.from('caisse_mouvements').select('*, caisses(compte_code,nom)').eq('id',mvtId).single();
+  if(!mvt){ toast('Mouvement introuvable.','error'); return; }
+  const memoriser=window._compta.brouillard?.memoriser!==false;
+  const res=await caisseExecuterVentilation(mvt,compte,memoriser);
+  if(!res.ok){ toast(res.message,'error'); return; }
+  toast('✔ Écriture générée et mouvement ventilé.');
+  comptaRenderCycleView();
+}
+async function caisseVentilationAutomatique(){
+  const f=window._compta.brouillard||{};
+  const {data:regles}=await sb.from('caisse_regles_ventilation').select('*');
+  if(!regles||!regles.length){ toast('Aucune règle de ventilation enregistrée pour le moment.','error'); return; }
+  let q=sb.from('caisse_mouvements').select('*, caisses(compte_code,nom), caisse_sessions(statut)').eq('statut','a_ventiler').gte('date_mouvement',f.debut||'1900-01-01').lte('date_mouvement',f.fin||'2999-12-31');
+  if(f.caisseId) q=q.eq('caisse_id',f.caisseId);
+  const {data:mvtsBrut}=await q;
+  const eligibles=(mvtsBrut||[]).filter(m=>m.caisse_sessions?.statut==='cloturee');
+  let nbOk=0,nbEchec=0;
+  for(const m of eligibles){
+    const regle=regles.find(r=>m.motif.toLowerCase().includes(String(r.mot_cle).toLowerCase()));
+    if(!regle) continue;
+    const res=await caisseExecuterVentilation(m,regle.compte_code,false);
+    if(res.ok) nbOk++; else nbEchec++;
+  }
+  if(!nbOk && !nbEchec){ toast('Aucun mouvement à ventiler ne correspond à une règle existante.','error'); return; }
+  toast(`⚡ ${nbOk} mouvement(s) ventilé(s) automatiquement.`+(nbEchec?` ${nbEchec} échec(s) — voir le détail.`:''));
+  comptaRenderCycleView();
 }
 async function caisseOuvrirTransfertModal(){
   const {data:caisses}=await sb.from('caisses').select('*').eq('actif',true).neq('id',window._caisseDetailCache.caisse.id);
