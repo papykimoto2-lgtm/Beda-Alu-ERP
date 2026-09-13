@@ -4508,11 +4508,14 @@ function applyLogoToSidebar(){
 }
 async function renderParametres(el){
   const p=window.APP_PARAMS || await loadAppParams();
+  await comptaChargerReferentiel();
+  const comptesDefaut=p.comptes_defaut||{};
   el.innerHTML=`
     <div class="flex flex-wrap gap-2 mb-4 border-b pb-2">
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white" data-paramtab="societe" onclick="switchParamTab('societe')">🏢 Société</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="fne" onclick="switchParamTab('fne')">🧾 FNE (DGI)</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="portail" onclick="switchParamTab('portail')">🌐 Portail client</button>
+      <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="compta" onclick="switchParamTab('compta')">📗 Comptabilité</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="supabase" onclick="switchParamTab('supabase')">☁️ Supabase</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="synchro" onclick="switchParamTab('synchro')">🔄 Synchro</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="sauvegarde" onclick="switchParamTab('sauvegarde')">💾 Sauvegarde</button>
@@ -4639,6 +4642,18 @@ async function renderParametres(el){
       </div>
     </div>
 
+    <div id="paramTab-compta" class="param-tab hidden">
+      <div class="page-card max-w-3xl">
+        <h2>📗 Comptes comptables par défaut</h2>
+        <div class="divider"></div>
+        <p class="text-xs text-gray-500 mb-4">Comptes utilisés par la comptabilisation automatique (ventes, encaissements, achats de stock, écarts de caisse). Modifiables à tout moment sans casser les écritures déjà passées — elles gardent le compte qui était en vigueur au moment de leur génération.</p>
+        <form id="comptaDefautForm" class="grid sm:grid-cols-2 gap-4">
+          ${COMPTES_DEFAUT_CLES.map(d=>`<div class="field"><label>${escapeHtml(d.label)}</label>${fieldWrap('📘',`<select id="cd_${d.cle}"><option value="">— Par défaut (${escapeHtml(d.fallback)}) —</option>${compteOptionsHtml(comptesDefaut[d.cle]||'')}</select>`)}</div>`).join('')}
+          <div class="sm:col-span-2 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
+        </form>
+      </div>
+    </div>
+
     <div id="paramTab-sauvegarde" class="param-tab hidden">
       <div class="page-card max-w-2xl">
         <h2>💾 Export / Import de sauvegarde</h2>
@@ -4674,6 +4689,14 @@ async function renderParametres(el){
     if(error){ toast(error.message,'error'); return; }
     toast('Paramètres portail enregistrés.'); await loadAppParams();
   };
+  document.getElementById('comptaDefautForm').onsubmit=async(e)=>{
+    e.preventDefault();
+    const nouveauxComptes={};
+    COMPTES_DEFAUT_CLES.forEach(d=>{ const v=val('cd_'+d.cle); if(v) nouveauxComptes[d.cle]=v; });
+    const {error}=await sb.from('parametres').update({comptes_defaut:nouveauxComptes}).eq('id',p.id);
+    if(error){ toast(error.message,'error'); return; }
+    toast('Comptes par défaut enregistrés.'); await loadAppParams();
+  };
 }
 /* ============================== COMPTABILITÉ SYSCOHADA ============================== */
 /* Plan comptable, journaux et écritures en partie double, avec contrôle d'équilibre,
@@ -4706,6 +4729,25 @@ function exerciceEstClos(dateStr){
   if(!dateStr) return false;
   const ex=exerciceParAnnee(new Date(dateStr).getFullYear());
   return !!(ex && ex.statut==='cloture');
+}
+/* ---------- Comptes par défaut de la comptabilisation automatique (Paramétrage → Comptabilité) ---------- */
+const COMPTES_DEFAUT_CLES=[
+  {cle:'caisse',label:'Trésorerie — Caisse (par défaut)',fallback:'571000'},
+  {cle:'banque',label:'Trésorerie — Banque / Mobile Money',fallback:'512000'},
+  {cle:'clients',label:'Clients',fallback:'411000'},
+  {cle:'ventes',label:'Ventes',fallback:'701000'},
+  {cle:'tva_collectee',label:'TVA facturée (collectée)',fallback:'443000'},
+  {cle:'fournisseurs',label:'Fournisseurs',fallback:'401000'},
+  {cle:'achats',label:'Achats de matières / fournitures',fallback:'601000'},
+  {cle:'virement_interne',label:'Virement interne (transferts entre caisses)',fallback:'585000'},
+  {cle:'excedent_caisse',label:'Excédent de caisse',fallback:'758000'},
+  {cle:'manquant_caisse',label:'Manquant de caisse',fallback:'658000'}
+];
+function requireCompteDefaut(cle){
+  const custom=(window.APP_PARAMS&&window.APP_PARAMS.comptes_defaut)||{};
+  if(custom[cle]) return custom[cle];
+  const def=COMPTES_DEFAUT_CLES.find(c=>c.cle===cle);
+  return def?def.fallback:null;
 }
 async function genererRefEcriture(annee){
   const {count}=await sb.from('compta_ecritures').select('id',{count:'exact',head:true}).eq('exercice_annee',annee);
@@ -5158,7 +5200,7 @@ async function comptaCloturerExercice(){
 const COMPTA_CYCLE=[
   {icon:'①',label:'OUVERTURE',items:[{v:'plan_comptable',label:'Plan comptable'},{v:'bilan_ouverture',label:"Bilan d'ouverture",action:"comptaOuvrirBilanOuverture()"}]},
   {icon:'②',label:'SAISIE',items:[{v:'journal',label:'Journal'}]},
-  {icon:'③',label:'CONTRÔLE',items:[{v:'grand_livre',label:'Grand livre'},{v:'balance',label:'Balance'}]},
+  {icon:'③',label:'CONTRÔLE',items:[{v:'grand_livre',label:'Grand livre'},{v:'balance',label:'Balance'},{v:'brouillard_caisse',label:'Brouillards caisse'}]},
   {icon:'④',label:'VISA',items:[{v:'validation',label:'Validation'}]},
   {icon:'⑤',label:'ÉTATS',items:[{v:'bilan',label:'Bilan'},{v:'resultat',label:'Compte de résultat'}]},
   {icon:'⑥',label:'CLÔTURE',items:[{v:'cloture',label:'Clôture'}]}
@@ -5189,9 +5231,60 @@ async function comptaRenderCycleView(){
   const host=document.getElementById('comptaCycleContent');
   if(!host) return;
   host.innerHTML='<div class="text-sm text-gray-400 p-8 text-center">Chargement…</div>';
-  const renderers={journal:comptaRenderJournal,grand_livre:comptaRenderGrandLivre,balance:comptaRenderBalance,validation:comptaRenderValidation,bilan:comptaRenderBilan,resultat:comptaRenderCompteResultat,cloture:comptaRenderCloture,plan_comptable:comptaRenderPlanComptable};
+  const renderers={journal:comptaRenderJournal,grand_livre:comptaRenderGrandLivre,balance:comptaRenderBalance,brouillard_caisse:comptaRenderBrouillardCaisse,validation:comptaRenderValidation,bilan:comptaRenderBilan,resultat:comptaRenderCompteResultat,cloture:comptaRenderCloture,plan_comptable:comptaRenderPlanComptable};
   const fn=renderers[window._compta.cycleView]||comptaRenderJournal;
   await fn(host);
+}
+
+/* ---------- Brouillard de caisse (mouvements toutes séances, ventilation hors contexte) ---------- */
+async function comptaRenderBrouillardCaisse(host){
+  window._compta.brouillard=window._compta.brouillard||{caisseId:'',debut:new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10),fin:new Date().toISOString().slice(0,10),statut:''};
+  const f=window._compta.brouillard;
+  const {data:caisses}=await sb.from('caisses').select('*').order('nom');
+  let q=sb.from('caisse_mouvements').select('*, caisses(nom,compte_code)').gte('date_mouvement',f.debut).lte('date_mouvement',f.fin).order('date_mouvement',{ascending:false}).order('created_at',{ascending:false});
+  if(f.caisseId) q=q.eq('caisse_id',f.caisseId);
+  if(f.statut) q=q.eq('statut',f.statut);
+  const {data:mvts,error}=await q;
+  if(error){ toast(error.message,'error'); return; }
+  const totalEntrees=(mvts||[]).filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
+  const totalSorties=(mvts||[]).filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
+  const aVentiler=(mvts||[]).filter(m=>m.statut==='a_ventiler').length;
+  host.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+      <h3 class="font-bold">Brouillard de caisse</h3>
+      <div class="flex flex-wrap gap-2 items-center">
+        <select onchange="window._compta.brouillard.caisseId=this.value;comptaRenderCycleView()">
+          <option value="">Toutes les caisses</option>
+          ${(caisses||[]).map(c=>`<option value="${c.id}" ${c.id===f.caisseId?'selected':''}>${escapeHtml(c.nom)}</option>`).join('')}
+        </select>
+        <input type="date" value="${f.debut}" onchange="window._compta.brouillard.debut=this.value;comptaRenderCycleView()">
+        <input type="date" value="${f.fin}" onchange="window._compta.brouillard.fin=this.value;comptaRenderCycleView()">
+        <select onchange="window._compta.brouillard.statut=this.value;comptaRenderCycleView()">
+          <option value="">Tous statuts</option>
+          <option value="a_ventiler" ${f.statut==='a_ventiler'?'selected':''}>À ventiler</option>
+          <option value="ventile" ${f.statut==='ventile'?'selected':''}>Ventilé</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-3 mb-4">
+      <div class="card p-4"><div class="text-xs text-gray-400">Entrées</div><div class="text-xl font-black mt-1 text-emerald-600">${money(totalEntrees)}</div></div>
+      <div class="card p-4"><div class="text-xs text-gray-400">Sorties</div><div class="text-xl font-black mt-1 text-red-600">${money(totalSorties)}</div></div>
+      <div class="card p-4"><div class="text-xs text-gray-400">À ventiler</div><div class="text-xl font-black mt-1 ${aVentiler?'text-amber-600':''}">${aVentiler}</div></div>
+    </div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Date</th><th>Caisse</th><th>N°</th><th>Type</th><th>Motif</th><th class="text-right">Montant</th><th>Compte ventilé</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${(mvts||[]).map(m=>`<tr>
+        <td>${fmtDate(m.date_mouvement)}</td>
+        <td>${escapeHtml(m.caisses?.nom||'—')}</td>
+        <td>${escapeHtml(m.numero||'—')}</td>
+        <td><span class="${m.type==='entree'?'text-emerald-600':'text-red-600'}">${m.type==='entree'?'▲ Entrée':'▼ Sortie'}</span></td>
+        <td>${escapeHtml(m.motif)}${m.beneficiaire?' — '+escapeHtml(m.beneficiaire):''}</td>
+        <td class="text-right font-semibold">${money(m.montant)}</td>
+        <td>${m.compte_ventile?compteLabel(m.compte_ventile):'—'}</td>
+        <td>${m.statut==='ventile'?`<span class="badge bg-emerald-50 text-emerald-700">✔ Ventilé</span>`:'<span class="badge bg-amber-50 text-amber-700">À ventiler</span>'}</td>
+        <td class="text-right">${m.statut==='a_ventiler'?`<button class="text-xs text-indigo-600" onclick="caisseOuvrirVentilerModal('${m.id}','brouillard')">Ventiler</button>`:''}</td>
+      </tr>`).join('')||'<tr><td colspan="9" class="text-gray-400 p-4 text-center">Aucun mouvement sur la période.</td></tr>'}</tbody></table>
+    </div>`;
 }
 
 /* ============================== CAISSE (multi-caisses) ============================== */
@@ -5382,33 +5475,39 @@ async function caisseSauverBon(type,sessionId){
   toast('Bon enregistré.'); closeModal();
   showPage('caisse-detail');
 }
-async function caisseOuvrirVentilerModal(mvtId){
-  const {data:regles}=await sb.from('caisse_regles_ventilation').select('*');
-  const mvt=(window._caisseDetailCache.mvts||[]).find(m=>m.id===mvtId);
+async function caisseOuvrirVentilerModal(mvtId,contexte){
+  const [{data:regles},{data:mvt}]=await Promise.all([
+    sb.from('caisse_regles_ventilation').select('*'),
+    sb.from('caisse_mouvements').select('*, caisses(compte_code,nom)').eq('id',mvtId).single()
+  ]);
+  if(!mvt){ toast('Mouvement introuvable.','error'); return; }
   const suggestion=(regles||[]).find(r=>mvt.motif.toLowerCase().includes(String(r.mot_cle).toLowerCase()));
+  window._ventilationCourante={mvt,contexte};
   openModal(`
     <h3 class="font-bold text-lg mb-4">Ventiler le mouvement</h3>
+    <p class="text-sm text-gray-500 mb-1">${escapeHtml(mvt.caisses?.nom||'')} — ${fmtDate(mvt.date_mouvement)}</p>
     <p class="text-sm text-gray-500 mb-3">${escapeHtml(mvt.motif)} — <b>${money(mvt.montant)}</b> (${mvt.type==='entree'?'entrée':'sortie'})</p>
     <div class="field mb-4"><label>Compte de contrepartie</label>${fieldWrap('📗',`<select id="ventCompte"><option value="">Choisir…</option>${compteOptionsHtml(suggestion?.compte_code||'')}</select>`)}</div>
     <label class="flex items-center gap-2 text-sm mb-4"><input type="checkbox" id="ventMemoriser" checked> Mémoriser une règle pour les prochains mouvements similaires</label>
-    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseVentiler('${mvtId}')">Ventiler</button></div>`);
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseVentiler()">Ventiler</button></div>`);
 }
-async function caisseVentiler(mvtId){
+async function caisseVentiler(){
   const compte=document.getElementById('ventCompte').value;
   const memoriser=document.getElementById('ventMemoriser').checked;
   if(!compte){ toast('Choisissez un compte.','error'); return; }
-  const mvt=(window._caisseDetailCache.mvts||[]).find(m=>m.id===mvtId);
-  const {caisse}=window._caisseDetailCache;
+  const {mvt,contexte}=window._ventilationCourante||{};
+  if(!mvt) return;
+  const caisseCompte=mvt.caisses?.compte_code;
   if(exerciceEstClos(mvt.date_mouvement)){ toast('Exercice clôturé pour cette date.','error'); return; }
   const annee=new Date(mvt.date_mouvement).getFullYear();
   const ref=await genererRefEcriture(annee);
   const lignes=mvt.type==='entree'
-    ?[{compte_code:caisse.compte_code,sens:'D',montant:mvt.montant,libelle:mvt.motif},{compte_code:compte,sens:'C',montant:mvt.montant,libelle:mvt.motif}]
-    :[{compte_code:compte,sens:'D',montant:mvt.montant,libelle:mvt.motif},{compte_code:caisse.compte_code,sens:'C',montant:mvt.montant,libelle:mvt.motif}];
+    ?[{compte_code:caisseCompte,sens:'D',montant:mvt.montant,libelle:mvt.motif},{compte_code:compte,sens:'C',montant:mvt.montant,libelle:mvt.motif}]
+    :[{compte_code:compte,sens:'D',montant:mvt.montant,libelle:mvt.motif},{compte_code:caisseCompte,sens:'C',montant:mvt.montant,libelle:mvt.motif}];
   const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:mvt.date_mouvement,journal_code:'CA',piece:mvt.numero,libelle:mvt.motif,source:'auto',source_type:'caisse_mouvement',source_id:mvt.id,created_by:CURRENT_USER.id}).select().single();
   if(error){ toast(error.message,'error'); return; }
   await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
-  await sb.from('caisse_mouvements').update({statut:'ventile',compte_ventile:compte,ecriture_id:ecr.id}).eq('id',mvtId);
+  await sb.from('caisse_mouvements').update({statut:'ventile',compte_ventile:compte,ecriture_id:ecr.id}).eq('id',mvt.id);
   if(memoriser){
     const motCle=(mvt.motif.split(/\s+/)[0]||'').trim();
     if(motCle && motCle.length>=3){
@@ -5417,7 +5516,7 @@ async function caisseVentiler(mvtId){
     }
   }
   toast('Mouvement ventilé et écriture générée.'); closeModal();
-  showPage('caisse-detail');
+  if(contexte==='brouillard') comptaRenderCycleView(); else showPage('caisse-detail');
 }
 async function caisseOuvrirTransfertModal(){
   const {data:caisses}=await sb.from('caisses').select('*').eq('actif',true).neq('id',window._caisseDetailCache.caisse.id);
@@ -5473,7 +5572,7 @@ async function caisseConfirmerCloture(theorique){
   if(Math.abs(ecart)>=1 && !exerciceEstClos(today)){
     const annee=new Date().getFullYear();
     const ref=await genererRefEcriture(annee);
-    const compteEcart=ecart>0?'758000':'658000';
+    const compteEcart=ecart>0?requireCompteDefaut('excedent_caisse'):requireCompteDefaut('manquant_caisse');
     const lignes=ecart>0
       ?[{compte_code:caisse.compte_code,sens:'D',montant:ecart,libelle:'Excédent de caisse'},{compte_code:compteEcart,sens:'C',montant:ecart,libelle:'Excédent de caisse'}]
       :[{compte_code:compteEcart,sens:'D',montant:-ecart,libelle:'Manquant de caisse'},{compte_code:caisse.compte_code,sens:'C',montant:-ecart,libelle:'Manquant de caisse'}];
@@ -5504,8 +5603,8 @@ async function comptabiliserVenteFacture(factureId){
   const tva=ttc-ht;
   const annee=new Date(dateFacture).getFullYear();
   const ref=await genererRefEcriture(annee);
-  const lignes=[{compte_code:'411000',sens:'D',montant:ttc,libelle:'Facture '+f.code},{compte_code:'701000',sens:'C',montant:ht,libelle:'Facture '+f.code}];
-  if(tva>0) lignes.push({compte_code:'443000',sens:'C',montant:tva,libelle:'TVA sur facture '+f.code});
+  const lignes=[{compte_code:requireCompteDefaut('clients'),sens:'D',montant:ttc,libelle:'Facture '+f.code},{compte_code:requireCompteDefaut('ventes'),sens:'C',montant:ht,libelle:'Facture '+f.code}];
+  if(tva>0) lignes.push({compte_code:requireCompteDefaut('tva_collectee'),sens:'C',montant:tva,libelle:'TVA sur facture '+f.code});
   const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:dateFacture,journal_code:'VE',piece:f.code,libelle:`Vente — ${f.code}${f.clients?' — '+[f.clients.nom,f.clients.prenoms].filter(Boolean).join(' '):''}`,source:'auto',source_type:'facture',source_id:factureId,created_by:CURRENT_USER.id}).select().single();
   if(error){ toast(error.message,'error'); return null; }
   await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
@@ -5548,12 +5647,12 @@ async function enregistrerEncaissement(factureId){
     if(!s){ toast("La caisse choisie n'a pas de séance ouverte.",'error'); return; }
     sessionOuverte=s; caisseCompte=c?.compte_code;
   }
-  const compteTreso={banque:'512000',mobile_money:'512000',cheque:'512000'}[mode];
+  const compteTreso=requireCompteDefaut('banque');
   const annee=new Date(date_paiement).getFullYear();
   const ref=await genererRefEcriture(annee);
   const lignes=[
     {compte_code:mode==='espece'?caisseCompte:compteTreso,sens:'D',montant,libelle:'Encaissement '+f.code},
-    {compte_code:'411000',sens:'C',montant,libelle:'Encaissement '+f.code}
+    {compte_code:requireCompteDefaut('clients'),sens:'C',montant,libelle:'Encaissement '+f.code}
   ];
   const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:date_paiement,journal_code:mode==='espece'?'CA':(mode==='mobile_money'?'MM':'BQ'),piece:reference,libelle:`Encaissement facture ${f.code}`,source:'auto',source_type:'paiement',created_by:CURRENT_USER.id}).select().single();
   if(error){ toast(error.message,'error'); return; }
@@ -5562,7 +5661,7 @@ async function enregistrerEncaissement(factureId){
   if(errP){ toast(errP.message,'error'); return; }
   await sb.from('compta_ecritures').update({source_id:paiement.id}).eq('id',ecr.id);
   if(mode==='espece' && sessionOuverte){
-    await sb.from('caisse_mouvements').insert({session_id:sessionOuverte.id,caisse_id:caisseId,numero:'ENC-'+f.code,date_mouvement:date_paiement,type:'entree',montant,motif:'Encaissement facture '+f.code,statut:'ventile',compte_ventile:'411000',ecriture_id:ecr.id,created_by:CURRENT_USER.id});
+    await sb.from('caisse_mouvements').insert({session_id:sessionOuverte.id,caisse_id:caisseId,numero:'ENC-'+f.code,date_mouvement:date_paiement,type:'entree',montant,motif:'Encaissement facture '+f.code,statut:'ventile',compte_ventile:requireCompteDefaut('clients'),ecriture_id:ecr.id,created_by:CURRENT_USER.id});
   }
   const {data:paiements}=await sb.from('paiements').select('montant').eq('facture_id',factureId);
   const totalPaye=(paiements||[]).reduce((s,pp)=>s+(+pp.montant||0),0);
@@ -5585,8 +5684,8 @@ async function comptabiliserAchatMouvementStock(composantNom,quantite,prixUnitai
   const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:today,journal_code:'AC',piece:reference||null,libelle,source:'auto',source_type:'mouvement_stock',created_by:CURRENT_USER.id}).select().single();
   if(error) return null;
   await sb.from('compta_lignes').insert([
-    {ecriture_id:ecr.id,compte_code:'601000',sens:'D',montant,libelle},
-    {ecriture_id:ecr.id,compte_code:'401000',sens:'C',montant,libelle}
+    {ecriture_id:ecr.id,compte_code:requireCompteDefaut('achats'),sens:'D',montant,libelle},
+    {ecriture_id:ecr.id,compte_code:requireCompteDefaut('fournisseurs'),sens:'C',montant,libelle}
   ]);
   return ecr;
 }
