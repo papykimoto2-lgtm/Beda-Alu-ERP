@@ -246,6 +246,16 @@ window.SB_CFG = {
         <button class="nav-child" data-page="stock-simulateur">→ Simulateur multi-chantiers</button>
       </div>
 
+      <div class="sidebar-group-title">Finance</div>
+      <button class="nav-parent" data-toggle="comptabilite-g">🏠 <span>Comptabilité</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="comptabilite-g">
+        <button class="nav-child" data-page="comptabilite">→ Comptabilité SYSCOHADA</button>
+      </div>
+      <button class="nav-parent" data-toggle="caisse-g">🏠 <span>Caisse</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="caisse-g">
+        <button class="nav-child" data-page="caisse">→ Tableau de bord</button>
+      </div>
+
       <div class="sidebar-group-title">Site web</div>
       <button class="nav-parent" data-toggle="realisations-g">🏠 <span>Réalisations</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="realisations-g">
@@ -374,9 +384,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-simulateur':'stock-g','realisations-add':'realisations-g',realisations:'realisations-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-simulateur':'stock-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g'};
 window._editId=null;
 async function showPage(page){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
@@ -4099,14 +4109,22 @@ async function renderFactureDetail(el){
   const {data:f,error}=await sb.from('factures').select('*, clients(*), devis(*, projets(libelle))').eq('id',factureId).single();
   if(error){ el.innerHTML=`<div class="text-red-600">${escapeHtml(error.message)}</div>`; return; }
   const d=f.devis||{};
-  const {data:lignes}=d.id ? await sb.from('devis_lignes').select('*').eq('devis_id',d.id).order('ordre') : {data:[]};
+  const [{data:lignes},{data:paiements}]=await Promise.all([
+    d.id ? sb.from('devis_lignes').select('*').eq('devis_id',d.id).order('ordre') : Promise.resolve({data:[]}),
+    sb.from('paiements').select('*, caisses(nom)').eq('facture_id',factureId).order('date_paiement',{ascending:false})
+  ]);
   const sousTotal=(lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100),0);
   const st=STATUT_FACTURE[f.statut]||{label:f.statut,color:'text-gray-500'};
+  const totalPaye=(paiements||[]).reduce((s,p)=>s+(+p.montant||0),0);
+  const resteAPayer=Math.max(0,(+f.total||0)-totalPaye);
+  window._factureDetailCache={facture:f};
+  const modeLabels={espece:'Espèces',banque:'Virement',mobile_money:'Mobile Money',cheque:'Chèque'};
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
       <div class="flex gap-2 flex-wrap">
         <a href="mailto:${escapeHtml(f.clients?.email||'')}?subject=${encodeURIComponent('Facture '+f.code)}" class="btn btn-amber">✉ Envoyer</a>
         <button class="btn btn-dark" onclick="printFacture('${f.id}')">🖨 Imprimer</button>
+        ${resteAPayer>0?`<button class="btn btn-primary" onclick="ouvrirEncaissementModal('${f.id}',${resteAPayer})">💰 Encaissement</button>`:''}
       </div>
       <div class="dropdown">
         <button class="btn btn-primary" onclick="toggleDropdown(event,'factureOptionsMenu')">⚙ Options ▾</button>
@@ -4126,6 +4144,15 @@ async function renderFactureDetail(el){
       </table></div>
       <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0)}</div>
       ${DOC_NOTES_HTML}
+    </div>
+    <div class="page-card mt-4">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-bold">💰 Encaissements</h3>
+        <div class="text-sm">Payé : <b class="text-emerald-600">${money(totalPaye)}</b> &nbsp;·&nbsp; Reste à payer : <b class="${resteAPayer>0?'text-red-600':'text-gray-400'}">${money(resteAPayer)}</b></div>
+      </div>
+      ${(paiements||[]).length?`<div class="overflow-x-auto"><table><thead><tr><th>Date</th><th>Mode</th><th>Caisse</th><th>Référence</th><th class="text-right">Montant</th></tr></thead>
+        <tbody>${paiements.map(p=>`<tr><td>${fmtDate(p.date_paiement)}</td><td>${modeLabels[p.mode]||p.mode}</td><td>${escapeHtml(p.caisses?.nom||'—')}</td><td>${escapeHtml(p.reference||'—')}</td><td class="text-right font-semibold">${money(p.montant)}</td></tr>`).join('')}</tbody></table></div>`
+        :'<div class="text-sm text-gray-400 text-center py-4">Aucun encaissement enregistré.</div>'}
     </div>`;
 }
 async function printFacture(factureId){
@@ -4461,7 +4488,7 @@ function printEstimation(){
 }
 
 /* ============================== PARAMÉTRAGE : SOCIÉTÉ / LOGO / SUPABASE / SYNCHRO / SAUVEGARDE ============================== */
-const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres'];
+const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','paiements'];
 async function loadAppParams(){
   let {data}=await sb.from('parametres').select('*').limit(1).maybeSingle();
   if(!data){ const res=await sb.from('parametres').insert({}).select().single(); data=res.data; }
@@ -4644,6 +4671,845 @@ async function renderParametres(el){
     toast('Paramètres portail enregistrés.'); await loadAppParams();
   };
 }
+/* ============================== COMPTABILITÉ SYSCOHADA ============================== */
+/* Plan comptable, journaux et écritures en partie double, avec contrôle d'équilibre,
+   garde-fou "compte hors plan", visa/intangibilité (contre-passation) et clôture
+   d'exercice (soldes 6/7 → résultat + à-nouveaux). Inspiré du module Comptabilité
+   SYSCOHADA de l'application sœur ImmoSuite (menko-holding), mais avec un schéma
+   Supabase relationnel classique — cohérent avec le reste de Beda Alu — plutôt que
+   le stockage documentaire (jsonb) utilisé là-bas. */
+window._compta=window._compta||{comptes:[],journaux:[],exercices:[],annee:new Date().getFullYear(),cycleView:'journal',filtreJournal:''};
+async function comptaChargerReferentiel(force){
+  const C=window._compta;
+  if(C.comptes.length && !force) return C;
+  const [{data:comptes},{data:journaux},{data:exercices}]=await Promise.all([
+    sb.from('compta_comptes').select('*').eq('actif',true).order('code'),
+    sb.from('compta_journaux').select('*').order('code'),
+    sb.from('compta_exercices').select('*').order('annee',{ascending:false})
+  ]);
+  C.comptes=comptes||[]; C.journaux=journaux||[]; C.exercices=exercices||[];
+  if(!C.exercices.find(e=>e.annee===C.annee)) C.annee=(C.exercices[0]&&C.exercices[0].annee)||new Date().getFullYear();
+  return C;
+}
+function compteByCode(code){ return (window._compta.comptes||[]).find(c=>c.code===code); }
+function compteLabel(code){ const c=compteByCode(code); return c?`${c.code} — ${c.libelle}`:(code||'—'); }
+function compteOptionsHtml(selected){
+  return (window._compta.comptes||[]).map(c=>`<option value="${escapeHtml(c.code)}" ${c.code===selected?'selected':''}>${escapeHtml(c.code)} — ${escapeHtml(c.libelle)}</option>`).join('');
+}
+function exerciceParAnnee(annee){ return (window._compta.exercices||[]).find(e=>e.annee===annee); }
+function exerciceActif(){ return exerciceParAnnee(window._compta.annee); }
+function exerciceEstClos(dateStr){
+  if(!dateStr) return false;
+  const ex=exerciceParAnnee(new Date(dateStr).getFullYear());
+  return !!(ex && ex.statut==='cloture');
+}
+async function genererRefEcriture(annee){
+  const {count}=await sb.from('compta_ecritures').select('id',{count:'exact',head:true}).eq('exercice_annee',annee);
+  return `JL-${annee}-${String((count||0)+1).padStart(5,'0')}`;
+}
+function detecterJournal(lignes){
+  const codes=(lignes||[]).map(l=>l.compte_code||'');
+  if(codes.some(c=>c.startsWith('571')||c.startsWith('572'))) return 'CA';
+  if(codes.some(c=>c.startsWith('512'))) return 'BQ';
+  if(codes.some(c=>c.startsWith('701')||c.startsWith('706')||c.startsWith('75')||c.startsWith('77'))) return 'VE';
+  if(/^6[0-3]/.test(codes.find(c=>/^6[0-3]/.test(c))||'')) return 'AC';
+  return 'OD';
+}
+function ecrEquilibre(lignes){
+  const totD=(lignes||[]).reduce((s,l)=>s+(l.sens==='D'?(+l.montant||0):0),0);
+  const totC=(lignes||[]).reduce((s,l)=>s+(l.sens==='C'?(+l.montant||0):0),0);
+  return {totD,totC,ok:Math.abs(totD-totC)<1};
+}
+function ecrEstValidee(e){ return !!(e&&e.valide_le); }
+function ecrStatutBadge(e){ return ecrEstValidee(e)?'<span class="badge bg-emerald-50 text-emerald-700">✔ Validée</span>':'<span class="badge bg-amber-50 text-amber-700">✎ Brouillard</span>'; }
+
+/* ---------- Saisie d'écriture (modal, lignes dynamiques, équilibre temps réel) ---------- */
+async function openEcritureModal(prefill){
+  await comptaChargerReferentiel();
+  const p=prefill||{};
+  window._ecrLignes=(p.lignes&&p.lignes.length)?p.lignes.map(l=>({...l})):[{compte_code:'',sens:'D',montant:'',libelle:''},{compte_code:'',sens:'C',montant:'',libelle:''}];
+  openModal(`
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-lg">${p.id?"Modifier l'écriture":'Nouvelle écriture'}</h3>
+      <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-3 mb-3">
+      <div class="field"><label>Date</label>${fieldWrap('📅',`<input id="ecrDate" type="date" value="${p.date_ecriture||new Date().toISOString().slice(0,10)}">`)}</div>
+      <div class="field"><label>Journal</label>${fieldWrap('📘',`<select id="ecrJournal"><option value="">(détection auto)</option>${(window._compta.journaux||[]).map(j=>`<option value="${j.code}" ${j.code===p.journal_code?'selected':''}>${j.code} — ${escapeHtml(j.libelle)}</option>`).join('')}</select>`)}</div>
+      <div class="field"><label>N° pièce</label>${fieldWrap('#',`<input id="ecrPiece" value="${escapeHtml(p.piece||'')}">`)}</div>
+    </div>
+    <div class="field mb-3"><label>Libellé</label>${fieldWrap('📝',`<input id="ecrLibelle" value="${escapeHtml(p.libelle||'')}" placeholder="Objet de l'écriture">`)}</div>
+    <div class="card p-3 mb-3">
+      <div class="flex justify-between items-center mb-2">
+        <b class="text-sm">Lignes</b>
+        <button type="button" class="btn btn-outline btn-sm" onclick="ecrAjouterLigne()">+ Ligne</button>
+      </div>
+      <div id="ecrLignesHost"></div>
+      <div id="ecrEquilibreBar" class="mt-2 text-sm font-semibold"></div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button class="btn btn-outline" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-primary" onclick="saveEcriture('${p.id||''}')">Enregistrer</button>
+    </div>`);
+  ecrRenderLignes();
+}
+function ecrRenderLignes(){
+  const host=document.getElementById('ecrLignesHost'); if(!host) return;
+  host.innerHTML=window._ecrLignes.map((l,i)=>`
+    <div class="grid gap-2 mb-2 items-center" style="grid-template-columns:2fr 90px 130px 1.4fr 32px">
+      <select onchange="ecrMajLigne(${i},'compte_code',this.value)"><option value="">Compte…</option>${compteOptionsHtml(l.compte_code)}</select>
+      <select onchange="ecrMajLigne(${i},'sens',this.value)"><option value="D" ${l.sens==='D'?'selected':''}>Débit</option><option value="C" ${l.sens==='C'?'selected':''}>Crédit</option></select>
+      <input type="number" step="1" placeholder="Montant" value="${l.montant||''}" onchange="ecrMajLigne(${i},'montant',this.value)">
+      <input placeholder="Libellé ligne" value="${escapeHtml(l.libelle||'')}" onchange="ecrMajLigne(${i},'libelle',this.value)">
+      <button type="button" title="Supprimer" class="text-red-500" onclick="ecrSupprimerLigne(${i})">✕</button>
+    </div>`).join('');
+  ecrCheckEquilibre();
+}
+function ecrAjouterLigne(){ window._ecrLignes.push({compte_code:'',sens:'D',montant:'',libelle:''}); ecrRenderLignes(); }
+function ecrSupprimerLigne(i){ if(window._ecrLignes.length<=2){ toast('Une écriture nécessite au moins 2 lignes.','error'); return; } window._ecrLignes.splice(i,1); ecrRenderLignes(); }
+function ecrMajLigne(i,field,value){ window._ecrLignes[i][field]=value; ecrCheckEquilibre(); }
+function ecrCheckEquilibre(){
+  const bar=document.getElementById('ecrEquilibreBar'); if(!bar) return false;
+  const {totD,totC,ok}=ecrEquilibre(window._ecrLignes);
+  bar.innerHTML=`Débit : <b>${money(totD)}</b> &nbsp;·&nbsp; Crédit : <b>${money(totC)}</b> &nbsp;·&nbsp; ${ok?'<span class="text-emerald-600">✔ Équilibrée</span>':`<span class="text-red-600">✕ Écart de ${money(Math.abs(totD-totC))}</span>`}`;
+  return ok;
+}
+async function saveEcriture(id){
+  await comptaChargerReferentiel();
+  const date=document.getElementById('ecrDate').value;
+  const libelle=document.getElementById('ecrLibelle').value.trim();
+  const piece=document.getElementById('ecrPiece').value.trim();
+  let journal=document.getElementById('ecrJournal').value;
+  if(!date){ toast('Date requise.','error'); return; }
+  if(!libelle){ toast('Libellé requis.','error'); return; }
+  if(exerciceEstClos(date)){ toast('Exercice clôturé pour cette date : saisie impossible.','error'); return; }
+  const lignes=window._ecrLignes.filter(l=>l.compte_code && (+l.montant||0)>0);
+  if(lignes.length<2){ toast('Au moins 2 lignes valides (compte + montant) sont requises.','error'); return; }
+  if(!lignes.some(l=>l.sens==='D') || !lignes.some(l=>l.sens==='C')){ toast("Il faut au moins une ligne au débit et une au crédit.",'error'); return; }
+  for(const l of lignes){ if(!compteByCode(l.compte_code)){ toast(`Compte ${l.compte_code} introuvable dans le plan comptable.`,'error'); return; } }
+  if(!ecrCheckEquilibre()){ toast("L'écriture n'est pas équilibrée (Débit ≠ Crédit).",'error'); return; }
+  const annee=new Date(date).getFullYear();
+  if(!journal) journal=detecterJournal(lignes);
+  let ecritureId=id||null;
+  if(!ecritureId){
+    const ref=await genererRefEcriture(annee);
+    const {data,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:date,journal_code:journal,piece:piece||null,libelle,source:'manuel',created_by:CURRENT_USER.id}).select().single();
+    if(error){ toast(error.message,'error'); return; }
+    ecritureId=data.id;
+  } else {
+    const {data:existing}=await sb.from('compta_ecritures').select('valide_le').eq('id',ecritureId).single();
+    if(existing?.valide_le){ toast("Écriture validée : intangible. Passez une contre-passation.",'error'); return; }
+    const {error}=await sb.from('compta_ecritures').update({date_ecriture:date,journal_code:journal,piece:piece||null,libelle}).eq('id',ecritureId);
+    if(error){ toast(error.message,'error'); return; }
+    await sb.from('compta_lignes').delete().eq('ecriture_id',ecritureId);
+  }
+  const rows=lignes.map(l=>({ecriture_id:ecritureId,compte_code:l.compte_code,sens:l.sens,montant:+l.montant,libelle:l.libelle||null}));
+  const {error:e2}=await sb.from('compta_lignes').insert(rows);
+  if(e2){ toast(e2.message,'error'); return; }
+  toast('Écriture enregistrée.'); closeModal();
+  comptaRenderCycleView();
+}
+function ecrOpenEdit(id){
+  const e=(window._comptaEcrituresCache||[]).find(x=>x.id===id);
+  if(!e) return;
+  openEcritureModal({id:e.id,date_ecriture:e.date_ecriture,journal_code:e.journal_code,piece:e.piece,libelle:e.libelle,lignes:(e.compta_lignes||[]).map(l=>({compte_code:l.compte_code,sens:l.sens,montant:l.montant,libelle:l.libelle}))});
+}
+async function contrePasserEcriture(id){
+  if(!confirm('Passer une écriture de contre-passation (annulation) pour cette écriture validée ?')) return;
+  const {data:e}=await sb.from('compta_ecritures').select('*, compta_lignes(*)').eq('id',id).single();
+  if(!e){ toast('Écriture introuvable.','error'); return; }
+  const today=new Date().toISOString().slice(0,10);
+  if(exerciceEstClos(today)){ toast('Exercice courant clôturé.','error'); return; }
+  const annee=new Date().getFullYear();
+  const ref=await genererRefEcriture(annee);
+  const {data:newE,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:today,journal_code:e.journal_code,piece:e.piece,libelle:'Contre-passation — '+e.libelle,source:'manuel',contre_passation_de:id,created_by:CURRENT_USER.id}).select().single();
+  if(error){ toast(error.message,'error'); return; }
+  const lignesInv=(e.compta_lignes||[]).map(l=>({ecriture_id:newE.id,compte_code:l.compte_code,sens:l.sens==='D'?'C':'D',montant:l.montant,libelle:l.libelle}));
+  await sb.from('compta_lignes').insert(lignesInv);
+  toast('Contre-passation enregistrée.');
+  comptaRenderCycleView();
+}
+async function validerEcritures(ids){
+  if(!ids||!ids.length) return;
+  const now=new Date().toISOString();
+  const {error}=await sb.from('compta_ecritures').update({valide_le:now,valide_par:CURRENT_USER.email}).in('id',ids).is('valide_le',null);
+  if(error){ toast(error.message,'error'); return; }
+  toast(`${ids.length} écriture(s) validée(s).`);
+  comptaRenderCycleView();
+}
+function validerSelection(){
+  const ids=[...document.querySelectorAll('.visaCheck:checked')].map(c=>c.value);
+  if(!ids.length){ toast('Sélectionnez au moins une écriture.','error'); return; }
+  validerEcritures(ids);
+}
+
+/* ---------- Journal / listing des écritures ---------- */
+async function comptaChargerEcritures(filtres){
+  filtres=filtres||{};
+  let q=sb.from('compta_ecritures').select('*, compta_lignes(*)').eq('exercice_annee',window._compta.annee).order('date_ecriture',{ascending:false}).order('ref',{ascending:false});
+  if(filtres.journal) q=q.eq('journal_code',filtres.journal);
+  const {data,error}=await q;
+  if(error){ toast(error.message,'error'); return []; }
+  return data||[];
+}
+async function comptaRenderJournal(host){
+  const ecritures=await comptaChargerEcritures(window._compta.filtreJournal?{journal:window._compta.filtreJournal}:{});
+  window._comptaEcrituresCache=ecritures;
+  host.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+      <select onchange="window._compta.filtreJournal=this.value;comptaRenderCycleView()">
+        <option value="">Tous les journaux</option>
+        ${(window._compta.journaux||[]).map(j=>`<option value="${j.code}" ${j.code===window._compta.filtreJournal?'selected':''}>${j.code} — ${escapeHtml(j.libelle)}</option>`).join('')}
+      </select>
+      <button class="btn btn-primary" onclick="openEcritureModal()">+ Écriture</button>
+    </div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Réf.</th><th>Date</th><th>Journal</th><th>Libellé</th><th class="text-right">Débit</th><th class="text-right">Crédit</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${ecritures.map(e=>{
+        const {totD,totC}=ecrEquilibre(e.compta_lignes||[]);
+        return `<tr>
+          <td class="font-semibold">${escapeHtml(e.ref)}</td><td>${fmtDate(e.date_ecriture)}</td>
+          <td>${escapeHtml(e.journal_code)}</td><td>${escapeHtml(e.libelle)}</td>
+          <td class="text-right">${money(totD)}</td><td class="text-right">${money(totC)}</td>
+          <td>${ecrStatutBadge(e)}</td>
+          <td class="text-right whitespace-nowrap">${ecrEstValidee(e)?`<button class="text-xs text-amber-600" onclick="contrePasserEcriture('${e.id}')">↩ Contre-passer</button>`:`<button class="text-xs text-indigo-600" onclick="ecrOpenEdit('${e.id}')">✎ Modifier</button>`}</td>
+        </tr>`;
+      }).join('')||'<tr><td colspan="8" class="text-gray-400 p-4 text-center">Aucune écriture.</td></tr>'}</tbody></table>
+    </div>`;
+}
+
+/* ---------- Grand livre ---------- */
+async function comptaRenderGrandLivre(host){
+  const compteSel=window._compta.grandLivreCompte||'';
+  const ecritures=await comptaChargerEcritures({});
+  const lignes=[];
+  ecritures.forEach(e=>(e.compta_lignes||[]).forEach(l=>{ if(!compteSel||l.compte_code===compteSel) lignes.push({...l,ref:e.ref,date:e.date_ecriture,journal:e.journal_code,ecrLibelle:e.libelle}); }));
+  lignes.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+  let solde=0;
+  const rows=lignes.map(l=>{ solde+=(l.sens==='D'?(+l.montant||0):-(+l.montant||0)); return {...l,solde}; });
+  host.innerHTML=`
+    <div class="mb-3"><select onchange="window._compta.grandLivreCompte=this.value;comptaRenderCycleView()"><option value="">— Choisir un compte —</option>${compteOptionsHtml(compteSel)}</select></div>
+    ${compteSel?`<div class="card overflow-x-auto"><table><thead><tr><th>Date</th><th>Réf.</th><th>Journal</th><th>Libellé</th><th class="text-right">Débit</th><th class="text-right">Crédit</th><th class="text-right">Solde</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${fmtDate(r.date)}</td><td>${escapeHtml(r.ref)}</td><td>${escapeHtml(r.journal)}</td><td>${escapeHtml(r.libelle||r.ecrLibelle)}</td><td class="text-right">${r.sens==='D'?money(r.montant):''}</td><td class="text-right">${r.sens==='C'?money(r.montant):''}</td><td class="text-right font-semibold">${money(r.solde)}</td></tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4 text-center">Aucun mouvement.</td></tr>'}</tbody></table></div>`
+    :'<div class="card text-center text-gray-400 p-8">Sélectionnez un compte pour afficher son grand livre.</div>'}`;
+}
+
+/* ---------- Balance générale ---------- */
+async function comptaCalculerBalance(){
+  const ecritures=await comptaChargerEcritures({});
+  const map={};
+  ecritures.forEach(e=>(e.compta_lignes||[]).forEach(l=>{
+    map[l.compte_code]=map[l.compte_code]||{debit:0,credit:0};
+    if(l.sens==='D') map[l.compte_code].debit+=+l.montant; else map[l.compte_code].credit+=+l.montant;
+  }));
+  return Object.entries(map).map(([code,v])=>({code,debit:v.debit,credit:v.credit,solde:v.debit-v.credit})).sort((a,b)=>a.code.localeCompare(b.code));
+}
+function comptaSoldePrefixes(balance,prefixes){
+  return balance.filter(b=>prefixes.some(p=>b.code.startsWith(p))).reduce((s,b)=>s+b.solde,0);
+}
+async function comptaRenderBalance(host){
+  const balance=await comptaCalculerBalance();
+  const totD=balance.reduce((s,b)=>s+b.debit,0), totC=balance.reduce((s,b)=>s+b.credit,0);
+  host.innerHTML=`<div class="card overflow-x-auto"><table><thead><tr><th>Compte</th><th>Libellé</th><th class="text-right">Débit</th><th class="text-right">Crédit</th><th class="text-right">Solde débiteur</th><th class="text-right">Solde créditeur</th></tr></thead>
+    <tbody>${balance.map(b=>`<tr><td class="font-semibold">${escapeHtml(b.code)}</td><td>${escapeHtml(compteByCode(b.code)?.libelle||'⚠️ Compte hors plan')}</td><td class="text-right">${money(b.debit)}</td><td class="text-right">${money(b.credit)}</td><td class="text-right">${b.solde>0?money(b.solde):''}</td><td class="text-right">${b.solde<0?money(-b.solde):''}</td></tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 p-4 text-center">Aucun mouvement.</td></tr>'}</tbody>
+    <tfoot><tr class="font-bold border-t-2"><td colspan="2">TOTAL</td><td class="text-right">${money(totD)}</td><td class="text-right">${money(totC)}</td><td colspan="2" class="text-right">${Math.abs(totD-totC)<1?'✔ Équilibrée':'✕ Écart '+money(Math.abs(totD-totC))}</td></tr></tfoot>
+    </table></div>`;
+}
+
+/* ---------- Validation / Visa ---------- */
+async function comptaRenderValidation(host){
+  const ecritures=(await comptaChargerEcritures({})).filter(e=>!ecrEstValidee(e));
+  window._comptaEcrituresCache=ecritures;
+  host.innerHTML=`
+    <div class="flex justify-between items-center mb-3"><div class="text-sm text-gray-500">${ecritures.length} écriture(s) en brouillard</div></div>
+    <div class="card overflow-x-auto"><table><thead><tr><th></th><th>Réf.</th><th>Date</th><th>Journal</th><th>Libellé</th><th class="text-right">Montant</th></tr></thead>
+    <tbody>${ecritures.map(e=>{const {totD}=ecrEquilibre(e.compta_lignes||[]);return `<tr><td><input type="checkbox" class="visaCheck" value="${e.id}"></td><td class="font-semibold">${escapeHtml(e.ref)}</td><td>${fmtDate(e.date_ecriture)}</td><td>${escapeHtml(e.journal_code)}</td><td>${escapeHtml(e.libelle)}</td><td class="text-right">${money(totD)}</td></tr>`;}).join('')||'<tr><td colspan="6" class="text-gray-400 p-4 text-center">Rien à valider.</td></tr>'}</tbody></table></div>
+    ${ecritures.length?`<div class="flex justify-end mt-3"><button class="btn btn-primary" onclick="validerSelection()">✔ Valider la sélection</button></div>`:''}`;
+}
+
+/* ---------- Bilan d'ouverture (raccourci vers une écriture journal AN) ---------- */
+function comptaOuvrirBilanOuverture(){
+  const ex=exerciceActif();
+  if(!ex){ toast('Aucun exercice actif.','error'); return; }
+  openEcritureModal({journal_code:'AN',date_ecriture:ex.date_debut,piece:'BO-'+ex.annee,libelle:"Bilan d'ouverture "+ex.annee});
+}
+
+/* ---------- Plan comptable ---------- */
+async function comptaRenderPlanComptable(host){
+  await comptaChargerReferentiel(true);
+  host.innerHTML=`
+    <div class="flex justify-between items-center mb-3">
+      <div class="text-sm text-gray-500">${window._compta.comptes.length} compte(s) actif(s)</div>
+      <button class="btn btn-primary btn-sm" onclick="comptaOuvrirCompteModal('')">+ Compte</button>
+    </div>
+    <div class="card overflow-x-auto"><table><thead><tr><th>Code</th><th>Libellé</th><th>Classe</th><th>Nature</th><th></th></tr></thead>
+    <tbody>${window._compta.comptes.map(c=>`<tr><td class="font-semibold">${escapeHtml(c.code)}</td><td>${escapeHtml(c.libelle)}</td><td>${c.classe}</td><td>${escapeHtml(c.nature)}</td>
+      <td class="text-right whitespace-nowrap"><button class="text-xs text-indigo-600 mr-2" onclick="comptaOuvrirCompteModal('${c.code}')">✎</button><button class="text-xs text-red-500" onclick="comptaDesactiverCompte('${c.code}')">Désactiver</button></td></tr>`).join('')}</tbody></table></div>`;
+}
+function comptaOuvrirCompteModal(code){
+  const c=code?compteByCode(code):null;
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">${c?'Modifier le compte':'Nouveau compte'}</h3>
+    <div class="field mb-3"><label>Code</label>${fieldWrap('#',`<input id="cptCode" value="${escapeHtml(c?.code||'')}" ${c?'readonly':''} placeholder="ex: 411000">`)}</div>
+    <div class="field mb-3"><label>Libellé</label>${fieldWrap('📝',`<input id="cptLibelle" value="${escapeHtml(c?.libelle||'')}">`)}</div>
+    <div class="grid sm:grid-cols-2 gap-3 mb-4">
+      <div class="field"><label>Classe</label>${fieldWrap('#',`<select id="cptClasse">${[1,2,3,4,5,6,7,8,9].map(n=>`<option value="${n}" ${n===(c?.classe||1)?'selected':''}>${n}</option>`).join('')}</select>`)}</div>
+      <div class="field"><label>Nature</label>${fieldWrap('◐',`<select id="cptNature">${['actif','passif','charge','produit','autre'].map(n=>`<option value="${n}" ${c?.nature===n?'selected':''}>${n.charAt(0).toUpperCase()+n.slice(1)}</option>`).join('')}</select>`)}</div>
+    </div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="comptaSauverCompte('${c?.code||''}')">Enregistrer</button></div>`);
+}
+async function comptaSauverCompte(codeOriginal){
+  const code=document.getElementById('cptCode').value.trim();
+  const libelle=document.getElementById('cptLibelle').value.trim();
+  const classe=+document.getElementById('cptClasse').value;
+  const nature=document.getElementById('cptNature').value;
+  if(!code||!libelle){ toast('Code et libellé requis.','error'); return; }
+  const rec={code,libelle,classe,nature,actif:true};
+  const {error}=codeOriginal?await sb.from('compta_comptes').update(rec).eq('code',codeOriginal):await sb.from('compta_comptes').insert(rec);
+  if(error){ toast(error.message,'error'); return; }
+  toast('Compte enregistré.'); closeModal();
+  await comptaChargerReferentiel(true);
+  comptaRenderCycleView();
+}
+async function comptaDesactiverCompte(code){
+  if(!confirm(`Désactiver le compte ${code} ? Il restera visible dans l'historique mais ne sera plus proposé en saisie.`)) return;
+  await sb.from('compta_comptes').update({actif:false}).eq('code',code);
+  await comptaChargerReferentiel(true);
+  comptaRenderCycleView();
+}
+
+/* ---------- Bilan & Compte de résultat (agrégation par préfixe de compte, comme ImmoSuite) ---------- */
+async function comptaRenderBilan(host){
+  const balance=await comptaCalculerBalance();
+  const g=(prefixes)=>comptaSoldePrefixes(balance,prefixes);
+  const immos=g(['2']);
+  const stocks=g(['3']);
+  const creances=g(['409000','411000','416000','418000','422000','445000','444900']);
+  const treso=g(['5']);
+  const totalActif=immos+stocks+creances+treso;
+
+  const capitaux=-g(['101000','106000','110000']);
+  const chargesTot=g(['60','61','62','63','64','65','66','67','68','89']);
+  const produitsTot=-g(['70','75','77']);
+  const resultat=produitsTot-chargesTot;
+  const dettesFin=-g(['162000','168000']);
+  const fournisseurs=-g(['401000','408000']);
+  const dettesFiscales=-g(['419000','421000','431000','441000','443000','444100','447000']);
+  const totalPassif=capitaux+resultat+dettesFin+fournisseurs+dettesFiscales;
+  const ligne=(label,val,bold)=>`<tr class="${bold?'font-bold border-t':''}"><td>${label}</td><td class="text-right">${money(val)}</td></tr>`;
+  host.innerHTML=`
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="card p-4"><h3 class="font-bold mb-2">ACTIF</h3><table class="w-full text-sm">
+        ${ligne('Immobilisations nettes (classe 2)',immos)}${ligne('Stocks (classe 3)',stocks)}${ligne('Créances & emplois assimilés',creances)}${ligne('Trésorerie — actif',treso)}${ligne('TOTAL ACTIF',totalActif,true)}
+      </table></div>
+      <div class="card p-4"><h3 class="font-bold mb-2">PASSIF</h3><table class="w-full text-sm">
+        ${ligne('Capitaux propres',capitaux)}${ligne("Résultat net de l'exercice",resultat)}${ligne('Dettes financières',dettesFin)}${ligne('Fournisseurs',fournisseurs)}${ligne('Dettes fiscales & sociales',dettesFiscales)}${ligne('TOTAL PASSIF',totalPassif,true)}
+      </table></div>
+    </div>
+    <div class="mt-3 text-center text-sm font-semibold ${Math.abs(totalActif-totalPassif)<100?'text-emerald-600':'text-red-600'}">${Math.abs(totalActif-totalPassif)<100?'✔ Bilan équilibré':'✕ Écart de '+money(Math.abs(totalActif-totalPassif))}</div>`;
+}
+async function comptaRenderCompteResultat(host){
+  const balance=await comptaCalculerBalance();
+  const g=(prefixes)=>comptaSoldePrefixes(balance,prefixes);
+  const achats=g(['60']),transports=g(['61']),servExtA=g(['62']),servExtB=g(['63']),impotsTaxes=g(['64']),autresCharges=g(['65']),chargesPersonnel=g(['66']),fraisFin=g(['67']),dotations=g(['68']),impotResultat=g(['89']);
+  const ventes=-g(['70']),autresProduits=-g(['75']),produitsFin=-g(['77']);
+  const ca=ventes+autresProduits;
+  const va=ca-achats-transports-servExtA-servExtB;
+  const ebe=va-chargesPersonnel-impotsTaxes;
+  const resExploit=ebe-dotations;
+  const resFin=produitsFin-fraisFin;
+  const resAvantImpot=resExploit+resFin;
+  const resNet=resAvantImpot-impotResultat;
+  const ligne=(label,val,bold)=>`<tr class="${bold?'font-bold border-t':''}"><td>${label}</td><td class="text-right">${money(val)}</td></tr>`;
+  host.innerHTML=`
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="card p-4"><h3 class="font-bold mb-2 text-red-700">CHARGES</h3><table class="w-full text-sm">
+        ${ligne('Achats consommés',achats)}${ligne('Transports',transports)}${ligne('Services extérieurs A',servExtA)}${ligne('Services extérieurs B',servExtB)}${ligne('Impôts et taxes',impotsTaxes)}${ligne('Autres charges',autresCharges)}${ligne('Charges de personnel',chargesPersonnel)}${ligne('Frais financiers',fraisFin)}${ligne('Dotations aux amortissements',dotations)}${ligne('Impôt sur le résultat',impotResultat)}
+      </table></div>
+      <div class="card p-4"><h3 class="font-bold mb-2 text-emerald-700">PRODUITS</h3><table class="w-full text-sm">${ligne('Ventes',ventes)}${ligne('Autres produits',autresProduits)}${ligne('Produits financiers',produitsFin)}</table></div>
+    </div>
+    <div class="card p-4 mt-4"><h3 class="font-bold mb-2">Soldes intermédiaires de gestion</h3><table class="w-full text-sm">
+      ${ligne("Chiffre d'affaires",ca)}${ligne('Valeur ajoutée',va)}${ligne("Excédent brut d'exploitation (EBE)",ebe)}${ligne("Résultat d'exploitation",resExploit)}${ligne('Résultat financier',resFin)}${ligne('Résultat avant impôt',resAvantImpot)}${ligne("RÉSULTAT NET DE L'EXERCICE",resNet,true)}
+    </table></div>`;
+}
+
+/* ---------- Clôture d'exercice (solde 6/7/89 → résultat, verrouille, génère les à-nouveaux) ---------- */
+async function comptaRenderCloture(host){
+  const ex=exerciceActif();
+  host.innerHTML=`<div class="card p-4">
+    <h3 class="font-bold mb-2">Clôture de l'exercice ${ex?.annee||''}</h3>
+    <p class="text-sm text-gray-500 mb-4">${ex?.statut==='cloture'?'Cet exercice est clôturé : aucune nouvelle écriture ne peut y être saisie.':"Solde les comptes de charges et produits vers le résultat, verrouille l'exercice et génère les à-nouveaux sur l'exercice suivant."}</p>
+    ${ex?.statut==='cloture'?`<span class="badge bg-gray-100 text-gray-500">🔒 Clôturé le ${fmtDate(ex.cloture_le)} par ${escapeHtml(ex.cloture_par||'')}</span>`:`<button class="btn btn-primary" onclick="comptaCloturerExercice()">🔒 Clôturer l'exercice ${ex?.annee||''}</button>`}
+  </div>`;
+}
+async function comptaCloturerExercice(){
+  await comptaChargerReferentiel();
+  const ex=exerciceActif();
+  if(!ex){ toast('Aucun exercice actif.','error'); return; }
+  if(ex.statut==='cloture'){ toast('Exercice déjà clôturé.','error'); return; }
+  const balanceAvant=await comptaCalculerBalance();
+  const lignesCloture=[];
+  balanceAvant.filter(b=>/^(6|7|89)/.test(b.code)).forEach(b=>{
+    if(Math.abs(b.solde)<1) return;
+    if(b.solde>0) lignesCloture.push({compte_code:b.code,sens:'C',montant:b.solde,libelle:'Solde de clôture'});
+    else lignesCloture.push({compte_code:b.code,sens:'D',montant:-b.solde,libelle:'Solde de clôture'});
+  });
+  const totD=lignesCloture.reduce((s,l)=>s+(l.sens==='D'?l.montant:0),0);
+  const totC=lignesCloture.reduce((s,l)=>s+(l.sens==='C'?l.montant:0),0);
+  const ecart=totD-totC;
+  const resultat=ecart;
+  if(ecart>0) lignesCloture.push({compte_code:'120000',sens:'C',montant:ecart,libelle:'Résultat net — bénéfice'});
+  else if(ecart<0) lignesCloture.push({compte_code:'129000',sens:'D',montant:-ecart,libelle:'Résultat net — perte'});
+  if(!confirm(`Clôturer l'exercice ${ex.annee} ?\nRésultat net : ${money(resultat)} (${resultat>=0?'bénéfice':'perte'}).\nCette action verrouille toute nouvelle écriture sur ${ex.annee} et génère les à-nouveaux sur ${ex.annee+1}.`)) return;
+
+  const refCloture=await genererRefEcriture(ex.annee);
+  const {data:ecrCloture,error:errC}=await sb.from('compta_ecritures').insert({ref:refCloture,exercice_annee:ex.annee,date_ecriture:ex.date_fin,journal_code:'CLO',libelle:"Clôture de l'exercice "+ex.annee,source:'auto',valide_le:new Date().toISOString(),valide_par:CURRENT_USER.email,created_by:CURRENT_USER.id}).select().single();
+  if(errC){ toast(errC.message,'error'); return; }
+  if(lignesCloture.length) await sb.from('compta_lignes').insert(lignesCloture.map(l=>({...l,ecriture_id:ecrCloture.id})));
+
+  const anneeSuivante=ex.annee+1;
+  let exSuivant=exerciceParAnnee(anneeSuivante);
+  if(!exSuivant){
+    const {data:newEx,error:errEx}=await sb.from('compta_exercices').insert({annee:anneeSuivante,date_debut:`${anneeSuivante}-01-01`,date_fin:`${anneeSuivante}-12-31`,statut:'ouvert'}).select().single();
+    if(errEx){ toast(errEx.message,'error'); return; }
+    exSuivant=newEx; window._compta.exercices.push(newEx);
+  }
+  const balanceApres=await comptaCalculerBalance();
+  const lignesAN=[];
+  balanceApres.filter(b=>/^[12345]/.test(b.code)).forEach(b=>{
+    if(Math.abs(b.solde)<1) return;
+    if(b.solde>0) lignesAN.push({compte_code:b.code,sens:'D',montant:b.solde,libelle:'À-nouveau'});
+    else lignesAN.push({compte_code:b.code,sens:'C',montant:-b.solde,libelle:'À-nouveau'});
+  });
+  if(lignesAN.length){
+    const refAN=await genererRefEcriture(anneeSuivante);
+    const {data:ecrAN,error:errAN}=await sb.from('compta_ecritures').insert({ref:refAN,exercice_annee:anneeSuivante,date_ecriture:exSuivant.date_debut,journal_code:'AN',libelle:"À-nouveaux depuis clôture "+ex.annee,source:'auto',valide_le:new Date().toISOString(),valide_par:CURRENT_USER.email,created_by:CURRENT_USER.id}).select().single();
+    if(!errAN) await sb.from('compta_lignes').insert(lignesAN.map(l=>({...l,ecriture_id:ecrAN.id})));
+  }
+  await sb.from('compta_exercices').update({statut:'cloture',cloture_le:new Date().toISOString(),cloture_par:CURRENT_USER.email}).eq('id',ex.id);
+  await comptaChargerReferentiel(true);
+  toast(`Exercice ${ex.annee} clôturé. Résultat net : ${money(resultat)}.`);
+  comptaRenderCycleView();
+}
+
+/* ---------- Tableau de bord Comptabilité (cycle Ouverture → Saisie → Contrôle → Visa → États → Clôture) ---------- */
+const COMPTA_CYCLE=[
+  {icon:'①',label:'OUVERTURE',items:[{v:'plan_comptable',label:'Plan comptable'},{v:'bilan_ouverture',label:"Bilan d'ouverture",action:"comptaOuvrirBilanOuverture()"}]},
+  {icon:'②',label:'SAISIE',items:[{v:'journal',label:'Journal'}]},
+  {icon:'③',label:'CONTRÔLE',items:[{v:'grand_livre',label:'Grand livre'},{v:'balance',label:'Balance'}]},
+  {icon:'④',label:'VISA',items:[{v:'validation',label:'Validation'}]},
+  {icon:'⑤',label:'ÉTATS',items:[{v:'bilan',label:'Bilan'},{v:'resultat',label:'Compte de résultat'}]},
+  {icon:'⑥',label:'CLÔTURE',items:[{v:'cloture',label:'Clôture'}]}
+];
+async function renderComptabilite(el){
+  await comptaChargerReferentiel();
+  if(!window._compta.cycleView) window._compta.cycleView='journal';
+  el.innerHTML=`
+    <div class="page-card mb-4">
+      <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+        <div><h2>📗 Comptabilité SYSCOHADA</h2><p class="text-xs text-gray-500">Cycle complet — ouverture, saisie, contrôle, visa, états, clôture.</p></div>
+        <div class="flex gap-2 items-center flex-wrap">
+          <select onchange="window._compta.annee=+this.value;comptaRenderCycleView()">${window._compta.exercices.map(e=>`<option value="${e.annee}" ${e.annee===window._compta.annee?'selected':''}>${e.annee} ${e.statut==='cloture'?'🔒':''}</option>`).join('')}</select>
+          <button class="btn btn-primary" onclick="openEcritureModal()">+ Écriture</button>
+        </div>
+      </div>
+      <div class="grid sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        ${COMPTA_CYCLE.map(block=>`<div class="card p-3">
+          <div class="text-xs font-bold text-gray-400 mb-2">${block.icon} ${block.label}</div>
+          ${block.items.map(it=>`<button class="block w-full text-left text-sm py-1 hover:text-indigo-600 ${window._compta.cycleView===it.v?'text-indigo-600 font-semibold':''}" onclick="${it.action||`window._compta.cycleView='${it.v}';comptaRenderCycleView()`}">${it.label}</button>`).join('')}
+        </div>`).join('')}
+      </div>
+    </div>
+    <div id="comptaCycleContent" class="page-card"></div>`;
+  comptaRenderCycleView();
+}
+async function comptaRenderCycleView(){
+  const host=document.getElementById('comptaCycleContent');
+  if(!host) return;
+  host.innerHTML='<div class="text-sm text-gray-400 p-8 text-center">Chargement…</div>';
+  const renderers={journal:comptaRenderJournal,grand_livre:comptaRenderGrandLivre,balance:comptaRenderBalance,validation:comptaRenderValidation,bilan:comptaRenderBilan,resultat:comptaRenderCompteResultat,cloture:comptaRenderCloture,plan_comptable:comptaRenderPlanComptable};
+  const fn=renderers[window._compta.cycleView]||comptaRenderJournal;
+  await fn(host);
+}
+
+/* ============================== CAISSE (multi-caisses) ============================== */
+window._caisse=window._caisse||{moisRef:new Date()};
+function caissePeriode(){
+  const d=window._caisse.moisRef;
+  const debut=new Date(d.getFullYear(),d.getMonth(),1);
+  const fin=new Date(d.getFullYear(),d.getMonth()+1,0);
+  return {debut:debut.toISOString().slice(0,10),fin:fin.toISOString().slice(0,10),label:debut.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})};
+}
+function caisseChangerMois(delta){
+  const d=window._caisse.moisRef;
+  window._caisse.moisRef=new Date(d.getFullYear(),d.getMonth()+delta,1);
+  showPage('caisse');
+}
+async function renderCaisse(el){
+  const {debut,fin,label}=caissePeriode();
+  const [{data:caisses},{data:sessionsOuvertes}]=await Promise.all([
+    sb.from('caisses').select('*, projets(libelle)').eq('actif',true).order('created_at'),
+    sb.from('caisse_sessions').select('*').eq('statut','ouverte')
+  ]);
+  const sessionIds=(sessionsOuvertes||[]).map(s=>s.id);
+  const {data:mvtsOuverts}=sessionIds.length?await sb.from('caisse_mouvements').select('*').in('session_id',sessionIds):{data:[]};
+  const {data:mvtsPeriode}=await sb.from('caisse_mouvements').select('*').gte('date_mouvement',debut).lte('date_mouvement',fin);
+
+  const soldeParCaisse={};
+  (sessionsOuvertes||[]).forEach(s=>{
+    const mvts=(mvtsOuverts||[]).filter(m=>m.session_id===s.id);
+    const entrees=mvts.filter(m=>m.type==='entree').reduce((sum,m)=>sum+(+m.montant||0),0);
+    const sorties=mvts.filter(m=>m.type==='sortie').reduce((sum,m)=>sum+(+m.montant||0),0);
+    soldeParCaisse[s.caisse_id]={session:s,solde:(+s.fond_ouverture||0)+entrees-sorties};
+  });
+  const soldeGlobal=Object.values(soldeParCaisse).reduce((s,x)=>s+x.solde,0);
+  const encaissements=(mvtsPeriode||[]).filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
+  const decaissements=(mvtsPeriode||[]).filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
+  const aVentiler=(mvtsPeriode||[]).filter(m=>m.statut==='a_ventiler');
+  const aVentilerMontant=aVentiler.reduce((s,m)=>s+(+m.montant||0),0);
+  const {data:sessionsClotureesPeriode}=await sb.from('caisse_sessions').select('ecart').eq('statut','cloturee').gte('date_session',debut).lte('date_session',fin);
+  const ecartCumule=(sessionsClotureesPeriode||[]).reduce((s,x)=>s+(+x.ecart||0),0);
+
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div><h2>💰 Caisse</h2><p class="text-xs text-gray-500">Ouverture/clôture · Bons d'entrée & de sortie · Brouillard journalier · Transferts.</p></div>
+      <button class="btn btn-primary" onclick="caisseOuvrirNouvelleCaisseModal()">+ Nouvelle caisse</button>
+    </div>
+    <div class="page-card mb-4">
+      <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+        <b>Tableau de bord — Caisse · ${label}</b>
+        <div class="flex gap-2 items-center"><button class="btn btn-outline btn-sm" onclick="caisseChangerMois(-1)">◀</button><button class="btn btn-outline btn-sm" onclick="caisseChangerMois(1)">▶</button></div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+        <div class="card p-3"><div class="text-xs text-gray-400">SOLDE TEMPS RÉEL</div><div class="text-lg font-black mt-1">${money(soldeGlobal)}</div><div class="text-xs text-gray-400">${Object.keys(soldeParCaisse).length} / ${caisses.length} ouverte(s)</div></div>
+        <div class="card p-3" style="border-left:3px solid #4AC47A"><div class="text-xs text-gray-400">ENCAISSEMENTS</div><div class="text-lg font-black mt-1 text-emerald-600">${money(encaissements)}</div><div class="text-xs text-gray-400">${(mvtsPeriode||[]).filter(m=>m.type==='entree').length} bon(s)</div></div>
+        <div class="card p-3" style="border-left:3px solid #E05252"><div class="text-xs text-gray-400">DÉCAISSEMENTS</div><div class="text-lg font-black mt-1 text-red-600">${money(decaissements)}</div><div class="text-xs text-gray-400">${(mvtsPeriode||[]).filter(m=>m.type==='sortie').length} bon(s)</div></div>
+        <div class="card p-3"><div class="text-xs text-gray-400">FLUX NET</div><div class="text-lg font-black mt-1 ${encaissements-decaissements>=0?'text-emerald-600':'text-red-600'}">${money(encaissements-decaissements)}</div><div class="text-xs text-gray-400">Entrées − sorties</div></div>
+        <div class="card p-3"><div class="text-xs text-gray-400">À VENTILER</div><div class="text-lg font-black mt-1 ${aVentiler.length?'text-red-600':''}">${aVentiler.length} mvt</div><div class="text-xs text-gray-400">${money(aVentilerMontant)}</div></div>
+        <div class="card p-3"><div class="text-xs text-gray-400">ÉCART CLÔTURE</div><div class="text-lg font-black mt-1 ${ecartCumule<0?'text-red-600':ecartCumule>0?'text-emerald-600':''}">${money(ecartCumule)}</div><div class="text-xs text-gray-400">Cumul période</div></div>
+      </div>
+      <div class="font-bold text-sm mb-2">Détail par caisse (${caisses.length} caisse(s))</div>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">${caisses.map(c=>caisseCardHtml(c,soldeParCaisse[c.id],mvtsPeriode)).join('')||'<div class="text-gray-400 p-4">Aucune caisse. Créez-en une.</div>'}</div>
+    </div>`;
+}
+function caisseCardHtml(c,soldeInfo,mvtsPeriode){
+  const mvtsCaisse=(mvtsPeriode||[]).filter(m=>m.caisse_id===c.id);
+  const entrees=mvtsCaisse.filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
+  const sorties=mvtsCaisse.filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
+  const aVentiler=mvtsCaisse.filter(m=>m.statut==='a_ventiler');
+  const ouverte=!!soldeInfo;
+  return `<div class="card p-3">
+    <div class="flex justify-between items-start mb-2">
+      <div><b>${escapeHtml(c.nom)}</b><div class="text-xs text-gray-400">${escapeHtml(c.projets?.libelle||'—')}</div></div>
+      <span class="badge ${ouverte?'bg-emerald-50 text-emerald-700':'bg-gray-100 text-gray-500'}">${ouverte?'OUVERTE':'FERMÉE'}</span>
+    </div>
+    ${ouverte?`<div class="text-xl font-black mb-2" style="color:var(--accent)">${money(soldeInfo.solde)}</div>`:''}
+    <div class="grid grid-cols-2 gap-2 text-xs mb-2">
+      <div>Entrées <b class="text-emerald-600">${money(entrees)}</b></div>
+      <div>Sorties <b class="text-red-600">${money(sorties)}</b></div>
+      <div>Flux net <b class="${entrees-sorties>=0?'text-emerald-600':'text-red-600'}">${money(entrees-sorties)}</b></div>
+      <div>À ventiler <b class="${aVentiler.length?'text-red-600':''}">${aVentiler.length}</b></div>
+    </div>
+    <button class="btn btn-outline btn-sm w-full" onclick="window._editId='${c.id}';showPage('caisse-detail')">Ouvrir →</button>
+  </div>`;
+}
+function caisseOuvrirNouvelleCaisseModal(){
+  Promise.all([comptaChargerReferentiel(),sb.from('projets').select('id,libelle').order('libelle')]).then(([,{data:projets}])=>{
+    openModal(`
+      <h3 class="font-bold text-lg mb-4">Nouvelle caisse</h3>
+      <div class="field mb-3"><label>Nom</label>${fieldWrap('💰',`<input id="ncNom" placeholder="ex: Caisse chantier Cocody">`)}</div>
+      <div class="field mb-3"><label>Chantier associé (optionnel)</label>${fieldWrap('🏗️',`<select id="ncProjet"><option value="">— Aucun —</option>${(projets||[]).map(p=>`<option value="${p.id}">${escapeHtml(p.libelle)}</option>`).join('')}</select>`)}</div>
+      <div class="field mb-3"><label>Responsable</label>${fieldWrap('👤',`<input id="ncResponsable">`)}</div>
+      <div class="field mb-4"><label>Compte comptable</label>${fieldWrap('📗',`<select id="ncCompte">${compteOptionsHtml('571000')}</select>`)}</div>
+      <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseSauverNouvelle()">Créer</button></div>`);
+  });
+}
+async function caisseSauverNouvelle(){
+  const nom=document.getElementById('ncNom').value.trim();
+  if(!nom){ toast('Nom requis.','error'); return; }
+  const rec={nom,projet_id:document.getElementById('ncProjet').value||null,responsable:document.getElementById('ncResponsable').value.trim()||null,compte_code:document.getElementById('ncCompte').value};
+  const {error}=await sb.from('caisses').insert(rec);
+  if(error){ toast(error.message,'error'); return; }
+  toast('Caisse créée.'); closeModal(); showPage('caisse');
+}
+
+/* ---------- Détail d'une caisse : session, mouvements, ventilation, transferts ---------- */
+async function renderCaisseDetail(el){
+  const caisseId=window._editId;
+  const {data:c}=await sb.from('caisses').select('*, projets(libelle)').eq('id',caisseId).single();
+  if(!c){ el.innerHTML='<div class="text-red-600">Caisse introuvable.</div>'; return; }
+  await comptaChargerReferentiel();
+  const {data:session}=await sb.from('caisse_sessions').select('*').eq('caisse_id',caisseId).eq('statut','ouverte').maybeSingle();
+  let mvts=[];
+  if(session){ const {data}=await sb.from('caisse_mouvements').select('*').eq('session_id',session.id).order('created_at',{ascending:false}); mvts=data||[]; }
+  const entrees=mvts.filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
+  const sorties=mvts.filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
+  const solde=session?(+session.fond_ouverture||0)+entrees-sorties:0;
+  window._caisseDetailCache={caisse:c,session,mvts};
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div><h2>${escapeHtml(c.nom)}</h2><p class="text-xs text-gray-500">${escapeHtml(c.projets?.libelle||'Aucun chantier associé')} · Compte ${compteLabel(c.compte_code)}</p></div>
+      <button class="btn btn-outline" onclick="showPage('caisse')">← Retour</button>
+    </div>
+    ${session?`
+      <div class="grid sm:grid-cols-4 gap-3 mb-4">
+        <div class="card p-4"><div class="text-xs text-gray-400">Solde temps réel</div><div class="text-xl font-black mt-1">${money(solde)}</div></div>
+        <div class="card p-4"><div class="text-xs text-gray-400">Entrées (session)</div><div class="text-xl font-black mt-1 text-emerald-600">${money(entrees)}</div></div>
+        <div class="card p-4"><div class="text-xs text-gray-400">Sorties (session)</div><div class="text-xl font-black mt-1 text-red-600">${money(sorties)}</div></div>
+        <div class="card p-4"><div class="text-xs text-gray-400">Fond d'ouverture</div><div class="text-xl font-black mt-1">${money(session.fond_ouverture)}</div></div>
+      </div>
+      <div class="flex flex-wrap gap-2 mb-4">
+        <button class="btn btn-primary" onclick="caisseOuvrirBonModal('entree')">+ Bon d'entrée</button>
+        <button class="btn btn-outline" onclick="caisseOuvrirBonModal('sortie')">− Bon de sortie</button>
+        <button class="btn btn-outline" onclick="caisseOuvrirTransfertModal()">⇄ Transfert</button>
+        <button class="btn btn-outline text-red-600" onclick="caisseOuvrirClotureModal()">🔒 Clôturer la séance</button>
+      </div>
+      <div class="card overflow-x-auto">
+        <table><thead><tr><th>Date</th><th>N°</th><th>Type</th><th>Motif</th><th class="text-right">Montant</th><th>Statut</th><th></th></tr></thead>
+        <tbody>${mvts.map(m=>`<tr>
+          <td>${fmtDate(m.date_mouvement)}</td><td>${escapeHtml(m.numero||'—')}</td>
+          <td><span class="${m.type==='entree'?'text-emerald-600':'text-red-600'}">${m.type==='entree'?'▲ Entrée':'▼ Sortie'}</span></td>
+          <td>${escapeHtml(m.motif)}${m.beneficiaire?' — '+escapeHtml(m.beneficiaire):''}</td>
+          <td class="text-right font-semibold">${money(m.montant)}</td>
+          <td>${m.statut==='ventile'?`<span class="badge bg-emerald-50 text-emerald-700">✔ Ventilé</span>`:'<span class="badge bg-amber-50 text-amber-700">À ventiler</span>'}</td>
+          <td class="text-right">${m.statut==='a_ventiler'?`<button class="text-xs text-indigo-600" onclick="caisseOuvrirVentilerModal('${m.id}')">Ventiler</button>`:''}</td>
+        </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4 text-center">Aucun mouvement dans cette séance.</td></tr>'}</tbody></table>
+      </div>`
+      :`<div class="card p-6 text-center"><p class="text-gray-500 mb-4">Aucune séance ouverte pour cette caisse.</p><button class="btn btn-primary" onclick="caisseOuvrirSessionModal()">🔓 Ouvrir la caisse</button></div>`}`;
+}
+function caisseOuvrirSessionModal(){
+  const c=window._caisseDetailCache.caisse;
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">Ouvrir la caisse « ${escapeHtml(c.nom)} »</h3>
+    <div class="field mb-4"><label>Fond d'ouverture (FCFA)</label>${fieldWrap('💵',`<input id="csFond" type="number" value="0">`)}</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseConfirmerOuverture('${c.id}')">Ouvrir</button></div>`);
+}
+async function caisseConfirmerOuverture(caisseId){
+  const fond=+document.getElementById('csFond').value||0;
+  const {data:existe}=await sb.from('caisse_sessions').select('id').eq('caisse_id',caisseId).eq('statut','ouverte').maybeSingle();
+  if(existe){ toast('Une séance est déjà ouverte pour cette caisse.','error'); return; }
+  const {error}=await sb.from('caisse_sessions').insert({caisse_id:caisseId,date_session:new Date().toISOString().slice(0,10),fond_ouverture:fond,statut:'ouverte',ouverte_par:CURRENT_USER.email});
+  if(error){ toast(error.message,'error'); return; }
+  toast('Caisse ouverte.'); closeModal();
+  window._editId=caisseId; showPage('caisse-detail');
+}
+function caisseOuvrirBonModal(type){
+  const {session}=window._caisseDetailCache;
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">${type==='entree'?"+ Bon d'entrée":'− Bon de sortie'}</h3>
+    <div class="grid sm:grid-cols-2 gap-3 mb-3">
+      <div class="field"><label>Date</label>${fieldWrap('📅',`<input id="bonDate" type="date" value="${new Date().toISOString().slice(0,10)}">`)}</div>
+      <div class="field"><label>Montant (FCFA)</label>${fieldWrap('💵',`<input id="bonMontant" type="number" min="1">`)}</div>
+    </div>
+    <div class="field mb-3"><label>Motif</label>${fieldWrap('📝',`<input id="bonMotif" placeholder="ex: Achat quincaillerie chantier X">`)}</div>
+    <div class="field mb-4"><label>${type==='entree'?'Provenance':'Bénéficiaire'}</label>${fieldWrap('👤',`<input id="bonBeneficiaire">`)}</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseSauverBon('${type}','${session.id}')">Enregistrer</button></div>`);
+}
+async function caisseSauverBon(type,sessionId){
+  const date_mouvement=document.getElementById('bonDate').value;
+  const montant=+document.getElementById('bonMontant').value||0;
+  const motif=document.getElementById('bonMotif').value.trim();
+  const beneficiaire=document.getElementById('bonBeneficiaire').value.trim();
+  if(!montant||montant<=0){ toast('Montant invalide.','error'); return; }
+  if(!motif){ toast('Motif requis.','error'); return; }
+  const {caisse}=window._caisseDetailCache;
+  const {count}=await sb.from('caisse_mouvements').select('id',{count:'exact',head:true}).eq('caisse_id',caisse.id);
+  const numero=`${type==='entree'?'BE':'BS'}-${String((count||0)+1).padStart(5,'0')}`;
+  const {error}=await sb.from('caisse_mouvements').insert({session_id:sessionId,caisse_id:caisse.id,numero,date_mouvement,type,montant,motif,beneficiaire:beneficiaire||null,statut:'a_ventiler',created_by:CURRENT_USER.id});
+  if(error){ toast(error.message,'error'); return; }
+  toast('Bon enregistré.'); closeModal();
+  showPage('caisse-detail');
+}
+async function caisseOuvrirVentilerModal(mvtId){
+  const {data:regles}=await sb.from('caisse_regles_ventilation').select('*');
+  const mvt=(window._caisseDetailCache.mvts||[]).find(m=>m.id===mvtId);
+  const suggestion=(regles||[]).find(r=>mvt.motif.toLowerCase().includes(String(r.mot_cle).toLowerCase()));
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">Ventiler le mouvement</h3>
+    <p class="text-sm text-gray-500 mb-3">${escapeHtml(mvt.motif)} — <b>${money(mvt.montant)}</b> (${mvt.type==='entree'?'entrée':'sortie'})</p>
+    <div class="field mb-4"><label>Compte de contrepartie</label>${fieldWrap('📗',`<select id="ventCompte"><option value="">Choisir…</option>${compteOptionsHtml(suggestion?.compte_code||'')}</select>`)}</div>
+    <label class="flex items-center gap-2 text-sm mb-4"><input type="checkbox" id="ventMemoriser" checked> Mémoriser une règle pour les prochains mouvements similaires</label>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseVentiler('${mvtId}')">Ventiler</button></div>`);
+}
+async function caisseVentiler(mvtId){
+  const compte=document.getElementById('ventCompte').value;
+  const memoriser=document.getElementById('ventMemoriser').checked;
+  if(!compte){ toast('Choisissez un compte.','error'); return; }
+  const mvt=(window._caisseDetailCache.mvts||[]).find(m=>m.id===mvtId);
+  const {caisse}=window._caisseDetailCache;
+  if(exerciceEstClos(mvt.date_mouvement)){ toast('Exercice clôturé pour cette date.','error'); return; }
+  const annee=new Date(mvt.date_mouvement).getFullYear();
+  const ref=await genererRefEcriture(annee);
+  const lignes=mvt.type==='entree'
+    ?[{compte_code:caisse.compte_code,sens:'D',montant:mvt.montant,libelle:mvt.motif},{compte_code:compte,sens:'C',montant:mvt.montant,libelle:mvt.motif}]
+    :[{compte_code:compte,sens:'D',montant:mvt.montant,libelle:mvt.motif},{compte_code:caisse.compte_code,sens:'C',montant:mvt.montant,libelle:mvt.motif}];
+  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:mvt.date_mouvement,journal_code:'CA',piece:mvt.numero,libelle:mvt.motif,source:'auto',source_type:'caisse_mouvement',source_id:mvt.id,created_by:CURRENT_USER.id}).select().single();
+  if(error){ toast(error.message,'error'); return; }
+  await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
+  await sb.from('caisse_mouvements').update({statut:'ventile',compte_ventile:compte,ecriture_id:ecr.id}).eq('id',mvtId);
+  if(memoriser){
+    const motCle=(mvt.motif.split(/\s+/)[0]||'').trim();
+    if(motCle && motCle.length>=3){
+      const {data:existeRegle}=await sb.from('caisse_regles_ventilation').select('id').ilike('mot_cle',motCle).maybeSingle();
+      if(!existeRegle) await sb.from('caisse_regles_ventilation').insert({mot_cle:motCle,compte_code:compte});
+    }
+  }
+  toast('Mouvement ventilé et écriture générée.'); closeModal();
+  showPage('caisse-detail');
+}
+async function caisseOuvrirTransfertModal(){
+  const {data:caisses}=await sb.from('caisses').select('*').eq('actif',true).neq('id',window._caisseDetailCache.caisse.id);
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">Transfert vers une autre caisse</h3>
+    <div class="field mb-3"><label>Caisse destination</label>${fieldWrap('💰',`<select id="trfDest"><option value="">Choisir…</option>${(caisses||[]).map(c=>`<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('')}</select>`)}</div>
+    <div class="field mb-4"><label>Montant (FCFA)</label>${fieldWrap('💵',`<input id="trfMontant" type="number" min="1">`)}</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseConfirmerTransfert()">Transférer</button></div>`);
+}
+async function caisseConfirmerTransfert(){
+  const destId=document.getElementById('trfDest').value;
+  const montant=+document.getElementById('trfMontant').value||0;
+  if(!destId){ toast('Choisissez une caisse destination.','error'); return; }
+  if(!montant||montant<=0){ toast('Montant invalide.','error'); return; }
+  const {data:destSession}=await sb.from('caisse_sessions').select('*').eq('caisse_id',destId).eq('statut','ouverte').maybeSingle();
+  if(!destSession){ toast('La caisse destination doit être ouverte (créez-y une séance).','error'); return; }
+  const {data:destCaisse}=await sb.from('caisses').select('nom').eq('id',destId).single();
+  const {caisse,session}=window._caisseDetailCache;
+  const transfertId=uid();
+  const date_mouvement=new Date().toISOString().slice(0,10);
+  const {data:mSortie,error:e1}=await sb.from('caisse_mouvements').insert({session_id:session.id,caisse_id:caisse.id,numero:'TRF-OUT',date_mouvement,type:'sortie',montant,motif:`Transfert vers ${destCaisse?.nom||'caisse'}`,statut:'a_ventiler',transfert_id:transfertId,created_by:CURRENT_USER.id}).select().single();
+  if(e1){ toast(e1.message,'error'); return; }
+  const {error:e2}=await sb.from('caisse_mouvements').insert({session_id:destSession.id,caisse_id:destId,numero:'TRF-IN',date_mouvement,type:'entree',montant,motif:`Transfert depuis ${escapeHtml(caisse.nom)}`,statut:'a_ventiler',transfert_id:transfertId,created_by:CURRENT_USER.id});
+  if(e2){ toast(e2.message,'error'); return; }
+  toast('Transfert enregistré des deux côtés (à ventiler — suggestion : compte 585000).'); closeModal();
+  showPage('caisse-detail');
+}
+function caisseOuvrirClotureModal(){
+  const {session,mvts}=window._caisseDetailCache;
+  const entrees=mvts.filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
+  const sorties=mvts.filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
+  const theorique=(+session.fond_ouverture||0)+entrees-sorties;
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">Clôturer la séance</h3>
+    <p class="text-sm text-gray-500 mb-3">Solde théorique : <b>${money(theorique)}</b></p>
+    <div class="field mb-4"><label>Comptage physique réel (FCFA)</label>${fieldWrap('🧮',`<input id="clFondReel" type="number" value="${theorique}">`)}</div>
+    <div id="clEcartPreview" class="text-sm font-semibold mb-4"></div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseConfirmerCloture(${theorique})">Clôturer</button></div>`);
+  const upd=()=>{
+    const reel=+document.getElementById('clFondReel').value||0;
+    const ecart=reel-theorique;
+    document.getElementById('clEcartPreview').innerHTML=ecart===0?'<span class="text-emerald-600">✔ Aucun écart</span>':`<span class="${ecart>0?'text-emerald-600':'text-red-600'}">Écart : ${ecart>0?'+':''}${money(ecart)}</span>`;
+  };
+  document.getElementById('clFondReel').oninput=upd; upd();
+}
+async function caisseConfirmerCloture(theorique){
+  const {session,caisse}=window._caisseDetailCache;
+  const reel=+document.getElementById('clFondReel').value||0;
+  const ecart=reel-theorique;
+  if(!confirm(`Clôturer la séance avec un solde réel de ${money(reel)}${ecart!==0?` (écart de ${money(ecart)})`:''} ?`)) return;
+  let ecartEcritureId=null;
+  const today=new Date().toISOString().slice(0,10);
+  if(Math.abs(ecart)>=1 && !exerciceEstClos(today)){
+    const annee=new Date().getFullYear();
+    const ref=await genererRefEcriture(annee);
+    const compteEcart=ecart>0?'758000':'658000';
+    const lignes=ecart>0
+      ?[{compte_code:caisse.compte_code,sens:'D',montant:ecart,libelle:'Excédent de caisse'},{compte_code:compteEcart,sens:'C',montant:ecart,libelle:'Excédent de caisse'}]
+      :[{compte_code:compteEcart,sens:'D',montant:-ecart,libelle:'Manquant de caisse'},{compte_code:caisse.compte_code,sens:'C',montant:-ecart,libelle:'Manquant de caisse'}];
+    const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:today,journal_code:'CA',libelle:`Écart de clôture — ${caisse.nom}`,source:'auto',source_type:'caisse_session',source_id:session.id,created_by:CURRENT_USER.id}).select().single();
+    if(!error){ await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id}))); ecartEcritureId=ecr.id; }
+  }
+  await sb.from('caisse_sessions').update({statut:'cloturee',fond_cloture_theorique:theorique,fond_cloture_reel:reel,ecart,cloturee_par:CURRENT_USER.email,cloturee_le:new Date().toISOString(),ecart_ecriture_id:ecartEcritureId}).eq('id',session.id);
+  toast('Séance clôturée.'); closeModal();
+  showPage('caisse-detail');
+}
+
+/* ============================== INTÉGRATION FACTURES → COMPTABILITÉ ============================== */
+async function comptaFactureDejaComptabilisee(factureId){
+  const {data}=await sb.from('compta_ecritures').select('id').eq('source_type','facture').eq('source_id',factureId).eq('journal_code','VE').maybeSingle();
+  return !!data;
+}
+async function comptabiliserVenteFacture(factureId){
+  await comptaChargerReferentiel();
+  const {data:f}=await sb.from('factures').select('*, clients(nom,prenoms)').eq('id',factureId).single();
+  if(!f) return null;
+  if(await comptaFactureDejaComptabilisee(factureId)) return null;
+  const dateFacture=f.date_facture||new Date().toISOString().slice(0,10);
+  if(exerciceEstClos(dateFacture)){ toast('Exercice clôturé pour la date de cette facture.','error'); return null; }
+  const p=window.APP_PARAMS||{};
+  const tvaPct=+p.tva_pct||0;
+  const ttc=+f.total||0;
+  const ht=tvaPct>0?Math.round(ttc/(1+tvaPct/100)):ttc;
+  const tva=ttc-ht;
+  const annee=new Date(dateFacture).getFullYear();
+  const ref=await genererRefEcriture(annee);
+  const lignes=[{compte_code:'411000',sens:'D',montant:ttc,libelle:'Facture '+f.code},{compte_code:'701000',sens:'C',montant:ht,libelle:'Facture '+f.code}];
+  if(tva>0) lignes.push({compte_code:'443000',sens:'C',montant:tva,libelle:'TVA sur facture '+f.code});
+  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:dateFacture,journal_code:'VE',piece:f.code,libelle:`Vente — ${f.code}${f.clients?' — '+[f.clients.nom,f.clients.prenoms].filter(Boolean).join(' '):''}`,source:'auto',source_type:'facture',source_id:factureId,created_by:CURRENT_USER.id}).select().single();
+  if(error){ toast(error.message,'error'); return null; }
+  await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
+  return ecr;
+}
+function ouvrirEncaissementModal(factureId,montantRestant){
+  sb.from('caisses').select('id,nom').eq('actif',true).then(({data:caisses})=>{
+    openModal(`
+      <h3 class="font-bold text-lg mb-4">Enregistrer un encaissement</h3>
+      <p class="text-sm text-gray-500 mb-3">Reste à payer : <b>${money(montantRestant)}</b></p>
+      <div class="grid sm:grid-cols-2 gap-3 mb-3">
+        <div class="field"><label>Date</label>${fieldWrap('📅',`<input id="encDate" type="date" value="${new Date().toISOString().slice(0,10)}">`)}</div>
+        <div class="field"><label>Montant (FCFA)</label>${fieldWrap('💵',`<input id="encMontant" type="number" value="${montantRestant}">`)}</div>
+      </div>
+      <div class="field mb-3"><label>Mode de paiement</label>${fieldWrap('💳',`<select id="encMode" onchange="document.getElementById('encCaisseWrap').style.display=this.value==='espece'?'':'none'"><option value="espece">Espèces</option><option value="banque">Virement bancaire</option><option value="mobile_money">Mobile Money</option><option value="cheque">Chèque</option></select>`)}</div>
+      <div class="field mb-4" id="encCaisseWrap"><label>Caisse</label>${fieldWrap('💰',`<select id="encCaisse"><option value="">— Choisir —</option>${(caisses||[]).map(c=>`<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('')}</select>`)}</div>
+      <div class="field mb-4"><label>Référence (optionnel)</label>${fieldWrap('#',`<input id="encReference">`)}</div>
+      <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="enregistrerEncaissement('${factureId}')">Enregistrer</button></div>`);
+  });
+}
+async function enregistrerEncaissement(factureId){
+  await comptaChargerReferentiel();
+  const date_paiement=document.getElementById('encDate').value;
+  const montant=+document.getElementById('encMontant').value||0;
+  const mode=document.getElementById('encMode').value;
+  const caisseId=document.getElementById('encCaisse').value||null;
+  const reference=document.getElementById('encReference').value.trim()||null;
+  if(!montant||montant<=0){ toast('Montant invalide.','error'); return; }
+  if(mode==='espece' && !caisseId){ toast("Choisissez la caisse qui reçoit l'encaissement.",'error'); return; }
+  if(exerciceEstClos(date_paiement)){ toast('Exercice clôturé pour cette date.','error'); return; }
+  const {data:f}=await sb.from('factures').select('*').eq('id',factureId).single();
+  if(!f) return;
+  await comptabiliserVenteFacture(factureId);
+  let sessionOuverte=null, caisseCompte=null;
+  if(mode==='espece'){
+    const [{data:s},{data:c}]=await Promise.all([
+      sb.from('caisse_sessions').select('*').eq('caisse_id',caisseId).eq('statut','ouverte').maybeSingle(),
+      sb.from('caisses').select('compte_code').eq('id',caisseId).single()
+    ]);
+    if(!s){ toast("La caisse choisie n'a pas de séance ouverte.",'error'); return; }
+    sessionOuverte=s; caisseCompte=c?.compte_code;
+  }
+  const compteTreso={banque:'512000',mobile_money:'512000',cheque:'512000'}[mode];
+  const annee=new Date(date_paiement).getFullYear();
+  const ref=await genererRefEcriture(annee);
+  const lignes=[
+    {compte_code:mode==='espece'?caisseCompte:compteTreso,sens:'D',montant,libelle:'Encaissement '+f.code},
+    {compte_code:'411000',sens:'C',montant,libelle:'Encaissement '+f.code}
+  ];
+  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:date_paiement,journal_code:mode==='espece'?'CA':(mode==='mobile_money'?'MM':'BQ'),piece:reference,libelle:`Encaissement facture ${f.code}`,source:'auto',source_type:'paiement',created_by:CURRENT_USER.id}).select().single();
+  if(error){ toast(error.message,'error'); return; }
+  await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
+  const {data:paiement,error:errP}=await sb.from('paiements').insert({facture_id:factureId,date_paiement,montant,mode,caisse_id:caisseId,reference,ecriture_id:ecr.id,created_by:CURRENT_USER.id}).select().single();
+  if(errP){ toast(errP.message,'error'); return; }
+  await sb.from('compta_ecritures').update({source_id:paiement.id}).eq('id',ecr.id);
+  if(mode==='espece' && sessionOuverte){
+    await sb.from('caisse_mouvements').insert({session_id:sessionOuverte.id,caisse_id:caisseId,numero:'ENC-'+f.code,date_mouvement:date_paiement,type:'entree',montant,motif:'Encaissement facture '+f.code,statut:'ventile',compte_ventile:'411000',ecriture_id:ecr.id,created_by:CURRENT_USER.id});
+  }
+  const {data:paiements}=await sb.from('paiements').select('montant').eq('facture_id',factureId);
+  const totalPaye=(paiements||[]).reduce((s,pp)=>s+(+pp.montant||0),0);
+  const nouveauStatut=totalPaye>=(+f.total||0)-1?'payee':(totalPaye>0?'payee_partielle':'en_attente');
+  await sb.from('factures').update({statut:nouveauStatut}).eq('id',factureId);
+  toast('Encaissement enregistré.'); closeModal();
+  showPage('facture-view');
+}
+
 /* ============================== RÉALISATIONS (galerie du site public) ============================== */
 window._realisationsView=window._realisationsView||'grille';
 async function renderRealisations(el){
