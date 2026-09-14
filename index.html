@@ -149,7 +149,10 @@ window.SB_CFG = {
       <div id="authMsg" class="hidden text-sm rounded-lg px-3 py-2 mb-3"></div>
       <form id="loginForm" class="space-y-3">
         <input id="authEmail" type="email" required placeholder="Email" autocomplete="username">
-        <input id="authPassword" type="password" required placeholder="Mot de passe" autocomplete="current-password">
+        <div style="position:relative">
+          <input id="authPassword" type="password" required placeholder="Mot de passe" autocomplete="current-password" style="padding-right:38px">
+          <button type="button" onclick="toggleAuthPasswordVisibility()" tabindex="-1" title="Afficher/masquer le mot de passe" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;line-height:1;padding:4px;color:#9ca3af">👁️</button>
+        </div>
         <button type="submit" class="btn btn-primary w-full py-2.5">Se connecter</button>
       </form>
       <button id="toggleSignup" class="text-xs text-gray-400 hover:text-gray-600 w-full text-center mt-4">Première connexion ? Créer un compte administrateur</button>
@@ -336,6 +339,13 @@ document.getElementById('toggleSignup').onclick=()=>{
   document.getElementById('toggleSignup').textContent = authMode==='login' ? 'Première connexion ? Créer un compte administrateur' : '← Retour à la connexion';
   document.querySelector('#loginForm button[type=submit]').textContent = authMode==='login' ? 'Se connecter' : 'Créer le compte';
 };
+function toggleAuthPasswordVisibility(){
+  const input=document.getElementById('authPassword');
+  const btn=event.currentTarget;
+  const masque=input.type==='password';
+  input.type=masque?'text':'password';
+  btn.textContent=masque?'🙈':'👁️';
+}
 function showAuthMsg(msg,isError){
   const el=document.getElementById('authMsg');
   el.textContent=msg; el.classList.remove('hidden');
