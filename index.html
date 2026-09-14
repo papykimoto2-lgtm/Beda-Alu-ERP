@@ -418,14 +418,20 @@ const ALL_MODULES=[
 ];
 const GROUP_TO_MODULE={'clients-g':'Clients','prospects-g':'Prospects','fournisseurs-g':'Fournisseurs','projets-g':'Projets','devis-g':'Devis','factures-g':'Factures','fiches-g':'FichesExecution','produits-g':'Produits','composants-g':'Composants','stock-g':'Stock','comptabilite-g':'Comptabilite','caisse-g':'Caisse','realisations-g':'Realisations'};
 const PAGE_TO_MODULE={...Object.fromEntries(Object.entries(PAGE_TO_GROUP).map(([p,g])=>[p,GROUP_TO_MODULE[g]])),utilisateurs:'Utilisateurs',parametres:'Parametres'};
-window._rbac=window._rbac||{roles:[],permissions:[],monProfil:null,loaded:false};
+window._rbac=window._rbac||{roles:[],permissions:[],monProfil:null,loaded:false,provisionne:true};
 async function rbacCharger(force){
   if(window._rbac.loaded && !force) return window._rbac;
-  const [{data:roles},{data:perms},{data:profil}]=await Promise.all([
+  const [{data:roles,error:errRoles},{data:perms},{data:profil}]=await Promise.all([
     sb.from('roles').select('*').order('niveau',{ascending:false}),
     sb.from('role_permissions').select('*'),
     sb.from('profiles').select('*').eq('id',CURRENT_USER.id).maybeSingle()
   ]);
+  // Si le script sql/utilisateurs_roles.sql n'a pas encore été exécuté (table
+  // `roles` inexistante), on ne doit surtout pas bloquer tout le monde en
+  // traitant l'absence de rôle comme un refus — on se comporte comme avant
+  // l'introduction de ce module (accès complet) tant que la migration n'a
+  // pas été appliquée.
+  window._rbac.provisionne=!errRoles;
   window._rbac.roles=roles||[];
   window._rbac.permissions=perms||[];
   window._rbac.monProfil=profil||null;
@@ -441,6 +447,7 @@ function permissionModule(moduleCode){
 function peutModule(moduleCode,action){
   if(!moduleCode) return true;
   if(!window._rbac.loaded) return true;
+  if(!window._rbac.provisionne) return true;
   const role=monRole();
   if(!role) return false;
   const perm=permissionModule(moduleCode);
