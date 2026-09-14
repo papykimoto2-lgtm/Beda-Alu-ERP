@@ -304,7 +304,9 @@ window.SB_CFG = {
 <script>
 /* ============================== CORE / UTILS ============================== */
 const { createClient } = supabase;
-const sb = createClient(window.SB_CFG.SUPABASE_URL, window.SB_CFG.SUPABASE_ANON_KEY);
+const sb = createClient(window.SB_CFG.SUPABASE_URL, window.SB_CFG.SUPABASE_ANON_KEY, {
+  global: { fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }) }
+});
 let CURRENT_USER = null;
 function money(n){ return new Intl.NumberFormat('fr-FR').format(Math.round(n||0)) + ' FCFA'; }
 function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -3766,7 +3768,7 @@ async function renderDevisEditorPage(el){
   const devisId=window._editId;
   const [clientsRes, projetsRes, produitsRes, catRes] = await Promise.all([
     sb.from('clients').select('id,nom,prenoms').order('nom'),
-    sb.from('projets').select('id,libelle,client_id').order('libelle'),
+    sb.from('projets').select('id,libelle,client_id').order('created_at',{ascending:false}),
     sb.from('produits').select('*').order('nom'),
     sb.from('devis_categories').select('nom').order('nom')
   ]);
@@ -5530,7 +5532,7 @@ function caisseCardHtml(c,soldeInfo,mvtsPeriode){
   </div>`;
 }
 function caisseOuvrirNouvelleCaisseModal(){
-  Promise.all([comptaChargerReferentiel(),sb.from('projets').select('id,libelle').order('libelle')]).then(([,{data:projets}])=>{
+  Promise.all([comptaChargerReferentiel(),sb.from('projets').select('id,libelle').order('created_at',{ascending:false})]).then(([,{data:projets}])=>{
     openModal(`
       <h3 class="font-bold text-lg mb-4">Nouvelle caisse</h3>
       <div class="field mb-3"><label>Nom</label>${fieldWrap('💰',`<input id="ncNom" placeholder="ex: Caisse chantier Cocody">`)}</div>
@@ -6425,7 +6427,9 @@ window.SB_CFG={ SUPABASE_URL:'__SB_URL__', SUPABASE_ANON_KEY:'__SB_KEY__' };
 window.BRAND=__PORTAIL_BRAND__;
 document.documentElement.style.setProperty('--pc',window.BRAND.couleur||'#1D3557');
 const { createClient } = supabase;
-const sb = createClient(window.SB_CFG.SUPABASE_URL, window.SB_CFG.SUPABASE_ANON_KEY);
+const sb = createClient(window.SB_CFG.SUPABASE_URL, window.SB_CFG.SUPABASE_ANON_KEY, {
+  global: { fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }) }
+});
 function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function money(n){ return new Intl.NumberFormat('fr-FR').format(Math.round(n||0)) + ' FCFA'; }
 function fmtDate(d){ return d ? new Date(d).toLocaleDateString('fr-FR') : '—'; }
