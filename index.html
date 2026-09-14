@@ -264,6 +264,7 @@ window.SB_CFG = {
       </div>
 
       <div class="sidebar-group-title">Réglages</div>
+      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="utilisateurs">👤 <span>Utilisateurs</span></button>
       <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="parametres">⚙️ <span>Paramètres</span></button>
     </nav>
     <div class="px-4 py-4 border-t border-white/10">
@@ -345,13 +346,20 @@ document.getElementById('loginForm').addEventListener('submit', async (e)=>{
   const btn=e.target.querySelector('button[type=submit]'); btn.disabled=true;
   try{
     if(authMode==='signup'){
-      const {error}=await sb.auth.signUp({email,password});
+      const {data,error}=await sb.auth.signUp({email,password});
       if(error) throw error;
+      if(data?.user?.id) await rbacAssignerRoleApresInscription(data.user.id,email);
       showAuthMsg('Compte créé. Connectez-vous.', false);
       authMode='login'; document.getElementById('toggleSignup').click(); document.getElementById('toggleSignup').click();
     } else {
       const {error}=await sb.auth.signInWithPassword({email,password});
       if(error) throw error;
+      const {data:{user}}=await sb.auth.getUser();
+      const {data:profilConnexion}=await sb.from('profiles').select('actif').eq('id',user.id).maybeSingle();
+      if(profilConnexion && profilConnexion.actif===false){
+        await sb.auth.signOut();
+        throw new Error('Ce compte a été désactivé. Contactez un administrateur.');
+      }
       await enterApp();
     }
   }catch(err){ showAuthMsg(err.message||'Erreur', true); }
@@ -362,7 +370,8 @@ async function enterApp(){
   const {data:{user}}=await sb.auth.getUser();
   if(!user) return;
   CURRENT_USER=user;
-  const {data:profile}=await sb.from('profiles').select('nom_complet').eq('id',user.id).maybeSingle();
+  const {data:profile}=await sb.from('profiles').select('nom_complet,email').eq('id',user.id).maybeSingle();
+  if(profile && profile.email!==user.email) sb.from('profiles').update({email:user.email}).eq('id',user.id);
   const displayName=profile?.nom_complet||user.email;
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('appScreen').classList.remove('hidden');
@@ -376,6 +385,8 @@ async function enterApp(){
   refreshProjetsBadges();
   refreshStockAlertesBadge();
   loadAppParams();
+  await rbacCharger();
+  rbacAppliquerSidebar();
   showPage('dashboard');
 }
 (async function boot(){
@@ -384,11 +395,116 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,parametres:renderParametres};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail',utilisateurs:'Utilisateurs & Rôles',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,utilisateurs:renderUtilisateurs,parametres:renderParametres};
 const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-simulateur':'stock-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g'};
+/* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
+const ALL_MODULES=[
+  {code:'Clients',label:'Clients',groupe:'Clients'},
+  {code:'Prospects',label:'Prospects',groupe:'Clients'},
+  {code:'Fournisseurs',label:'Fournisseurs',groupe:'Clients'},
+  {code:'Projets',label:'Projets / Chantiers',groupe:'Chantier'},
+  {code:'Devis',label:'Devis',groupe:'Commercial'},
+  {code:'Factures',label:'Factures',groupe:'Commercial'},
+  {code:'FichesExecution',label:"Fiches d'exécution",groupe:'Chantier'},
+  {code:'Produits',label:'Produits',groupe:'Produits'},
+  {code:'Composants',label:'Composants & consommables',groupe:'Produits'},
+  {code:'Stock',label:'Stock',groupe:'Stock'},
+  {code:'Comptabilite',label:'Comptabilité SYSCOHADA',groupe:'Finance'},
+  {code:'Caisse',label:'Caisse',groupe:'Finance'},
+  {code:'Realisations',label:'Réalisations',groupe:'Site web'},
+  {code:'Utilisateurs',label:'Utilisateurs & Rôles',groupe:'Réglages'},
+  {code:'Parametres',label:'Paramètres',groupe:'Réglages'}
+];
+const GROUP_TO_MODULE={'clients-g':'Clients','prospects-g':'Prospects','fournisseurs-g':'Fournisseurs','projets-g':'Projets','devis-g':'Devis','factures-g':'Factures','fiches-g':'FichesExecution','produits-g':'Produits','composants-g':'Composants','stock-g':'Stock','comptabilite-g':'Comptabilite','caisse-g':'Caisse','realisations-g':'Realisations'};
+const PAGE_TO_MODULE={...Object.fromEntries(Object.entries(PAGE_TO_GROUP).map(([p,g])=>[p,GROUP_TO_MODULE[g]])),utilisateurs:'Utilisateurs',parametres:'Parametres'};
+window._rbac=window._rbac||{roles:[],permissions:[],monProfil:null,loaded:false,provisionne:true};
+async function rbacCharger(force){
+  if(window._rbac.loaded && !force) return window._rbac;
+  const [{data:roles,error:errRoles},{data:perms},{data:profil}]=await Promise.all([
+    sb.from('roles').select('*').order('niveau',{ascending:false}),
+    sb.from('role_permissions').select('*'),
+    sb.from('profiles').select('*').eq('id',CURRENT_USER.id).maybeSingle()
+  ]);
+  // Si le script sql/utilisateurs_roles.sql n'a pas encore été exécuté (table
+  // `roles` inexistante), on ne doit surtout pas bloquer tout le monde en
+  // traitant l'absence de rôle comme un refus — on se comporte comme avant
+  // l'introduction de ce module (accès complet) tant que la migration n'a
+  // pas été appliquée.
+  window._rbac.provisionne=!errRoles;
+  window._rbac.roles=roles||[];
+  window._rbac.permissions=perms||[];
+  window._rbac.monProfil=profil||null;
+  window._rbac.loaded=true;
+  return window._rbac;
+}
+function monRole(){ return (window._rbac.roles||[]).find(r=>r.id===window._rbac.monProfil?.role_id); }
+function permissionModule(moduleCode){
+  const role=monRole();
+  if(!role) return null;
+  return (window._rbac.permissions||[]).find(p=>p.role_id===role.id && p.module_code===moduleCode)||null;
+}
+function peutModule(moduleCode,action){
+  if(!moduleCode) return true;
+  if(!window._rbac.loaded) return true;
+  if(!window._rbac.provisionne) return true;
+  const role=monRole();
+  if(!role) return false;
+  const perm=permissionModule(moduleCode);
+  const autorise=!!(perm && perm['peut_'+action]);
+  if(action==='supprimer' && autorise){
+    if(role.code!=='admin' && role.code!=='manager') return false;
+    if(role.peut_supprimer===false) return false;
+  }
+  return autorise;
+}
+function exigerDroit(moduleCode,action,libelle){
+  if(peutModule(moduleCode,action)) return true;
+  const verbe={voir:'consulter',creer:'créer',modifier:'modifier',supprimer:'supprimer',valider:'valider'}[action]||action;
+  toast(`🔒 Votre rôle ne permet pas de ${verbe} ${libelle||'cet élément'}.`,'error');
+  return false;
+}
+function exigerPlafond(montant,libelle){
+  const role=monRole();
+  const brut=role?role.plafond_validation:null;
+  if(brut===null||brut===undefined) return true;
+  const plafond=+brut;
+  const m=Math.abs(+montant||0);
+  if(m<=plafond) return true;
+  toast(`🔒 Montant de ${money(m)} supérieur à votre plafond de validation (${money(plafond)}). ${libelle||'Cette opération'} doit être approuvée par un responsable habilité.`,'error');
+  return false;
+}
+function rbacAppliquerSidebar(){
+  Object.entries(GROUP_TO_MODULE).forEach(([groupKey,moduleCode])=>{
+    const visible=peutModule(moduleCode,'voir');
+    const parent=document.querySelector(`.nav-parent[data-toggle="${groupKey}"]`);
+    const children=document.querySelector(`.sidebar-children[data-children="${groupKey}"]`);
+    if(parent) parent.classList.toggle('hidden',!visible);
+    if(children) children.classList.toggle('hidden',!visible);
+  });
+  const utilisateursItem=document.querySelector('.nav-item[data-page="utilisateurs"]');
+  if(utilisateursItem) utilisateursItem.classList.toggle('hidden',!peutModule('Utilisateurs','voir'));
+  const paramItem=document.querySelector('.nav-item[data-page="parametres"]');
+  if(paramItem) paramItem.classList.toggle('hidden',!peutModule('Parametres','voir'));
+}
+async function rbacAssignerRoleApresInscription(userId,email){
+  const {data:invitation}=await sb.from('invitations').select('*').eq('email',email).eq('statut','en_attente').maybeSingle();
+  if(invitation){
+    await sb.from('profiles').update({role_id:invitation.role_id}).eq('id',userId);
+    await sb.from('invitations').update({statut:'acceptee',accepted_at:new Date().toISOString()}).eq('id',invitation.id);
+    return;
+  }
+  const {count}=await sb.from('profiles').select('id',{count:'exact',head:true});
+  const {data:roleCible}=await sb.from('roles').select('id').eq('code',(count||0)<=1?'admin':'sans_role').maybeSingle();
+  if(roleCible) await sb.from('profiles').update({role_id:roleCible.id}).eq('id',userId);
+}
+
 window._editId=null;
 async function showPage(page){
+  if(window._rbac.loaded && PAGE_TO_MODULE[page] && !peutModule(PAGE_TO_MODULE[page],'voir')){
+    toast('🔒 Votre rôle ne permet pas d\'accéder à ce module.','error');
+    return;
+  }
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   document.querySelectorAll('.nav-child').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   const groupKey=PAGE_TO_GROUP[page];
@@ -4492,7 +4608,7 @@ function printEstimation(){
 }
 
 /* ============================== PARAMÉTRAGE : SOCIÉTÉ / LOGO / SUPABASE / SYNCHRO / SAUVEGARDE ============================== */
-const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','paiements'];
+const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','paiements','roles','role_permissions','invitations'];
 async function loadAppParams(){
   let {data}=await sb.from('parametres').select('*').limit(1).maybeSingle();
   if(!data){ const res=await sb.from('parametres').insert({}).select().single(); data=res.data; }
@@ -5864,6 +5980,252 @@ async function comptabiliserAchatMouvementStock(composantNom,quantite,prixUnitai
     {ecriture_id:ecr.id,compte_code:requireCompteDefaut('fournisseurs'),sens:'C',montant,libelle}
   ]);
   return ecr;
+}
+
+/* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
+window._rbacUI=window._rbacUI||{tab:'utilisateurs'};
+function moduleLabel(code){ const m=ALL_MODULES.find(x=>x.code===code); return m?m.label:code; }
+async function renderUtilisateurs(el){
+  if(!peutModule('Utilisateurs','voir')){ el.innerHTML='<div class="text-red-600 p-6">🔒 Votre rôle ne permet pas d\'accéder à ce module.</div>'; return; }
+  await rbacCharger(true);
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div><h2>👤 Utilisateurs & Rôles</h2><p class="text-xs text-gray-500">Gestion des comptes, des rôles et de la matrice d'accès par module.</p></div>
+    </div>
+    <div class="flex gap-2 mb-4">
+      <button class="param-tab-btn rbac-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${window._rbacUI.tab==='utilisateurs'?'bg-indigo-600 text-white':''}" onclick="rbacSwitchTab('utilisateurs')">👤 Utilisateurs</button>
+      <button class="param-tab-btn rbac-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${window._rbacUI.tab==='roles'?'bg-indigo-600 text-white':''}" onclick="rbacSwitchTab('roles')">🛡️ Rôles & Accès</button>
+    </div>
+    <div id="rbacTabContent"></div>`;
+  rbacRenderTab();
+}
+function rbacSwitchTab(tab){
+  window._rbacUI.tab=tab;
+  document.querySelectorAll('.rbac-tab-btn').forEach(b=>{ const on=b.textContent.includes(tab==='utilisateurs'?'Utilisateurs':'Rôles'); b.classList.toggle('bg-indigo-600',on); b.classList.toggle('text-white',on); });
+  rbacRenderTab();
+}
+async function rbacRenderTab(){
+  const host=document.getElementById('rbacTabContent');
+  if(!host) return;
+  host.innerHTML='<div class="text-sm text-gray-400 p-8 text-center">Chargement…</div>';
+  if(window._rbacUI.tab==='roles') await rbacRenderRolesTab(host);
+  else await rbacRenderUtilisateursTab(host);
+}
+/* ---------- Onglet Utilisateurs ---------- */
+async function rbacRenderUtilisateursTab(host){
+  const [{data:profils},{data:invitations}]=await Promise.all([
+    sb.from('profiles').select('*, roles(id,code,label,icon)').order('nom_complet',{ascending:true,nullsFirst:false}),
+    sb.from('invitations').select('*, roles(label,icon)').eq('statut','en_attente').order('created_at',{ascending:false})
+  ]);
+  const peutModifier=peutModule('Utilisateurs','modifier');
+  const peutCreer=peutModule('Utilisateurs','creer');
+  const peutSupprimer=peutModule('Utilisateurs','supprimer');
+  host.innerHTML=`
+    <div class="flex justify-end mb-3">
+      <button class="btn btn-primary" onclick="rbacOuvrirInviterModal()">+ Inviter un utilisateur</button>
+    </div>
+    <div class="card overflow-x-auto mb-6">
+      <table><thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${(profils||[]).map(p=>{
+        const soi=p.id===CURRENT_USER.id;
+        return `<tr>
+        <td class="font-semibold">${escapeHtml(p.nom_complet||'—')}${soi?' <span class="text-xs text-gray-400">(vous)</span>':''}</td>
+        <td>${escapeHtml(p.email||'—')}</td>
+        <td>${peutModifier?`<select class="text-xs" onchange="rbacChangerRoleUtilisateur('${p.id}',this.value)">${(window._rbac.roles||[]).filter(r=>r.code!=='sans_role'||r.id===p.role_id).map(r=>`<option value="${r.id}" ${r.id===p.role_id?'selected':''}>${r.icon} ${escapeHtml(r.label)}</option>`).join('')}</select>`
+          :`<span class="badge">${p.roles?p.roles.icon+' '+escapeHtml(p.roles.label):'—'}</span>`}</td>
+        <td>${p.actif===false?'<span class="badge bg-red-50 text-red-700">⛔ Inactif</span>':'<span class="badge bg-emerald-50 text-emerald-700">✅ Actif</span>'}</td>
+        <td class="text-right">${peutModifier && !soi?`<button class="text-xs ${p.actif===false?'text-emerald-600':'text-red-600'}" onclick="rbacToggleActifUtilisateur('${p.id}',${p.actif===false})">${p.actif===false?'✅ Activer':'⛔ Désactiver'}</button>`:''}</td>
+      </tr>`;
+      }).join('')||'<tr><td colspan="5" class="text-gray-400 p-4 text-center">Aucun utilisateur.</td></tr>'}</tbody></table>
+    </div>
+    <h3 class="font-bold text-sm mb-2">Invitations en attente</h3>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Email</th><th>Rôle proposé</th><th>Envoyée le</th><th></th></tr></thead>
+      <tbody>${(invitations||[]).map(i=>`<tr>
+        <td>${escapeHtml(i.email)}</td>
+        <td><span class="badge">${i.roles?i.roles.icon+' '+escapeHtml(i.roles.label):'—'}</span></td>
+        <td>${fmtDate(i.created_at)}</td>
+        <td class="text-right">${peutCreer||peutSupprimer?`<button class="text-xs text-red-600" onclick="rbacAnnulerInvitation('${i.id}')">Annuler</button>`:''}</td>
+      </tr>`).join('')||'<tr><td colspan="4" class="text-gray-400 p-4 text-center">Aucune invitation en attente.</td></tr>'}</tbody></table>
+    </div>`;
+}
+async function rbacChangerRoleUtilisateur(profilId,roleId){
+  if(!exigerDroit('Utilisateurs','modifier','le rôle de cet utilisateur')) return;
+  const {error}=await sb.from('profiles').update({role_id:roleId}).eq('id',profilId);
+  if(error){ toast(error.message,'error'); return; }
+  toast('Rôle mis à jour.');
+  rbacRenderTab();
+}
+async function rbacToggleActifUtilisateur(profilId,rendreActif){
+  if(!exigerDroit('Utilisateurs','modifier',"le statut de cet utilisateur")) return;
+  const {error}=await sb.from('profiles').update({actif:rendreActif}).eq('id',profilId);
+  if(error){ toast(error.message,'error'); return; }
+  toast(rendreActif?'Utilisateur réactivé.':'Utilisateur désactivé.');
+  rbacRenderTab();
+}
+function rbacOuvrirInviterModal(){
+  if(!exigerDroit('Utilisateurs','creer','une invitation')) return;
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">Inviter un utilisateur</h3>
+    <p class="text-xs text-gray-500 mb-3">La personne devra créer son compte elle-même depuis l'écran de connexion (bouton « Première connexion »), avec cet email exact. Le rôle choisi ici lui sera attribué automatiquement à son inscription.</p>
+    <div class="field mb-3"><label>Email</label>${fieldWrap('✉️',`<input id="inviteEmail" type="email" placeholder="nom@exemple.com">`)}</div>
+    <div class="field mb-4"><label>Rôle</label>${fieldWrap('🛡️',`<select id="inviteRole">${(window._rbac.roles||[]).filter(r=>r.code!=='sans_role').map(r=>`<option value="${r.id}">${r.icon} ${escapeHtml(r.label)}</option>`).join('')}</select>`)}</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="rbacEnvoyerInvitation()">Inviter</button></div>`);
+}
+async function rbacEnvoyerInvitation(){
+  const email=document.getElementById('inviteEmail').value.trim().toLowerCase();
+  const roleId=document.getElementById('inviteRole').value;
+  if(!email||!email.includes('@')){ toast('Email invalide.','error'); return; }
+  const {error}=await sb.from('invitations').upsert({email,role_id:roleId,statut:'en_attente',invited_by:CURRENT_USER.id},{onConflict:'email'});
+  if(error){ toast(error.message,'error'); return; }
+  toast('Invitation enregistrée. Communiquez à cette personne comment créer son compte.'); closeModal();
+  rbacRenderTab();
+}
+async function rbacAnnulerInvitation(id){
+  await sb.from('invitations').delete().eq('id',id);
+  toast('Invitation annulée.');
+  rbacRenderTab();
+}
+/* ---------- Onglet Rôles & Accès ---------- */
+async function rbacRenderRolesTab(host){
+  const roles=window._rbac.roles||[];
+  const perms=window._rbac.permissions||[];
+  const {data:profils}=await sb.from('profiles').select('role_id');
+  const nbUtilisateursParRole={};
+  (profils||[]).forEach(p=>{ if(p.role_id) nbUtilisateursParRole[p.role_id]=(nbUtilisateursParRole[p.role_id]||0)+1; });
+  const admin=peutModule('Utilisateurs','modifier');
+  host.innerHTML=`
+    <div class="flex justify-end mb-3">
+      <button class="btn btn-primary" onclick="rbacOuvrirRoleModal()">+ Nouveau rôle</button>
+    </div>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+      ${roles.map(r=>{
+        const nbModules=perms.filter(p=>p.role_id===r.id && p.peut_voir).length;
+        return `<div class="card p-4">
+          <div class="flex justify-between items-start mb-2">
+            <div><span class="text-lg">${r.icon}</span> <b>${escapeHtml(r.label)}</b></div>
+            <span class="badge ${r.est_systeme?'bg-gray-100 text-gray-500':'bg-indigo-50 text-indigo-700'}">${r.est_systeme?'Système':'Personnalisé'}</span>
+          </div>
+          <p class="text-xs text-gray-500 mb-2">${escapeHtml(r.description||'')}</p>
+          <div class="text-xs text-gray-500 mb-3">Niveau ${r.niveau} · ${nbModules} module(s) · ${nbUtilisateursParRole[r.id]||0} utilisateur(s) · Plafond ${r.plafond_validation==null?'illimité':money(r.plafond_validation)}</div>
+          <div class="flex gap-2">
+            ${admin?`<button class="btn btn-outline btn-sm" onclick="rbacOuvrirRoleModal('${r.id}')">✏️ Modifier</button>`:''}
+            ${admin?`<button class="btn btn-outline btn-sm" onclick="rbacOuvrirRoleModal('${r.id}',true)">📋 Dupliquer</button>`:''}
+            ${admin && !r.est_systeme?`<button class="btn btn-outline btn-sm text-red-600" onclick="rbacSupprimerRole('${r.id}')">🗑️</button>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <h3 class="font-bold text-sm mb-2">Matrice des accès (consultation par module)</h3>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Module</th>${roles.map(r=>`<th class="text-center">${r.icon}<br>${escapeHtml(r.label)}</th>`).join('')}</tr></thead>
+      <tbody>${ALL_MODULES.map(m=>`<tr>
+        <td class="font-semibold">${escapeHtml(m.label)}</td>
+        ${roles.map(r=>{
+          const p=perms.find(x=>x.role_id===r.id && x.module_code===m.code);
+          const coche=!!(p&&p.peut_voir);
+          const verrou=r.code==='admin'&&(m.code==='Utilisateurs'||m.code==='Parametres');
+          return `<td class="text-center"><input type="checkbox" ${coche?'checked':''} ${admin&&!verrou?'':'disabled'} onchange="rbacToggleMatrice('${r.id}','${m.code}',this.checked)"></td>`;
+        }).join('')}
+      </tr>`).join('')}</tbody></table>
+    </div>`;
+}
+async function rbacToggleMatrice(roleId,moduleCode,coche){
+  if(!exigerDroit('Utilisateurs','modifier','la matrice des accès')) return;
+  const role=(window._rbac.roles||[]).find(r=>r.id===roleId);
+  if(role && role.code==='admin' && (moduleCode==='Utilisateurs'||moduleCode==='Parametres') && !coche){
+    toast('🔒 Le rôle Administrateur doit toujours garder accès à Utilisateurs et Paramètres.','error');
+    await rbacCharger(true); rbacRenderTab(); return;
+  }
+  const {error}=await sb.from('role_permissions').update({peut_voir:coche}).eq('role_id',roleId).eq('module_code',moduleCode);
+  if(error){ toast(error.message,'error'); return; }
+  await rbacCharger(true);
+  toast('Accès mis à jour.');
+}
+function rbacOuvrirRoleModal(roleId,dupliquer){
+  const role=roleId?(window._rbac.roles||[]).find(r=>r.id===roleId):null;
+  const perms=roleId?(window._rbac.permissions||[]).filter(p=>p.role_id===roleId):[];
+  const permParModule={}; perms.forEach(p=>permParModule[p.module_code]=p);
+  const groupes=[...new Set(ALL_MODULES.map(m=>m.groupe))];
+  window._roleEnEdition={id:dupliquer?null:roleId};
+  openModal(`
+    <h3 class="font-bold text-lg mb-4">${role?(dupliquer?'Dupliquer le rôle « '+escapeHtml(role.label)+' »':'Modifier le rôle')+ (role.est_systeme&&!dupliquer?' <span class="text-xs text-gray-400">(rôle système)</span>':''):'Nouveau rôle'}</h3>
+    <div class="grid sm:grid-cols-3 gap-3 mb-3">
+      <div class="field sm:col-span-2"><label>Libellé</label>${fieldWrap('🛡️',`<input id="roleLabel" value="${escapeHtml(dupliquer?role.label+' (copie)':(role?.label||''))}">`)}</div>
+      <div class="field"><label>Icône (emoji)</label>${fieldWrap('🙂',`<input id="roleIcon" value="${escapeHtml(role?.icon||'👤')}" maxlength="4">`)}</div>
+    </div>
+    <div class="grid sm:grid-cols-2 gap-3 mb-3">
+      <div class="field"><label>Niveau hiérarchique (1 à 4)</label>${fieldWrap('📶',`<select id="roleNiveau">${[1,2,3,4].map(n=>`<option value="${n}" ${role&&role.niveau===n?'selected':''}>${n}</option>`).join('')}</select>`)}</div>
+      <div class="field"><label>Plafond de validation (FCFA, vide = illimité)</label>${fieldWrap('💰',`<input id="rolePlafond" type="number" value="${role&&role.plafond_validation!=null?role.plafond_validation:''}">`)}</div>
+    </div>
+    <div class="field mb-4"><label>Description</label>${fieldWrap('📝',`<input id="roleDescription" value="${escapeHtml(role?.description||'')}">`)}</div>
+    <div class="mb-4 max-h-72 overflow-y-auto border rounded-lg p-3">
+      ${groupes.map(g=>`
+        <div class="text-xs font-bold text-gray-400 mt-2 mb-1">${escapeHtml(g)}</div>
+        ${ALL_MODULES.filter(m=>m.groupe===g).map(m=>{
+          const p=permParModule[m.code]||{};
+          const idBase='rp_'+m.code;
+          return `<div class="flex items-center gap-3 py-1 flex-wrap">
+            <label class="flex items-center gap-1 text-sm w-56"><input type="checkbox" id="${idBase}_voir" ${p.peut_voir?'checked':''} onchange="document.querySelectorAll('.${idBase}_sub').forEach(c=>c.disabled=!this.checked)"> ${escapeHtml(m.label)}</label>
+            <label class="flex items-center gap-1 text-xs"><input type="checkbox" class="${idBase}_sub" id="${idBase}_creer" ${p.peut_creer?'checked':''} ${p.peut_voir?'':'disabled'}> créer</label>
+            <label class="flex items-center gap-1 text-xs"><input type="checkbox" class="${idBase}_sub" id="${idBase}_modifier" ${p.peut_modifier?'checked':''} ${p.peut_voir?'':'disabled'}> modifier</label>
+            <label class="flex items-center gap-1 text-xs"><input type="checkbox" class="${idBase}_sub" id="${idBase}_supprimer" ${p.peut_supprimer?'checked':''} ${p.peut_voir?'':'disabled'}> supprimer</label>
+            <label class="flex items-center gap-1 text-xs"><input type="checkbox" class="${idBase}_sub" id="${idBase}_valider" ${p.peut_valider?'checked':''} ${p.peut_voir?'':'disabled'}> valider</label>
+          </div>`;
+        }).join('')}`).join('')}
+    </div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="rbacSauverRole()">Enregistrer</button></div>`);
+}
+async function rbacSauverRole(){
+  if(!exigerDroit('Utilisateurs','modifier','les rôles')) return;
+  const label=document.getElementById('roleLabel').value.trim();
+  const icon=document.getElementById('roleIcon').value.trim()||'👤';
+  const niveau=+document.getElementById('roleNiveau').value;
+  const plafondBrut=document.getElementById('rolePlafond').value;
+  const plafond=plafondBrut===''?null:+plafondBrut;
+  const description=document.getElementById('roleDescription').value.trim();
+  if(!label){ toast('Libellé requis.','error'); return; }
+  const roleIdEdite=window._roleEnEdition?.id;
+  const roleExistant=roleIdEdite?(window._rbac.roles||[]).find(r=>r.id===roleIdEdite):null;
+  const estAdmin=roleExistant?.code==='admin';
+  let roleId=roleIdEdite;
+  if(roleId){
+    const {error}=await sb.from('roles').update({label,icon,niveau:estAdmin?4:niveau,plafond_validation:plafond,description}).eq('id',roleId);
+    if(error){ toast(error.message,'error'); return; }
+  } else {
+    const code=label.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'')||('role_'+Date.now());
+    const {data:codeExiste}=await sb.from('roles').select('id').eq('code',code).maybeSingle();
+    const codeFinal=codeExiste?code+'_'+Date.now().toString().slice(-5):code;
+    const {data:nouveauRole,error}=await sb.from('roles').insert({code:codeFinal,label,icon,niveau,est_systeme:false,peut_supprimer:true,plafond_validation:plafond,description}).select().single();
+    if(error){ toast(error.message,'error'); return; }
+    roleId=nouveauRole.id;
+  }
+  for(const m of ALL_MODULES){
+    const idBase='rp_'+m.code;
+    let peutVoir=document.getElementById(idBase+'_voir').checked;
+    let peutCreer=document.getElementById(idBase+'_creer').checked;
+    let peutModifier=document.getElementById(idBase+'_modifier').checked;
+    let peutSupprimer=document.getElementById(idBase+'_supprimer').checked;
+    let peutValider=document.getElementById(idBase+'_valider').checked;
+    if(estAdmin && (m.code==='Utilisateurs'||m.code==='Parametres')){ peutVoir=true; peutCreer=true; peutModifier=true; peutSupprimer=true; peutValider=true; }
+    await sb.from('role_permissions').upsert({role_id:roleId,module_code:m.code,peut_voir:peutVoir,peut_creer:peutCreer,peut_modifier:peutModifier,peut_supprimer:peutSupprimer,peut_valider:peutValider},{onConflict:'role_id,module_code'});
+  }
+  toast('Rôle enregistré.'); closeModal();
+  await rbacCharger(true);
+  showPage('utilisateurs');
+}
+async function rbacSupprimerRole(roleId){
+  const role=(window._rbac.roles||[]).find(r=>r.id===roleId);
+  if(!role) return;
+  if(role.est_systeme){ toast('Les rôles système sont protégés contre la suppression.','error'); return; }
+  if(!exigerDroit('Utilisateurs','supprimer','ce rôle')) return;
+  if(!confirm(`Supprimer le rôle « ${role.label} » ? Les utilisateurs qui l'ont actuellement seront basculés sur « Sans rôle ».`)) return;
+  const {data:sansRole}=await sb.from('roles').select('id').eq('code','sans_role').maybeSingle();
+  if(sansRole) await sb.from('profiles').update({role_id:sansRole.id}).eq('role_id',roleId);
+  await sb.from('roles').delete().eq('id',roleId);
+  toast('Rôle supprimé.');
+  await rbacCharger(true);
+  showPage('utilisateurs');
 }
 
 /* ============================== RÉALISATIONS (galerie du site public) ============================== */
