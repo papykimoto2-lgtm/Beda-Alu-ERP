@@ -3888,10 +3888,10 @@ const DOC_NOTES_HTML=`
   <p style="margin:2px 0;color:#4b5563;font-size:12.5px">- 40% avant la livraison (vitrage et quincaillerie)</p>`;
 function docLignesRows(lignes){
   const groupes={};
-  (lignes||[]).forEach(l=>{ (groupes[l.piece||'Non renseigné']=groupes[l.piece||'Non renseigné']||[]).push(l); });
+  (lignes||[]).forEach(l=>{ const cle=l.piece||''; (groupes[cle]=groupes[cle]||[]).push(l); });
   let num=0, html='';
   Object.entries(groupes).forEach(([piece,rows])=>{
-    html+=`<tr><td colspan="9" style="font-style:italic;font-weight:700;padding:8px 4px 4px;border:0">${escapeHtml(piece)}</td></tr>`;
+    if(piece) html+=`<tr><td colspan="9" style="font-style:italic;font-weight:700;padding:8px 4px 4px;border:0">${escapeHtml(piece)}</td></tr>`;
     rows.forEach(l=>{
       num++;
       const pub=+l.prix_unitaire||0, remise=+l.remise_pct||0, pur=pub*(1-remise/100), mt=(+l.quantite||0)*pur;
@@ -3972,6 +3972,8 @@ function docHeaderHtml(client,meta){
     </div>
     <div class="doc-code">
       <div class="code-txt">${escapeHtml(meta.code)}</div>
+      ${meta.dateCreation?`<p>Date : ${fmtDate(meta.dateCreation)}</p>`:''}
+      ${meta.dateEcheance?`<p>Valable jusqu'au : ${fmtDate(meta.dateEcheance)}</p>`:''}
       ${meta.statutBadge||''}
     </div>
   </div>`;
@@ -4015,7 +4017,7 @@ async function renderDevisDetail(el){
       </div>
     </div>
     <div class="page-card">
-      ${docHeaderHtml(d.clients,{code:d.code,lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune,statutBadge:`<span class="pill ${st.color||''}" style="margin-top:6px;display:inline-block">${escapeHtml(st.label)}</span>`})}
+      ${docHeaderHtml(d.clients,{code:d.code,lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune,dateCreation:d.date_creation,dateEcheance:d.date_echeance,statutBadge:`<span class="pill ${st.color||''}" style="margin-top:6px;display:inline-block">${escapeHtml(st.label)}</span>`})}
       <h3 class="font-bold mb-2">DEVIS : ${escapeHtml(d.libelle||'—')}</h3>
       <div class="overflow-x-auto"><table class="doc-table">
         <thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
@@ -4118,7 +4120,7 @@ async function printDevis(devisId){
   const {data:lignes}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
   const sousTotal=(lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100),0);
   const win=window.open('','_blank','width=950,height=1150'); if(!win) return;
-  win.document.write(printDocHtml('DEVIS',d.code,d.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0));
+  win.document.write(printDocHtml('DEVIS',d.code,d.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune,dateCreation:d.date_creation,dateEcheance:d.date_echeance},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0));
   win.document.close(); win.focus();
 }
 function printDocHtml(type,code,client,meta,libelle,lignes,sousTotal,reduction,autreFrais){
