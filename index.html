@@ -264,7 +264,6 @@ window.SB_CFG = {
       </div>
 
       <div class="sidebar-group-title">Réglages</div>
-      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="utilisateurs">👤 <span>Utilisateurs</span></button>
       <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="parametres">⚙️ <span>Paramètres</span></button>
     </nav>
     <div class="px-4 py-4 border-t border-white/10">
@@ -395,8 +394,8 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail',utilisateurs:'Utilisateurs & Rôles',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,utilisateurs:renderUtilisateurs,parametres:renderParametres};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Stock — Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,parametres:renderParametres};
 const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-simulateur':'stock-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g'};
 /* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
 const ALL_MODULES=[
@@ -417,7 +416,7 @@ const ALL_MODULES=[
   {code:'Parametres',label:'Paramètres',groupe:'Réglages'}
 ];
 const GROUP_TO_MODULE={'clients-g':'Clients','prospects-g':'Prospects','fournisseurs-g':'Fournisseurs','projets-g':'Projets','devis-g':'Devis','factures-g':'Factures','fiches-g':'FichesExecution','produits-g':'Produits','composants-g':'Composants','stock-g':'Stock','comptabilite-g':'Comptabilite','caisse-g':'Caisse','realisations-g':'Realisations'};
-const PAGE_TO_MODULE={...Object.fromEntries(Object.entries(PAGE_TO_GROUP).map(([p,g])=>[p,GROUP_TO_MODULE[g]])),utilisateurs:'Utilisateurs',parametres:'Parametres'};
+const PAGE_TO_MODULE={...Object.fromEntries(Object.entries(PAGE_TO_GROUP).map(([p,g])=>[p,GROUP_TO_MODULE[g]])),parametres:'Parametres'};
 window._rbac=window._rbac||{roles:[],permissions:[],monProfil:null,loaded:false,provisionne:true};
 async function rbacCharger(force){
   if(window._rbac.loaded && !force) return window._rbac;
@@ -482,8 +481,6 @@ function rbacAppliquerSidebar(){
     if(parent) parent.classList.toggle('hidden',!visible);
     if(children) children.classList.toggle('hidden',!visible);
   });
-  const utilisateursItem=document.querySelector('.nav-item[data-page="utilisateurs"]');
-  if(utilisateursItem) utilisateursItem.classList.toggle('hidden',!peutModule('Utilisateurs','voir'));
   const paramItem=document.querySelector('.nav-item[data-page="parametres"]');
   if(paramItem) paramItem.classList.toggle('hidden',!peutModule('Parametres','voir'));
 }
@@ -4632,6 +4629,7 @@ async function renderParametres(el){
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="fne" onclick="switchParamTab('fne')">🧾 FNE (DGI)</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="portail" onclick="switchParamTab('portail')">🌐 Portail client</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="compta" onclick="switchParamTab('compta')">📗 Comptabilité</button>
+      ${peutModule('Utilisateurs','voir')?`<button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="utilisateurs" onclick="switchParamTab('utilisateurs')">👤 Utilisateurs</button>`:''}
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="supabase" onclick="switchParamTab('supabase')">☁️ Supabase</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="synchro" onclick="switchParamTab('synchro')">🔄 Synchro</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="sauvegarde" onclick="switchParamTab('sauvegarde')">💾 Sauvegarde</button>
@@ -4770,6 +4768,10 @@ async function renderParametres(el){
       </div>
     </div>
 
+    ${peutModule('Utilisateurs','voir')?`<div id="paramTab-utilisateurs" class="param-tab hidden">
+      <div id="utilisateursMount"></div>
+    </div>`:''}
+
     <div id="paramTab-sauvegarde" class="param-tab hidden">
       <div class="page-card max-w-2xl">
         <h2>💾 Export / Import de sauvegarde</h2>
@@ -4813,6 +4815,7 @@ async function renderParametres(el){
     if(error){ toast(error.message,'error'); return; }
     toast('Comptes par défaut enregistrés.'); await loadAppParams();
   };
+  if(peutModule('Utilisateurs','voir')) rbacMonter(document.getElementById('utilisateursMount'));
 }
 /* ============================== COMPTABILITÉ SYSCOHADA ============================== */
 /* Plan comptable, journaux et écritures en partie double, avec contrôle d'équilibre,
@@ -5982,16 +5985,14 @@ async function comptabiliserAchatMouvementStock(composantNom,quantite,prixUnitai
   return ecr;
 }
 
-/* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
+/* ============================== UTILISATEURS, RÔLES & ACCÈS (sous-onglet de Paramétrage) ============================== */
 window._rbacUI=window._rbacUI||{tab:'utilisateurs'};
 function moduleLabel(code){ const m=ALL_MODULES.find(x=>x.code===code); return m?m.label:code; }
-async function renderUtilisateurs(el){
-  if(!peutModule('Utilisateurs','voir')){ el.innerHTML='<div class="text-red-600 p-6">🔒 Votre rôle ne permet pas d\'accéder à ce module.</div>'; return; }
+async function rbacMonter(host){
+  if(!host) return;
+  if(!peutModule('Utilisateurs','voir')){ host.innerHTML='<div class="text-red-600 p-6">🔒 Votre rôle ne permet pas d\'accéder à ce module.</div>'; return; }
   await rbacCharger(true);
-  el.innerHTML=`
-    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
-      <div><h2>👤 Utilisateurs & Rôles</h2><p class="text-xs text-gray-500">Gestion des comptes, des rôles et de la matrice d'accès par module.</p></div>
-    </div>
+  host.innerHTML=`
     <div class="flex gap-2 mb-4">
       <button class="param-tab-btn rbac-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${window._rbacUI.tab==='utilisateurs'?'bg-indigo-600 text-white':''}" onclick="rbacSwitchTab('utilisateurs')">👤 Utilisateurs</button>
       <button class="param-tab-btn rbac-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${window._rbacUI.tab==='roles'?'bg-indigo-600 text-white':''}" onclick="rbacSwitchTab('roles')">🛡️ Rôles & Accès</button>
@@ -6212,7 +6213,7 @@ async function rbacSauverRole(){
   }
   toast('Rôle enregistré.'); closeModal();
   await rbacCharger(true);
-  showPage('utilisateurs');
+  rbacMonter(document.getElementById('utilisateursMount'));
 }
 async function rbacSupprimerRole(roleId){
   const role=(window._rbac.roles||[]).find(r=>r.id===roleId);
@@ -6225,7 +6226,7 @@ async function rbacSupprimerRole(roleId){
   await sb.from('roles').delete().eq('id',roleId);
   toast('Rôle supprimé.');
   await rbacCharger(true);
-  showPage('utilisateurs');
+  rbacMonter(document.getElementById('utilisateursMount'));
 }
 
 /* ============================== RÉALISATIONS (galerie du site public) ============================== */
