@@ -4887,7 +4887,10 @@ function requireCompteDefaut(cle){
 }
 async function genererRefEcriture(annee){
   const {count}=await sb.from('compta_ecritures').select('id',{count:'exact',head:true}).eq('exercice_annee',annee);
-  return `JL-${annee}-${String((count||0)+1).padStart(5,'0')}`;
+  // Robuste après suppression : on ne repart jamais sous le plus grand numéro existant
+  const {data:dern}=await sb.from('compta_ecritures').select('ref').eq('exercice_annee',annee).like('ref',`JL-${annee}-%`).order('ref',{ascending:false}).limit(1);
+  const maxN=dern&&dern[0]?(parseInt(String(dern[0].ref).split('-').pop(),10)||0):0;
+  return `JL-${annee}-${String(Math.max(count||0,maxN)+1).padStart(5,'0')}`;
 }
 function detecterJournal(lignes){
   const codes=(lignes||[]).map(l=>l.compte_code||'');
@@ -5565,6 +5568,17 @@ async function renderCaisseDetail(el){
   const entrees=mvts.filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
   const sorties=mvts.filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
   const solde=session?(+session.fond_ouverture||0)+entrees-sorties:0;
+  // Verrous d'affichage (encaissement facture / écriture validée) pour les boutons Modifier-Supprimer
+  const ecrIdsDetail=mvts.map(m=>m.ecriture_id).filter(Boolean);
+  const ecrValidees=new Set(), ecrPaiements=new Set();
+  if(ecrIdsDetail.length){
+    const [{data:eV},{data:pV}]=await Promise.all([
+      sb.from('compta_ecritures').select('id,valide_le').in('id',ecrIdsDetail),
+      sb.from('paiements').select('ecriture_id').in('ecriture_id',ecrIdsDetail)
+    ]);
+    (eV||[]).forEach(e=>{ if(e.valide_le) ecrValidees.add(e.id); });
+    (pV||[]).forEach(p=>ecrPaiements.add(p.ecriture_id));
+  }
   window._caisseDetailCache={caisse:c,session,mvts};
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
@@ -5592,7 +5606,7 @@ async function renderCaisseDetail(el){
           <td>${escapeHtml(m.motif)}${m.beneficiaire?' — '+escapeHtml(m.beneficiaire):''}</td>
           <td class="text-right font-semibold">${money(m.montant)}</td>
           <td>${m.statut==='ventile'?`<span class="badge bg-emerald-50 text-emerald-700">✔ Ventilé</span>`:'<span class="badge bg-amber-50 text-amber-700">À ventiler</span>'}</td>
-          <td class="text-right">${m.statut==='a_ventiler'?`<button class="text-xs text-indigo-600" onclick="caisseOuvrirVentilerModal('${m.id}')">Ventiler</button>`:''}</td>
+          <td class="text-right whitespace-nowrap">${caisseActionsHtml(m,ecrValidees,ecrPaiements)}</td>
         </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4 text-center">Aucun mouvement dans cette séance.</td></tr>'}</tbody></table>
       </div>`
       :`<div class="card p-6 text-center"><p class="text-gray-500 mb-4">Aucune séance ouverte pour cette caisse.</p><button class="btn btn-primary" onclick="caisseOuvrirSessionModal()">🔓 Ouvrir la caisse</button></div>`}`;
@@ -5634,11 +5648,217 @@ async function caisseSauverBon(type,sessionId){
   if(!motif){ toast('Motif requis.','error'); return; }
   const {caisse}=window._caisseDetailCache;
   const {count}=await sb.from('caisse_mouvements').select('id',{count:'exact',head:true}).eq('caisse_id',caisse.id);
-  const numero=`${type==='entree'?'BE':'BS'}-${String((count||0)+1).padStart(5,'0')}`;
+  // Robuste après suppression : jamais de doublon de numéro de bon
+  const {data:numsBons}=await sb.from('caisse_mouvements').select('numero').eq('caisse_id',caisse.id).or('numero.like.BE-%,numero.like.BS-%');
+  const maxBon=(numsBons||[]).reduce((mx,r)=>{const n=parseInt(String(r.numero).split('-').pop(),10);return Number.isFinite(n)&&n>mx?n:mx;},0);
+  const numero=`${type==='entree'?'BE':'BS'}-${String(Math.max(count||0,maxBon)+1).padStart(5,'0')}`;
   const {error}=await sb.from('caisse_mouvements').insert({session_id:sessionId,caisse_id:caisse.id,numero,date_mouvement,type,montant,motif,beneficiaire:beneficiaire||null,statut:'a_ventiler',created_by:CURRENT_USER.id});
   if(error){ toast(error.message,'error'); return; }
   toast('Bon enregistré.'); closeModal();
   showPage('caisse-detail');
+}
+/* ============================== CAISSE — MODIFIER / SUPPRIMER UN MOUVEMENT ==============================
+   Règles :
+   - Uniquement dans une séance OUVERTE (séance clôturée = verrouillée, l'écart de clôture est figé).
+   - Exercice clôturé → refusé. Écriture comptable VALIDÉE → refusé (contre-passation obligatoire).
+   - Mouvement issu d'un encaissement de facture (ENC-…) → refusé (à corriger depuis la facture).
+   - Transfert : les 2 jambes (TRF-OUT / TRF-IN) sont modifiées / supprimées ensemble.
+   - Mouvement déjà ventilé (écriture non validée) : l'écriture est mise à jour (modif) ou supprimée (suppr.).
+   - Suppression : motif obligatoire ; traçabilité dans caisse_mouvements_audit (voir sql/caisse_audit.sql).
+   - Droits : module « Caisse » (modifier / supprimer) + plafond de validation du rôle. */
+window._caisseBusy=false;
+function caisseActionsHtml(m,valides,paiements){
+  const ventiler=m.statut==='a_ventiler'?`<button class="text-xs text-indigo-600" onclick="caisseOuvrirVentilerModal('${m.id}')">Ventiler</button>`:'';
+  let verrou=null;
+  if(String(m.numero||'').startsWith('ENC-')||(m.ecriture_id&&paiements.has(m.ecriture_id))) verrou='Encaissement de facture : à corriger depuis la facture.';
+  else if(m.ecriture_id&&valides.has(m.ecriture_id)) verrou='Écriture comptable validée : passez une contre-passation.';
+  else if(exerciceEstClos(m.date_mouvement)) verrou='Exercice clôturé pour cette date.';
+  if(verrou) return `${ventiler} <button class="text-xs text-gray-400" title="${escapeHtml(verrou)}" onclick="toast(this.title,'error')">🔒</button>`;
+  const btnMod=peutModule('Caisse','modifier')?` <button class="text-xs text-blue-600" onclick="caisseOuvrirModifierModal('${m.id}')">✏️ Modifier</button>`:'';
+  const btnSup=peutModule('Caisse','supprimer')?` <button class="text-xs text-red-600" onclick="caisseOuvrirSupprimerModal('${m.id}')">🗑 Supprimer</button>`:'';
+  return `${ventiler}${btnMod}${btnSup}`;
+}
+/* Recharge l'état réel en base et vérifie que le mouvement (et sa jambe de transfert) est modifiable. */
+async function caisseControleMouvement(mvtId){
+  await comptaChargerReferentiel();
+  const sel='*, caisses(nom,compte_code), caisse_sessions(statut)';
+  const {data:mvt}=await sb.from('caisse_mouvements').select(sel).eq('id',mvtId).maybeSingle();
+  if(!mvt) return {ok:false,message:'Mouvement introuvable (déjà supprimé ?).'};
+  let legs=[mvt];
+  if(mvt.transfert_id){
+    const {data:autres}=await sb.from('caisse_mouvements').select(sel).eq('transfert_id',mvt.transfert_id).neq('id',mvt.id);
+    legs=legs.concat(autres||[]);
+  }
+  const ecrIds=legs.map(l=>l.ecriture_id).filter(Boolean);
+  let ecrs=[]; const paiementsEcr=new Set();
+  if(ecrIds.length){
+    const [{data:e},{data:p}]=await Promise.all([
+      sb.from('compta_ecritures').select('id,ref,valide_le,exercice_annee').in('id',ecrIds),
+      sb.from('paiements').select('ecriture_id').in('ecriture_id',ecrIds)
+    ]);
+    ecrs=e||[]; (p||[]).forEach(x=>paiementsEcr.add(x.ecriture_id));
+  }
+  for(const l of legs){
+    const lib=legs.length>1?` (${l.caisses?.nom||'caisse'})`:'';
+    if(String(l.numero||'').startsWith('ENC-')||(l.ecriture_id&&paiementsEcr.has(l.ecriture_id)))
+      return {ok:false,message:'Mouvement généré par un encaissement de facture : à corriger depuis la facture.'};
+    if(l.caisse_sessions?.statut!=='ouverte') return {ok:false,message:`Séance clôturée${lib} : mouvement verrouillé.`};
+    if(exerciceEstClos(l.date_mouvement)) return {ok:false,message:`Exercice clôturé pour le ${fmtDate(l.date_mouvement)}${lib}.`};
+    const e=ecrs.find(x=>x.id===l.ecriture_id);
+    if(e&&e.valide_le) return {ok:false,message:`Écriture ${e.ref} validée${lib} : intangible, passez une contre-passation.`};
+  }
+  return {ok:true,mvt,legs,ecrs};
+}
+/* Solde de la séance après changement de montant d'un mouvement (nouveauMontant=0 pour une suppression). */
+async function caisseSoldeApres(leg,nouveauMontant){
+  const [{data:s},{data:ms}]=await Promise.all([
+    sb.from('caisse_sessions').select('fond_ouverture').eq('id',leg.session_id).single(),
+    sb.from('caisse_mouvements').select('id,type,montant').eq('session_id',leg.session_id)
+  ]);
+  let solde=(+(s&&s.fond_ouverture))||0;
+  (ms||[]).forEach(m=>{ const mt=m.id===leg.id?nouveauMontant:(+m.montant||0); solde+=m.type==='entree'?mt:-mt; });
+  return solde;
+}
+function caisseSansJointures(l){ const {caisses,caisse_sessions,...brut}=l; return brut; }
+/* Journal d'audit — best effort : n'interrompt jamais l'opération si la table n'existe pas encore. */
+async function caisseAuditer(action,legs,details){
+  try{
+    const rows=legs.map(l=>({mouvement_id:l.id,caisse_id:l.caisse_id,numero:l.numero,action,donnees:caisseSansJointures(l),details:details||null,user_email:(CURRENT_USER&&CURRENT_USER.email)||null}));
+    const {error}=await sb.from('caisse_mouvements_audit').insert(rows);
+    if(error) console.warn('Audit caisse non enregistré (exécutez sql/caisse_audit.sql) :',error.message);
+  }catch(e){ console.warn('Audit caisse :',e); }
+}
+
+/* ---------- MODIFIER ---------- */
+async function caisseOuvrirModifierModal(mvtId){
+  if(!exigerDroit('Caisse','modifier','ce mouvement de caisse')) return;
+  const ctl=await caisseControleMouvement(mvtId);
+  if(!ctl.ok){ toast('🔒 '+ctl.message,'error'); return; }
+  const {mvt,legs,ecrs}=ctl;
+  const estTrf=!!mvt.transfert_id;
+  const ventiles=legs.filter(l=>l.statut==='ventile'&&l.ecriture_id);
+  openModal(`
+    <h3 class="font-bold text-lg mb-1">✏️ Modifier ${escapeHtml(mvt.numero||'le mouvement')}</h3>
+    <p class="text-xs text-gray-500 mb-4">${estTrf?'Transfert lié entre deux caisses : la date et le montant sont modifiés des deux côtés.':(mvt.type==='entree'?"Bon d'entrée":'Bon de sortie')+' — le type ne peut pas être changé (supprimez puis recréez le bon).'}</p>
+    ${ventiles.length?`<div class="text-xs bg-amber-50 text-amber-800 rounded-lg p-2 mb-3">⚠ Mouvement déjà ventilé : l'écriture ${ventiles.map(l=>escapeHtml((ecrs.find(e=>e.id===l.ecriture_id)||{}).ref||'')).join(', ')} sera mise à jour (même compte de contrepartie).</div>`:''}
+    <div class="grid sm:grid-cols-2 gap-3 mb-3">
+      <div class="field"><label>Date</label>${fieldWrap('📅',`<input id="edDate" type="date" value="${escapeHtml(mvt.date_mouvement||'')}">`)}</div>
+      <div class="field"><label>Montant (FCFA)</label>${fieldWrap('💵',`<input id="edMontant" type="number" min="1" value="${+mvt.montant||''}">`)}</div>
+    </div>
+    ${estTrf?'':`
+    <div class="field mb-3"><label>Motif</label>${fieldWrap('📝',`<input id="edMotif" value="${escapeHtml(mvt.motif||'')}">`)}</div>
+    <div class="field mb-4"><label>${mvt.type==='entree'?'Provenance':'Bénéficiaire'}</label>${fieldWrap('👤',`<input id="edBenef" value="${escapeHtml(mvt.beneficiaire||'')}">`)}</div>`}
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseConfirmerModification('${mvt.id}')">Enregistrer</button></div>`);
+}
+async function caisseEcrireLeg(leg,v){
+  const {data,error}=await sb.from('caisse_mouvements').update({date_mouvement:v.date_mouvement,montant:v.montant,motif:v.motif,beneficiaire:v.beneficiaire}).eq('id',leg.id).select('id');
+  if(error) return error;
+  if(!data||!data.length) return new Error('Modification refusée par la base (droits insuffisants ?).');
+  if(leg.statut==='ventile'&&leg.ecriture_id){
+    const {error:e1}=await sb.from('compta_ecritures').update({date_ecriture:v.date_mouvement,libelle:v.motif}).eq('id',leg.ecriture_id);
+    if(e1) return e1;
+    const {error:e2}=await sb.from('compta_lignes').update({montant:v.montant,libelle:v.motif}).eq('ecriture_id',leg.ecriture_id);
+    if(e2) return e2;
+  }
+  return null;
+}
+async function caisseConfirmerModification(mvtId){
+  if(window._caisseBusy) return;
+  if(!exigerDroit('Caisse','modifier','ce mouvement de caisse')) return;
+  const date=document.getElementById('edDate').value;
+  const montant=+document.getElementById('edMontant').value||0;
+  const motifEl=document.getElementById('edMotif');
+  const motif=motifEl?motifEl.value.trim():null;
+  const benef=document.getElementById('edBenef')?document.getElementById('edBenef').value.trim():null;
+  if(!date){ toast('Date requise.','error'); return; }
+  if(!montant||montant<=0){ toast('Montant invalide.','error'); return; }
+  if(motifEl&&!motif){ toast('Motif requis.','error'); return; }
+  window._caisseBusy=true;
+  try{
+    const ctl=await caisseControleMouvement(mvtId);          // re-contrôle sur l'état réel
+    if(!ctl.ok){ toast('🔒 '+ctl.message,'error'); return; }
+    const {mvt,legs}=ctl;
+    if(exerciceEstClos(date)){ toast('Exercice clôturé pour la nouvelle date.','error'); return; }
+    if(legs.some(l=>l.statut==='ventile'&&new Date(l.date_mouvement).getFullYear()!==new Date(date).getFullYear())){
+      toast("Mouvement ventilé : impossible de changer d'année (exercice de l'écriture).",'error'); return;
+    }
+    if(!exigerPlafond(Math.max(montant,+mvt.montant||0),'La modification de ce mouvement')) return;
+    // Alerte solde négatif
+    const negatifs=[];
+    for(const l of legs){ const sd=await caisseSoldeApres(l,montant); if(sd<0) negatifs.push(`${l.caisses?.nom||'caisse'} : ${money(sd)}`); }
+    if(negatifs.length && !confirm(`Après modification, le solde deviendrait négatif (${negatifs.join(' ; ')}). Continuer ?`)) return;
+    // Application (jambes de transfert : rollback si l'une échoue)
+    const faits=[];
+    for(const l of legs){
+      const estCourant=l.id===mvt.id;
+      const v={date_mouvement:date,montant,motif:(!mvt.transfert_id&&estCourant)?motif:l.motif,beneficiaire:(!mvt.transfert_id&&estCourant)?(benef||null):l.beneficiaire};
+      const err=await caisseEcrireLeg(l,v);
+      if(err){
+        for(const f of faits) await caisseEcrireLeg(f,{date_mouvement:f.date_mouvement,montant:f.montant,motif:f.motif,beneficiaire:f.beneficiaire});
+        toast('Échec de la modification : '+err.message,'error'); return;
+      }
+      faits.push(l);
+    }
+    await caisseAuditer('modification',legs,{avant:{date_mouvement:mvt.date_mouvement,montant:mvt.montant,motif:mvt.motif,beneficiaire:mvt.beneficiaire},apres:{date_mouvement:date,montant,motif:mvt.transfert_id?mvt.motif:motif,beneficiaire:mvt.transfert_id?mvt.beneficiaire:(benef||null)}});
+    toast(mvt.transfert_id?'Transfert modifié des deux côtés.':'Mouvement modifié.'); closeModal();
+    showPage('caisse-detail');
+  } finally { window._caisseBusy=false; }
+}
+
+/* ---------- SUPPRIMER ---------- */
+async function caisseOuvrirSupprimerModal(mvtId){
+  if(!exigerDroit('Caisse','supprimer','ce mouvement de caisse')) return;
+  const ctl=await caisseControleMouvement(mvtId);
+  if(!ctl.ok){ toast('🔒 '+ctl.message,'error'); return; }
+  const {mvt,legs,ecrs}=ctl;
+  const ventiles=legs.filter(l=>l.statut==='ventile'&&l.ecriture_id);
+  openModal(`
+    <h3 class="font-bold text-lg mb-3 text-red-600">🗑 Supprimer ${escapeHtml(mvt.numero||'le mouvement')}</h3>
+    <div class="card p-3 mb-3 text-sm">
+      ${legs.map(l=>`<div>${escapeHtml(l.caisses?.nom||'')} — ${fmtDate(l.date_mouvement)} — <span class="${l.type==='entree'?'text-emerald-600':'text-red-600'}">${l.type==='entree'?'▲ Entrée':'▼ Sortie'}</span> <b>${money(l.montant)}</b><br><span class="text-xs text-gray-500">${escapeHtml(l.motif||'')}</span></div>`).join('<hr class="my-2">')}
+    </div>
+    ${legs.length>1?`<div class="text-xs bg-amber-50 text-amber-800 rounded-lg p-2 mb-3">⚠ Transfert : les deux mouvements (sortie et entrée) seront supprimés.</div>`:''}
+    ${ventiles.length?`<div class="text-xs bg-amber-50 text-amber-800 rounded-lg p-2 mb-3">⚠ L'écriture comptable ${ventiles.map(l=>escapeHtml((ecrs.find(e=>e.id===l.ecriture_id)||{}).ref||'')).join(', ')} (non validée) sera également supprimée.</div>`:''}
+    <div class="field mb-4"><label>Motif de la suppression (obligatoire)</label>${fieldWrap('📝',`<input id="supMotif" placeholder="ex: Saisie en double, erreur de montant…">`)}</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" style="background:#dc2626" onclick="caisseConfirmerSuppression('${mvt.id}')">Supprimer définitivement</button></div>`);
+}
+async function caisseConfirmerSuppression(mvtId){
+  if(window._caisseBusy) return;
+  if(!exigerDroit('Caisse','supprimer','ce mouvement de caisse')) return;
+  const motifSup=document.getElementById('supMotif').value.trim();
+  if(motifSup.length<3){ toast('Motif de suppression requis (3 caractères min.).','error'); return; }
+  window._caisseBusy=true;
+  try{
+    const ctl=await caisseControleMouvement(mvtId);          // re-contrôle sur l'état réel
+    if(!ctl.ok){ toast('🔒 '+ctl.message,'error'); return; }
+    const {mvt,legs,ecrs}=ctl;
+    if(!exigerPlafond(legs.reduce((mx,l)=>Math.max(mx,+l.montant||0),0),'La suppression de ce mouvement')) return;
+    const negatifs=[];
+    for(const l of legs){ const sd=await caisseSoldeApres(l,0); if(sd<0) negatifs.push(`${l.caisses?.nom||'caisse'} : ${money(sd)}`); }
+    if(negatifs.length && !confirm(`Après suppression, le solde deviendrait négatif (${negatifs.join(' ; ')}). Continuer ?`)) return;
+    // 1) Suppression des mouvements (rollback des jambes déjà supprimées si l'une échoue)
+    const supprimes=[];
+    for(const l of legs){
+      const {data,error}=await sb.from('caisse_mouvements').delete().eq('id',l.id).select('id');
+      if(error||!data||!data.length){
+        for(const s of supprimes) await sb.from('caisse_mouvements').insert(caisseSansJointures(s));
+        toast('Échec de la suppression : '+(error?error.message:'refusée par la base (droits insuffisants ?).'),'error'); return;
+      }
+      supprimes.push(l);
+    }
+    // 2) Suppression des écritures comptables liées (non validées, contrôlé plus haut)
+    const ecrEchec=[];
+    for(const l of legs.filter(x=>x.ecriture_id)){
+      const r1=await sb.from('compta_lignes').delete().eq('ecriture_id',l.ecriture_id);
+      const r2=await sb.from('compta_ecritures').delete().eq('id',l.ecriture_id);
+      if(r1.error||r2.error) ecrEchec.push((ecrs.find(e=>e.id===l.ecriture_id)||{}).ref||l.ecriture_id);
+    }
+    // 3) Traçabilité
+    await caisseAuditer('suppression',legs,{motif_suppression:motifSup});
+    toast(ecrEchec.length?`Mouvement supprimé, mais écriture(s) ${ecrEchec.join(', ')} à supprimer manuellement depuis le Journal.`:(legs.length>1?'Transfert supprimé des deux côtés.':'Mouvement supprimé.'),ecrEchec.length?'error':undefined);
+    closeModal();
+    showPage('caisse-detail');
+  } finally { window._caisseBusy=false; }
 }
 async function caisseOuvrirVentilerModal(mvtId,contexte){
   const [{data:regles},{data:mvt}]=await Promise.all([
