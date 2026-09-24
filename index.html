@@ -3751,6 +3751,7 @@ function valoExporterCsv(){
    (motif normalisé + commentaire) → validation atomique par le serveur (inventaire_valider : session INV-AAAA-NNNN,
    lignes figées, mouvements de stock « inventaire ») → état d'inventaire imprimable (Stock → États d'inventaire). */
 const INV_MOTIFS={
+  stock_initial:{label:'Stock initial / reprise de stock',sens:0},
   casse:{label:'Casse / détérioration',sens:-1},
   vol:{label:'Vol',sens:-1},
   perte:{label:'Perte / disparition',sens:-1},
@@ -3774,14 +3775,38 @@ function invMotifOptions(ecart,choisi){
 const fmtQ=n=>{ const v=Math.round((+n||0)*100)/100; return new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(v); };
 function invCleBrouillon(){ return 'aluexpert-inventaire-'+(window._inventaireDepot||''); }
 function invLireBrouillon(){ try{ return JSON.parse(localStorage.getItem(invCleBrouillon())||'null'); }catch(e){ return null; } }
+window._invComptes=window._invComptes||new Set();
 function invSauverBrouillon(){
-  const data=window._inventaireCache||[]; const b={q:{},m:{},j:{},t:Date.now()};
+  const data=window._inventaireCache||[]; const b={q:{},m:{},j:{},c:[...window._invComptes],bid:window._invBrouillon?.id||null,bcode:window._invBrouillon?.code||null,complet:!!document.getElementById('invComplet')?.checked,t:Date.now()};
   data.forEach(c=>{ const v=document.getElementById('inv_'+c.id)?.value; if(v!==undefined && v!==(+c.stock_actuel).toFixed(2)) b.q[c.id]=v;
     const m=document.getElementById('invM_'+c.id)?.value, j=document.getElementById('invJ_'+c.id)?.value; if(m) b.m[c.id]=m; if(j) b.j[c.id]=j; });
   ['invResp','invCtrl','invObs','invDate'].forEach(id=>{ b[id]=document.getElementById(id)?.value||''; });
   try{ localStorage.setItem(invCleBrouillon(),JSON.stringify(b)); }catch(e){}
 }
-function invEffacerBrouillon(recharger){ try{ localStorage.removeItem(invCleBrouillon()); }catch(e){} if(recharger) showPage('stock-inventaire'); }
+function invEffacerBrouillon(recharger){ try{ localStorage.removeItem(invCleBrouillon()); }catch(e){} window._invComptes=new Set(); window._invBrouillon=null; if(recharger) showPage('stock-inventaire'); }
+function invMarquerCompte(id,oui){ if(oui===false) window._invComptes.delete(id); else window._invComptes.add(id); }
+/* « Compté » = l'article a réellement été compté (quantité saisie ou confirmée) : seuls les articles comptés
+   entrent dans un inventaire PARTIEL ; en inventaire COMPLET, tous les articles du dépôt sont pris. */
+function invMarquerVisibles(){
+  let n=0; (window._inventaireCache||[]).forEach(c=>{ const tr=document.querySelector(`tr[data-comp="${c.id}"]`); if(tr&&tr.style.display!=='none'&&!window._invComptes.has(c.id)){ invMarquerCompte(c.id); invJustMaj(c.id,true); n++; } });
+  invSauverBrouillon(); filtrerInventaire(); toast(n?`${n} article(s) marqué(s) comptés (stock confirmé).`:'Les articles affichés sont déjà comptés.');
+}
+function invJustifierLot(){
+  const motif=val('invMotifLot'), texte=val('invJustLot');
+  if(!motif){ toast('Choisissez le motif à appliquer.','error'); return; }
+  if(motif==='autre'&&!texte){ toast('Motif « Autre » : saisissez le commentaire à appliquer.','error'); return; }
+  let n=0, ignores=0;
+  (window._inventaireCache||[]).forEach(c=>{
+    const tr=document.querySelector(`tr[data-comp="${c.id}"]`); if(!tr||tr.style.display==='none') return;
+    const e=invEtatLigne(c); if(!e.avecEcart||e.justifie) return;
+    const m=INV_MOTIFS[motif]; if(m.sens&&m.sens!==Math.sign(e.ecart)){ ignores++; return; }
+    const sel=document.getElementById('invM_'+c.id); if(![...sel.options].some(o=>o.value===motif)) sel.insertAdjacentHTML('beforeend',`<option value="${motif}">${escapeHtml(m.label)}</option>`);
+    sel.value=motif; if(texte&&!document.getElementById('invJ_'+c.id).value) document.getElementById('invJ_'+c.id).value=texte;
+    invJustMaj(c.id,true); n++;
+  });
+  invSauverBrouillon(); filtrerInventaire();
+  toast(n?`Motif appliqué à ${n} écart(s)${ignores?` — ${ignores} ignoré(s) (motif incompatible avec le sens de l'écart)`:''}.`:'Aucun écart non justifié parmi les articles affichés.',n?undefined:'error');
+}
 async function renderStockInventaire(el){
   const depots=await chargerDepots(true);
   if(!window._inventaireDepot||!depots.some(d=>d.id===window._inventaireDepot)) window._inventaireDepot=depotPrincipalId();
@@ -3793,7 +3818,11 @@ async function renderStockInventaire(el){
   // stock_actuel est remplacé ici par le stock DU DÉPÔT inventorié
   const data=(composants||[]).map(c=>({...c,stock_actuel:qDepot[c.id]||0,cmup_calc:+c.cmup||+c.prix_unitaire||0}));
   window._inventaireCache=data;
-  const br=invLireBrouillon(), nbBr=br?Object.keys(br.q||{}).length+Object.keys(br.m||{}).length:0;
+  const br=invLireBrouillon(), nbBr=br?Object.keys(br.q||{}).length+Object.keys(br.m||{}).length+(br.c||[]).length:0;
+  window._invComptes=new Set(br?.c||Object.keys(br?.q||{}));
+  window._invBrouillon=br?.bid?{id:br.bid,code:br.bcode}:null;
+  const {data:brSrv}=await sb.from('inventaires').select('id,code,date_inventaire,modifie_le,modifie_par_nom,nb_articles,statut').eq('depot_id',window._inventaireDepot).eq('statut','brouillon').order('created_at',{ascending:false});
+  const brouillonsSrv=(brSrv||[]).filter(b=>b.statut==='brouillon'&&b.id!==window._invBrouillon?.id);
   const auj=new Date().toISOString().slice(0,10);
   el.innerHTML=`
     <div class="flex flex-wrap items-end gap-3 mb-3">
@@ -3806,20 +3835,32 @@ async function renderStockInventaire(el){
         <button class="btn btn-outline" onclick="showPage('stock-inventaires')">📚 États d'inventaire</button>
       </div>
     </div>
-    ${nbBr?`<div class="text-xs bg-amber-50 text-amber-800 border border-amber-200 rounded-lg px-3 py-2 mb-3 flex items-center gap-2">💾 Brouillon restauré (${nbBr} saisie(s) du ${new Date(br.t).toLocaleString('fr-FR')}) — les saisies sont conservées sur cet appareil jusqu'à la validation.<button class="btn btn-outline text-xs ml-auto" onclick="if(confirm('Effacer le brouillon et repartir du stock système ?'))invEffacerBrouillon(true)">Effacer le brouillon</button></div>`:''}
+    <div id="invBrouillonInfo">${invBandeauBrouillon(nbBr?br:null)}</div>
+    ${brouillonsSrv.length?`<div class="text-xs bg-indigo-50 text-indigo-800 border border-indigo-200 rounded-lg px-3 py-2 mb-3">📂 Brouillon(s) enregistré(s) pour ce dépôt : ${brouillonsSrv.map(b=>`<span class="inline-flex items-center gap-1 mr-2"><b class="font-mono">${escapeHtml(b.code)}</b> (${b.nb_articles} article(s), ${b.modifie_le?new Date(b.modifie_le).toLocaleString('fr-FR'):''}${b.modifie_par_nom?' par '+escapeHtml(b.modifie_par_nom):''}) <button class="btn btn-outline text-xs" onclick="invReprendreBrouillon('${b.id}')">Reprendre</button></span>`).join('')}</div>`:''}
     <div class="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-3 py-2 mb-3">🧮 Saisissez la quantité réellement comptée dans <b>${escapeHtml(depotNom(window._inventaireDepot))}</b>. <b>Chaque écart doit être justifié</b> (motif + commentaire, obligatoire pour « Autre ») avant la validation. Seuls les écarts génèrent un mouvement de stock ; l'état d'inventaire est ensuite imprimable.</div>
+    <div class="card p-3 mb-3 flex flex-wrap gap-3 items-center text-sm">
+      <label class="flex items-center gap-2 whitespace-nowrap" title="Décoché : inventaire PARTIEL, seuls les articles comptés (✓) sont enregistrés et ajustés"><input type="checkbox" id="invComplet" style="width:16px;height:16px;flex:none" ${br?.complet?'checked':''} onchange="invSauverBrouillon();filtrerInventaire()"> <b>Inventaire complet du dépôt</b> <span class="text-xs text-gray-500">(les articles non comptés sont confirmés à leur stock système)</span></label>
+      <span class="text-xs text-gray-500">Sinon : inventaire <b>partiel</b> — seuls les articles comptés ✓ sont pris.</span>
+    </div>
     <div class="card p-3 mb-3 flex flex-wrap gap-2 items-center" style="position:sticky;top:64px;z-index:5">
       <div class="flex-1 min-w-[220px]">${fieldWrap('🔎',`<input id="invQ" placeholder="Rechercher un article : nom, code, référence, emplacement…" oninput="filtrerInventaire()" onkeydown="if(event.key==='Enter'){event.preventDefault();inventaireAllerPremier();}" autofocus>`)}</div>
       <select id="invFam" style="width:auto;min-width:170px" onchange="filtrerInventaire()"><option value="">Toutes les familles</option>${[...new Set(data.map(c=>c.famille||'Autre'))].sort().map(f=>`<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}</select>
-      <select id="invVue" style="width:auto;min-width:170px" onchange="filtrerInventaire()"><option value="">Tous les articles</option><option value="ecarts">Écarts seulement</option><option value="nonjust">Écarts non justifiés</option><option value="stock">En stock (système ≠ 0)</option><option value="vide">Stock système à 0</option></select>
+      <select id="invVue" style="width:auto;min-width:170px" onchange="filtrerInventaire()"><option value="">Tous les articles</option><option value="ecarts">Écarts seulement</option><option value="nonjust">Écarts non justifiés</option><option value="comptes">Articles comptés ✓</option><option value="noncomptes">Articles non comptés</option><option value="stock">En stock (système ≠ 0)</option><option value="vide">Stock système à 0</option></select>
       <span id="invCompteur" class="text-xs text-gray-500 ml-auto whitespace-nowrap"></span>
+      <div class="w-full flex flex-wrap gap-2 items-center border-t pt-2 mt-1">
+        <button class="btn btn-outline text-xs" onclick="invMarquerVisibles()" title="Confirme le stock système des articles affichés (comptés sans écart)">✓ Marquer comptés les articles affichés</button>
+        <span class="text-xs text-gray-400 ml-2">Justifier en lot :</span>
+        <select id="invMotifLot" class="border rounded-lg px-2 py-1 text-xs" style="width:auto"><option value="">— Motif —</option>${Object.entries(INV_MOTIFS).map(([k,m])=>`<option value="${k}">${escapeHtml(m.label)}</option>`).join('')}</select>
+        <input id="invJustLot" class="border rounded-lg px-2 py-1 text-xs" style="width:200px" placeholder="Commentaire commun (optionnel)">
+        <button class="btn btn-outline text-xs" onclick="invJustifierLot()">Appliquer aux écarts non justifiés affichés</button>
+      </div>
     </div>
     <div class="card overflow-x-auto">
       <table><thead><tr><th>Composant</th><th>Famille</th><th class="text-right">Stock système</th><th class="text-right">Quantité comptée</th><th class="text-right">Écart</th><th class="text-right">Valeur écart</th><th style="min-width:250px">Justification de l'écart</th></tr></thead>
       <tbody>${data.map(c=>`<tr data-comp="${c.id}" data-fam="${escapeHtml(c.famille||'Autre')}" data-txt="${escapeHtml([c.nom,c.code,c.reference,c.famille,c.emplacement].filter(Boolean).join(' ').toLowerCase())}">
         <td><div class="flex items-center gap-2">${c.photo?`<img src="${c.photo}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:7px">`:''}<div>${escapeHtml(c.nom)}${c.code||c.reference?`<div class="text-[10px] text-gray-400">${escapeHtml([c.code,c.reference].filter(Boolean).join(' · '))}</div>`:''}</div></div></td><td>${escapeHtml(c.famille||'—')}${c.emplacement?`<div class="text-[10px] text-gray-400">📍 ${escapeHtml(c.emplacement)}</div>`:''}</td>
         <td class="text-right whitespace-nowrap">${(+c.stock_actuel).toFixed(2)} ${escapeHtml(c.unite)}</td>
-        <td class="text-right"><input type="number" step="0.01" min="0" style="width:100px;text-align:right" value="${escapeHtml(br?.q?.[c.id]??(+c.stock_actuel).toFixed(2))}" id="inv_${c.id}" oninput="updateEcartInventaire('${c.id}');invSauverBrouillon();if(['ecarts','nonjust'].includes(document.getElementById('invVue')?.value))filtrerInventaire(true)" onkeydown="if(event.key==='Enter'){event.preventDefault();const s=document.getElementById('invM_${c.id}');if(s&&!s.closest('.hidden')&&!s.value){s.focus();}else{const q=document.getElementById('invQ');q.focus();q.select();}}" onfocus="this.select()"></td>
+        <td class="text-right"><input type="number" step="0.01" min="0" style="width:100px;text-align:right" value="${escapeHtml(br?.q?.[c.id]??(+c.stock_actuel).toFixed(2))}" id="inv_${c.id}" oninput="invMarquerCompte('${c.id}');updateEcartInventaire('${c.id}');invSauverBrouillon();if(['ecarts','nonjust'].includes(document.getElementById('invVue')?.value))filtrerInventaire(true)" onkeydown="if(event.key==='Enter'){event.preventDefault();const s=document.getElementById('invM_${c.id}');if(s&&!s.closest('.hidden')&&!s.value){s.focus();}else{const q=document.getElementById('invQ');q.focus();q.select();}}" onfocus="this.select()"></td>
         <td class="text-right font-semibold whitespace-nowrap" id="ecart_${c.id}">0</td>
         <td class="text-right whitespace-nowrap text-xs" id="valEcart_${c.id}"></td>
         <td><div id="just_${c.id}" class="hidden flex flex-col gap-1">
@@ -3831,14 +3872,18 @@ async function renderStockInventaire(el){
     </div>
     <div class="card p-3 mt-3"><label class="text-xs font-semibold text-gray-500">Observations générales</label>
       <textarea id="invObs" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="Conditions du comptage, zones non inventoriées, remarques…" oninput="invSauverBrouillon()">${escapeHtml(br?.invObs||'')}</textarea></div>
-    <div class="flex justify-end items-center gap-3 mt-4"><span id="invBilan" class="text-sm text-gray-500"></span><button class="btn btn-primary px-8 py-2.5" id="invValiderBtn" onclick="validerInventaire()">✔ Valider l'inventaire</button></div>`;
+    <div class="flex flex-wrap justify-end items-center gap-2 mt-4"><span id="invBilan" class="text-sm text-gray-500 mr-auto"></span>
+      <button class="btn btn-outline" onclick="invImprimerProvisoire()" title="État des comptages en cours, non validé">🖨 État provisoire</button>
+      <button class="btn btn-outline" id="invEnregistrerBtn" onclick="invEnregistrerServeur()" title="Enregistre le comptage sur le serveur sans toucher au stock : reprise possible sur un autre appareil">💾 Enregistrer le brouillon</button>
+      <button class="btn btn-primary px-8 py-2.5" id="invValiderBtn" onclick="validerInventaire()">✔ Valider l'inventaire</button></div>`;
   data.forEach(c=>updateEcartInventaire(c.id,true));
   filtrerInventaire();
 }
 function invEtatLigne(c){
   const compte=+document.getElementById('inv_'+c.id)?.value||0, ecart=compte-(+c.stock_actuel||0), avecEcart=Math.abs(ecart)>0.0001;
   const m=document.getElementById('invM_'+c.id)?.value||'', j=(document.getElementById('invJ_'+c.id)?.value||'').trim();
-  return {compte,ecart:avecEcart?ecart:0,avecEcart,motif:m,justification:j,justifie:!avecEcart||(!!m&&(m!=='autre'||!!j)),valeur:avecEcart?ecart*c.cmup_calc:0};
+  const compteMarque=window._invComptes.has(c.id)||avecEcart;
+  return {compte,ecart:avecEcart?ecart:0,avecEcart,compteMarque,motif:m,justification:j,justifie:!avecEcart||(!!m&&(m!=='autre'||!!j)),valeur:avecEcart?ecart*c.cmup_calc:0};
 }
 /* Recherche dans l'inventaire : masque les lignes sans effacer les quantités déjà saisies.
    Entrée dans la recherche → saisie de la quantité du 1er article trouvé ; Entrée dans la quantité → motif (si écart) ou retour à la recherche. */
@@ -3846,18 +3891,19 @@ function filtrerInventaire(garderFocus){
   const q=(document.getElementById('invQ')?.value||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
   const mots=q.split(/\s+/).filter(Boolean);
   const fam=document.getElementById('invFam')?.value||'', vue=document.getElementById('invVue')?.value||'';
-  let vis=0, ecarts=0, nonJust=0, plus=0, moins=0; const data=window._inventaireCache||[];
+  let vis=0, ecarts=0, nonJust=0, plus=0, moins=0, comptes=0; const data=window._inventaireCache||[];
   data.forEach(c=>{
     const tr=document.querySelector(`tr[data-comp="${c.id}"]`); if(!tr) return;
     const e=invEtatLigne(c), actif=tr.contains(document.activeElement);
-    if(e.avecEcart){ ecarts++; if(e.valeur>0) plus+=e.valeur; else moins+=e.valeur; } if(!e.justifie) nonJust++;
+    if(e.avecEcart){ ecarts++; if(e.valeur>0) plus+=e.valeur; else moins+=e.valeur; } if(!e.justifie) nonJust++; if(e.compteMarque) comptes++;
     const txt=tr.dataset.txt.normalize('NFD').replace(/[̀-ͯ]/g,'');
     const ok=mots.every(m=>txt.includes(m)) && (!fam||tr.dataset.fam===fam)
       && (vue!=='ecarts'||e.avecEcart||(garderFocus&&actif)) && (vue!=='nonjust'||!e.justifie||(garderFocus&&actif))
+      && (vue!=='comptes'||e.compteMarque) && (vue!=='noncomptes'||!e.compteMarque||(garderFocus&&actif))
       && (vue!=='stock'||Math.abs(+c.stock_actuel)>0.0001) && (vue!=='vide'||Math.abs(+c.stock_actuel)<=0.0001);
     tr.style.display=ok?'':'none'; if(ok) vis++;
   });
-  const cpt=document.getElementById('invCompteur'); if(cpt) cpt.innerHTML=`${vis} / ${data.length} article(s) · <b class="${ecarts?'text-amber-700':''}">${ecarts} écart(s)</b>${nonJust?` · <b class="text-red-600">${nonJust} non justifié(s)</b>`:ecarts?' · <span class="text-emerald-600">✔ tous justifiés</span>':''}`;
+  const cpt=document.getElementById('invCompteur'); if(cpt) cpt.innerHTML=`${vis} / ${data.length} article(s) · <b class="text-emerald-700">${comptes} compté(s)</b> · <b class="${ecarts?'text-amber-700':''}">${ecarts} écart(s)</b>${nonJust?` · <b class="text-red-600">${nonJust} non justifié(s)</b>`:ecarts?' · <span class="text-emerald-600">✔ tous justifiés</span>':''}`;
   const bil=document.getElementById('invBilan'); if(bil) bil.innerHTML=ecarts?`Excédents <b class="text-emerald-600">+${money(plus)}</b> · Manquants <b class="text-red-600">${money(moins)}</b> · Net <b>${money(plus+moins)}</b>`:'Aucun écart saisi';
   document.getElementById('invVide')?.classList.toggle('hidden',vis>0);
 }
@@ -3881,14 +3927,54 @@ function updateEcartInventaire(compId,init){
 function invJustMaj(compId,sansFiltre){
   const c=(window._inventaireCache||[]).find(x=>x.id===compId); if(!c) return;
   const e=invEtatLigne(c), tr=document.querySelector(`tr[data-comp="${compId}"]`);
-  if(tr) tr.style.background=e.avecEcart&&!e.justifie?'#fffbeb':'';
+  if(tr){ tr.style.background=e.avecEcart&&!e.justifie?'#fffbeb':''; tr.style.boxShadow=e.compteMarque?'inset 4px 0 0 #10b981':''; }
   const j=document.getElementById('invJ_'+compId); if(j) j.style.borderColor=e.motif==='autre'&&!e.justification?'#f87171':'';
   const s=document.getElementById('invM_'+compId); if(s) s.style.borderColor=e.avecEcart&&!e.motif?'#f59e0b':'';
   if(!sansFiltre){ invSauverBrouillon(); filtrerInventaire(true); }
 }
+function invLignesAEnvoyer(){
+  const complet=!!document.getElementById('invComplet')?.checked;
+  return {complet,etats:(window._inventaireCache||[]).map(c=>({c,e:invEtatLigne(c)})).filter(x=>complet||x.e.compteMarque)};
+}
+function invBandeauBrouillon(br){
+  const b=window._invBrouillon;
+  if(!b&&!br) return '';
+  return `<div class="text-xs bg-amber-50 text-amber-800 border border-amber-200 rounded-lg px-3 py-2 mb-3 flex flex-wrap items-center gap-2">💾 ${b?`Brouillon <b class="font-mono">${escapeHtml(b.code||'')}</b> enregistré sur le serveur — `:''}${br?`saisies restaurées sur cet appareil (${new Date(br.t).toLocaleString('fr-FR')})`:'saisies conservées sur cet appareil'} jusqu'à la validation.
+    <button class="btn btn-outline text-xs ml-auto" onclick="invAbandonner()">${b?'Abandonner le brouillon':'Effacer les saisies'}</button></div>`;
+}
+async function invAbandonner(){
+  const b=window._invBrouillon;
+  if(!confirm(b?`Abandonner le brouillon ${b.code} ? Il sera supprimé du serveur et les saisies effacées (le stock n'a pas été modifié).`:'Effacer les saisies et repartir du stock système ?')) return;
+  if(b){ const {error}=await sb.rpc('inventaire_supprimer_brouillon',{p_id:b.id}); if(error&&!/introuvable/i.test(error.message)){ toast(error.message,'error'); return; } }
+  invEffacerBrouillon(true);
+}
+async function invEnregistrerServeur(silencieux){
+  const {complet,etats}=invLignesAEnvoyer();
+  if(!etats.length){ toast('Aucun article compté : saisissez des quantités ou « ✓ Marquer comptés ».','error'); return null; }
+  if(!navigator.onLine){ toast("📴 Hors ligne : le brouillon reste enregistré sur cet appareil ; enregistrez-le sur le serveur au retour du réseau.",'error'); return null; }
+  const btn=document.getElementById('invEnregistrerBtn'); if(btn){ btn.disabled=true; btn.textContent='Enregistrement…'; }
+  const lignes=etats.map(({c,e})=>({composant_id:c.id,quantite_comptee:e.compte,motif:e.motif||null,justification:e.justification||null}));
+  const {data,error}=await sb.rpc('inventaire_enregistrer',{p_id:window._invBrouillon?.id||null,p_depot:window._inventaireDepot,p_date:val('invDate')||null,p_responsable:val('invResp')||null,p_controleur:val('invCtrl')||null,p_observations:document.getElementById('invObs').value.trim()||null,p_lignes:lignes,p_partiel:!complet});
+  if(btn){ btn.disabled=false; btn.textContent='💾 Enregistrer le brouillon'; }
+  if(error){ toast(/inventaire_enregistrer/.test(error.message)&&/not find|exist/i.test(error.message)?'Fonction inventaire_enregistrer absente : exécutez sql/inventaires_brouillons.sql dans Supabase.':error.message,'error'); return null; }
+  const r=Array.isArray(data)?data[0]:data; window._invBrouillon={id:r.id,code:r.code}; invSauverBrouillon();
+  document.getElementById('invBrouillonInfo').innerHTML=invBandeauBrouillon(null);
+  if(!silencieux) toast(`Brouillon ${r.code} enregistré : ${r.nb_articles} article(s), ${r.nb_ecarts} écart(s). Le stock n'est pas modifié tant que l'inventaire n'est pas validé.`);
+  return r;
+}
+async function invReprendreBrouillon(id){
+  const {inv,lignes}=await chargerInventaire(id);
+  if(!inv||inv.statut!=='brouillon'){ toast('Brouillon introuvable ou déjà validé.','error'); return; }
+  const b={q:{},m:{},j:{},c:[],bid:inv.id,bcode:inv.code,complet:inv.partiel===false,invDate:inv.date_inventaire,invResp:inv.responsable||'',invCtrl:inv.controleur||'',invObs:inv.observations||'',t:Date.now()};
+  lignes.forEach(l=>{ if(!l.composant_id) return; b.q[l.composant_id]=(+l.quantite_comptee).toFixed(2); b.c.push(l.composant_id); if(l.motif) b.m[l.composant_id]=l.motif; if(l.justification) b.j[l.composant_id]=l.justification; });
+  window._inventaireDepot=inv.depot_id;
+  try{ localStorage.setItem('aluexpert-inventaire-'+inv.depot_id,JSON.stringify(b)); }catch(e){}
+  toast(`Brouillon ${inv.code} repris (${lignes.length} article(s)).`);
+  showPage('stock-inventaire');
+}
 async function validerInventaire(){
-  const data=window._inventaireCache||[];
-  const etats=data.map(c=>({c,e:invEtatLigne(c)}));
+  const {complet,etats}=invLignesAEnvoyer(), data=window._inventaireCache||[];
+  if(!etats.length){ toast('Aucun article compté : saisissez des quantités ou « ✓ Marquer comptés » (ou cochez « Inventaire complet »).','error'); return; }
   const neg=etats.find(x=>x.e.compte<0); if(neg){ toast(`Quantité négative sur « ${neg.c.nom} ».`,'error'); return; }
   const ecarts=etats.filter(x=>x.e.avecEcart);
   const manquant=ecarts.find(x=>!x.e.justifie);
@@ -3900,19 +3986,41 @@ async function validerInventaire(){
   }
   if(!navigator.onLine){ toast("📴 Connexion requise pour valider l'inventaire. Vos saisies sont conservées sur cet appareil.",'error'); return; }
   const plus=ecarts.reduce((s,x)=>s+Math.max(0,x.e.valeur),0), moins=ecarts.reduce((s,x)=>s+Math.min(0,x.e.valeur),0);
-  if(!confirm(`Valider l'inventaire de ${depotNom(window._inventaireDepot)} ?\n\n${data.length} article(s) comptés · ${ecarts.length} écart(s) justifiés\nExcédents : +${money(plus)} · Manquants : ${money(moins)} · Net : ${money(plus+moins)}\n\nLes stocks seront ajustés et l'état d'inventaire sera enregistré (non modifiable, sauf justification par un responsable).`)) return;
+  if(!confirm(`Valider l'inventaire ${complet?'COMPLET':'PARTIEL'}${window._invBrouillon?' '+window._invBrouillon.code:''} de ${depotNom(window._inventaireDepot)} ?\n\n${etats.length} article(s) comptés${complet?'':' sur '+data.length+' (les autres ne sont pas touchés)'} · ${ecarts.length} écart(s) justifiés\nExcédents : +${money(plus)} · Manquants : ${money(moins)} · Net : ${money(plus+moins)}\n\nLes stocks seront ajustés et l'état d'inventaire sera enregistré (non modifiable, sauf justification par un responsable).`)) return;
   const btn=document.getElementById('invValiderBtn'); if(btn){ btn.disabled=true; btn.textContent='Validation…'; }
   const lignes=etats.map(({c,e})=>({composant_id:c.id,quantite_comptee:e.compte,motif:e.avecEcart?e.motif:null,justification:e.avecEcart?e.justification||null:null}));
-  const {data:inv,error}=await sb.rpc('inventaire_valider',{p_depot:window._inventaireDepot,p_date:val('invDate')||null,p_responsable:val('invResp')||null,p_controleur:val('invCtrl')||null,p_observations:document.getElementById('invObs').value.trim()||null,p_lignes:lignes});
+  const {data:inv,error}=await sb.rpc('inventaire_valider',{p_depot:window._inventaireDepot,p_date:val('invDate')||null,p_responsable:val('invResp')||null,p_controleur:val('invCtrl')||null,p_observations:document.getElementById('invObs').value.trim()||null,p_lignes:lignes,p_brouillon:window._invBrouillon?.id||null,p_partiel:!complet});
   if(error){
     if(btn){ btn.disabled=false; btn.textContent="✔ Valider l'inventaire"; }
     toast(/inventaire_valider|function/.test(error.message)&&/not find|exist/i.test(error.message)?'Fonction inventaire_valider absente : exécutez sql/inventaires.sql dans Supabase.':error.message,'error'); return;
   }
   const r=Array.isArray(inv)?inv[0]:inv;
   invEffacerBrouillon(false);
-  toast(`Inventaire ${r.code} validé : ${r.nb_ecarts} écart(s) ajusté(s).`);
   refreshStockAlertesBadge();
-  window._inventaireVoir=r.id; showPage('stock-inventaire-view');
+  window._inventaireVoir=r.id; await showPage('stock-inventaire-view');
+  openModal(`<div class="text-center"><div class="text-4xl mb-2">✅</div><h3 class="font-bold text-lg">Inventaire ${escapeHtml(r.code)} validé</h3>
+    <p class="text-sm text-gray-500 mt-1">${r.nb_articles} article(s) ${r.partiel?'comptés (inventaire partiel)':'inventoriés'} · ${r.nb_ecarts} écart(s) ajusté(s) dans le stock · écart net ${money((+r.ecart_positif||0)+(+r.ecart_negatif||0))}</p>
+    <div class="flex flex-wrap justify-center gap-2 mt-4"><button class="btn btn-outline" onclick="closeModal()">Fermer</button>
+      <button class="btn btn-outline" onclick="closeModal();imprimerEtatInventaire('${r.id}',true)">🖨 État complet</button>
+      <button class="btn btn-primary" onclick="closeModal();imprimerEtatInventaire('${r.id}',false)">🖨 État des écarts</button>
+      <button class="btn btn-outline" onclick="closeModal();envoyerEtatInventaire('${r.id}',false)">📤 WhatsApp / e-mail</button></div></div>`);
+}
+/* État provisoire : comptages en cours (non validés), depuis l'écran de saisie */
+async function invImprimerProvisoire(){
+  const {complet,etats}=invLignesAEnvoyer();
+  if(!etats.length){ toast('Aucun article compté à imprimer.','error'); return; }
+  const win=window.open('','_blank','width=1000,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const lignes=etats.map(({c,e})=>({designation:c.nom,code_article:c.code||c.reference,famille:c.famille||'Autre',unite:c.unite,stock_systeme:+c.stock_actuel||0,quantite_comptee:e.compte,ecart:e.ecart,cmup:c.cmup_calc,valeur_ecart:Math.round(e.valeur*100)/100,motif:e.motif||null,justification:e.justification||null}))
+    .sort((a,b)=>String(a.famille).localeCompare(b.famille,'fr')||String(a.designation).localeCompare(b.designation,'fr'));
+  const inv={code:window._invBrouillon?.code||'non enregistré',depot_nom:depotNom(window._inventaireDepot).replace(/^\S+\s/,''),date_inventaire:val('invDate'),responsable:val('invResp'),controleur:val('invCtrl'),observations:document.getElementById('invObs').value.trim(),
+    partiel:!complet,nb_articles_depot:(window._inventaireCache||[]).length,statut:'brouillon',created_at:new Date().toISOString()};
+  Object.assign(inv,invTotauxLignes(lignes));
+  await impEcrire(win,etatInventaireMeta(inv,true),etatInventaireHtml(inv,lignes,true));
+}
+function invTotauxLignes(lignes){
+  const s=(f)=>lignes.reduce((a,l)=>a+f(l),0);
+  return {nb_articles:lignes.length,nb_ecarts:lignes.filter(l=>+l.ecart).length,valeur_theorique:s(l=>l.stock_systeme*l.cmup),valeur_reelle:s(l=>l.quantite_comptee*l.cmup),
+    ecart_positif:s(l=>Math.max(0,+l.valeur_ecart)),ecart_negatif:s(l=>Math.min(0,+l.valeur_ecart))};
 }
 /* ---------- Feuille de comptage (comptage à l'aveugle : sans le stock système) ---------- */
 async function imprimerFeuilleComptage(){
@@ -3939,13 +4047,25 @@ async function renderStockInventaires(el){
   await chargerDepots(true);
   const {data,error}=await sb.from('inventaires').select('*').order('date_inventaire',{ascending:false}).order('created_at',{ascending:false}).limit(300);
   if(error){ el.innerHTML=`<div class="card p-6 text-sm text-amber-700">États d'inventaire indisponibles : ${escapeHtml(error.message)}<br>Exécutez <b>sql/inventaires.sql</b> dans Supabase.</div>`; return; }
-  const l=data||[];
+  const tous=data||[], l=tous.filter(i=>(i.statut||'valide')==='valide'), brouillons=tous.filter(i=>i.statut==='brouillon');
   const tot=(k)=>l.reduce((s,i)=>s+(+i[k]||0),0);
+  const {data:horsReg}=await sb.rpc('inventaire_hors_registre');
+  const gest=['admin','manager'].includes(monRole()?.code)||!window._rbac?.provisionne;
+  window._invHorsRegistre=Array.isArray(horsReg)?horsReg:[];
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
       <p class="text-xs text-gray-500">Chaque inventaire validé est figé : stock système, quantité comptée, écart valorisé au CMUP et justification de chaque écart.</p>
       <button class="btn btn-primary" onclick="showPage('stock-inventaire')">🧮 Nouvel inventaire</button>
     </div>
+    ${window._invHorsRegistre.length?`<div class="card p-3 mb-4 border-amber-300 bg-amber-50 text-sm">
+      <div class="font-bold text-amber-800 mb-1">⚠ Ajustements d'inventaire saisis hors registre</div>
+      <p class="text-xs text-amber-800 mb-2">Ces ajustements ont modifié le stock sans être rattachés à un inventaire (saisie unitaire ou ancienne version de l'écran) : ils n'ont ni état imprimable ni justification. La régularisation crée l'inventaire correspondant — <b>sans retoucher le stock</b> — avec le motif choisi.</p>
+      <table class="text-xs"><thead><tr><th>Dépôt</th><th>Jour</th><th class="text-right">Ajustements</th><th>Heures</th><th></th></tr></thead><tbody>
+      ${window._invHorsRegistre.map((h,i)=>`<tr><td>${escapeHtml(h.depot_nom||'—')}</td><td>${fmtDate(h.jour)}</td><td class="text-right">${h.nb}</td><td>${new Date(h.premiere).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} → ${new Date(h.derniere).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</td>
+        <td>${gest?`<button class="btn btn-outline text-xs" onclick="invRegulariser(${i})">Régulariser</button>`:'<span class="text-gray-400">admin / manager</span>'}</td></tr>`).join('')}</tbody></table></div>`:''}
+    ${brouillons.length?`<div class="card p-3 mb-4 text-sm"><div class="font-bold mb-2">📂 Brouillons en cours (stock non modifié)</div><div class="flex flex-wrap gap-2">
+      ${brouillons.map(b=>`<div class="border rounded-lg px-3 py-2 flex items-center gap-2"><b class="font-mono">${escapeHtml(b.code)}</b><span class="text-xs text-gray-500">${escapeHtml(b.depot_nom||'')} · ${b.nb_articles} article(s) · ${b.modifie_le?new Date(b.modifie_le).toLocaleString('fr-FR'):''}</span>
+        <button class="btn btn-outline text-xs" onclick="invReprendreBrouillon('${b.id}')">Reprendre</button><button class="btn btn-outline text-xs" onclick="window._inventaireVoir='${b.id}';showPage('stock-inventaire-view')">👁</button></div>`).join('')}</div></div>`:''}
     <div class="grid sm:grid-cols-4 gap-3 mb-4">
       <div class="card p-4"><div class="text-xs text-gray-400 font-semibold uppercase">Inventaires validés</div><div class="text-2xl font-black mt-1">${l.length}</div></div>
       <div class="card p-4"><div class="text-xs text-gray-400 font-semibold uppercase">Écarts justifiés</div><div class="text-2xl font-black mt-1" style="color:#d97706">${tot('nb_ecarts')}</div></div>
@@ -3954,13 +4074,28 @@ async function renderStockInventaires(el){
     </div>
     <div class="card overflow-x-auto">${l.length?`<table><thead><tr><th>N°</th><th>Date</th><th>Dépôt</th><th>Comptage / contrôle</th><th class="text-right">Articles</th><th class="text-right">Écarts</th><th class="text-right">Valeur théorique</th><th class="text-right">Valeur réelle</th><th class="text-right">Écart net</th><th></th></tr></thead><tbody>
       ${l.map(i=>{ const net=(+i.ecart_positif||0)+(+i.ecart_negatif||0); return `<tr class="cursor-pointer hover:bg-gray-50" onclick="window._inventaireVoir='${i.id}';showPage('stock-inventaire-view')">
-        <td class="font-mono font-semibold">${escapeHtml(i.code)}</td><td>${fmtDate(i.date_inventaire)}</td><td>${escapeHtml(i.depot_nom||depotNom(i.depot_id))}</td>
+        <td class="font-mono font-semibold">${escapeHtml(i.code)}${i.partiel?'<div class="text-[10px] font-sans font-normal text-gray-400">partiel</div>':''}${i.regularisation?'<div class="text-[10px] font-sans font-normal text-amber-600">régularisation</div>':''}</td><td>${fmtDate(i.date_inventaire)}</td><td>${escapeHtml(i.depot_nom||depotNom(i.depot_id))}</td>
         <td class="text-xs">${escapeHtml(i.responsable||'—')}${i.controleur?`<div class="text-gray-400">Contrôle : ${escapeHtml(i.controleur)}</div>`:''}</td>
         <td class="text-right">${i.nb_articles}</td><td class="text-right">${i.nb_ecarts}</td>
         <td class="text-right">${money(i.valeur_theorique)}</td><td class="text-right">${money(i.valeur_reelle)}</td>
         <td class="text-right font-semibold" style="color:${net>0?'#059669':net<0?'#dc2626':'#6b7280'}">${net>0?'+':''}${money(net)}</td>
-        <td class="whitespace-nowrap" onclick="event.stopPropagation()"><button class="btn btn-outline text-xs" onclick="imprimerEtatInventaire('${i.id}',false)" title="État des écarts">🖨</button></td></tr>`; }).join('')}
+        <td class="whitespace-nowrap" onclick="event.stopPropagation()"><button class="btn btn-outline text-xs" onclick="imprimerEtatInventaire('${i.id}',false)" title="État des écarts">🖨</button> <button class="btn btn-outline text-xs" onclick="envoyerEtatInventaire('${i.id}',false)" title="Envoyer par WhatsApp / e-mail">📤</button></td></tr>`; }).join('')}
       </tbody></table>`:'<div class="p-8 text-center text-gray-400">Aucun inventaire validé.</div>'}</div>`;
+}
+function invRegulariser(i){
+  const h=window._invHorsRegistre[i]; if(!h) return;
+  openModal(`<h3 class="text-lg font-bold mb-1">Régulariser ${h.nb} ajustement(s) — ${escapeHtml(h.depot_nom||'')} du ${fmtDate(h.jour)}</h3>
+    <p class="text-sm text-gray-500 mb-3">Un inventaire enregistré (numéroté, imprimable) est créé à partir de ces ajustements. <b>Le stock n'est pas modifié.</b> Le motif s'applique à tous les écarts ; il reste modifiable ligne par ligne ensuite.</p>
+    <div class="field mb-2"><label>Motif des écarts</label><select id="rgMotif" class="border rounded-lg px-3 py-2 w-full">${Object.entries(INV_MOTIFS).map(([k,m])=>`<option value="${k}" ${k==='stock_initial'?'selected':''}>${escapeHtml(m.label)}</option>`).join('')}</select></div>
+    <div class="field"><label>Commentaire</label><input id="rgTexte" class="border rounded-lg px-3 py-2 w-full" placeholder="Ex : mise en place du stock du dépôt"></div>
+    <div class="flex justify-end gap-2 mt-4"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="invConfirmerRegularisation(${i})">Régulariser</button></div>`);
+}
+async function invConfirmerRegularisation(i){
+  const h=window._invHorsRegistre[i];
+  const {data,error}=await sb.rpc('inventaire_regulariser',{p_depot:h.depot_id,p_debut:h.jour,p_fin:h.jour,p_motif:val('rgMotif'),p_justification:val('rgTexte')||null});
+  if(error){ toast(error.message,'error'); return; }
+  const r=Array.isArray(data)?data[0]:data; closeModal(); toast(`Inventaire ${r.code} créé (${r.nb_articles} article(s)) — stock inchangé.`);
+  window._inventaireVoir=r.id; showPage('stock-inventaire-view');
 }
 async function chargerInventaire(id){
   const [{data:inv},{data:lignes}]=await Promise.all([
@@ -3994,11 +4129,14 @@ async function renderInventaireDetail(el){
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-start gap-3 mb-3">
       <div><div class="text-xl font-black font-mono">${escapeHtml(inv.code)}</div>
-        <div class="text-sm text-gray-500">${escapeHtml(inv.depot_nom||depotNom(inv.depot_id))} · inventaire du ${fmtDate(inv.date_inventaire)} · validé le ${new Date(inv.created_at).toLocaleString('fr-FR')} par ${escapeHtml(inv.valide_par_nom||'—')}</div>
+        <div class="text-sm text-gray-500">${escapeHtml(inv.depot_nom||depotNom(inv.depot_id))} · inventaire du ${fmtDate(inv.date_inventaire)} · ${inv.statut==='brouillon'?`<b class="text-amber-700">BROUILLON</b> enregistré le ${inv.modifie_le?new Date(inv.modifie_le).toLocaleString('fr-FR'):''}${inv.modifie_par_nom?' par '+escapeHtml(inv.modifie_par_nom):''} — stock non modifié`:`validé le ${new Date(inv.created_at).toLocaleString('fr-FR')} par ${escapeHtml(inv.valide_par_nom||'—')}`}</div>
+        <div class="text-xs text-gray-500">${inv.partiel?`Inventaire <b>partiel</b> : ${inv.nb_articles} article(s) compté(s)${inv.nb_articles_depot?' sur '+inv.nb_articles_depot:''}`:'Inventaire <b>complet</b> du dépôt'}${inv.regularisation?' · <b class="text-amber-700">régularisation</b> d\'ajustements saisis hors registre':''}</div>
         <div class="text-xs text-gray-500">Comptage : <b>${escapeHtml(inv.responsable||'—')}</b> · Contrôle : <b>${escapeHtml(inv.controleur||'—')}</b></div></div>
       <div class="flex gap-2 flex-wrap"><button class="btn btn-outline" onclick="showPage('stock-inventaires')">← États d'inventaire</button>
+        ${inv.statut==='brouillon'?`<button class="btn btn-primary" onclick="invReprendreBrouillon('${inv.id}')">✏️ Reprendre la saisie</button>`:''}
         <button class="btn btn-outline" onclick="imprimerEtatInventaire('${inv.id}',true)">🖨 État complet</button>
-        <button class="btn btn-primary" onclick="imprimerEtatInventaire('${inv.id}',false)">🖨 État des écarts et justifications</button></div>
+        <button class="btn ${inv.statut==='brouillon'?'btn-outline':'btn-primary'}" onclick="imprimerEtatInventaire('${inv.id}',false)">🖨 État des écarts et justifications</button>
+        <button class="btn btn-outline" onclick="envoyerEtatInventaire('${inv.id}',false)">📤 WhatsApp / e-mail</button></div>
     </div>
     <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
       ${tuile('Articles comptés',inv.nb_articles)}${tuile('Écarts',inv.nb_ecarts,inv.nb_ecarts?'#d97706':'')}${tuile('Fiabilité',fiab+' %',fiab>=95?'#059669':fiab>=85?'#d97706':'#dc2626')}
@@ -4022,7 +4160,7 @@ async function renderInventaireDetail(el){
         <td class="text-right whitespace-nowrap">${fmtQ(l.stock_systeme)} ${escapeHtml(l.unite||'')}</td><td class="text-right">${fmtQ(l.quantite_comptee)}</td>
         <td class="text-right font-semibold" style="color:${+l.ecart>0?'#059669':+l.ecart<0?'#dc2626':'#9ca3af'}">${+l.ecart>0?'+':''}${fmtQ(l.ecart)}</td>
         <td class="text-right text-xs">${money(l.cmup)}</td><td class="text-right" style="color:${+l.valeur_ecart>0?'#059669':+l.valeur_ecart<0?'#dc2626':''}">${+l.ecart?(+l.valeur_ecart>0?'+':'')+money(l.valeur_ecart):''}</td>
-        <td class="text-xs">${+l.ecart?`<b>${escapeHtml(invMotifLabel(l.motif))}</b>${l.justification?`<div>${escapeHtml(l.justification)}</div>`:''}<div class="text-gray-400">${escapeHtml(l.justifie_par||'')}${l.justifie_le?' · '+new Date(l.justifie_le).toLocaleString('fr-FR'):''}</div>${gest?`<button class="text-indigo-600 underline" onclick="invModifierJustification('${l.id}')">Modifier</button>`:''}`:''}</td></tr>`).join('')||'<tr><td colspan="8" class="text-center text-gray-400 p-4">Aucun écart.</td></tr>'}
+        <td class="text-xs">${+l.ecart?`<b>${escapeHtml(invMotifLabel(l.motif))}</b>${l.justification?`<div>${escapeHtml(l.justification)}</div>`:''}<div class="text-gray-400">${escapeHtml(l.justifie_par||'')}${l.justifie_le?' · '+new Date(l.justifie_le).toLocaleString('fr-FR'):''}</div>${gest&&inv.statut!=='brouillon'?`<button class="text-indigo-600 underline" onclick="invModifierJustification('${l.id}')">Modifier</button>`:''}`:''}</td></tr>`).join('')||'<tr><td colspan="8" class="text-center text-gray-400 p-4">Aucun écart.</td></tr>'}
       </tbody></table></div>`;
 }
 function invModifierJustification(ligneId){
@@ -4043,6 +4181,22 @@ async function invEnregistrerJustification(ligneId){
 async function imprimerEtatInventaire(id,complet){
   const win=window.open('','_blank','width=1000,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
   const {inv,lignes}=await chargerInventaire(id); if(!inv){ win.close(); return; }
+  await impEcrire(win,etatInventaireMeta(inv,complet),etatInventaireHtml(inv,lignes,complet));
+}
+async function envoyerEtatInventaire(id,complet){
+  const {inv,lignes}=await chargerInventaire(id); if(!inv){ toast('Inventaire introuvable.','error'); return; }
+  const net=(+inv.ecart_positif||0)+(+inv.ecart_negatif||0), prov=inv.statut==='brouillon';
+  const texte=[`📋 *État d'inventaire ${inv.code}*${prov?' (PROVISOIRE)':''} — ${nomEntreprise()||APP_NOM}`,`Dépôt : ${inv.depot_nom||''} · inventaire du ${fmtDate(inv.date_inventaire)}${inv.partiel?' · partiel':''}`,'',
+    `• Articles comptés : ${inv.nb_articles} · écarts : ${inv.nb_ecarts}`,`• Valeur théorique : ${money(inv.valeur_theorique)} · valeur réelle : ${money(inv.valeur_reelle)}`,
+    `• Excédents : +${money(inv.ecart_positif)} · manquants : ${money(inv.ecart_negatif)} · *écart net : ${money(net)}*`,'','Détail et justifications dans le PDF joint.'].join('\n');
+  impOuvrirEnvoi({titre:`État d'inventaire ${inv.code}`,html:etatInventaireHtml(inv,lignes,complet),meta:etatInventaireMeta(inv,complet),orientation:'portrait',nomFichier:`${slugEntreprise()}-inventaire-${inv.code}.pdf`,texte});
+}
+function etatInventaireMeta(inv,complet){
+  const net=(+inv.ecart_positif||0)+(+inv.ecart_negatif||0), prov=inv.statut==='brouillon';
+  return {type:'ETAT_INVENTAIRE',titre:(complet?"État d'inventaire complet":"État d'inventaire — écarts et justifications")+(prov?' (provisoire)':''),numero:inv.code,montant:net,periode:fmtDate(inv.date_inventaire),niveau:'Dépôt : '+(inv.depot_nom||depotNom(inv.depot_id)),contenu:true};
+}
+function etatInventaireHtml(inv,lignes,complet){
+  const prov=inv.statut==='brouillon';
   const {parMotif,parFamille}=invSyntheses(lignes);
   const m=n=>money(n), net=(+inv.ecart_positif||0)+(+inv.ecart_negatif||0);
   const fiab=inv.nb_articles?Math.round(100*(inv.nb_articles-inv.nb_ecarts)/inv.nb_articles):100;
@@ -4051,15 +4205,20 @@ async function imprimerEtatInventaire(id,complet){
   const groupes={}; (complet?lignes:lignes.filter(l=>+l.ecart)).forEach(l=>(groupes[l.famille||'Autre']=groupes[l.famille||'Autre']||[]).push(l));
   const detail=Object.entries(groupes).map(([f,l])=>{ const s=l.reduce((a,x)=>a+(+x.valeur_ecart||0),0);
     return `<tr class="grp"><td colspan="9">${escapeHtml(f)}</td></tr>${l.map(ligne).join('')}<tr class="st"><td colspan="7">Sous-total ${escapeHtml(f)}</td><td class="r" style="${col(s)}">${m(s)}</td><td></td></tr>`; }).join('');
-  await impEcrire(win,{type:'ETAT_INVENTAIRE',titre:complet?"État d'inventaire complet":"État d'inventaire — écarts et justifications",numero:inv.code,montant:net,periode:fmtDate(inv.date_inventaire),niveau:'Dépôt : '+(inv.depot_nom||depotNom(inv.depot_id)),contenu:true},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>État d'inventaire ${escapeHtml(inv.code)}</title>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>État d'inventaire ${escapeHtml(inv.code)}</title>
     <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:26px;color:#0f172a;font-size:11px}h2{font-size:12.5px;margin:16px 0 5px;border-bottom:2px solid #1d3557;padding-bottom:3px}
     table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd5e1;padding:4px 5px;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9.5px;text-transform:uppercase}.r{text-align:right;white-space:nowrap}
     .grp td{background:#e2e8f0;font-weight:700}.st td{font-weight:700;background:#f8fafc}.k{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.k div{border:1px solid #cbd5e1;border-radius:6px;padding:6px}.k b{display:block;font-size:13px;margin-top:2px}
+    .filig{position:fixed;top:42%;left:0;right:0;text-align:center;font-size:64px;font-weight:900;color:rgba(217,119,6,.13);transform:rotate(-24deg);pointer-events:none}
+    .prov{border:2px solid #d97706;color:#92400e;background:#fffbeb;border-radius:6px;padding:5px 8px;margin:6px 0;font-weight:700}
     thead{display:table-header-group}tr{break-inside:avoid}@page{size:A4;margin:11mm}@media print{body{padding:0}}</style></head><body>
     <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
-    <h1 style="font-size:17px;margin:0">ÉTAT D'INVENTAIRE ${complet?'COMPLET':'— ÉCARTS ET JUSTIFICATIONS'}</h1>
+    ${prov?'<div class="filig">PROVISOIRE</div>':''}
+    <h1 style="font-size:17px;margin:0">ÉTAT D'INVENTAIRE ${complet?'COMPLET':'— ÉCARTS ET JUSTIFICATIONS'}${prov?' — PROVISOIRE':''}</h1>
     <div style="font-size:13px;font-weight:700;margin-top:3px">N° ${escapeHtml(inv.code)} — ${escapeHtml(inv.depot_nom||depotNom(inv.depot_id))}</div>
-    <div style="color:#475569;margin:2px 0 10px">Inventaire du ${fmtDate(inv.date_inventaire)} · comptage : ${escapeHtml(inv.responsable||'—')} · contrôle : ${escapeHtml(inv.controleur||'—')} · validé le ${new Date(inv.created_at).toLocaleString('fr-FR')} par ${escapeHtml(inv.valide_par_nom||'—')} · valorisation au CMUP</div>
+    <div style="color:#475569;margin:2px 0 4px">Inventaire du ${fmtDate(inv.date_inventaire)} · comptage : ${escapeHtml(inv.responsable||'—')} · contrôle : ${escapeHtml(inv.controleur||'—')} · ${prov?'état édité le '+new Date().toLocaleString('fr-FR'):`validé le ${new Date(inv.created_at).toLocaleString('fr-FR')} par ${escapeHtml(inv.valide_par_nom||'—')}`} · valorisation au CMUP</div>
+    <div style="color:#475569;margin:0 0 8px">${inv.partiel?`Inventaire <b>partiel</b> : ${inv.nb_articles} article(s) compté(s)${inv.nb_articles_depot?' sur '+inv.nb_articles_depot+' au catalogue':''} — le stock des autres articles n'est pas concerné.`:'Inventaire <b>complet</b> du dépôt.'}${inv.regularisation?' <b>Régularisation</b> d\'ajustements saisis hors registre (stock déjà ajusté).':''}</div>
+    ${prov?'<div class="prov">⚠ ÉTAT PROVISOIRE — comptage non validé : le stock n\'a pas encore été ajusté. Seul l\'état validé fait foi.</div>':''}
     <div class="k"><div>Articles comptés<b>${inv.nb_articles}</b></div><div>Articles en écart<b>${inv.nb_ecarts}</b></div><div>Fiabilité du stock<b>${fiab} %</b></div><div>Valeur théorique<b>${m(inv.valeur_theorique)}</b></div>
       <div>Valeur réelle (comptée)<b>${m(inv.valeur_reelle)}</b></div><div>Excédents<b style="color:#047857">+${m(inv.ecart_positif)}</b></div><div>Manquants<b style="color:#b91c1c">${m(inv.ecart_negatif)}</b></div><div>Écart net<b style="${col(net)}">${net>0?'+':''}${m(net)}</b></div></div>
     <h2>Justification des écarts — synthèse par motif</h2>
@@ -4072,7 +4231,7 @@ async function imprimerEtatInventaire(id,complet){
     <table><thead><tr><th>Code</th><th>Désignation</th><th class="r">Stock système</th><th class="r">Compté</th><th class="r">Écart</th><th>Unité</th><th class="r">CMUP</th><th class="r">Valeur écart</th><th>Justification</th></tr></thead><tbody>${detail}</tbody></table>`:''}
     ${inv.observations?`<h2>Observations</h2><p>${escapeHtml(inv.observations)}</p>`:''}
     <div style="display:flex;gap:26px;margin-top:34px">${['Responsable du comptage','Contrôleur','Responsable des stocks','Visa du DG'].map(x=>`<div style="flex:1;border-top:1px solid #0f172a;padding-top:6px;text-align:center">${x}</div>`).join('')}</div>
-    <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`);
+    <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`;
 }
 
 /* ---------- Décharge de stock depuis une Fiche d'exécution terminée ---------- */

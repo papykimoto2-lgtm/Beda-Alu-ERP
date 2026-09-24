@@ -354,3 +354,24 @@ L'ERP est une **application web progressive (PWA)** : elle s'installe comme un l
   - balises iOS et Android dans `index.html` ;
   - `sw.js` : met les icônes en cache.
 - **Petits écrans** : les icônes secondaires du bandeau (impression, messages) sont masquées sur téléphone pour garder le titre de la page visible.
+
+## Inventaire : enregistrer, reprendre, imprimer (révision)
+- **Brouillon enregistré sur le serveur** (💾 « Enregistrer le brouillon ») :
+  - l'inventaire reçoit tout de suite son numéro INV-AAAA-NNNN ;
+  - le stock n'est **pas** modifié ;
+  - on le reprend sur **n'importe quel appareil** : bandeau « Brouillon(s) enregistré(s) » sur l'écran de saisie, ou « Reprendre » depuis les États d'inventaire ;
+  - on peut l'abandonner.
+  - Les saisies restent aussi sauvegardées automatiquement sur l'appareil.
+- **Inventaire partiel ou complet** :
+  - par défaut, l'inventaire est **partiel** : seuls les articles **comptés ✓** (quantité saisie, ou « ✓ Marquer comptés les articles affichés » pour confirmer un stock) sont enregistrés et ajustés ; les autres articles ne sont pas touchés ;
+  - la case « Inventaire complet du dépôt » inclut tous les articles, les non-comptés étant confirmés à leur stock système ;
+  - filtres « Articles comptés » et « Articles non comptés ».
+- **Justification en lot** : un motif et un commentaire s'appliquent d'un coup à tous les écarts non justifiés affichés. Un nouveau motif **« Stock initial / reprise de stock »** sert à la mise en place du stock d'un dépôt.
+- **Impression** :
+  - **🖨 État provisoire** depuis l'écran de saisie, avant validation, avec le filigrane « PROVISOIRE » ;
+  - après validation, une fenêtre propose l'état des écarts, l'état complet ou l'envoi ;
+  - les états indiquent « partiel (n articles comptés sur N) » ou « complet ».
+- **Envoi 📤 WhatsApp / e-mail** de l'état d'inventaire en PDF, depuis la liste et le détail.
+- **Régularisation des ajustements hors registre** : les ajustements « inventaire » passés sans être rattachés à un inventaire (saisie unitaire, ou poste resté sur une ancienne version) sont signalés dans les États d'inventaire.
+  - « Régulariser » (administrateur ou manager) crée l'inventaire enregistré correspondant, imprimable et justifié, **sans retoucher le stock**.
+- **Installation** : exécuter `sql/inventaires_brouillons.sql` (section 18 de `00_installation_complete.sql`).
