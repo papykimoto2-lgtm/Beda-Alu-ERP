@@ -199,3 +199,30 @@ L'accueil reprend la structure du tableau de bord de Menko Immo, adaptée à la 
   - miniature dans le panier.
 - **Produits et ouvrages vendables au comptoir** : option « Proposé à la vente au comptoir » et prix de vente dans la fiche produit. La vente passe sans mouvement de stock ; le coût est le coût matériel du produit.
 - Migration : `sql/photos_articles.sql` (aussi dans `00_installation_complete.sql`).
+
+## Moteur d'impression — en-tête entreprise et QR code de sécurité logiciel
+- **Un seul moteur pour tous les documents imprimés** :
+  - devis, factures, reçus et tickets de caisse ;
+  - bons de caisse et bons de transfert ;
+  - fiches client, fournisseur et d'exécution, estimations ;
+  - **états périodiques** : point de vente, brouillard de caisse, ticket Z et lecture X, états comptables SYSCOHADA, bulletin de pilotage ;
+  - **n'importe quelle page** de l'application, avec le bouton 🖨 du bandeau.
+- **En-tête entreprise** : logo, raison sociale, slogan, forme juridique et capital, RCCM, NCC, régime fiscal, centre des impôts, adresse, boîte postale et contacts.
+  - Trois présentations au choix : complet, centré ou compact ; couleur au choix.
+  - Sous l'en-tête, le **niveau d'émission** : entreprise › point de vente, caisse ou dépôt.
+- **Pied de page légal** : identité juridique et fiscale, banque/RIB et mentions libres.
+- **Réglages** : Paramètres → 🖨 Impression (avec aperçu et page de test). Les tickets se règlent en 80 mm ou 58 mm.
+- **QR code de sécurité logiciel**, distinct du QR code FNE de la DGI :
+  - chaque document reçoit un **code d'authenticité** unique (`SX-XXXX-XXXX-XXXX`) ;
+  - il reçoit aussi une **signature HMAC** calculée par le serveur avec une clé secrète propre à la base (`securite_documents_cle`, jamais exposée).
+- **Registre des documents imprimés** : table `documents_imprimes`.
+  - Une réimpression à l'identique garde son code : **impression n° 2, 3… (duplicata)**.
+  - Un document dont les données changent reçoit un nouveau code.
+- **Vérification sans compte** : le QR ouvre `index.html?verif=CODE.SIGNATURE`.
+  - La page affiche « Document authentique » avec type, numéro, montant, tiers, date et nombre d'impressions, pour comparaison avec le papier.
+  - Sinon elle affiche « Signature invalide », « Code inconnu » ou « Document révoqué ».
+  - La vérification est aussi possible dans Paramètres → 🖨 Impression.
+- **Révocation** d'un document (administrateur ou manager) : depuis le registre.
+- **QR code FNE (DGI)** : il reste imprimé à part sur les factures certifiées, avec la mention « QR CODE FNE — DGI ». Les QR sont désormais dessinés dans l'application (impression possible hors ligne).
+- **Hors ligne** : un code provisoire `LOC-…`, non vérifiable en ligne, est imprimé.
+- **Installation** : exécuter `sql/impressions_securite.sql` (section 15 de `00_installation_complete.sql`).

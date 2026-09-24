@@ -15,6 +15,7 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="config.js"></script>
 <script>
 /* Marque du logiciel (fixe). L'identité de l'entreprise utilisatrice vient des Paramètres (window.APP_PARAMS). */
@@ -324,6 +325,7 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
       </div>
       <div class="flex items-center gap-3 shrink-0">
         <button id="hlPill" class="hl-pill hl-ok" onclick="HL.ouvrirPanneau()" title="État de la synchronisation"><span class="hl-dot"></span><span>En ligne</span></button>
+        <button class="icon-btn" title="Imprimer cette page (en-tête entreprise + QR de sécurité)" onclick="imprimerPageCourante()">🖨</button>
         <button class="icon-btn" id="hdrPositionBtn" title="Partager ma position (commercial terrain)" onclick="partagerMaPosition()">📍</button>
         <button class="icon-btn" title="Messages">💬</button>
         <button class="icon-btn" title="Notifications">🔔<span id="hdrBellCount" class="dot hidden">0</span></button>
@@ -885,6 +887,7 @@ async function enterApp(){
   showPage('dashboard');
 }
 (async function boot(){
+  if(await verifDocumentDepuisUrl()) return;   // scan d'un QR de sécurité : page de vérification publique, sans connexion
   const {data:{session}}=await sb.auth.getSession();
   if(session) await enterApp(); else preparerEcranConnexion();
 })();
@@ -1060,8 +1063,8 @@ async function imprimerBonDemande(id){
   let numero=d.numero;
   if(d.mouvement_id){ const {data:m}=await sb.from('caisse_mouvements').select('numero').eq('id',d.mouvement_id).maybeSingle(); if(m?.numero) numero=m.numero; }
   const titre=d.type==='entree'?"BON D'ENTRÉE DE CAISSE":d.type==='sortie'?'BON DE SORTIE DE CAISSE':'BON DE TRANSFERT ENTRE CAISSES';
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${titre} ${escapeHtml(numero)}</title><style>body{font-family:Arial,sans-serif;font-size:13px;margin:32px;color:#111}h1{font-size:18px;text-align:center;margin:18px 0}table{width:100%;border-collapse:collapse}td{padding:7px;border-bottom:1px solid #e5e7eb}td:first-child{color:#6b7280;width:35%}.sig{display:flex;gap:16px;margin-top:40px}.sig div{flex:1;border-top:1px solid #111;padding-top:6px;text-align:center;font-size:12px;min-height:70px}.ok{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;padding:8px;margin-top:14px;font-size:12px}</style></head><body>
-    <div style="display:flex;justify-content:space-between"><div>${p?.logo_base64?`<img src="${p.logo_base64}" style="max-height:60px">`:''}<div style="font-weight:700">${escapeHtml(p?.raison_sociale||'')}</div></div><div style="text-align:right">N° <b>${escapeHtml(numero)}</b><br>Demande ${escapeHtml(d.numero)}<br>${fmtDate(d.date_mouvement)}</div></div>
+  await impEcrire(w,{type:'BON_CAISSE',titre,numero,montant:d.montant,tiers:d.beneficiaire,niveau:'Caisse : '+(d.caisses?.nom||'')},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${titre} ${escapeHtml(numero)}</title><style>body{font-family:Arial,sans-serif;font-size:13px;margin:32px;color:#111}h1{font-size:18px;text-align:center;margin:18px 0}table{width:100%;border-collapse:collapse}td{padding:7px;border-bottom:1px solid #e5e7eb}td:first-child{color:#6b7280;width:35%}.sig{display:flex;gap:16px;margin-top:40px}.sig div{flex:1;border-top:1px solid #111;padding-top:6px;text-align:center;font-size:12px;min-height:70px}.ok{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;padding:8px;margin-top:14px;font-size:12px}</style></head><body>
+    ${printCompanyHeaderHtml({niveau:'Caisse : '+(d.caisses?.nom||'')})}<div style="display:flex;justify-content:flex-end"><div style="text-align:right">N° <b>${escapeHtml(numero)}</b><br>Demande ${escapeHtml(d.numero)}<br>${fmtDate(d.date_mouvement)}</div></div>
     <h1>${titre}</h1>
     <table><tr><td>Caisse</td><td>${escapeHtml(d.caisses?.nom||'')}</td></tr><tr><td>Montant</td><td><b>${money(d.montant)}</b></td></tr><tr><td>Motif</td><td>${escapeHtml(d.motif)}</td></tr>
     <tr><td>${d.type==='entree'?'Provenance':'Bénéficiaire'}</td><td>${escapeHtml(d.beneficiaire||'—')}</td></tr>${d.projet_id?`<tr><td>Chantier</td><td>${escapeHtml(chantierLabel(d.projet_id))}</td></tr>`:''}
@@ -1528,13 +1531,13 @@ async function dashPartagerFile(){
     <div class="text-xs text-gray-400 mt-1">Texte copié dans le presse-papiers.</div>
     <div class="flex justify-end gap-2 mt-3"><button class="btn btn-outline" onclick="closeModal()">Fermer</button><a class="btn btn-primary" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(t)}">Envoyer par WhatsApp</a></div>`);
 }
-function dashImprimerBulletin(){
+async function dashImprimerBulletin(){
   const k=window._dash.k, a=dashActions(), p=window.APP_PARAMS||{};
   const w=window.open('','_blank','width=900,height=1100'); if(!w){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
   const sante=document.createElement('div'); sante.innerHTML=dashSante();
   const doms=[...sante.querySelectorAll('.card')].map(c=>{ const t=c.querySelectorAll('span'); return `<tr><td>${t[0]?.textContent||''}</td><td style="text-align:right;font-weight:700">${t[1]?.textContent||''}</td><td>${c.querySelector('.text-\\[11px\\]')?.textContent||''}</td></tr>`; }).join('');
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bulletin de pilotage</title><style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:28px}h1{font-size:18px;margin:0}h2{font-size:13px;margin:18px 0 6px;border-bottom:2px solid #6d28d9;padding-bottom:3px}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #e5e7eb;padding:5px;text-align:left}.k{display:inline-block;width:32%;margin:0 1% 8px 0;border:1px solid #e5e7eb;border-radius:6px;padding:8px;box-sizing:border-box}.k b{display:block;font-size:14px;margin-top:3px}</style></head><body>
-    <h1>📊 Bulletin de pilotage — ${escapeHtml(p.raison_sociale||'')}</h1><div style="color:#6b7280">${new Date().toLocaleString('fr-FR')} · ${escapeHtml(APP_NOM)}</div>
+  await impEcrire(w,{type:'BULLETIN',titre:'Bulletin de pilotage',periode:new Date().toLocaleDateString('fr-FR'),contenu:true},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bulletin de pilotage</title><style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:28px}h1{font-size:18px;margin:0}h2{font-size:13px;margin:18px 0 6px;border-bottom:2px solid #6d28d9;padding-bottom:3px}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #e5e7eb;padding:5px;text-align:left}.k{display:inline-block;width:32%;margin:0 1% 8px 0;border:1px solid #e5e7eb;border-radius:6px;padding:8px;box-sizing:border-box}.k b{display:block;font-size:14px;margin-top:3px}</style></head><body>
+    <h1>📊 Bulletin de pilotage</h1><div style="color:#6b7280">${new Date().toLocaleString('fr-FR')} · ${escapeHtml(APP_NOM)}</div>
     <h2>Indicateurs clés</h2>
     <div class="k">Reste à encaisser (factures)<b>${money(k.totalImpaye)}</b></div><div class="k">Dont échu &gt; 30 jours<b>${money(k.totalEchu)}</b></div><div class="k">Devis acceptés à facturer<b>${money(k.montantANFacturer)}</b></div>
     <div class="k">Pipeline devis en cours<b>${money(k.montantPipeline)}</b></div><div class="k">Chantiers en cours / en retard<b>${k.actifs.length} / ${k.retard.length}</b></div><div class="k">Valeur du stock (CMUP)<b>${money(k.valeurStock)}</b></div>
@@ -1772,7 +1775,7 @@ async function printClientFiche(id){
     ['NCC',c.ncc],['RCCM',c.rccm],['Régime fiscal',c.regime_fiscal],
     ['Créé le',fmtDate(c.created_at)]
   ].filter(([,v])=>v);
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fiche client ${escapeHtml(c.code)}</title>
+  await impEcrire(win,{type:'FICHE_CLIENT',titre:'Fiche client',numero:c.code,tiers:nomComplet||c.entreprise},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fiche client ${escapeHtml(c.code)}</title>
     <style>
       *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:34px;color:#111827;font-size:13px}
       h1{font-size:19px;margin:0 0 2px}
@@ -1785,7 +1788,6 @@ async function printClientFiche(id){
     <h1>FICHE CLIENT — ${escapeHtml(nomComplet||c.entreprise||'—')}</h1>
     <div style="color:#6b7280;font-size:12px">Code ${escapeHtml(c.code)}</div>
     <table>${rows.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(String(v))}</td></tr>`).join('')}</table>
-    ${printFooterQrHtml('FICHE CLIENT',c.code,0)}
     <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script>
     </body></html>`);
   win.document.close(); win.focus();
@@ -2265,7 +2267,7 @@ async function printFournisseurFiche(id){
     ['NCC',f.ncc],['RCCM',f.rccm],['Régime fiscal',f.regime_fiscal],
     ['Créé le',fmtDate(f.created_at)]
   ].filter(([,v])=>v);
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fiche fournisseur ${escapeHtml(f.code)}</title>
+  await impEcrire(win,{type:'FICHE_FOURNISSEUR',titre:'Fiche fournisseur',numero:f.code,tiers:f.nom},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fiche fournisseur ${escapeHtml(f.code)}</title>
     <style>
       *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:34px;color:#111827;font-size:13px}
       h1{font-size:19px;margin:0 0 2px}
@@ -2278,7 +2280,6 @@ async function printFournisseurFiche(id){
     <h1>FICHE FOURNISSEUR — ${escapeHtml(f.nom||'—')}</h1>
     <div style="color:#6b7280;font-size:12px">Code ${escapeHtml(f.code)}</div>
     <table>${rows.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(String(v))}</td></tr>`).join('')}</table>
-    ${printFooterQrHtml('FICHE FOURNISSEUR',f.code,0)}
     <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script>
     </body></html>`);
   win.document.close(); win.focus();
@@ -6477,43 +6478,325 @@ function docTotalsHtml(sousTotal,reduction,autreFrais){
     <div class="doc-total-final"><span>Montant total à payer</span><b>${money(total)}</b></div>
   </div>`;
 }
-/* ============================== ENTÊTE SOCIÉTÉ + PIED DE PAGE QR (impression) ============================== */
-function printCompanyHeaderHtml(){
-  const p=window.APP_PARAMS||{};
-  const logo=p.logo_base64?`<img src="${p.logo_base64}" style="max-height:60px;max-width:220px;object-fit:contain">`:(p.raison_sociale?`<div style="font-size:18px;font-weight:800">${escapeHtml(p.raison_sociale)}</div>`:'');
-  const infos=[
-    p.logo_base64?p.raison_sociale:null,
-    [p.rccm?'RCCM '+p.rccm:'',p.ncc?'NCC '+p.ncc:''].filter(Boolean).join(' — ')||null,
-    p.adresse||null,
-    [p.telephone,p.email].filter(Boolean).join(' · ')||null,
-    p.site_web||null
-  ].filter(Boolean);
-  if(!infos.length) return '';
-  return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;border-bottom:2px solid #111827;padding-bottom:12px;margin-bottom:16px">
-    <div>${logo}</div>
-    <div style="text-align:right;font-size:10.5px;color:#374151;line-height:1.7">${infos.map(i=>`<div>${escapeHtml(i)}</div>`).join('')}</div>
+/* ============================== MOTEUR D'IMPRESSION (tous les documents imprimés) ==============================
+   Un seul moteur pour TOUT ce qui sort sur papier : devis, factures, reçus et tickets, bons (caisse, transfert),
+   fiches (client, fournisseur, exécution), estimations, états périodiques (point de vente, brouillard, ticket Z,
+   états comptables, bulletin de pilotage) et n'importe quelle page de l'application (bouton 🖨 du bandeau).
+   Il ajoute à chaque document :
+     • l'EN-TÊTE ENTREPRISE paramétrable (Paramètres → 🖨 Impression) + le NIVEAU d'émission
+       (entreprise › dépôt / point de vente / caisse…) ;
+     • le PIED DE PAGE légal (forme juridique, capital, RCCM, NCC, régime, centre des impôts, banque…) ;
+     • le QR CODE DE SÉCURITÉ LOGICIEL : code d'authenticité unique + signature HMAC calculée par le serveur
+       (table documents_imprimes). Il renvoie vers la page de vérification (…?verif=CODE.SIGNATURE), consultable
+       sans compte. Il est DISTINCT du QR code FNE de la DGI (certification fiscale), qui reste imprimé à part,
+       uniquement sur les factures certifiées.
+   Réimprimer le même document garde son code (impression n° 2, 3… = duplicata) ; hors ligne, un code local
+   provisoire « LOC-… » (non vérifiable en ligne) est imprimé. */
+const IMP_DEFAUT={style:'complet',couleur:'#1d3557',slogan:'',forme_juridique:'',capital:'',centre_impots:'',boite_postale:'',banque:'',mentions_pied:'',qr_securite:true,imprime_par:true,ticket_largeur:80};
+const IMP_STYLES={complet:'Complet — logo à gauche, identité à droite',centre:'Centré — logo et identité au centre',compact:'Compact — une seule ligne'};
+function impParams(){ return {...IMP_DEFAUT,...((window.APP_PARAMS||{}).impression||{})}; }
+const REGIMES_FISCAUX={reel_normal:'Réel normal (RNI)',reel_simplifie:'Réel simplifié (RSI)',micro:'Micro-entreprise'};
+function impIdentite(){
+  const p=window.APP_PARAMS||{}, P=impParams();
+  return {
+    nom:p.raison_sociale||'', logo:p.logo_base64||'', slogan:P.slogan,
+    juridique:[P.forme_juridique,P.capital?'au capital de '+P.capital:''].filter(Boolean).join(' '),
+    fiscal:[p.rccm?'RCCM '+p.rccm:'',p.ncc?'NCC '+p.ncc:''].filter(Boolean).join(' — '),
+    regime:[p.regime_fiscal?'Régime : '+(REGIMES_FISCAUX[p.regime_fiscal]||p.regime_fiscal):'',P.centre_impots?'Centre des impôts : '+P.centre_impots:''].filter(Boolean).join(' — '),
+    adresse:[p.adresse,P.boite_postale].filter(Boolean).join(' — '),
+    contact:[p.telephone,p.email].filter(Boolean).join(' · '),
+    site:p.site_web||'', banque:P.banque
+  };
+}
+/* En-tête A4. opts.niveau : « Point de vente : X · Caisse : Y »… (niveau d'émission sous l'entreprise) */
+function printCompanyHeaderHtml(opts){
+  opts=opts||{};
+  const P=impParams(), I=impIdentite(), c=P.couleur||'#1d3557';
+  const nomHtml=`<div style="font-size:18px;font-weight:800;color:${c};line-height:1.2">${escapeHtml(I.nom)}</div>`;
+  const logo=I.logo?`<img src="${I.logo}" style="max-height:62px;max-width:220px;object-fit:contain;display:block">`:'';
+  const slogan=I.slogan?`<div style="font-size:10.5px;font-style:italic;color:#475569">${escapeHtml(I.slogan)}</div>`:'';
+  const infos=[I.juridique,I.fiscal,I.regime,I.adresse,I.contact,I.site].filter(Boolean);
+  const niveau=opts.niveau?`<div style="display:flex;gap:6px;align-items:center;background:${c}10;border-left:3px solid ${c};padding:4px 10px;margin:-8px 0 14px;font-size:10.5px;color:#334155">🏢 <b>${escapeHtml(I.nom||'Entreprise')}</b> › ${escapeHtml(opts.niveau)}</div>`:'';
+  if(!I.nom && !I.logo && !infos.length) return '<div data-imp-entete></div>'+niveau;
+  let corps;
+  if(P.style==='compact'){
+    corps=`<div style="display:flex;align-items:center;gap:12px">${I.logo?`<img src="${I.logo}" style="max-height:34px;max-width:120px;object-fit:contain">`:''}<b style="color:${c}">${escapeHtml(I.nom)}</b><span style="font-size:10px;color:#475569">${infos.map(escapeHtml).join(' · ')}</span></div>`;
+  } else if(P.style==='centre'){
+    corps=`<div style="text-align:center">${logo?`<div style="display:flex;justify-content:center">${logo}</div>`:''}${nomHtml}${slogan}<div style="font-size:10px;color:#374151;line-height:1.6;margin-top:3px">${infos.map(escapeHtml).join(' · ')}</div></div>`;
+  } else {
+    corps=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px"><div>${logo}${logo&&I.nom?`<div style="font-size:13px;font-weight:800;color:${c};margin-top:4px">${escapeHtml(I.nom)}</div>`:I.nom?nomHtml:''}${slogan}</div>
+      <div style="text-align:right;font-size:10.5px;color:#374151;line-height:1.65">${infos.map(i=>`<div>${escapeHtml(i)}</div>`).join('')}</div></div>`;
+  }
+  return `<div data-imp-entete style="border-bottom:2.5px solid ${c};padding-bottom:10px;margin-bottom:16px">${corps}</div>${niveau}`;
+}
+/* En-tête format ticket (58 / 80 mm) */
+function impEnteteTicketHtml(niveau){
+  const I=impIdentite();
+  return `<div data-imp-entete style="text-align:center;font-family:'Courier New',monospace;font-size:11px;line-height:1.35">
+    ${I.logo?`<div><img src="${I.logo}" style="max-width:50mm;max-height:22mm"></div>`:''}
+    ${I.nom?`<div style="font-weight:bold;font-size:14px">${escapeHtml(I.nom)}</div>`:''}
+    ${I.slogan?`<div style="font-size:10px;font-style:italic">${escapeHtml(I.slogan)}</div>`:''}
+    ${[I.adresse,I.contact,I.fiscal,I.regime].filter(Boolean).map(x=>`<div>${escapeHtml(x)}</div>`).join('')}
+    ${niveau?`<div style="margin-top:2px">${escapeHtml(niveau)}</div>`:''}</div>`;
+}
+/* Pied de page légal (A4) */
+function impPiedHtml(){
+  const P=impParams(), I=impIdentite();
+  const legal=[I.nom,I.juridique,I.fiscal,I.regime,I.banque?'Banque : '+I.banque:''].filter(Boolean).join(' — ');
+  if(!legal && !P.mentions_pied) return '';
+  return `<div class="imp-pied">${legal?`<div>${escapeHtml(legal)}</div>`:''}${P.mentions_pied?`<div>${escapeHtml(P.mentions_pied).replace(/\n/g,'<br>')}</div>`:''}</div>`;
+}
+function impUrlVerification(code,sig){
+  const base=location.protocol==='file:'?location.href.split(/[?#]/)[0]:location.origin+location.pathname;
+  return `${base}?verif=${encodeURIComponent(code)}.${encodeURIComponent(sig)}`;
+}
+/* QR code dessiné dans l'application (image intégrée au document) : fonctionne hors ligne, sans script dans la fenêtre d'impression */
+function impQrDataUrl(texte,taille){
+  if(typeof QRCode==='undefined' || !texte) return null;
+  try{
+    const d=document.createElement('div');
+    new QRCode(d,{text:String(texte),width:taille*3,height:taille*3,correctLevel:QRCode.CorrectLevel.M});
+    const cv=d.querySelector('canvas');
+    return cv?cv.toDataURL('image/png'):(d.querySelector('img')?.src||null);
+  }catch(e){ return null; }
+}
+async function impSha256(txt){
+  try{ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+  catch(e){ let h1=0x811c9dc5,h2=0; for(let i=0;i<txt.length;i++){ h1=Math.imul(h1^txt.charCodeAt(i),16777619)>>>0; h2=(h2*31+txt.charCodeAt(i))>>>0; } return (h1.toString(16)+h2.toString(16)).padEnd(24,'0'); }
+}
+/* Contenu « stable » d'un état (sans horodatages d'édition) : sert à reconnaître une réimpression à l'identique */
+function impContenuStable(html){
+  return String(html).replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<[^>]+>/g,' ')
+    .replace(/\d{1,2}\/\d{1,2}\/\d{4}[ ,à]+\d{1,2}:\d{2}(:\d{2})?/g,'').replace(/\s+/g,' ').trim();
+}
+async function impEnregistrer(meta,html){
+  const cle=[meta.type,meta.numero||'',(+meta.montant||0).toFixed(2),meta.tiers||'',meta.periode||'',meta.niveau||'',meta.variante||'',meta.contenu?impContenuStable(html):''].join('|');
+  const empreinte=await impSha256(cle);
+  try{
+    const {data,error}=await sb.rpc('document_imprime_enregistrer',{p_type:meta.type,p_numero:meta.numero||null,p_titre:meta.titre||null,p_montant:+meta.montant||0,p_tiers:meta.tiers||null,p_periode:meta.periode||null,p_empreinte:empreinte,p_format:meta.format||'a4',p_niveau:meta.niveau||null});
+    const r=Array.isArray(data)?data[0]:data;
+    if(error||!r?.code) throw error||new Error('réponse vide');
+    return {code:r.code,signature:r.signature,nb:+r.nb_impressions||1,revoque:r.statut==='revoque',empreinte};
+  }catch(e){
+    return {code:'LOC-'+empreinte.slice(0,4).toUpperCase()+'-'+empreinte.slice(4,8).toUpperCase(),signature:empreinte.slice(8,20).toUpperCase(),nb:1,local:true,empreinte};
+  }
+}
+function impUtilisateurNom(){
+  const n=(document.getElementById('hdrUserName')?.textContent||'').trim();
+  return n&&n!=='—'?n:(typeof CURRENT_USER!=='undefined'&&CURRENT_USER?.email)||'';
+}
+function impSecuriteHtml(s,meta){
+  const P=impParams(), ticket=meta.format==='ticket';
+  const url=s.local?null:impUrlVerification(s.code,s.signature);
+  const qrTexte=url||[`${meta.titre||meta.type} ${meta.numero||''}`.trim(),meta.montant?money(meta.montant):'',meta.tiers||'',`Code ${s.code}`,`Empreinte ${s.empreinte.slice(0,24)}`,'Non enregistré (hors ligne)'].filter(Boolean).join('\n');
+  const qr=impQrDataUrl(qrTexte,ticket?88:84);
+  const qrHtml=qr?`<img src="${qr}" alt="QR de sécurité" style="width:${ticket?88:84}px;height:${ticket?88:84}px;image-rendering:pixelated;display:block">`
+    :`<div data-qr="${escapeHtml(qrTexte)}" data-size="${ticket?88:84}" style="width:${ticket?88:84}px;height:${ticket?88:84}px"></div>`;
+  const qui=P.imprime_par?`Imprimé le ${new Date().toLocaleString('fr-FR')}${impUtilisateurNom()?' par '+escapeHtml(impUtilisateurNom()):''}`:`Imprimé le ${new Date().toLocaleString('fr-FR')}`;
+  const nb=s.nb>1?` · <b>Impression n° ${s.nb} (duplicata)</b>`:'';
+  const etat=s.local?'<b>Code provisoire hors ligne</b> — non vérifiable en ligne.':s.revoque?'<b style="color:#b91c1c">DOCUMENT RÉVOQUÉ</b>':'Scannez pour vérifier l\'authenticité de ce document auprès de l\'émetteur.';
+  const script=qr?'':fneQrScriptFin();
+  if(ticket) return `<div class="imp-sec imp-sec-ticket"><div class="imp-sec-t">— QR SÉCURITÉ LOGICIEL —</div><div style="display:flex;justify-content:center;margin:4px 0">${qrHtml}</div>
+    <div>Code : <b>${escapeHtml(s.code)}</b></div><div>Signature : ${escapeHtml(s.signature)}</div><div>${etat}</div><div>${qui}${nb}</div>
+    <div style="font-size:9px">(Ce QR n'est pas le QR code FNE de la DGI)</div></div>${script}`;
+  return `<div class="imp-sec">${qrHtml}<div>
+    <div class="imp-sec-t">🛡 QR CODE DE SÉCURITÉ LOGICIEL — ${escapeHtml(APP_NOM)}</div>
+    <div>Code d'authenticité : <b style="font-family:monospace;font-size:11px">${escapeHtml(s.code)}</b> · Signature : <b style="font-family:monospace">${escapeHtml(s.signature)}</b></div>
+    <div>${etat} Ce QR code est propre au logiciel : il est distinct du QR code FNE de la DGI (certification fiscale).</div>
+    <div>${qui}${nb}</div></div></div>${script}`;
+}
+const IMP_CSS=`<style id="impCss">
+  .imp-pied{margin-top:22px;padding-top:6px;border-top:1px solid #cbd5e1;font-size:9px;color:#475569;text-align:center;line-height:1.5}
+  .imp-sec{display:flex;gap:12px;align-items:center;margin-top:12px;padding:8px 10px;border:1px dashed #94a3b8;border-radius:8px;font-size:9.5px;color:#334155;line-height:1.5;break-inside:avoid;page-break-inside:avoid;font-family:Arial,sans-serif}
+  .imp-sec-t{font-weight:800;font-size:10px;letter-spacing:.03em;color:#0f172a}
+  .imp-sec-ticket{display:block;text-align:center;font-family:'Courier New',monospace;font-size:10px;border:0;border-top:1px dashed #000;border-radius:0;padding:6px 0 0;color:#000}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @media print{.noprint{display:none!important}}
+</style>`;
+/* Écrit le document dans la fenêtre d'impression en y ajoutant en-tête, pied légal et QR de sécurité.
+   meta : {type, titre, numero, montant, tiers, periode, niveau, format:'a4'|'ticket', contenu:true (états), entete:false, securite:false} */
+async function impEcrire(win,meta,html){
+  meta=meta||{}; meta.type=meta.type||'DOCUMENT';
+  const P=impParams();
+  if(meta.entete!==false && !html.includes('data-imp-entete')){
+    const ent=meta.format==='ticket'?impEnteteTicketHtml(meta.niveau):printCompanyHeaderHtml({niveau:meta.niveau});
+    html=/<body[^>]*>\s*<div class="noprint"[^>]*>[\s\S]*?<\/div>/.test(html)?html.replace(/(<body[^>]*>\s*<div class="noprint"[^>]*>[\s\S]*?<\/div>)/,'$1'+ent):html.replace(/(<body[^>]*>)/,'$1'+ent);
+  }
+  let bas=meta.format==='ticket'?'':impPiedHtml();
+  if(P.qr_securite!==false && meta.securite!==false) bas+=impSecuriteHtml(await impEnregistrer(meta,html),meta);
+  html=html.replace('</head>',IMP_CSS+'</head>');
+  if(meta.format==='ticket' && +P.ticket_largeur===58) html=html.replace(/76mm/g,'54mm').replace(/80mm auto/g,'58mm auto').replace(/max-width:50mm/g,'max-width:40mm');
+  const i=html.lastIndexOf('</body>'); html=i>=0?html.slice(0,i)+bas+html.slice(i):html+bas;
+  try{ win.document.open(); win.document.write(html); win.document.close(); win.focus(); }catch(e){ /* fenêtre fermée par l'utilisateur */ }
+}
+/* Imprime la page affichée (liste, tableau de bord, état…) avec en-tête entreprise + QR de sécurité */
+async function imprimerPageCourante(){
+  const src=document.getElementById('pageContent'); if(!src) return;
+  const titre=(document.getElementById('pageTitle')?.textContent||'Document').trim();
+  const win=window.open('','_blank','width=1100,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const clone=src.cloneNode(true);
+  const cs=src.querySelectorAll('canvas'), cc=clone.querySelectorAll('canvas');
+  cs.forEach((c,i)=>{ try{ const img=document.createElement('img'); img.src=c.toDataURL('image/png'); img.style.cssText='max-width:100%;height:auto'; cc[i].replaceWith(img); }catch(e){} });
+  const si=src.querySelectorAll('input,select,textarea'), ci=clone.querySelectorAll('input,select,textarea');
+  si.forEach((el,i)=>{ const cl=ci[i]; if(!cl) return;
+    if(el.type==='hidden'||el.type==='file'){ cl.remove(); return; }
+    const sp=document.createElement('span');
+    sp.textContent=el.type==='checkbox'||el.type==='radio'?(el.checked?'☑':'☐'):el.tagName==='SELECT'?(el.selectedOptions[0]?.textContent||''):el.value;
+    sp.style.cssText='font-weight:600'; cl.replaceWith(sp); });
+  clone.querySelectorAll('button,.noprint,[data-noprint],.leaflet-control-container,script').forEach(b=>b.remove());
+  clone.querySelectorAll('tr').forEach(tr=>{ if(tr.style.display==='none') tr.remove(); });
+  const css=[...document.querySelectorAll('style')].filter(s=>s.id!=='impCss').map(s=>s.outerHTML).join('');
+  const corps=clone.innerHTML;
+  await impEcrire(win,{type:'PAGE',titre,periode:new Date().toISOString().slice(0,10),contenu:true},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(titre)}</title>${css}
+    <style>body{background:#fff!important;font-family:Arial,sans-serif;padding:24px;font-size:12px;color:#111827}.sticky{position:static!important}.card,.page-card{box-shadow:none!important;break-inside:avoid}@page{size:A4;margin:12mm}@media print{body{padding:0}}</style></head><body>
+    <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+    <h1 style="font-size:18px;font-weight:800;margin:0">${escapeHtml(titre)}</h1><div style="color:#64748b;font-size:11px;margin-bottom:12px">Édité le ${new Date().toLocaleString('fr-FR')}</div>
+    ${corps}
+    <script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body></html>`);
+}
+/* ---------- Vérification d'un document (scan du QR de sécurité, sans compte) ---------- */
+const IMP_TYPES={DEVIS:'Devis',FACTURE:'Facture',FACTURE_FNE:'Facture normalisée (FNE)',RECU:'Reçu de caisse',BON_CAISSE:'Bon de caisse',BON_TRANSFERT:'Bon de transfert',FICHE_CLIENT:'Fiche client',FICHE_FOURNISSEUR:'Fiche fournisseur',FICHE_EXECUTION:"Fiche d'exécution",ESTIMATION:'Estimation financière',ETAT_PDV:'État périodique point de vente',BROUILLARD:'Brouillard de caisse',TICKET_Z:'Ticket Z',LECTURE_X:'Lecture X',ETAT_COMPTABLE:'État comptable SYSCOHADA',BULLETIN:'Bulletin de pilotage',PAGE:'Page imprimée'};
+function impVerificationResultatHtml(r){
+  if(!r) return `<div style="color:#b91c1c;font-weight:700">⚠ Vérification impossible (serveur injoignable). Réessayez avec une connexion Internet.</div>`;
+  if(!r.trouve) return `<div style="text-align:center"><div style="font-size:44px">❌</div><div style="font-size:18px;font-weight:800;color:#b91c1c">Code inconnu</div><p style="color:#475569">Aucun document n'a été émis par le logiciel avec ce code. Le document présenté n'est pas authentique ou le code a été mal saisi.</p></div>`;
+  if(!r.signature_valide) return `<div style="text-align:center"><div style="font-size:44px">❌</div><div style="font-size:18px;font-weight:800;color:#b91c1c">Signature invalide</div><p style="color:#475569">Le code existe mais la signature ne correspond pas : document falsifié ou mal recopié.</p></div>`;
+  const rev=r.statut==='revoque';
+  const L=(k,v)=>v||v===0?`<tr><td style="color:#64748b;padding:5px 10px 5px 0;white-space:nowrap">${k}</td><td style="padding:5px 0;font-weight:600">${escapeHtml(String(v))}</td></tr>`:'';
+  return `<div style="text-align:center"><div style="font-size:44px">${rev?'⛔':'✅'}</div>
+    <div style="font-size:18px;font-weight:800;color:${rev?'#b91c1c':'#047857'}">${rev?'Document révoqué':'Document authentique'}</div>
+    <p style="color:#475569;font-size:13px">${rev?`Ce document a été émis par le logiciel puis révoqué le ${new Date(r.revoque_le).toLocaleString('fr-FR')} — motif : <b>${escapeHtml(r.motif_revocation||'')}</b>`:'Émis par le logiciel et non modifié. Comparez les informations ci-dessous avec le document papier.'}</p></div>
+    <table style="margin:10px auto;font-size:13.5px">${L('Émetteur',r.entreprise)}${L('NCC / RCCM',[r.ncc,r.rccm].filter(Boolean).join(' / '))}${L('Document',(IMP_TYPES[r.type]||r.type)+(r.titre&&r.titre!==IMP_TYPES[r.type]?' — '+r.titre:''))}${L('Numéro',r.numero)}${+r.montant?L('Montant',money(r.montant)):''}${L('Client / tiers',r.tiers)}${L('Période',r.periode)}${L("Niveau d'émission",r.niveau)}${L('Première impression',new Date(r.premiere_impression).toLocaleString('fr-FR'))}${L('Impressions',r.nb_impressions+(r.nb_impressions>1?' (dernière le '+new Date(r.derniere_impression).toLocaleString('fr-FR')+')':''))}${L('Imprimé par',r.imprime_par)}${L("Code d'authenticité",r.code)}</table>`;
+}
+async function impVerifier(code,sig){
+  try{ const {data,error}=await sb.rpc('document_verifier',{p_code:String(code||'').trim(),p_signature:String(sig||'').trim()}); if(error) throw error; return data; }
+  catch(e){ return null; }
+}
+async function verifDocumentDepuisUrl(){
+  const v=new URLSearchParams(location.search).get('verif'); if(!v) return false;
+  const [code,sig]=v.split('.');
+  document.body.insertAdjacentHTML('beforeend',`<div id="verifEcran" style="position:fixed;inset:0;z-index:9999;background:#f1f5f9;overflow:auto;font-family:Arial,sans-serif;padding:16px">
+    <div style="max-width:560px;margin:24px auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:22px">
+      <div style="text-align:center;font-size:12px;color:#64748b;letter-spacing:.05em;font-weight:700">🛡 VÉRIFICATION D'UN DOCUMENT — QR DE SÉCURITÉ LOGICIEL</div>
+      <div style="text-align:center;font-family:monospace;margin:6px 0 14px">${escapeHtml(code||'')}</div>
+      <div id="verifResultat" style="text-align:center;color:#64748b">Vérification en cours…</div>
+      <p style="font-size:11px;color:#94a3b8;text-align:center;margin-top:16px">Ce contrôle porte sur le QR code de sécurité du logiciel ${escapeHtml(APP_NOM)}. Pour une facture normalisée, le QR code FNE se vérifie séparément auprès de la DGI.</p>
+      <div style="text-align:center;margin-top:10px"><a href="${location.pathname}" style="color:#6d28d9;font-size:13px">Ouvrir l'application →</a></div>
+    </div></div>`);
+  document.getElementById('verifResultat').innerHTML=impVerificationResultatHtml(await impVerifier(code,sig));
+  return true;
+}
+
+/* ---------- Paramètres → 🖨 Impression : en-tête, pied de page, QR de sécurité, registre des documents imprimés ---------- */
+function paramImpressionHtml(){
+  const P=impParams();
+  const cb=(id,v,l)=>`<label class="flex items-center gap-2 text-sm"><input type="checkbox" id="${id}" ${v?'checked':''} style="width:16px;height:16px" onchange="impApercu()"> ${l}</label>`;
+  const inp=(id,label,icone,v,ph)=>`<div class="field"><label>${label}</label>${fieldWrap(icone,`<input id="${id}" value="${escapeHtml(v||'')}" placeholder="${escapeHtml(ph||'')}" oninput="impApercu()">`)}</div>`;
+  return `<div class="grid xl:grid-cols-2 gap-4">
+    <div class="page-card">
+      <h2>🖨 Moteur d'impression — en-tête et pied de page</h2>
+      <div class="divider"></div>
+      <p class="text-xs text-gray-500 mb-3">S'applique à <b>tous</b> les documents imprimés : devis, factures, reçus et tickets, bons, fiches, états périodiques (point de vente, brouillard, ticket Z, états comptables) et toute page imprimée avec le bouton 🖨 du bandeau. Raison sociale, logo, RCCM, NCC, adresse et contacts viennent de l'onglet 🏢 Société.</p>
+      <form id="impForm" class="grid sm:grid-cols-2 gap-3">
+        <div class="field"><label>Présentation de l'en-tête</label>${fieldWrap('🧾',`<select id="impStyle" onchange="impApercu()">${Object.entries(IMP_STYLES).map(([k,l])=>`<option value="${k}" ${P.style===k?'selected':''}>${l}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Couleur des documents</label>${fieldWrap('🎨',`<input id="impCouleur" type="color" value="${escapeHtml(P.couleur)}" style="height:42px;padding:2px" oninput="impApercu()">`)}</div>
+        <div class="sm:col-span-2">${inp('impSlogan','Slogan / activité','📢',P.slogan,'Ex : Menuiserie aluminium & vitrerie')}</div>
+        ${inp('impForme','Forme juridique','🏛️',P.forme_juridique,'Ex : SARL')}
+        ${inp('impCapital','Capital social','💰',P.capital,'Ex : 10 000 000 FCFA')}
+        ${inp('impCentre','Centre des impôts','🧾',P.centre_impots,'Ex : CME Cocody')}
+        ${inp('impBp','Boîte postale','📮',P.boite_postale,'Ex : 01 BP 1234 Abidjan 01')}
+        <div class="sm:col-span-2">${inp('impBanque','Banque / RIB (pied de page)','🏦',P.banque,'Ex : SGCI — CI008 01234 012345678901 23')}</div>
+        <div class="field sm:col-span-2"><label>Mentions libres du pied de page</label><textarea id="impMentions" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm" oninput="impApercu()" placeholder="Ex : Tout litige relève du tribunal de commerce d'Abidjan.">${escapeHtml(P.mentions_pied||'')}</textarea></div>
+        <div class="field"><label>Largeur des tickets</label>${fieldWrap('🧾',`<select id="impTicket"><option value="80" ${+P.ticket_largeur!==58?'selected':''}>80 mm</option><option value="58" ${+P.ticket_largeur===58?'selected':''}>58 mm</option></select>`)}</div>
+        <div class="sm:col-span-2 space-y-1.5 mt-1">
+          ${cb('impQr',P.qr_securite!==false,'<b>QR code de sécurité logiciel</b> sur tous les documents (code d\'authenticité + signature, vérifiable par scan)')}
+          ${cb('impQui',P.imprime_par!==false,'Mentionner « imprimé le … par … » sous le QR')}
+        </div>
+        <div class="sm:col-span-2 flex justify-between items-center pt-2 gap-2 flex-wrap">
+          <button type="button" class="btn btn-outline" onclick="impImprimerTest()">🖨 Imprimer une page de test</button>
+          <button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button>
+        </div>
+      </form>
+    </div>
+    <div class="space-y-4">
+      <div class="page-card"><h2>👁 Aperçu</h2><div class="divider"></div>
+        <div id="impApercu" style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:18px;font-family:Arial,sans-serif;color:#111827;font-size:12px"></div></div>
+      <div class="page-card"><h2>🛡 Vérifier un document</h2><div class="divider"></div>
+        <p class="text-xs text-gray-500 mb-2">Saisissez le code d'authenticité et la signature imprimés sous le QR de sécurité (ou scannez le QR avec un téléphone : la vérification s'ouvre sans compte).</p>
+        <div class="flex gap-2 flex-wrap"><input id="impVCode" class="border rounded-lg px-3 py-2 text-sm font-mono flex-1" placeholder="SX-XXXX-XXXX-XXXX"><input id="impVSig" class="border rounded-lg px-3 py-2 text-sm font-mono" style="width:150px" placeholder="Signature"><button class="btn btn-primary" onclick="impVerifierSaisie()">Vérifier</button></div>
+        <div id="impVResultat" class="mt-3"></div></div>
+    </div>
+  </div>
+  <div class="page-card mt-4">
+    <div class="flex flex-wrap justify-between items-center gap-2"><h2>📚 Registre des documents imprimés</h2>
+      <div class="flex gap-2 flex-wrap"><input id="impRegQ" class="border rounded-lg px-3 py-1.5 text-sm" placeholder="🔎 Code, numéro, tiers…" oninput="impRegistreFiltrer()">
+      <select id="impRegType" class="border rounded-lg px-2 py-1.5 text-sm" style="width:auto" onchange="impRegistreFiltrer()"><option value="">Tous les documents</option>${Object.entries(IMP_TYPES).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>
+      <button class="btn btn-outline" onclick="impRegistreCharger()">↻</button></div></div>
+    <div class="divider"></div>
+    <div id="impRegistre" class="text-sm text-gray-400">Chargement…</div>
   </div>`;
 }
-function simpleHash(str){
-  let h=0;
-  for(let i=0;i<str.length;i++){ h=(h*31+str.charCodeAt(i))>>>0; }
-  return h.toString(16);
+function impLireForm(){
+  return {style:val('impStyle'),couleur:val('impCouleur'),slogan:val('impSlogan'),forme_juridique:val('impForme'),capital:val('impCapital'),centre_impots:val('impCentre'),boite_postale:val('impBp'),banque:val('impBanque'),mentions_pied:document.getElementById('impMentions').value.trim(),ticket_largeur:+val('impTicket')||80,qr_securite:document.getElementById('impQr').checked,imprime_par:document.getElementById('impQui').checked};
 }
-function printFooterQrHtml(type,code,montant){
-  const date=new Date().toISOString();
-  const sig=simpleHash([type,code,montant,date.slice(0,10)].join('|'));
-  const payload=`${type} ${code} — ${money(montant)} — édité le ${new Date().toLocaleDateString('fr-FR')} — réf. ${sig}`;
-  const qrId='qr_'+Math.random().toString(36).slice(2,9);
-  return `
-    <div style="margin-top:36px;padding-top:14px;border-top:1px solid #d1d5db;display:flex;justify-content:space-between;align-items:center;gap:16px">
-      <div style="font-size:9.5px;color:#9ca3af;max-width:70%">Document généré électroniquement le ${new Date().toLocaleString('fr-FR')}. Le QR code permet de vérifier son intégrité (type, code, montant, référence).</div>
-      <div style="text-align:center;flex-shrink:0">
-        <div id="${qrId}"></div>
-        <div style="font-size:8.5px;color:#9ca3af;margin-top:4px">Réf. ${sig}</div>
-      </div>
-    </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-    <script>try{ new QRCode(document.getElementById('${qrId}'), {text:${JSON.stringify(payload)}, width:76, height:76, correctLevel:QRCode.CorrectLevel.M}); }catch(e){ document.getElementById('${qrId}').textContent='QR indisponible'; }<\/script>`;
+function impApercu(){
+  const zone=document.getElementById('impApercu'); if(!zone) return;
+  const p=window.APP_PARAMS||{}, avant=p.impression;
+  p.impression=impLireForm();
+  try{
+    const s={code:'SX-1A2B-3C4D-5E6F',signature:'9F3C0A7B21DE',nb:1,empreinte:'0'.repeat(64)};
+    zone.innerHTML=`${printCompanyHeaderHtml({niveau:'Point de vente : Comptoir principal · Caisse : Caisse 1'})}
+      <div style="font-size:16px;font-weight:800">FACTURE N° FAC-2026-0001</div><div style="color:#64748b;margin-bottom:8px">Exemple de document</div>
+      <div style="height:40px;border:1px dashed #e5e7eb;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#cbd5e1">… corps du document …</div>
+      ${impPiedHtml()}${p.impression.qr_securite?impSecuriteHtml(s,{type:'FACTURE',titre:'Facture',numero:'FAC-2026-0001',montant:125000}):''}`;
+    if(!zone.querySelector('#impCssApercu')) zone.insertAdjacentHTML('afterbegin',IMP_CSS.replace('id="impCss"','id="impCssApercu"').replace('@media print{.noprint{display:none!important}}',''));
+  } finally { p.impression=avant; }
+}
+async function impImprimerTest(){
+  const win=window.open('','_blank','width=900,height=1100'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const p=window.APP_PARAMS||{}, avant=p.impression; p.impression=impLireForm();
+  try{
+    await impEcrire(win,{type:'PAGE',titre:"Page de test d'impression",periode:new Date().toISOString().slice(0,10),niveau:'Paramètres',contenu:true},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Page de test</title><style>body{font-family:Arial,sans-serif;padding:30px;font-size:13px}@page{size:A4;margin:14mm}@media print{body{padding:0}}</style></head><body>
+      <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+      <h1 style="font-size:18px">PAGE DE TEST D'IMPRESSION</h1><p>Vérifiez l'en-tête, le pied de page et le QR code de sécurité. Scannez le QR avec un téléphone : la page de vérification doit indiquer « Document authentique ».</p><p style="color:#64748b">Édité le ${new Date().toLocaleString('fr-FR')}</p></body></html>`);
+  } finally { p.impression=avant; }
+}
+async function impVerifierSaisie(){
+  const zone=document.getElementById('impVResultat'); zone.innerHTML='<span class="text-gray-400">Vérification…</span>';
+  let code=val('impVCode'), sig=val('impVSig');
+  const m=code.match(/verif=([^&\s]+)/); if(m){ [code,sig]=decodeURIComponent(m[1]).split('.'); }
+  else if(code.includes('.')&&!sig) [code,sig]=code.split('.');
+  zone.innerHTML=`<div class="border rounded-xl p-3">${impVerificationResultatHtml(await impVerifier(code,sig))}</div>`;
+}
+async function impRegistreCharger(){
+  const zone=document.getElementById('impRegistre'); if(!zone) return;
+  const {data,error}=await sb.from('documents_imprimes').select('*').order('derniere_impression',{ascending:false}).limit(500);
+  if(error){ zone.innerHTML=`<div class="text-amber-700 text-xs">Registre indisponible : ${escapeHtml(error.message)} — exécutez sql/impressions_securite.sql dans Supabase.</div>`; return; }
+  window._impRegistre=data||[];
+  impRegistreFiltrer();
+}
+function impRegistreFiltrer(){
+  const zone=document.getElementById('impRegistre'); if(!zone) return;
+  const q=(val('impRegQ')||'').toLowerCase(), t=val('impRegType');
+  const liste=(window._impRegistre||[]).filter(d=>(!t||d.type===t)&&(!q||[d.code,d.numero,d.tiers,d.titre,d.periode,d.niveau,d.imprime_par_nom].join(' ').toLowerCase().includes(q)));
+  const gest=['admin','manager'].includes(monRole()?.code);
+  zone.innerHTML=liste.length?`<div class="overflow-x-auto"><table><thead><tr><th>Dernière impression</th><th>Document</th><th>N°</th><th class="text-right">Montant</th><th>Tiers / niveau</th><th class="text-center">Impr.</th><th>Code / signature</th><th>Par</th><th></th></tr></thead><tbody>
+    ${liste.slice(0,300).map(d=>`<tr${d.statut==='revoque'?' style="opacity:.6"':''}><td class="whitespace-nowrap text-xs">${new Date(d.derniere_impression).toLocaleString('fr-FR')}</td>
+      <td>${escapeHtml(IMP_TYPES[d.type]||d.type)}${d.titre&&d.titre!==IMP_TYPES[d.type]?`<div class="text-[10px] text-gray-400">${escapeHtml(d.titre)}</div>`:''}${d.periode?`<div class="text-[10px] text-gray-400">${escapeHtml(d.periode)}</div>`:''}</td>
+      <td class="font-mono text-xs">${escapeHtml(d.numero||'—')}</td><td class="text-right">${+d.montant?money(d.montant):''}</td>
+      <td class="text-xs">${escapeHtml(d.tiers||'')}${d.niveau?`<div class="text-[10px] text-gray-400">${escapeHtml(d.niveau)}</div>`:''}</td>
+      <td class="text-center">${d.nb_impressions}</td>
+      <td class="font-mono text-[11px]">${escapeHtml(d.code)}<div class="text-gray-400">${escapeHtml(d.signature)}</div>${d.statut==='revoque'?`<span class="badge" style="background:#fee2e2;color:#b91c1c">Révoqué</span>`:''}</td>
+      <td class="text-xs">${escapeHtml(d.imprime_par_nom||'')}</td>
+      <td class="whitespace-nowrap"><button class="btn btn-outline text-xs" onclick="impOuvrirVerif('${escapeHtml(d.code)}','${escapeHtml(d.signature)}')">🛡</button>${gest&&d.statut==='valide'?` <button class="btn btn-outline text-xs" title="Révoquer" onclick="impRevoquer('${escapeHtml(d.code)}')">⛔</button>`:''}</td></tr>`).join('')}
+    </tbody></table></div><div class="text-xs text-gray-400 mt-2">${liste.length} document(s)${liste.length>300?' — 300 premiers affichés':''}</div>`
+    :'<div class="text-gray-400 text-sm">Aucun document imprimé.</div>';
+}
+async function impOuvrirVerif(code,sig){ openModal(`<div>${impVerificationResultatHtml(await impVerifier(code,sig))}</div><div class="text-center mt-3"><button class="btn btn-outline" onclick="closeModal()">Fermer</button></div>`); }
+async function impRevoquer(code){
+  const motif=prompt(`Révoquer le document ${code} ?\nLe scan de son QR affichera « Document révoqué ».\n\nMotif :`); if(!motif||!motif.trim()) return;
+  const {error}=await sb.rpc('document_revoquer',{p_code:code,p_motif:motif.trim()});
+  if(error){ toast(error.message,'error'); return; }
+  toast('Document révoqué.'); impRegistreCharger();
 }
 function docHeaderHtml(client,meta){
   const nomClient=[client?.civilite,client?.nom,client?.prenoms].filter(Boolean).join(' ')||client?.entreprise||'—';
@@ -6678,9 +6961,10 @@ async function printDevis(devisId){
   const {data:lignes}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
   const sousTotal=(lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100),0);
   const win=window.open('','_blank','width=950,height=1150'); if(!win) return;
-  win.document.write(printDocHtml('DEVIS',d.code,d.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune,dateCreation:d.date_creation,dateEcheance:d.date_echeance},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0));
+  await impEcrire(win,{type:'DEVIS',titre:d.libelle||'Devis',numero:d.code,montant:sousTotal-(+d.reduction||0)+(+d.autre_frais||0),tiers:nomTiers(d.clients)},printDocHtml('DEVIS',d.code,d.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune,dateCreation:d.date_creation,dateEcheance:d.date_echeance},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0));
   win.document.close(); win.focus();
 }
+function nomTiers(c){ return c?([c.civilite,c.nom,c.prenoms].filter(Boolean).join(' ')||c.entreprise||''):''; }
 function printDocHtml(type,code,client,meta,libelle,lignes,sousTotal,reduction,autreFrais){
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${type} ${escapeHtml(code)}</title>
     <style>
@@ -6710,7 +6994,6 @@ function printDocHtml(type,code,client,meta,libelle,lignes,sousTotal,reduction,a
     <tbody>${docLignesRows(lignes)}</tbody></table>
     ${docTotalsHtml(sousTotal,reduction,autreFrais)}
     ${docNotesHtml()}
-    ${printFooterQrHtml(type,code,sousTotal-reduction+autreFrais)}
     </body></html>`;
 }
 
@@ -6857,7 +7140,7 @@ async function printFacture(factureId){
   const {data:lignes}=d.id ? await sb.from('devis_lignes').select('*').eq('devis_id',d.id).order('ordre') : {data:[]};
   const sousTotal=(lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100),0);
   const win=window.open('','_blank','width=950,height=1150'); if(!win) return;
-  win.document.write(printDocHtml('FACTURE',f.code,f.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0));
+  await impEcrire(win,{type:'FACTURE',titre:d.libelle||'Facture',numero:f.code,montant:sousTotal-(+d.reduction||0)+(+d.autre_frais||0),tiers:nomTiers(f.clients)},printDocHtml('FACTURE',f.code,f.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0));
   win.document.close(); win.focus();
 }
 
@@ -7076,7 +7359,7 @@ async function buildAndOpenFicheExecutionPrint(f,lignes){
   });
   const lieuExecution=[f.devis.projets?.commune,f.devis.projets?.quartier].filter(Boolean).join(', ');
   const win=window.open('','_blank','width=1000,height=1200'); if(!win) return;
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fiche d'exécution — ${escapeHtml(f.code)}</title>
+  await impEcrire(win,{type:'FICHE_EXECUTION',titre:"Fiche d'exécution",numero:f.code,tiers:nomTiers(f.devis.clients),contenu:true},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fiche d'exécution — ${escapeHtml(f.code)}</title>
     <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111827;padding:28px;font-size:11.5px}
     h1{font-size:17px;margin:14px 0;text-align:center}
     .hdr{display:flex;justify-content:space-between;gap:30px;border-bottom:2px solid #111827;padding-bottom:10px;margin-bottom:8px}
@@ -7117,7 +7400,6 @@ async function buildAndOpenFicheExecutionPrint(f,lignes){
     <p>- Le délai d'exécution des travaux vous sera communiqué après la préparation définitive du chantier.</p>
     <div class="legend"><span>✔ Oui</span><span>X Non</span><span>-- Néant</span></div></div>
     <div class="sig"><div>Signature Client ou représentant</div><div>Technicien Contrôleur</div></div>
-    ${printFooterQrHtml('FICHE EXÉCUTION',f.code,0)}
     </body></html>`);
   win.document.close(); win.focus();
 }
@@ -7160,10 +7442,10 @@ async function openEstimation(devisId){
   const cumul=(lignes||[]).map(l=>running+=(+l.total||0));
   estimChart=new Chart(ctx,{type:'line',data:{labels:(lignes||[]).map((l,i)=>'L'+(i+1)),datasets:[{label:'Montant cumulé',data:cumul.length?cumul:[0],borderColor:'#6d28d9',backgroundColor:'rgba(109,40,217,.08)',tension:.35,fill:true,pointRadius:2}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:v=>(v/1000).toFixed(0)+'k'}}}}});
 }
-function printEstimation(){
+async function printEstimation(){
   const {d,lignes,montantFacture,coutMateriel,margeBrute}=window._estimCurrent;
   const win=window.open('','_blank','width=900,height=1100'); if(!win) return;
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Estimation — ${escapeHtml(d.code)}</title>
+  await impEcrire(win,{type:'ESTIMATION',titre:'Estimation financière',numero:d.code,montant:montantFacture,tiers:nomTiers(d.clients),contenu:true},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Estimation — ${escapeHtml(d.code)}</title>
     <style>body{font-family:Arial,sans-serif;padding:30px;color:#111827;font-size:13px}table{width:100%;border-collapse:collapse;margin-top:10px}
     th,td{border:1px solid #d1d5db;padding:7px 10px}th{background:#f1f5f9;text-align:left}.kpi{display:flex;gap:16px;margin:16px 0}
     .kpi div{flex:1;border:1px solid #d1d5db;border-radius:8px;padding:10px}.kpi b{display:block;font-size:16px;margin-top:4px}
@@ -7178,7 +7460,6 @@ function printEstimation(){
     <table><thead><tr><th>Désignation</th><th style="text-align:right">Qté</th><th style="text-align:right">Total</th></tr></thead>
     <tbody>${(lignes||[]).map(l=>`<tr><td>${escapeHtml(l.titre)}</td><td style="text-align:right">${l.quantite}</td><td style="text-align:right">${money(l.total)}</td></tr>`).join('')}</tbody>
     <tfoot><tr><td colspan="2">Total</td><td style="text-align:right">${money(montantFacture)}</td></tr></tfoot></table>
-    ${printFooterQrHtml('ESTIMATION',d.code,montantFacture)}
     </body></html>`);
   win.document.close(); win.focus();
 }
@@ -7215,6 +7496,7 @@ async function renderParametres(el){
     <div class="flex flex-wrap gap-2 mb-4 border-b pb-2">
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white" data-paramtab="societe" onclick="switchParamTab('societe')">🏢 Société</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="fne" onclick="switchParamTab('fne')">🧾 FNE (DGI)</button>
+      <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="impression" onclick="switchParamTab('impression')">🖨 Impression</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="portail" onclick="switchParamTab('portail')">🌐 Portail client</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="compta" onclick="switchParamTab('compta')">📗 Comptabilité</button>
       ${peutModule('Utilisateurs','voir')?`<button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="utilisateurs" onclick="switchParamTab('utilisateurs')">👤 Utilisateurs</button>`:''}
@@ -7292,6 +7574,8 @@ async function renderParametres(el){
         <div id="fneTestResult" class="text-sm mt-3"></div>
       </div>
     </div>
+
+    <div id="paramTab-impression" class="param-tab hidden">${paramImpressionHtml()}</div>
 
     <div id="paramTab-portail" class="param-tab hidden">
       <div class="page-card max-w-3xl">
@@ -7392,6 +7676,12 @@ async function renderParametres(el){
     const {error}=await sb.from('parametres').update(rec).eq('id',p.id);
     if(error){ toast(error.message,'error'); return; }
     toast('Paramètres FNE enregistrés.'); await loadAppParams();
+  };
+  document.getElementById('impForm').onsubmit=async(e)=>{
+    e.preventDefault();
+    const {error}=await sb.from('parametres').update({impression:impLireForm()}).eq('id',p.id);
+    if(error){ toast(error.message.includes('impression')?'Colonne « impression » absente : exécutez sql/impressions_securite.sql dans Supabase.':error.message,'error'); return; }
+    toast("Paramètres d'impression enregistrés."); await loadAppParams(); impApercu();
   };
   document.getElementById('portailForm').onsubmit=async(e)=>{
     e.preventDefault();
@@ -8096,11 +8386,11 @@ async function comptaRenderCompteResultat(host){
     <div class="grid lg:grid-cols-[minmax(0,1fr)_300px] gap-4">${window._syscoEtat.html()}
       <div class="space-y-2">${Math.abs(R._ecart)>=1?`<div class="card p-3 border-amber-300 bg-amber-50 text-xs text-amber-800">⚠ ${money(R._ecart)} proviennent de comptes 6/7/8 hors des rubriques SYSCOHADA (compte créé hors nomenclature) : ils sont inclus dans le résultat net.</div>`:''}${[['XB',"Chiffre d'affaires"],['XC','Valeur ajoutée'],['XD','EBE'],['XE',"Résultat d'exploitation"],['XI','Résultat net']].map(([k,l])=>`<div class="card p-3"><div class="text-xs text-gray-400">${l}</div><div class="text-lg font-black ${R[k]<0?'text-red-600':''}">${money(R[k])}</div></div>`).join('')}</div></div>`;
 }
-function comptaImprimerEtat(){
+async function comptaImprimerEtat(){
   const e=window._syscoEtat; if(!e) return;
   const win=window.open('','_blank','width=1000,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
   const css=[...document.querySelectorAll('style')].map(s=>s.outerHTML).join('');
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${e.titre} ${window._compta.annee}</title>${css}<style>body{font-family:Arial,sans-serif;padding:24px;font-size:12px}.card{border:1px solid #e5e7eb;border-radius:8px}td{padding:4px 6px;border-bottom:1px solid #f1f5f9}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media print{.noprint{display:none}}</style></head><body>
+  await impEcrire(win,{type:'ETAT_COMPTABLE',titre:e.titre,periode:'Exercice '+window._compta.annee,contenu:true},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${e.titre} ${window._compta.annee}</title>${css}<style>body{font-family:Arial,sans-serif;padding:24px;font-size:12px}.card{border:1px solid #e5e7eb;border-radius:8px}td{padding:4px 6px;border-bottom:1px solid #f1f5f9}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media print{.noprint{display:none}}</style></head><body>
     <div class="noprint" style="text-align:right"><button onclick="window.print()">🖨 Imprimer</button></div>${printCompanyHeaderHtml()}
     <h1 style="font-size:17px;margin:0">${e.titre} — SYSCOHADA RÉVISÉ</h1><div style="color:#64748b;margin-bottom:12px">Exercice ${window._compta.annee} · montants en FCFA · édité le ${new Date().toLocaleString('fr-FR')}</div>${e.html()}
     <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`);
@@ -9614,7 +9904,7 @@ async function imprimerBonTransfert(id){
   const dep=idD=>(window._depotsCache||[]).find(d=>d.id===idD)||{};
   const bloc=(titre,d)=>`<div style="flex:1;border:1px solid #d1d5db;border-radius:8px;padding:10px"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700">${titre}</div><div style="font-weight:700;font-size:14px;margin-top:2px">${escapeHtml(d.nom||'—')}</div><div style="font-size:11.5px;color:#4b5563">${escapeHtml([d.code,d.adresse,d.commune].filter(Boolean).join(' · '))}</div>${d.responsable?`<div style="font-size:11.5px;color:#4b5563">Resp. : ${escapeHtml(d.responsable)}${d.telephone?' · '+escapeHtml(d.telephone):''}</div>`:''}</div>`;
   const recu=t.statut==='recu';
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bon de transfert ${escapeHtml(t.code)}</title>
+  await impEcrire(win,{type:'BON_TRANSFERT',titre:'Bon de transfert',numero:t.code,niveau:`Dépôt : ${dep(t.depot_source_id).nom||'?'} → ${dep(t.depot_destination_id).nom||'?'}`,contenu:true},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bon de transfert ${escapeHtml(t.code)}</title>
     <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:34px;color:#111827;font-size:13px}table{width:100%;border-collapse:collapse;margin-top:14px}
     th,td{border:1px solid #d1d5db;padding:7px 9px}th{background:#f1f5f9;text-align:left;font-size:12px}.r{text-align:right}.sig{flex:1;border-top:1px solid #111827;padding-top:6px;font-size:11.5px;text-align:center;margin-top:60px}
     @media print{body{padding:0}.noprint{display:none}}</style></head><body>
@@ -10278,13 +10568,13 @@ async function renderComptoirRapport(el){
       {plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>`${money(c.raw)} · ${jours[c.dataIndex][1].nb} vente(s)`}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:{color:'#f1f5f9'},ticks:{callback:v=>new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}});
   }
 }
-function imprimerRapportPdv(){
+async function imprimerRapportPdv(){
   const r=window._rapportPdvData; if(!r) return;
   const win=window.open('','_blank','width=1000,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
   const t=rapportTitre(r);
   const canvas=document.getElementById('rpChart');
   const img=canvas?`<div class="rp-h">Chiffre d'affaires TTC par jour</div><img src="${canvas.toDataURL('image/png')}" style="width:100%;max-height:230px;object-fit:contain">`:'';
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rapport ${escapeHtml(t.pdv)} — ${escapeHtml(t.periode)}</title>
+  await impEcrire(win,{type:'ETAT_PDV',titre:'État périodique — point de vente et caisse',periode:t.periode,niveau:'Point de vente : '+t.pdv,contenu:true},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rapport ${escapeHtml(t.pdv)} — ${escapeHtml(t.periode)}</title>
     <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:28px;color:#111827;font-size:12px}
     table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #e5e7eb;padding:5px 6px;text-align:left}th{background:#f8fafc;font-size:10.5px;text-transform:uppercase;color:#475569}
     ${RAPPORT_CSS}.rp-kpi{break-inside:avoid}table,.rp-grid>div{break-inside:avoid}
@@ -10463,12 +10753,12 @@ async function renderCaisseBrouillard(el){
     </div>
     <div class="page-card">${brouillardSectionsHtml(b)}</div>`;
 }
-function imprimerBrouillard(){
+async function imprimerBrouillard(){
   const b=window._brouillardData; if(!b?.caisse) return;
   const win=window.open('','_blank','width=1000,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
   const f=b.f, per=f.debut===f.fin?new Date(f.debut+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):`du ${new Date(f.debut+'T00:00:00').toLocaleDateString('fr-FR')} au ${new Date(f.fin+'T00:00:00').toLocaleDateString('fr-FR')}`;
   const m=n=>new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Brouillard de caisse — ${escapeHtml(b.caisse.nom)}</title>
+  await impEcrire(win,{type:'BROUILLARD',titre:'Brouillard de caisse',periode:per,niveau:'Caisse : '+b.caisse.nom,montant:b.t.soldeFinal,contenu:true},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Brouillard de caisse — ${escapeHtml(b.caisse.nom)}</title>
     <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:26px;color:#0f172a;font-size:12px}${BROUILLARD_CSS}.br-h{margin-top:18px}
     @media print{body{padding:0}.noprint{display:none}}</style></head><body>
     <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
@@ -10522,9 +10812,7 @@ function ticketZHtml(z,meta){
   const L=(a,b,bold)=>`<tr${bold?' class="tz-b"':''}><td>${a}</td><td class="tz-r">${b}</td></tr>`;
   const k=z.k, c=z.caisse, d=z.docs||{};
   return `<div class="tz">
-    ${p.raison_sociale?`<div class="tz-c" style="font-weight:bold;font-size:14px">${escapeHtml(p.raison_sociale)}</div>`:''}
-    ${[p.adresse,p.telephone,p.ncc?'NCC '+p.ncc:''].filter(Boolean).map(x=>`<div class="tz-c">${escapeHtml(x)}</div>`).join('')}
-    <div class="tz-c">${escapeHtml(meta.pdv?.nom||'')}${c?' · '+escapeHtml(c.nom):''}</div>
+    ${impEnteteTicketHtml([meta.pdv?.nom,c?.nom].filter(Boolean).join(' · '))}
     <div class="tz-c tz-titre">${meta.x?'LECTURE X — NON CLÔTURANTE':meta.type==='periodique'?'TICKET Z PÉRIODIQUE':'TICKET Z — CLÔTURE JOURNALIÈRE'}</div>
     ${meta.numero?`<div class="tz-c" style="font-size:15px;font-weight:bold">N° ${escapeHtml(meta.numero)}</div>`:''}
     ${meta.duplicata?`<div class="tz-c" style="font-weight:bold">*** DUPLICATA ${meta.duplicata} ***</div>`:''}
@@ -10559,9 +10847,9 @@ const TICKETZ_CSS=`.tz{font-family:'Courier New',monospace;font-size:12px;width:
   .tz table{width:100%;border-collapse:collapse}.tz td{padding:1px 0;vertical-align:top}.tz-r{text-align:right;white-space:nowrap;padding-left:6px}.tz-c{text-align:center}
   .tz hr{border:0;border-top:1px dashed #000;margin:6px 0}.tz-b td{font-weight:bold;font-size:13px}.tz-s{font-weight:bold;text-align:center;letter-spacing:.08em}
   .tz-titre{font-weight:bold;font-size:13px;border:1px solid #000;padding:3px;margin:5px 0}`;
-function imprimerTicketZ(html,titre){
+async function imprimerTicketZ(html,titre,meta){
   const win=window.open('','_blank','width=420,height=820'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(titre)}</title><style>*{box-sizing:border-box}body{margin:0}${TICKETZ_CSS}
+  await impEcrire(win,{type:'TICKET_Z',titre,format:'ticket',contenu:true,...(meta||{})},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(titre)}</title><style>*{box-sizing:border-box}body{margin:0}${TICKETZ_CSS}.imp-sec-ticket{width:76mm;margin:0 auto 10px}
     .noprint{text-align:center;margin:8px}@media print{.noprint{display:none}@page{size:80mm auto;margin:0}}</style></head><body>
     <div class="noprint"><button onclick="window.print()">🖨 Imprimer</button></div>${html}<script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`);
   win.document.close(); win.focus();
@@ -10636,7 +10924,7 @@ async function renderComptoirZ(el){
 function zMin(e){ return {k:{nb:e.nb_ventes,ca:+e.total_ttc,ht:0,tva:0,remises:0,nbAnnul:0,montantAnnul:0,articles:0},modes:{},docs:{}}; }
 function ticketZLectureX(){
   const z=window._zCourant; if(!z) return;
-  imprimerTicketZ(ticketZHtml(z.snap,{x:true,type:z.type,pdv:z.pdv,debut:z.debut,fin:z.fin}),'Lecture X — '+z.pdv.nom);
+  imprimerTicketZ(ticketZHtml(z.snap,{x:true,type:z.type,pdv:z.pdv,debut:z.debut,fin:z.fin}),'Lecture X — '+z.pdv.nom,{type:'LECTURE_X',niveau:'Point de vente : '+z.pdv.nom,periode:z.debut+' → '+z.fin});
 }
 async function ticketZEmettre(){
   const z=window._zCourant; if(!z) return;
@@ -10647,7 +10935,7 @@ async function ticketZEmettre(){
   if(error){ toast(error.message,'error'); return; }
   const t=Array.isArray(data)?data[0]:data;
   toast(`Ticket Z ${ticketZNumero(t,z.pdv)} émis.`);
-  imprimerTicketZ(ticketZHtml(t.totaux?.k?t.totaux:z.snap,{type:t.type,pdv:z.pdv,debut:t.date_debut,fin:t.date_fin,numero:ticketZNumero(t,z.pdv),emisLe:t.created_at,emisPar:t.edite_par,gt:+t.grand_total}),'Ticket Z '+ticketZNumero(t,z.pdv));
+  imprimerTicketZ(ticketZHtml(t.totaux?.k?t.totaux:z.snap,{type:t.type,pdv:z.pdv,debut:t.date_debut,fin:t.date_fin,numero:ticketZNumero(t,z.pdv),emisLe:t.created_at,emisPar:t.edite_par,gt:+t.grand_total}),'Ticket Z '+ticketZNumero(t,z.pdv),{numero:ticketZNumero(t,z.pdv),montant:+t.total_ttc||0,niveau:'Point de vente : '+z.pdv.nom,periode:t.date_debut+' → '+t.date_fin,contenu:false});
   showPage('comptoir-z');
 }
 async function ticketZReimprimer(id){
@@ -10657,7 +10945,7 @@ async function ticketZReimprimer(id){
   const {data,error}=await sb.rpc('ticket_z_emettre',{p_pdv:e.point_vente_id,p_type:e.type,p_debut:e.date_debut,p_fin:e.date_fin,p_totaux:{}});
   if(error){ toast(error.message,'error'); return; }
   const t=Array.isArray(data)?data[0]:data;
-  imprimerTicketZ(ticketZHtml(t.totaux?.k?t.totaux:zMin(t),{type:t.type,pdv:z.pdv,debut:t.date_debut,fin:t.date_fin,numero:ticketZNumero(t,z.pdv),emisLe:t.created_at,emisPar:t.edite_par,gt:+t.grand_total,duplicata:t.nb_reimpressions}),'Duplicata Z '+ticketZNumero(t,z.pdv));
+  imprimerTicketZ(ticketZHtml(t.totaux?.k?t.totaux:zMin(t),{type:t.type,pdv:z.pdv,debut:t.date_debut,fin:t.date_fin,numero:ticketZNumero(t,z.pdv),emisLe:t.created_at,emisPar:t.edite_par,gt:+t.grand_total,duplicata:t.nb_reimpressions}),'Duplicata Z '+ticketZNumero(t,z.pdv),{numero:ticketZNumero(t,z.pdv),montant:+t.total_ttc||0,niveau:'Point de vente : '+z.pdv.nom,periode:t.date_debut+' → '+t.date_fin,contenu:false});
   showPage('comptoir-z');
 }
 function ticketZOuvrir(id){
@@ -10983,7 +11271,10 @@ function montantEnLettres(n){
 function fneQrHtml(token,taille){
   // Simple emplacement : le QR est dessiné par fneQrScriptFin(), placé en fin de document pour que
   // le chargement de la librairie ne bloque jamais l'affichage du reste de la facture.
-  return token?`<div data-qr="${escapeHtml(token)}" data-size="${taille}" style="display:inline-block;min-width:${taille}px;min-height:${taille}px"></div>`:'';
+  if(!token) return '';
+  const img=impQrDataUrl(token,taille);
+  return img?`<img src="${img}" alt="QR code FNE (DGI)" style="width:${taille}px;height:${taille}px;image-rendering:pixelated;display:inline-block">`
+    :`<div data-qr="${escapeHtml(token)}" data-size="${taille}" style="display:inline-block;min-width:${taille}px;min-height:${taille}px"></div>`;
 }
 function fneQrScriptFin(){
   return `<script>function dessinerQr(){ document.querySelectorAll('[data-qr]').forEach(function(el){ try{ new QRCode(el,{text:el.getAttribute('data-qr'),width:+el.getAttribute('data-size'),height:+el.getAttribute('data-size'),correctLevel:QRCode.CorrectLevel.M}); }catch(e){ el.textContent='QR indisponible'; } }); }<\/script>
@@ -11002,16 +11293,13 @@ async function imprimerTicketComptoir(id,winExistante){
   const t=venteTotauxFiscaux(v), d=venteDestinataire(v);
   const fne=v.fne_statut==='certifiee', prov=v.fne_statut==='provisoire';
   const m=n=>new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fne?'FNE '+escapeHtml(v.fne_reference):'Reçu '+escapeHtml(v.code)}</title>
+  await impEcrire(win,{type:fne||prov?'FACTURE_FNE':'RECU',titre:fne?'Facture normalisée (ticket)':prov?'Facture FNE provisoire (ticket)':'Reçu de caisse',numero:fne||prov?v.fne_reference:v.code,montant:v.total,tiers:d.nom,niveau:v.points_vente?'Point de vente : '+v.points_vente.nom:'',variante:v.statut,format:'ticket'},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fne?'FNE '+escapeHtml(v.fne_reference):'Reçu '+escapeHtml(v.code)}</title>
     <style>*{box-sizing:border-box}body{font-family:'Courier New',monospace;font-size:12px;width:76mm;margin:0 auto;padding:8px;color:#000}
     .c{text-align:center}.r{text-align:right}hr{border:0;border-top:1px dashed #000;margin:6px 0}table{width:100%;border-collapse:collapse}td{padding:1px 0;vertical-align:top}
     .tot td{font-size:15px;font-weight:bold}.noprint{margin-bottom:8px;text-align:center}.titre{font-weight:bold;font-size:13px;border:1px solid #000;padding:3px;margin:4px 0}
     @media print{.noprint{display:none}@page{size:80mm auto;margin:0}}</style></head><body>
     <div class="noprint"><button onclick="window.print()">🖨 Imprimer</button></div>
-    ${p.logo_base64?`<div class="c"><img src="${p.logo_base64}" style="max-width:50mm;max-height:22mm"></div>`:''}
-    ${p.raison_sociale?`<div class="c" style="font-weight:bold;font-size:14px">${escapeHtml(p.raison_sociale)}</div>`:''}
-    ${[p.adresse,p.telephone,p.ncc?'NCC '+p.ncc:'',p.rccm?'RCCM '+p.rccm:'',p.regime_fiscal?'Régime : '+p.regime_fiscal:''].filter(Boolean).map(x=>`<div class="c">${escapeHtml(x)}</div>`).join('')}
-    ${v.points_vente?`<div class="c">${escapeHtml([v.points_vente.nom,v.points_vente.adresse,v.points_vente.telephone].filter(Boolean).join(' · '))}</div>`:''}
+    ${impEnteteTicketHtml(v.points_vente?[v.points_vente.nom,v.points_vente.adresse,v.points_vente.telephone].filter(Boolean).join(' · '):'')}
     <div class="c titre">${fne?'FACTURE NORMALISÉE ÉLECTRONIQUE':prov?'FACTURE FNE PROVISOIRE':'REÇU DE CAISSE'}${v.statut==='annulee'?' — ANNULÉ':''}</div>
     ${fne?`<div>N° FNE : <b>${escapeHtml(v.fne_reference)}</b></div>`:''}
     ${prov?'<div class="c" style="font-weight:bold">NON CERTIFIÉE — SANS VALEUR FISCALE</div>':''}
@@ -11029,7 +11317,7 @@ async function imprimerTicketComptoir(id,winExistante){
       ${+v.monnaie_rendue?`<tr><td>Monnaie rendue</td><td class="r">${m(v.monnaie_rendue)}</td></tr>`:''}
       ${v.reference_paiement?`<tr><td>Réf.</td><td class="r">${escapeHtml(v.reference_paiement)}</td></tr>`:''}
     </table>
-    ${fne?`<hr><div class="c">${fneQrHtml(v.fne_token,130)}</div><div class="c" style="font-size:10px">Facture certifiée par la DGI.<br>Scannez le QR code pour vérifier son authenticité.</div>`:''}
+    ${fne?`<hr><div class="c" style="font-weight:bold">— QR CODE FNE (DGI) —</div><div class="c">${fneQrHtml(v.fne_token,130)}</div><div class="c" style="font-size:10px">Facture certifiée par la DGI.<br>Scannez ce QR code pour vérifier la facture auprès de la DGI.</div>`:''}
     ${v.statut==='annulee'?`<hr><div class="c">Annulée le ${new Date(v.annulee_le).toLocaleString('fr-FR')}<br>${escapeHtml(v.motif_annulation||'')}${v.fne_avoir_reference?'<br>Avoir FNE : '+escapeHtml(v.fne_avoir_reference):''}</div>`:''}
     <hr><div class="c">Merci de votre visite !</div><div class="c" style="font-size:10px">Marchandises vendues ni reprises ni échangées sans ce document.</div>
     ${fne?fneQrScriptFin():''}
@@ -11045,7 +11333,7 @@ async function imprimerFactureComptoir(id,winExistante){
   const titre=fne?'FACTURE NORMALISÉE ÉLECTRONIQUE (FNE)':prov?'FACTURE FNE PROVISOIRE':'FACTURE';
   const numero=fne||prov?v.fne_reference:v.code;
   const bloc=(label,val)=>val?`<div><span style="color:#6b7280">${label} :</span> ${escapeHtml(val)}</div>`:'';
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(titre)} ${escapeHtml(numero||'')}</title>
+  await impEcrire(win,{type:fne||prov?'FACTURE_FNE':'FACTURE',titre:fne?'Facture normalisée (FNE)':prov?'Facture FNE provisoire':'Facture comptoir',numero,montant:v.total,tiers:d.nom||'Client comptoir',niveau:v.points_vente?'Point de vente : '+v.points_vente.nom:'',variante:v.statut},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(titre)} ${escapeHtml(numero||'')}</title>
     <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:34px;color:#111827;font-size:12.5px}
     table{width:100%;border-collapse:collapse;margin-top:14px}th,td{border:1px solid #d1d5db;padding:7px 9px}th{background:#f1f5f9;text-align:left;font-size:11.5px}.r{text-align:right}
     .box{border:1px solid #d1d5db;border-radius:8px;padding:10px 12px;line-height:1.6}.tot td{border:0;padding:3px 9px}.tot tr:last-child td{font-size:15px;font-weight:800;border-top:2px solid #111827}
@@ -11075,7 +11363,7 @@ async function imprimerFactureComptoir(id,winExistante){
       <div style="flex:1">
         <div><b>Arrêtée la présente facture à la somme de :</b><br><i>${escapeHtml(montantEnLettres(v.total))} francs CFA</i></div>
         <div style="margin-top:8px">Règlement : <b>${COMPTOIR_MODES[v.mode_paiement]?.label||escapeHtml(v.mode_paiement)}</b>${v.reference_paiement?' — réf. '+escapeHtml(v.reference_paiement):''} · <span style="color:#059669;font-weight:700">${v.statut==='annulee'?'':'PAYÉE'}</span></div>
-        ${fne?`<div style="display:flex;gap:12px;align-items:center;margin-top:14px">${fneQrHtml(v.fne_token,110)}<div style="font-size:11px;color:#374151">Facture certifiée par la Direction Générale des Impôts.<br>Scannez le QR code pour vérifier son authenticité.<br><span style="color:#6b7280;word-break:break-all">${escapeHtml(v.fne_token||'')}</span></div></div>`:''}
+        ${fne?`<div style="display:flex;gap:12px;align-items:center;margin-top:14px">${fneQrHtml(v.fne_token,110)}<div style="font-size:11px;color:#374151"><b>QR CODE FNE — DGI</b><br>Facture certifiée par la Direction Générale des Impôts.<br>Scannez ce QR code pour vérifier la facture auprès de la DGI.<br><span style="color:#6b7280;word-break:break-all">${escapeHtml(v.fne_token||'')}</span></div></div>`:''}
         ${v.statut==='annulee'?`<div style="margin-top:10px;color:#dc2626">Annulée le ${new Date(v.annulee_le).toLocaleString('fr-FR')} — ${escapeHtml(v.motif_annulation||'')}${v.fne_avoir_reference?' — Facture d\'avoir FNE : '+escapeHtml(v.fne_avoir_reference):''}</div>`:''}
       </div>
       <table class="tot" style="width:300px;margin-top:0">
@@ -11086,7 +11374,7 @@ async function imprimerFactureComptoir(id,winExistante){
         <tr><td>TOTAL TTC</td><td class="r">${money(t.ttc)}</td></tr>
       </table>
     </div>
-    ${fne?fneQrScriptFin():printFooterQrHtml('FACTURE',numero,v.total)}
+    ${fne?fneQrScriptFin():''}
     <script>window.onload=()=>setTimeout(()=>window.print(),700)<\/script></body></html>`);
   win.document.close(); win.focus();
 }
@@ -11974,6 +12262,7 @@ function switchParamTab(tab){
   document.querySelectorAll('.param-tab-btn').forEach(b=>{ const on=b.dataset.paramtab===tab; b.classList.toggle('bg-indigo-600',on); b.classList.toggle('text-white',on); });
   document.querySelectorAll('.param-tab').forEach(t=>t.classList.toggle('hidden',t.id!=='paramTab-'+tab));
   if(tab==='synchro') refreshSyncCounts();
+  if(tab==='impression'){ impApercu(); impRegistreCharger(); }
 }
 function handleLogoUpload(e){
   const file=e.target.files[0]; if(!file) return;
