@@ -2,7 +2,7 @@
    Garde en cache l'application (index.html, config.js, bibliothèques CDN) pour qu'elle s'ouvre
    sans connexion. Les DONNÉES (Supabase) ne passent pas par ici : elles sont gérées dans
    index.html (cache de lecture + file d'attente des saisies, synchronisée au retour du réseau). */
-const VERSION = 'aluexpert-v11';
+const VERSION = 'aluexpert-v12';
 const COQUILLE = ['./', './index.html', './config.js', './manifest.webmanifest', './icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-192.png', './icons/icon-maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'];
 const CDN = /^https:\/\/(cdn\.tailwindcss\.com|cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)\//;
 
