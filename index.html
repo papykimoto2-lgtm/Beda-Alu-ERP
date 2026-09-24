@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sanix AluExpert ERP</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#6d28d9">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -25,6 +29,12 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
   body{background:#f3f4f6;color:#111827;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif}
   .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700}
   .hidden{display:none!important}
+  .hl-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid;white-space:nowrap;cursor:pointer}
+  .hl-pill .hl-dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+  .hl-ok{color:#047857;background:#ecfdf5;border-color:#a7f3d0}
+  .hl-off{color:#b45309;background:#fffbeb;border-color:#fcd34d}
+  .hl-sync{color:#6d28d9;background:#f5f3ff;border-color:#ddd6fe}
+  .hl-err{color:#b91c1c;background:#fef2f2;border-color:#fecaca}
   .nav-item{color:#cbd5e1;transition:background .12s;display:flex;align-items:center;gap:8px}
   .nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
   .nav-item.active{background:var(--accent);color:#fff}
@@ -300,12 +310,13 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
         <h1 id="pageTitle" class="text-base sm:text-lg font-bold truncate">Accueil</h1>
       </div>
       <div class="flex items-center gap-3 shrink-0">
+        <button id="hlPill" class="hl-pill hl-ok" onclick="HL.ouvrirPanneau()" title="État de la synchronisation"><span class="hl-dot"></span><span>En ligne</span></button>
         <button class="icon-btn" id="hdrPositionBtn" title="Partager ma position (commercial terrain)" onclick="partagerMaPosition()">📍</button>
         <button class="icon-btn" title="Messages">💬</button>
         <button class="icon-btn" title="Notifications">🔔<span id="hdrBellCount" class="dot hidden">0</span></button>
         <div class="hidden sm:block text-right leading-tight">
           <div id="hdrUserName" class="text-sm font-semibold text-gray-700">—</div>
-          <div class="text-[11px] text-emerald-600">Connecté</div>
+          <div id="hlTexte" class="text-[11px] text-emerald-600">Connecté</div>
         </div>
         <div id="hdrAvatar" class="avatar" style="cursor:pointer" title="Changer mon mot de passe" onclick="ouvrirChangementMotDePasse(false)">--</div>
       </div>
@@ -318,9 +329,318 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
 
 <script>
 /* ============================== CORE / UTILS ============================== */
+/* ============================== HORS LIGNE (offline-first) ==============================
+   L'application reste utilisable sans connexion :
+   • lectures Supabase : réseau d'abord ; chaque réponse est gardée sur l'appareil (IndexedDB)
+     et resservie quand le réseau manque ;
+   • saisies (création / modification / suppression, vente au comptoir) : envoyées tout de suite
+     si possible, sinon mises en FILE D'ATTENTE sur l'appareil et rejouées dans l'ordre au retour
+     du réseau (identifiants générés sur l'appareil → aucun doublon si un envoi est rejoué) ;
+   • les éléments en attente apparaissent déjà dans les listes et documents (superposition locale) ;
+   • la session reste ouverte hors ligne (jeton prolongé localement, renouvelé au retour du réseau).
+   Les opérations qui exigent le serveur (codes PIN, transferts de stock, comptes…) demandent une connexion. */
+const HL=(()=>{
+  const BASE=window.SB_CFG.SUPABASE_URL.replace(/\/+$/,'');
+  const CLE=window.SB_CFG.SUPABASE_ANON_KEY;
+  // Tables sans colonne « id » générée (clé composée ou code) : pas d'identifiant ajouté hors ligne
+  const SANS_ID=new Set(['caisse_affectations','caisse_pins','compta_comptes','compta_journaux','point_vente_affectations','stocks_depot','role_permissions']);
+  // Fonctions serveur utilisables hors ligne (rejouées au retour du réseau)
+  const RPC_DIFFERABLES=new Set(['vente_comptoir_valider']);
+  const AVEC_CODE=new Set(['clients','prospects','fournisseurs','projets','devis','factures','fiches_execution']);   // code attribué par le serveur
+  const NOMS={clients:'client',prospects:'prospect',fournisseurs:'fournisseur',projets:'projet',devis:'devis',devis_lignes:'lignes de devis',factures:'facture',paiements:'paiement',
+    fiches_execution:"fiche d'exécution",fiche_execution_lignes:"lignes de fiche d'exécution",composants:'composant',produits:'produit',mouvements_stock:'mouvement de stock',
+    caisse_mouvements:'mouvement de caisse',compta_ecritures:'écriture comptable',compta_lignes:"lignes d'écriture",ventes_comptoir:'vente au comptoir',realisations:'réalisation',
+    client_categories:'catégorie client',devis_categories:'catégorie de devis',parametres:'paramètres'};
+  const nomTable=(t)=>NOMS[t]||t;
+  const ACTIONS={};                       // actions JS différées (ex. comptabilisation d'une vente faite hors ligne)
+  let dbp=null, syncEnCours=false, jetonLocal=false, file=[];   // `file` : copie mémoire de la file d'attente
+  const etat={enLigne:navigator.onLine, attente:0, erreurs:0};
+
+  /* ---------- IndexedDB ---------- */
+  function db(){
+    if(!dbp) dbp=new Promise((ok,ko)=>{
+      const r=indexedDB.open('aluexpert-hors-ligne',1);
+      r.onupgradeneeded=()=>{ const d=r.result;
+        d.createObjectStore('lectures',{keyPath:'cle'});
+        d.createObjectStore('file',{keyPath:'n',autoIncrement:true});
+        d.createObjectStore('erreurs',{keyPath:'n',autoIncrement:true}); };
+      r.onsuccess=()=>ok(r.result); r.onerror=()=>ko(r.error);
+    });
+    return dbp;
+  }
+  async function tx(store,mode,fn){
+    const d=await db();
+    return new Promise((ok,ko)=>{ const t=d.transaction(store,mode); const s=t.objectStore(store); let res;
+      Promise.resolve(fn(s)).then(v=>{ res=v; }); t.oncomplete=()=>ok(res); t.onerror=()=>ko(t.error); });
+  }
+  const req=(r)=>new Promise((ok,ko)=>{ r.onsuccess=()=>ok(r.result); r.onerror=()=>ko(r.error); });
+  const lireTout=(store)=>tx(store,'readonly',s=>req(s.getAll()));
+
+  /* ---------- Outils ---------- */
+  const uuid=()=>crypto.randomUUID?crypto.randomUUID():'10000000-1000-4000-8000-100000000000'.replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
+  const estReseau=(e)=>e instanceof TypeError || e?.name==='AbortError';
+  function sessionStockee(){ try{ return JSON.parse(localStorage.getItem(sb.auth.storageKey)||'null'); }catch(e){ return null; } }
+  function utilisateurId(){ return (typeof CURRENT_USER!=='undefined'&&CURRENT_USER?.id)||sessionStockee()?.user?.id||'anon'; }
+  function reponse(corps,status,extra){
+    return new Response(corps==null?null:JSON.stringify(corps),{status,headers:{'Content-Type':'application/json','X-Hors-Ligne':'1',...(extra||{})}});
+  }
+  const HORS_LIGNE={code:'HORS_LIGNE',message:'📴 Hors ligne : cette opération nécessite une connexion internet.',details:null,hint:null};
+  function decouper(url){                 // /rest/v1/<table>?a=b → {table, rpc, params}
+    const u=new URL(url); const chemin=u.pathname.replace(/^.*\/rest\/v1\//,'');
+    const rpc=chemin.startsWith('rpc/')?chemin.slice(4):null;
+    return {table:rpc?null:chemin, rpc, params:u.searchParams};
+  }
+  // Filtres « colonne=eq.valeur » d'une requête ; null si la requête contient d'autres filtres (non superposable)
+  function filtresEgalite(params){
+    const f={};
+    for(const [k,v] of params){
+      if(['select','order','limit','offset','columns','on_conflict'].includes(k)) continue;
+      if(!v.startsWith('eq.')) return null;
+      f[k]=v.slice(3);
+    }
+    return f;
+  }
+  const correspond=(ligne,f)=>Object.entries(f).every(([k,v])=>String(ligne?.[k]??'')===v);
+  function relationsSelect(sel){          // "*, clients(nom), caisse:caisses(nom)" → ['clients','caisse']
+    const noms=[]; let prof=0, cur='';
+    for(const ch of String(sel||'*')){
+      if(ch==='('){ if(prof===0) noms.push(cur.trim().split(':')[0].replace(/!.*/,'')); prof++; }
+      else if(ch===')') prof--;
+      else if(ch===','&&prof===0) cur='';
+      else if(prof===0) cur+=ch;
+    }
+    return noms.filter(Boolean);
+  }
+
+  /* ---------- Superposition : ce qui est en file d'attente apparaît déjà dans les lectures ---------- */
+  function superposer(table,params,lignes){
+    const f=filtresEgalite(params); if(!f) return lignes;
+    const relations=relationsSelect(params.get('select'));
+    let res=Array.isArray(lignes)?lignes.slice():[];
+    for(const op of file){
+      const locales=op.locales?.[table];
+      if(locales) for(const l of locales){
+        if(!correspond(l,f)) continue;
+        const copie={...l}; relations.forEach(r=>{ if(!(r in copie)) copie[r]=null; });
+        if(AVEC_CODE.has(table) && !copie.code) copie.code='⏳';   // numéro attribué à la synchronisation
+        const i=res.findIndex(x=>x.id&&x.id===copie.id); if(i>=0) res[i]={...res[i],...copie}; else res.unshift(copie);
+      }
+      if(op.table===table && (op.method==='PATCH'||op.method==='DELETE')){
+        const fo=filtresEgalite(new URL(op.url).searchParams); if(!fo) continue;
+        if(op.method==='DELETE') res=res.filter(x=>!correspond(x,fo));
+        else { const v=JSON.parse(op.body||'{}'); res=res.map(x=>correspond(x,fo)?{...x,...v}:x); }
+      }
+    }
+    return res;
+  }
+
+  /* ---------- Lectures ---------- */
+  async function lecture(url,options,h,method){
+    const cle=[utilisateurId(),method,url,h.get('Prefer')||'',h.get('Accept')||''].join('|');
+    if(navigator.onLine){
+      try{
+        const res=await fetch(url,{...options,cache:'no-store'});
+        marquerEnLigne(true);
+        if(res.ok){ const copie=res.clone();
+          copie.text().then(corps=>tx('lectures','readwrite',s=>s.put({cle,status:res.status,corps,range:res.headers.get('content-range'),t:Date.now()}))).catch(()=>{}); }
+        return res;
+      }catch(e){ if(!estReseau(e)) throw e; marquerEnLigne(false); }
+    }
+    const enCache=await tx('lectures','readonly',s=>req(s.get(cle))).catch(()=>null);
+    const {table,params}=decouper(url);
+    const unique=/vnd\.pgrst\.object/.test(h.get('Accept')||'');
+    if(method==='HEAD') return enCache?new Response(null,{status:enCache.status,headers:{'Content-Range':enCache.range||'*/0','X-Hors-Ligne':'1'}}):reponse(HORS_LIGNE,503);
+    let donnees=enCache?JSON.parse(enCache.corps||'null'):null;
+    if(table){
+      const base=unique?(donnees?[donnees]:[]):donnees;
+      const sup=superposer(table,params,base);
+      if(unique){ if(sup.length) return reponse(sup[0],200); }
+      else if(sup.length||enCache) return reponse(sup,200,{'Content-Range':enCache?.range||`0-${Math.max(0,sup.length-1)}/*`});
+    }
+    if(enCache) return new Response(enCache.corps,{status:enCache.status,headers:{'Content-Type':'application/json','X-Hors-Ligne':'1','Content-Range':enCache.range||''}});
+    return reponse({...HORS_LIGNE,message:"📴 Hors ligne : ces données n'ont pas encore été consultées sur cet appareil."},503);
+  }
+
+  /* ---------- Écritures ---------- */
+  async function ecriture(url,options,h,method){
+    const {table,rpc}=decouper(url);
+    if(rpc && !RPC_DIFFERABLES.has(rpc)){
+      // Lectures via fonction serveur (rapports…) : réseau d'abord, dernière réponse connue sinon
+      if(navigator.onLine){ try{ const r=await fetch(url,options); marquerEnLigne(true); return r; }catch(e){ if(!estReseau(e)) throw e; marquerEnLigne(false); } }
+      return reponse(HORS_LIGNE,503);
+    }
+    if(navigator.onLine){
+      try{ const r=await fetch(url,options); marquerEnLigne(true); return r; }
+      catch(e){ if(!estReseau(e)) throw e; marquerEnLigne(false); }
+    }
+    // → file d'attente
+    const prefer=h.get('Prefer')||'', accept=h.get('Accept')||'';
+    let corps=typeof options.body==='string'?options.body:(options.body?JSON.stringify(options.body):null);
+    const op={t:Date.now(),method,url,prefer,accept,table,rpc,utilisateur:utilisateurId(),locales:null};
+    let rendu=null;
+    if(rpc==='vente_comptoir_valider'){
+      const b=JSON.parse(corps||'{}'); const v=b.p_vente||{};
+      v.id=v.id||uuid();
+      v.code=v.code||`VCH-${new Date().getFullYear()}-${(Date.now().toString(36).slice(-5)+Math.random().toString(36).slice(2,4)).toUpperCase()}`;   // code provisoire (hors ligne)
+      b.p_vente=v; corps=JSON.stringify(b);
+      const vente={...v,statut:'validee',created_at:new Date().toISOString(),created_by:utilisateurId(),hors_ligne:true};
+      const lignes=(b.p_lignes||[]).map((l,i)=>({...l,id:uuid(),vente_id:v.id,ordre:i}));
+      op.locales={ventes_comptoir:[vente],ventes_comptoir_lignes:lignes};
+      op.libelle=`Vente au comptoir ${v.code}`;
+      rendu=vente;
+    } else if(method==='POST'){
+      let lignes=JSON.parse(corps||'null'); const tableau=Array.isArray(lignes); lignes=tableau?lignes:[lignes];
+      const upsert=/resolution=/.test(prefer);
+      if(!SANS_ID.has(table) && !upsert) lignes.forEach(l=>{ if(l && !l.id) l.id=uuid(); });
+      const maintenant=new Date().toISOString();
+      lignes=lignes.map(l=>({created_at:maintenant,...l}));
+      corps=JSON.stringify(tableau?lignes:lignes[0]);
+      op.locales={[table]:lignes.map(l=>({...l,hors_ligne:true}))};
+      op.libelle=`Création — ${nomTable(table)}`+(lignes.length>1?` (${lignes.length})`:'');
+      rendu=/vnd\.pgrst\.object/.test(accept)?lignes[0]:lignes;
+    } else {
+      op.libelle=(method==='DELETE'?'Suppression':'Modification')+` — ${nomTable(table)}`;
+    }
+    op.body=corps;
+    await tx('file','readwrite',s=>req(s.add(op))).then(n=>{ op.n=n; });
+    file.push(op); etat.attente=file.length; majIndicateur();
+    if(method==='PATCH' && /return=representation/.test(prefer)){
+      const u=new URL(url); const sup=superposer(table,u.searchParams,[]);
+      rendu=/vnd\.pgrst\.object/.test(accept)?(sup[0]||JSON.parse(corps||'{}')):sup;
+    }
+    if(!/return=representation/.test(prefer) && !rpc) return new Response(null,{status:method==='POST'?201:204,headers:{'X-Hors-Ligne':'1'}});
+    return reponse(rendu,method==='POST'&&!rpc?201:200);
+  }
+
+  /* ---------- Session hors ligne ---------- */
+  async function jetonHorsLigne(){
+    // Le serveur est injoignable pour renouveler le jeton : on prolonge localement la session connue
+    // (le vrai renouvellement se fait dès le retour du réseau, avec le jeton de renouvellement intact).
+    const s=sessionStockee(); if(!s?.refresh_token) return reponse({error:'offline',error_description:'Hors ligne'},503);
+    jetonLocal=true;
+    return reponse({access_token:s.access_token,refresh_token:s.refresh_token,token_type:'bearer',expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,user:s.user},200);
+  }
+
+  /* ---------- fetch utilisé par le client Supabase ---------- */
+  async function hlFetch(input,options={}){
+    const url=typeof input==='string'?input:input.url;
+    if(!url.startsWith(BASE)) return fetch(input,options);
+    const method=(options.method||'GET').toUpperCase();
+    const h=new Headers(options.headers||{});
+    if(url.includes('/auth/v1/token') && url.includes('grant_type=refresh_token')){
+      if(!navigator.onLine) return jetonHorsLigne();
+      try{ const r=await fetch(input,options); if(r.ok) jetonLocal=false; return r; }catch(e){ if(!estReseau(e)) throw e; return jetonHorsLigne(); }
+    }
+    if(!url.includes('/rest/v1/')) return fetch(input,{...options,cache:'no-store'});
+    if(method==='GET'||method==='HEAD') return lecture(url,options,h,method);
+    return ecriture(url,options,h,method);
+  }
+
+  /* ---------- Synchronisation ---------- */
+  async function synchroniser(silencieux){
+    if(syncEnCours || !file.length) return;
+    if(!navigator.onLine){ marquerEnLigne(false); return; }
+    syncEnCours=true; majIndicateur();
+    let faits=0, echecs=0;
+    try{
+      if(jetonLocal){ const {error}=await sb.auth.refreshSession(); if(error) throw error; jetonLocal=false; }
+      for(const op of file.slice()){
+        if(op.action){
+          if(typeof CURRENT_USER==='undefined'||!CURRENT_USER) break;   // actions : utilisateur connecté requis
+          const fn=ACTIONS[op.action];
+          try{ if(fn) await fn(op.args||{}); }
+          catch(e){ if(estReseau(e)) break; await vers_erreurs(op,e.message||String(e)); echecs++; continue; }
+          await retirer(op); faits++; continue;
+        }
+        const {data:{session}}=await sb.auth.getSession();
+        if(!session?.access_token) break;          // reconnexion nécessaire : on réessaiera
+        const headers={'Content-Type':'application/json',apikey:CLE,Authorization:'Bearer '+session.access_token,
+          Prefer:(op.prefer||'').replace(/return=representation/,'return=minimal')||'return=minimal'};
+        let res;
+        try{ res=await fetch(op.url,{method:op.method,headers,body:op.body,cache:'no-store'}); }
+        catch(e){ marquerEnLigne(false); break; }
+        if(res.ok){ await retirer(op); faits++; continue; }
+        const txt=await res.text().catch(()=>'');
+        if(res.status===409 && /23505/.test(txt) && op.method==='POST'){ await retirer(op); faits++; continue; }   // déjà reçu lors d'un envoi précédent
+        if(res.status===401){ await sb.auth.refreshSession(); break; }
+        if(res.status>=500||res.status===408||res.status===429){ op.essais=(op.essais||0)+1; if(op.essais<5) break; }   // erreur serveur répétée → mise de côté
+        let msg=txt; try{ msg=JSON.parse(txt).message||txt; }catch(e){}
+        await vers_erreurs(op,`HTTP ${res.status} — ${msg}`); echecs++;
+      }
+    }catch(e){ /* réessai au prochain passage */ }
+    finally{ syncEnCours=false; majIndicateur(); }
+    if(faits && !silencieux){
+      toast(`🔄 ${faits} opération(s) hors ligne synchronisée(s)`+(echecs?` — ${echecs} en erreur`:''),echecs?'error':undefined);
+      if(typeof CURRENT_USER!=='undefined'&&CURRENT_USER&&window._pageCourante&&!document.querySelector('#modalRoot .modal-overlay')) showPage(window._pageCourante);
+    } else if(echecs) toast(`⚠️ ${echecs} opération(s) hors ligne refusée(s) par le serveur — voir l'indicateur de synchronisation.`,'error');
+  }
+  async function retirer(op){ await tx('file','readwrite',s=>req(s.delete(op.n))); file=file.filter(x=>x.n!==op.n); etat.attente=file.length; }
+  async function vers_erreurs(op,message){
+    const e={...op,erreur:message,le:Date.now()}; delete e.n;
+    await tx('erreurs','readwrite',s=>req(s.add(e))); await retirer(op); etat.erreurs++;
+  }
+  // Action JS à exécuter APRÈS les opérations déjà en file (ex. comptabiliser une vente faite hors ligne)
+  async function differer(action,args,libelle){
+    const op={t:Date.now(),action,args,libelle:libelle||action,utilisateur:utilisateurId()};
+    await tx('file','readwrite',s=>req(s.add(op))).then(n=>{ op.n=n; });
+    file.push(op); etat.attente=file.length; majIndicateur();
+  }
+
+  /* ---------- Indicateur (en-tête) ---------- */
+  function marquerEnLigne(v){ if(etat.enLigne!==v){ etat.enLigne=v; majIndicateur(); if(v) synchroniser(); } }
+  function majIndicateur(){
+    const el=document.getElementById('hlPill'), txt=document.getElementById('hlTexte'); if(!el) return;
+    const n=file.length, e=etat.erreurs, hl=!etat.enLigne;
+    let cls='hl-ok', lib='En ligne';
+    if(hl){ cls='hl-off'; lib='Hors ligne'+(n?` · ${n} en attente`:''); }
+    else if(syncEnCours){ cls='hl-sync'; lib='Synchronisation…'; }
+    else if(n){ cls='hl-sync'; lib=`${n} en attente`; }
+    if(e){ cls=hl?'hl-off':'hl-err'; lib+=` · ${e} erreur(s)`; }
+    el.className='hl-pill '+cls; el.title=hl?"Pas de connexion : l'application fonctionne sur les données de cet appareil. Les saisies seront envoyées au retour du réseau.":'État de la synchronisation';
+    el.querySelector('span:last-child').textContent=lib;
+    if(txt){ txt.textContent=hl?'Hors ligne':'Connecté'; txt.className='text-[11px] '+(hl?'text-amber-600':'text-emerald-600'); }
+  }
+  async function ouvrirPanneau(){
+    const erreurs=await lireTout('erreurs').catch(()=>[]);
+    const lig=(o,err)=>`<tr class="border-t"><td class="py-1.5 pr-2 whitespace-nowrap text-xs text-gray-500">${new Date(o.t).toLocaleString('fr-FR')}</td><td class="py-1.5 pr-2 text-sm">${escapeHtml(o.libelle||o.method+' '+(o.table||o.rpc||''))}${err?`<div class="text-xs text-red-600">${escapeHtml(o.erreur||'')}</div>`:''}</td>${err?`<td class="py-1.5 text-right whitespace-nowrap"><button class="text-xs text-violet-700 font-semibold" onclick="HL.reessayer(${o.n})">↻ Réessayer</button> <button class="text-xs text-red-600 font-semibold ml-2" onclick="HL.abandonner(${o.n})">✕</button></td>`:'<td></td>'}</tr>`;
+    openModal(`<h2 class="text-lg font-bold mb-1">${etat.enLigne?'🟢 En ligne':'📴 Hors ligne'}</h2>
+      <p class="text-sm text-gray-500 mb-3">${etat.enLigne?'Les saisies sont envoyées directement au serveur.':"Pas de connexion : consultez les données déjà ouvertes sur cet appareil et continuez vos saisies (ventes au comptoir, clients, devis…). Elles seront envoyées automatiquement au retour du réseau."}</p>
+      <h3 class="font-semibold text-sm mb-1">En attente d'envoi (${file.length})</h3>
+      ${file.length?`<table class="w-full mb-3">${file.map(o=>lig(o,false)).join('')}</table>`:'<div class="text-sm text-gray-400 mb-3">Rien en attente.</div>'}
+      ${erreurs.length?`<h3 class="font-semibold text-sm mb-1 text-red-700">Refusées par le serveur (${erreurs.length})</h3><p class="text-xs text-gray-500 mb-1">Souvent : donnée modifiée entre-temps par un collègue, droits insuffisants ou doublon. Corrigez puis réessayez, ou abandonnez.</p><table class="w-full mb-3">${erreurs.map(o=>lig(o,true)).join('')}</table>`:''}
+      <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Fermer</button>${file.length&&etat.enLigne?`<button class="btn btn-primary" onclick="closeModal();HL.synchroniser()">🔄 Synchroniser maintenant</button>`:''}</div>`);
+  }
+  async function reessayer(n){
+    const e=await tx('erreurs','readonly',s=>req(s.get(n))); if(!e) return;
+    await tx('erreurs','readwrite',s=>req(s.delete(n))); etat.erreurs=Math.max(0,etat.erreurs-1);
+    const op={...e}; delete op.n; delete op.erreur; delete op.le;
+    await tx('file','readwrite',s=>req(s.add(op))).then(k=>{ op.n=k; }); file.push(op); etat.attente=file.length;
+    closeModal(); await synchroniser(); ouvrirPanneau();
+  }
+  async function abandonner(n){
+    if(!confirm('Abandonner définitivement cette opération ? Elle ne sera jamais envoyée au serveur.')) return;
+    await tx('erreurs','readwrite',s=>req(s.delete(n))); etat.erreurs=Math.max(0,etat.erreurs-1); majIndicateur(); ouvrirPanneau();
+  }
+
+  /* ---------- Démarrage ---------- */
+  async function demarrer(){
+    try{ file=await lireTout('file'); etat.erreurs=(await lireTout('erreurs')).length; }catch(e){ file=[]; }
+    etat.attente=file.length; majIndicateur();
+    window.addEventListener('online',()=>{ etat.enLigne=true; majIndicateur(); synchroniser(); });
+    window.addEventListener('offline',()=>{ etat.enLigne=false; majIndicateur(); });
+    setInterval(()=>{ if(file.length) synchroniser(); },30000);
+  }
+  async function viderLectures(){ await tx('lectures','readwrite',s=>req(s.clear())).catch(()=>{}); }
+  const horsLigne=()=>!etat.enLigne||!navigator.onLine;
+
+  demarrer();
+  return {fetch:hlFetch,synchroniser,differer,enregistrerAction:(nom,fn)=>{ ACTIONS[nom]=fn; },ouvrirPanneau,reessayer,abandonner,
+    horsLigne,viderLectures,majIndicateur,etat,enAttente:()=>file.length,jetonLocal:()=>jetonLocal,uuid};
+})();
+if('serviceWorker' in navigator && location.protocol!=='file:') window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 const { createClient } = supabase;
 const sb = createClient(window.SB_CFG.SUPABASE_URL, window.SB_CFG.SUPABASE_ANON_KEY, {
-  global: { fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }) }
+  global: { fetch: HL.fetch }   // hors ligne : cache de lecture + file d'attente des saisies (voir HL)
 });
 let CURRENT_USER = null;
 function money(n){ return new Intl.NumberFormat('fr-FR').format(Math.round(n||0)) + ' FCFA'; }
@@ -392,13 +712,20 @@ document.getElementById('loginForm').addEventListener('submit', async (e)=>{
   }catch(err){ showAuthMsg(err.message||'Erreur', true); }
   finally{ btn.disabled=false; }
 });
-async function handleLogout(){ clearInterval(window._session?.minuteur); window._rbac.loaded=false; window._rbac.monProfil=null; window._affect.charge=false; window.APP_PARAMS=null; document.getElementById('modalMdp')?.remove(); await sb.auth.signOut(); CURRENT_USER=null; document.getElementById('appScreen').classList.add('hidden'); document.getElementById('authScreen').classList.remove('hidden'); preparerEcranConnexion(); }
+async function handleLogout(auto){
+  const n=HL.enAttente();
+  if(!auto && (n||HL.horsLigne()) && !confirm((n?`${n} opération(s) saisie(s) hors ligne ne sont pas encore envoyées au serveur : elles restent sur cet appareil et partiront à la prochaine connexion.\n`:'')+(HL.horsLigne()?"Vous êtes hors ligne : impossible de vous reconnecter avant le retour du réseau.\n":'')+'Se déconnecter quand même ?')) return;
+  clearInterval(window._session?.minuteur); document.getElementById('hlVerrou')?.remove(); window._rbac.loaded=false; window._rbac.monProfil=null; window._affect.charge=false; window.APP_PARAMS=null; document.getElementById('modalMdp')?.remove();
+  if(HL.horsLigne()){ await sb.auth.signOut({scope:'local'}).catch(()=>{}); try{ localStorage.removeItem(sb.auth.storageKey); }catch(e){} }
+  else await sb.auth.signOut().catch(()=>{});
+  HL.viderLectures(); CURRENT_USER=null; document.getElementById('appScreen').classList.add('hidden'); document.getElementById('authScreen').classList.remove('hidden'); preparerEcranConnexion(); }
 async function enterApp(){
-  const {data:{user}}=await sb.auth.getUser();
+  let {data:{user},error:eUser}=await sb.auth.getUser();
+  if(!user && (HL.horsLigne()||!(eUser?.status>=400&&eUser?.status<500))) user=(await sb.auth.getSession()).data.session?.user||null;   // hors ligne : utilisateur de la session gardée sur l'appareil
   if(!user) return;
   CURRENT_USER=user;
   const {data:profile}=await sb.from('profiles').select('*').eq('id',user.id).maybeSingle();
-  if(profile && profile.actif===false){ await handleLogout(); showAuthMsg('⛔ Ce compte est désactivé. Contactez un administrateur.',true); return; }
+  if(profile && profile.actif===false){ await handleLogout(true); showAuthMsg('⛔ Ce compte est désactivé. Contactez un administrateur.',true); return; }
   if(profile && profile.must_change){
     // Mot de passe provisoire : aucun accès aux données (bloqué aussi dans la base) tant qu'il n'est pas changé
     document.getElementById('authScreen').classList.remove('hidden');
@@ -423,6 +750,7 @@ async function enterApp(){
   await rbacCharger(true);   // toujours les droits de l'utilisateur qui vient de se connecter
   rbacAppliquerSidebar();
   demarrerSurveillanceSession();
+  HL.synchroniser();
   if(monRole()?.code==='sans_role'){
     document.getElementById('pageContent').innerHTML=`<div class="card p-10 text-center max-w-lg mx-auto mt-10"><div class="text-5xl mb-3">⏳</div><h2 class="text-lg font-bold mb-2">Compte en attente</h2><p class="text-gray-500">Votre compte n'a pas encore de rôle. Un administrateur doit vous en attribuer un (Paramètres → Utilisateurs & Rôles).</p><button class="btn btn-outline mt-5" onclick="handleLogout()">Se déconnecter</button></div>`;
     document.getElementById('pageTitle').textContent='Compte en attente';
@@ -552,6 +880,7 @@ async function showPage(page){
     const isMatch=b.dataset.toggle===groupKey;
     if(isMatch){ b.classList.add('open'); document.querySelector(`.sidebar-children[data-children="${groupKey}"]`).classList.add('open'); }
   });
+  window._pageCourante=page;
   document.getElementById('pageTitle').textContent=PAGE_TITLES[page]||'';
   const el=document.getElementById('pageContent');
   el.innerHTML='<div class="text-sm text-gray-400 p-8 text-center">Chargement…</div>';
@@ -7160,16 +7489,37 @@ async function posEncaisser(){
   const lignes=pos.panier.map(l=>({composant_id:l.composant_id,designation:l.designation,unite:l.unite,quantite:+l.quantite,prix_unitaire:+l.prix_unitaire||0,prix_achat:+l.prix_achat||0,remise_pct:+l.remise_pct||0,total:posLigneTotal(l)}));
   const {data:v,error}=await sb.rpc('vente_comptoir_valider',{p_vente:vente,p_lignes:lignes});
   if(error){ toast(error.message,'error'); return; }
-  const ecr=await comptabiliserVenteComptoir(v,caisse);
-  if(ecr) await sb.from('ventes_comptoir').update({ecriture_id:ecr.id}).eq('id',v.id);
-  if(pos.mode==='espece' && caisse?.sessionId){
-    const {error:eC}=await sb.from('caisse_mouvements').insert({session_id:caisse.sessionId,caisse_id:caisse.id,numero:v.code,date_mouvement:today,type:'entree',montant:v.total,motif:'Vente au comptoir '+v.code,beneficiaire:v.client_nom||null,statut:ecr?'ventile':'a_ventiler',compte_ventile:ecr?requireCompteDefaut('ventes'):null,ecriture_id:ecr?.id||null,created_by:CURRENT_USER.id});
-    if(eC) toast('Vente enregistrée, mais mouvement de caisse non créé : '+eC.message,'error');
-  }
+  const sessionId=pos.mode==='espece'?caisse?.sessionId:null;
+  if(v.hors_ligne){
+    // Vente enregistrée sur l'appareil (code provisoire VCH-…) : écriture comptable et mouvement de caisse
+    // seront créés à la synchronisation, après l'envoi de la vente (numéros d'écriture sans doublon).
+    await HL.differer('apresVenteComptoir',{venteId:v.id,caisseId:caisse?.id||null,sessionId},`Comptabilisation + caisse — vente ${v.code}`);
+    toast('📴 Vente enregistrée hors ligne — elle sera envoyée au retour du réseau.');
+  } else await finaliserVenteComptoir(v,caisse,sessionId);
   Object.assign(pos,{panier:[],clientId:'',clientNom:'',clientTel:'',remise:0,recu:'',refPaiement:''});
   await showPage('comptoir');
   openDocumentsVente(v.id,v.code,v.total,v.monnaie_rendue);
 }
+/* Après la vente : écriture comptable + mouvement de caisse (espèces) */
+async function finaliserVenteComptoir(v,caisse,sessionId){
+  const ecr=await comptabiliserVenteComptoir(v,caisse);
+  if(ecr) await sb.from('ventes_comptoir').update({ecriture_id:ecr.id}).eq('id',v.id);
+  if(sessionId && caisse){
+    const {error:eC}=await sb.from('caisse_mouvements').insert({session_id:sessionId,caisse_id:caisse.id,numero:v.code,date_mouvement:v.date_vente,type:'entree',montant:v.total,motif:'Vente au comptoir '+v.code,beneficiaire:v.client_nom||null,statut:ecr?'ventile':'a_ventiler',compte_ventile:ecr?requireCompteDefaut('ventes'):null,ecriture_id:ecr?.id||null,created_by:CURRENT_USER.id});
+    if(eC) toast('Vente enregistrée, mais mouvement de caisse non créé : '+eC.message,'error');
+  }
+}
+// Rejouée à la synchronisation pour une vente faite hors ligne (idempotente : rien si déjà comptabilisée)
+HL.enregistrerAction('apresVenteComptoir',async({venteId,caisseId,sessionId})=>{
+  const {data:v,error}=await sb.from('ventes_comptoir').select('*').eq('id',venteId).single();
+  if(error) throw new Error('Vente introuvable sur le serveur : '+error.message);
+  if(v.ecriture_id || v.statut==='annulee') return;
+  let caisse=null;
+  if(caisseId){ const {data:c}=await sb.from('caisses').select('*').eq('id',caisseId).maybeSingle(); caisse=c; }
+  if(sessionId){ const {count}=await sb.from('caisse_mouvements').select('id',{count:'exact',head:true}).eq('numero',v.code); if(count) sessionId=null; }
+  await comptaChargerReferentiel();
+  await finaliserVenteComptoir(v,caisse,sessionId);
+});
 /* Écriture de vente au comptant : D trésorerie (caisse / banque) — C ventes HT — C TVA collectée */
 async function comptabiliserVenteComptoir(v,caisse){
   try{
@@ -7920,12 +8270,14 @@ async function appelFonctionServeur(nom,corps,avecSession){
 
 /* ---------- Écran de connexion ---------- */
 async function connecterUtilisateur(identifiant,motDePasse){
+  if(HL.horsLigne()) throw new Error("📴 Pas de connexion internet : se connecter nécessite le réseau. Une session déjà ouverte sur cet appareil reste utilisable hors ligne.");
   const r=await appelFonctionServeur('connexion',{identifiant,mot_de_passe:motDePasse},false);
   if(r.indisponible){
     // Secours si la fonction « connexion » n'est pas (encore) déployée : connexion directe par e-mail
     if(!identifiant.includes('@')) throw new Error("Service de connexion indisponible. Réessayez, ou connectez-vous avec votre e-mail.");
     const {error}=await sb.auth.signInWithPassword({email:identifiant,password:motDePasse});
     if(error) throw new Error('Identifiant ou mot de passe incorrect.');
+    await enregistrerVerrouLocal(motDePasse);
     return;
   }
   if(!r.ok){
@@ -7934,12 +8286,45 @@ async function connecterUtilisateur(identifiant,motDePasse){
   }
   const {error}=await sb.auth.setSession(r.session);
   if(error) throw error;
+  await enregistrerVerrouLocal(motDePasse);
+}
+/* Déverrouillage hors ligne : empreinte PBKDF2 du mot de passe gardée sur l'appareil (jamais le mot de passe),
+   pour rouvrir une session verrouillée par inactivité quand le serveur est injoignable. */
+async function empreinteMdp(mdp,sel){
+  const cle=await crypto.subtle.importKey('raw',new TextEncoder().encode(mdp),'PBKDF2',false,['deriveBits']);
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt:new TextEncoder().encode(sel),iterations:150000,hash:'SHA-256'},cle,256);
+  return btoa(String.fromCharCode(...new Uint8Array(bits)));
+}
+async function enregistrerVerrouLocal(mdp){
+  try{
+    const uid=(await sb.auth.getSession()).data.session?.user?.id; if(!uid||!crypto.subtle) return;
+    const sel=HL.uuid();
+    localStorage.setItem('aluexpert_verrou',JSON.stringify({uid,sel,h:await empreinteMdp(mdp,sel)}));
+  }catch(e){}
+}
+function verrouLocal(){ try{ const v=JSON.parse(localStorage.getItem('aluexpert_verrou')||'null'); return v&&v.uid===CURRENT_USER?.id?v:null; }catch(e){ return null; } }
+function verrouillerHorsLigne(){
+  if(document.getElementById('hlVerrou')) return;
+  const d=document.createElement('div'); d.id='hlVerrou'; d.className='modal-overlay'; d.style.zIndex='9998'; d.style.background='rgba(17,26,46,.92)';
+  d.innerHTML=`<div class="modal-box" style="max-width:380px"><div class="text-4xl text-center mb-2">🔒</div>
+    <h3 class="font-bold text-lg text-center">Session verrouillée</h3>
+    <p class="text-sm text-gray-500 text-center mb-4">Inactivité prolongée, hors ligne. Saisissez votre mot de passe pour reprendre ; vos saisies en attente sont conservées.</p>
+    <div class="field mb-2"><label>Mot de passe</label>${fieldWrap('🔑','<input type="password" id="hlVerrouMdp" autocomplete="current-password" onkeydown="if(event.key===\'Enter\')deverrouillerHorsLigne()">')}</div>
+    <div id="hlVerrouErr" class="text-sm text-red-600 mb-2"></div>
+    <div class="flex justify-between gap-2"><button class="btn btn-outline" onclick="handleLogout()">Se déconnecter</button><button class="btn btn-primary" onclick="deverrouillerHorsLigne()">Déverrouiller</button></div></div>`;
+  document.body.appendChild(d); setTimeout(()=>document.getElementById('hlVerrouMdp')?.focus(),50);
+}
+async function deverrouillerHorsLigne(){
+  const v=verrouLocal(), mdp=val('hlVerrouMdp'), err=document.getElementById('hlVerrouErr');
+  if(!v){ await handleLogout(true); return; }
+  if(await empreinteMdp(mdp,v.sel)!==v.h){ err.textContent='Mot de passe incorrect.'; return; }
+  document.getElementById('hlVerrou')?.remove(); window._session.derniereActivite=Date.now();
 }
 async function preparerEcranConnexion(){
   // « Créer le compte administrateur » n'apparaît que sur une installation vierge (comme Menko : comptes créés par l'admin)
   const btn=document.getElementById('toggleSignup'); if(!btn) return;
   const {data,error}=await sb.rpc('installation_vierge');
-  btn.classList.toggle('hidden',!(error||data===true));
+  btn.classList.toggle('hidden',!(data===true||(error&&error.code!=='HORS_LIGNE')));
 }
 
 /* ---------- Changement de mot de passe obligatoire / volontaire ---------- */
@@ -7983,19 +8368,22 @@ function demarrerSurveillanceSession(){
   clearInterval(s.minuteur);
   let tick=0;
   s.minuteur=setInterval(async()=>{
-    if(!CURRENT_USER) return;
+    if(!CURRENT_USER || document.getElementById('hlVerrou')) return;
     const min=+(window.APP_PARAMS?.session_inactivite_min??30);
     if(min>0 && Date.now()-s.derniereActivite>min*60000){
-      clearInterval(s.minuteur); await handleLogout();
+      if(HL.horsLigne() && verrouLocal()){ verrouillerHorsLigne(); return; }   // hors ligne : verrouiller plutôt que déconnecter (reconnexion impossible sans réseau)
+      clearInterval(s.minuteur); await handleLogout(true);
       showAuthMsg(`🔒 Déconnecté après ${min} minutes d'inactivité.`,false); return;
     }
     if(++tick%2) return;   // toutes les 60 s : déconnexion forcée à distance ?
-    const [{data:p},{data:{user}}]=await Promise.all([sb.from('parametres').select('deconnexion_forcee_le').limit(1).maybeSingle(),sb.auth.getUser()]);
+    if(HL.horsLigne()) return;
+    const [{data:p},{data:{user},error:eU}]=await Promise.all([sb.from('parametres').select('deconnexion_forcee_le').limit(1).maybeSingle(),sb.auth.getUser()]);
     const force=p?.deconnexion_forcee_le;
-    if(!user){ clearInterval(s.minuteur); await handleLogout(); showAuthMsg('Session terminée.',false); return; }
+    if(!user && !(eU?.status>=400&&eU?.status<500)) return;   // serveur injoignable : on ne déconnecte pas
+    if(!user){ clearInterval(s.minuteur); await handleLogout(true); showAuthMsg('Session terminée.',false); return; }
     let exempt=''; try{ exempt=localStorage.getItem('aluexpert_deco_exempt')||''; }catch(e){}
     if(force && exempt!==force && user.last_sign_in_at && new Date(user.last_sign_in_at)<new Date(force)){
-      clearInterval(s.minuteur); await handleLogout(); showAuthMsg('🔒 Session terminée à distance par un administrateur. Reconnectez-vous.',false);
+      clearInterval(s.minuteur); await handleLogout(true); showAuthMsg('🔒 Session terminée à distance par un administrateur. Reconnectez-vous.',false);
     }
   },30000);
 }

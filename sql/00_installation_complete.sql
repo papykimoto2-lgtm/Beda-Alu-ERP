@@ -909,9 +909,10 @@ begin
   v_depot := coalesce(nullif(p_vente->>'depot_id','')::uuid,
                       (select depot_id from points_vente where id = nullif(p_vente->>'point_vente_id','')::uuid),
                       (select id from depots where est_principal limit 1));
-  insert into ventes_comptoir (date_vente, client_id, client_nom, client_telephone, sous_total, remise, total, cout_total,
+  insert into ventes_comptoir (id, code, date_vente, client_id, client_nom, client_telephone, sous_total, remise, total, cout_total,
       mode_paiement, montant_recu, monnaie_rendue, reference_paiement, caisse_id, vendeur, created_by, point_vente_id, depot_id)
-    values (coalesce((p_vente->>'date_vente')::date, current_date), nullif(p_vente->>'client_id','')::uuid,
+    values (coalesce(nullif(p_vente->>'id','')::uuid, gen_random_uuid()), nullif(p_vente->>'code',''),
+      coalesce((p_vente->>'date_vente')::date, current_date), nullif(p_vente->>'client_id','')::uuid,
       p_vente->>'client_nom', p_vente->>'client_telephone',
       coalesce((p_vente->>'sous_total')::numeric,0), coalesce((p_vente->>'remise')::numeric,0),
       coalesce((p_vente->>'total')::numeric,0), coalesce((p_vente->>'cout_total')::numeric,0),

@@ -76,3 +76,13 @@ Menu **Caisse → Affectations & codes PIN** (administrateurs et managers). Insp
 - **Sécurité & connexions** : déconnexion automatique après inactivité (30 min par défaut), bouton « Déconnecter tous les autres postes », postes connectés récemment, journal des connexions.
 - Appliqué **dans la base** (RLS restrictive) : un compte désactivé, sans rôle ou devant changer son mot de passe n'accède à aucune donnée, même en appelant l'API directement.
 - Migrations (installation existante) : `sql/utilisateurs_roles.sql` puis `sql/utilisateurs_auth_menko.sql`. Les comptes existants reçoivent un identifiant tiré de leur e-mail.
+
+## Mode hors ligne (offline-first)
+L'application continue de fonctionner quand internet est coupé :
+- **Ouverture sans connexion** : l'application est gardée sur l'appareil (service worker `sw.js`, installable comme une application — `manifest.webmanifest`). Une session ouverte reste active hors ligne.
+- **Consultation** : chaque écran déjà ouvert sur l'appareil reste consultable (dernières données reçues, gardées dans le navigateur).
+- **Saisies hors ligne** (clients, prospects, devis, modifications, suppressions…) et **ventes au comptoir** : enregistrées sur l'appareil dans une file d'attente, visibles aussitôt dans les listes, puis envoyées automatiquement dans l'ordre au retour du réseau. Une vente hors ligne reçoit un code provisoire `VCH-AAAA-XXXXXXX` (conservé ensuite) ; son écriture comptable et son mouvement de caisse sont créés à la synchronisation.
+- **Indicateur** dans l'en-tête : En ligne / Hors ligne · N en attente / erreurs. Un clic affiche la file d'attente et les opérations refusées par le serveur (réessayer ou abandonner).
+- **Sécurité** : hors ligne, l'inactivité **verrouille** la session (déverrouillage par le mot de passe, vérifié sur une empreinte PBKDF2 gardée sur l'appareil) au lieu de déconnecter. Les données gardées sont effacées à la déconnexion ; les saisies non envoyées sont conservées.
+- **Nécessitent une connexion** : se connecter, codes PIN et ouverture de caisse, transferts de stock, gestion des comptes, certification FNE.
+- Migration : `sql/hors_ligne.sql` (la vente au comptoir accepte l'identifiant et le code générés sur l'appareil).
