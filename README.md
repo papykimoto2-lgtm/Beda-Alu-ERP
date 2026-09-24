@@ -76,3 +76,30 @@ Menu **Caisse → Affectations & codes PIN** (administrateurs et managers). Insp
 - **Sécurité & connexions** : déconnexion automatique après inactivité (30 min par défaut), bouton « Déconnecter tous les autres postes », postes connectés récemment, journal des connexions.
 - Appliqué **dans la base** (RLS restrictive) : un compte désactivé, sans rôle ou devant changer son mot de passe n'accède à aucune donnée, même en appelant l'API directement.
 - Migrations (installation existante) : `sql/utilisateurs_roles.sql` puis `sql/utilisateurs_auth_menko.sql`. Les comptes existants reçoivent un identifiant tiré de leur e-mail.
+
+## Mode hors ligne (offline-first)
+L'application continue de fonctionner quand internet est coupé :
+- **Ouverture sans connexion** : l'application est gardée sur l'appareil (service worker `sw.js`, installable comme une application — `manifest.webmanifest`). Une session ouverte reste active hors ligne.
+- **Consultation** : chaque écran déjà ouvert sur l'appareil reste consultable (dernières données reçues, gardées dans le navigateur).
+- **Saisies hors ligne** (clients, prospects, devis, modifications, suppressions…) et **ventes au comptoir** : enregistrées sur l'appareil dans une file d'attente, visibles aussitôt dans les listes, puis envoyées automatiquement dans l'ordre au retour du réseau. Une vente hors ligne reçoit un code provisoire `VCH-AAAA-XXXXXXX` (conservé ensuite) ; son écriture comptable et son mouvement de caisse sont créés à la synchronisation.
+- **Indicateur** dans l'en-tête : En ligne / Hors ligne · N en attente / erreurs. Un clic affiche la file d'attente et les opérations refusées par le serveur (réessayer ou abandonner).
+- **Sécurité** : hors ligne, l'inactivité **verrouille** la session (déverrouillage par le mot de passe, vérifié sur une empreinte PBKDF2 gardée sur l'appareil) au lieu de déconnecter. Les données gardées sont effacées à la déconnexion ; les saisies non envoyées sont conservées.
+- **Nécessitent une connexion** : se connecter, codes PIN et ouverture de caisse, transferts de stock, gestion des comptes, certification FNE.
+- Migration : `sql/hors_ligne.sql` (la vente au comptoir accepte l'identifiant et le code générés sur l'appareil).
+
+## Chantiers : caisse et stock rattachés au chantier d'un client
+- **Caisse** : chaque bon d'entrée / de sortie peut être rattaché à un chantier — choisir le **client**, puis **un de ses chantiers** (présélectionné s'il n'en a qu'un en cours ; une caisse de chantier propose son chantier par défaut). Modifiable ensuite (✏️). La ventilation comptable du bon crée une écriture rattachée au même chantier.
+- **Stock** : un mouvement (sortie de matériaux, retour, achat livré sur chantier…) se rattache de la même façon ; colonne et filtre « Chantier » dans Stock → Mouvements. Les sorties faites depuis une fiche d'exécution sont rattachées automatiquement au chantier de la fiche.
+- **Fiche du projet** : section « Suivi du chantier » — dépenses et encaissements de caisse, matériaux sortis (valorisés au CMUP), coût direct suivi, et bouton « Sortie de stock pour ce chantier ».
+- Migration : `sql/chantiers_caisse_stock.sql` (colonnes `projet_id`, reprise des caisses de chantier et des sorties de fiches d'exécution existantes).
+
+## Tableau de bord — Cockpit (structure Menko Immo)
+L'accueil reprend la structure du tableau de bord de Menko Immo, adaptée à la menuiserie aluminium. Onglets (affichés selon les droits du rôle) : **🎛️ Cockpit** (écran d'accueil) · 📊 Vue générale · 💰 Finance & Trésorerie · 🎯 Commercial · 🏗️ Chantiers · 📦 Stock · 🛒 Comptoir · ⚠️ Alertes.
+- **Cockpit, le tableau de bord qui travaille** : il ne décrit pas seulement l'activité, il prescrit le geste suivant.
+  - *Briefing* du jour en langage naturel et première action recommandée ;
+  - *cartes d'encours* : reste à encaisser, échu > 30 jours, devis acceptés à facturer, pipeline, comptoir du jour ;
+  - *file d'actions priorisée* : relancer une facture impayée (📞 appel, 💬 WhatsApp pré-rédigé, ✓ relance faite), clôturer une caisse restée ouverte, facturer un devis accepté, certifier une facture FNE, chantier en retard, réapprovisionner, ventiler la caisse, relancer un devis sans réponse, réceptionner un transfert, contacter un prospect, saisies hors ligne refusées. Chaque action se reporte (🌙 demain) ou s'ignore (✕) — choix propre au poste ;
+  - *Pouls de l'activité* : courbe des encaissements 30 jours (factures + comptoir), 7 derniers jours, tendance, espèces en caisse ;
+  - *Santé par domaine* (0-100) : recouvrement, caisse, commercial, chantiers, stock, données — avec la cause dominante ;
+  - *💬 Partager* la file d'actions (WhatsApp) et *📊 Bulletin* de pilotage imprimable.
+- Les autres onglets détaillent : encaissements mensuels et ancienneté des impayés, devis par statut et performance par commercial, chantiers par étape et en retard, stock sous le seuil et valeur immobilisée, ventes et marge du comptoir, alertes par domaine.
