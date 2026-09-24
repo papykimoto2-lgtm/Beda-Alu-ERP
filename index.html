@@ -9531,11 +9531,15 @@ async function renderParametres(el){
       <div class="page-card max-w-3xl">
         <h2>🌐 Portail client — suivi en ligne</h2>
         <div class="divider"></div>
-        <p class="text-xs text-gray-500 mb-4">Génère un fichier HTML unique et autonome que vous déposez sur votre hébergeur (ou envoyez par lien). Chaque client y saisit son <b>code client</b> + son <b>téléphone</b> pour suivre l'avancement de son chantier, ses devis et ses factures — sans se connecter à l'ERP.</p>
+        <p class="text-xs text-gray-500 mb-4">Chaque client saisit son <b>code client</b> + son <b>téléphone</b> pour suivre l'avancement de son chantier, ses devis et ses factures — sans se connecter à l'ERP.</p>
+        <div class="text-xs bg-indigo-50 text-indigo-800 border border-indigo-200 rounded-lg px-3 py-2 mb-4">
+          🔗 <b>« portail-unique.html » (recommandé)</b> : un seul dépôt (ex. GitHub + Vercel), et le site reste <b>toujours à jour</b> — les modifications faites ici (réalisations, produits, mot du DG, coordonnées, activation) apparaissent aussitôt, sans régénérer ni redéposer. Contient uniquement la connexion Supabase, aucune donnée figée.<br>
+          📄 <b>« portail-client-… .html »</b> : instantané des données au moment de la génération — pratique pour un envoi ponctuel ou un hébergement sans redéploiement automatisé, mais à régénérer et redéposer à chaque mise à jour du contenu.
+        </div>
         <form id="portailForm" class="grid sm:grid-cols-2 gap-4">
           <div class="sm:col-span-2 flex items-center gap-2">
             <input type="checkbox" id="ptActif" ${p.portail_actif?'checked':''} style="width:16px;height:16px">
-            <label style="font-size:12px;color:#374151" for="ptActif">Portail actif (sinon le fichier généré affiche "service indisponible")</label>
+            <label style="font-size:12px;color:#374151" for="ptActif">Portail actif (sinon le site affiche « momentanément indisponible »)</label>
           </div>
           <div class="field sm:col-span-2"><label>Nom affiché sur le portail</label>${fieldWrap('🏷️',`<input id="ptNom" placeholder="Laisser vide pour utiliser la raison sociale" value="${escapeHtml(p.portail_nom||'')}">`)}</div>
           <div class="field sm:col-span-2"><label>Slogan (accroche du site)</label>${fieldWrap('📢',`<input id="ptSlogan" placeholder="Ex : Votre menuiserie aluminium sur-mesure" value="${escapeHtml(p.portail_slogan||'')}">`)}</div>
@@ -9543,8 +9547,11 @@ async function renderParametres(el){
           <div class="field sm:col-span-3"><label>À propos (présentation, page « Société »)</label>${fieldWrap('📝',`<textarea id="ptAPropos" rows="4" placeholder="Qui vous êtes, votre expertise, votre zone d'intervention…">${escapeHtml(p.site_a_propos||'')}</textarea>`)}</div>
           <div class="field"><label>Facebook (URL)</label>${fieldWrap('📘',`<input id="ptFacebook" placeholder="https://facebook.com/…" value="${escapeHtml(p.site_facebook||'')}">`)}</div>
           <div class="field"><label>Instagram (URL)</label>${fieldWrap('📸',`<input id="ptInstagram" placeholder="https://instagram.com/…" value="${escapeHtml(p.site_instagram||'')}">`)}</div>
-          <div class="sm:col-span-2 flex justify-between items-center pt-2">
-            <button type="button" class="btn btn-dark" onclick="genererPortailClient()">📤 Générer le site + portail (.html)</button>
+          <div class="sm:col-span-2 flex flex-wrap justify-between items-center gap-2 pt-2">
+            <div class="flex flex-wrap gap-2">
+              <button type="button" class="btn btn-dark" onclick="genererPortailUniqueLive()">🔗 Générer « portail-unique.html » (toujours à jour)</button>
+              <button type="button" class="btn btn-outline" onclick="genererPortailClient()">📤 Générer un instantané (.html)</button>
+            </div>
             <button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button>
           </div>
         </form>
@@ -13948,6 +13955,7 @@ function handleRealisationPhoto(e){
 function buildPortailBrand(){
   const p=window.APP_PARAMS||{};
   return {
+    actif: !!p.portail_actif,
     nom: p.portail_nom || p.raison_sociale || 'Notre entreprise',
     slogan: p.portail_slogan || 'Votre menuiserie aluminium sur-mesure',
     couleur: p.portail_couleur || '#1D3557',
@@ -14096,7 +14104,6 @@ const PORTAIL_TEMPLATE = `<!DOCTYPE html>
 <script>
 window.SB_CFG={ SUPABASE_URL:'__SB_URL__', SUPABASE_ANON_KEY:'__SB_KEY__' };
 window.BRAND=__PORTAIL_BRAND__;
-document.documentElement.style.setProperty('--pc',window.BRAND.couleur||'#1D3557');
 const { createClient } = supabase;
 const sb = createClient(window.SB_CFG.SUPABASE_URL, window.SB_CFG.SUPABASE_ANON_KEY, {
   global: { fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' }) }
@@ -14393,8 +14400,32 @@ function renderDossier(data){
     </div>\`;
 }
 
-renderHeader();
-setTab('accueil');
+function indisponibleHtml(msg){
+  return \`<div class="section" style="max-width:480px;padding-top:80px;text-align:center">
+    <div style="font-size:40px;margin-bottom:12px">🚧</div>
+    <div class="card"><div style="font-weight:800;font-size:15px;margin-bottom:6px">Site momentanément indisponible</div><div style="font-size:13px;color:#6b7280">\${esc(msg)}</div></div>
+  </div>\`;
+}
+async function demarrer(){
+  if(!window.BRAND){
+    try{
+      const {data,error}=await sb.rpc('portail_donnees_publiques');
+      if(error) throw error;
+      window.BRAND=data;
+    }catch(err){
+      document.getElementById('app').innerHTML=indisponibleHtml(err.message||'Connexion impossible. Réessayez plus tard.');
+      return;
+    }
+  }
+  document.documentElement.style.setProperty('--pc',window.BRAND.couleur||'#1D3557');
+  if(window.BRAND.actif===false){
+    document.getElementById('app').innerHTML=indisponibleHtml("Ce portail n'est pas encore activé — contactez l'entreprise directement.");
+    return;
+  }
+  renderHeader();
+  setTab('accueil');
+}
+demarrer();
 <\/script>
 </body>
 </html>
@@ -14423,6 +14454,27 @@ async function genererPortailClient(){
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     if(el){ el.textContent='✅ Portail généré pour « '+(brand.nom)+' ». Déposez ce fichier sur votre hébergeur ou envoyez-le à vos clients.'; el.className='text-sm mt-3 text-emerald-600'; }
     toast('Portail client généré.');
+  }catch(err){
+    if(el){ el.textContent='❌ '+err.message; el.className='text-sm mt-3 text-red-600'; }
+  }
+}
+/* Variante « toujours à jour » (modèle Menko Immo) : ne fige AUCUNE donnée métier dans le fichier — seulement
+   la connexion Supabase. À chaque visite, la page interroge portail_donnees_publiques() (RPC publique, lecture
+   seule) et affiche le contenu actuel. Un seul dépôt suffit : les modifications faites dans l'ERP (réalisations,
+   produits, mot du DG, coordonnées, activation) apparaissent aussitôt, sans regénérer ni redéposer le fichier. */
+async function genererPortailUniqueLive(){
+  const el=document.getElementById('portailResult');
+  try{
+    const html=PORTAIL_TEMPLATE
+      .split('__SB_URL__').join(window.SB_CFG.SUPABASE_URL)
+      .split('__SB_KEY__').join(window.SB_CFG.SUPABASE_ANON_KEY)
+      .split('window.BRAND=__PORTAIL_BRAND__;').join('window.BRAND=null;');
+    const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download='portail-unique.html';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    if(el){ el.textContent="✅ « portail-unique.html » généré — déposez-le une fois sur votre hébergeur (ou GitHub + Vercel) : il se met à jour tout seul à chaque visite, sans jamais avoir besoin d'être régénéré."; el.className='text-sm mt-3 text-emerald-600'; }
+    toast('Portail (toujours à jour) généré.');
   }catch(err){
     if(el){ el.textContent='❌ '+err.message; el.className='text-sm mt-3 text-red-600'; }
   }

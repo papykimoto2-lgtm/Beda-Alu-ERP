@@ -1,12 +1,16 @@
 # Portail client BEDA ALU — site public
 
-Ce dossier contient l'export statique du portail client généré depuis l'ERP
-(Paramètres → 🌐 Portail client → « Générer le site + portail »).
+`index.html` et `portail-unique.html` sont **identiques** et **toujours à jour** :
+ils ne contiennent que la connexion Supabase (URL + clé publique) et interrogent en
+direct, à chaque visite, la fonction publique `portail_donnees_publiques()` pour
+afficher le contenu actuel (réalisations, produits, mot du DG, coordonnées,
+activation). **Aucune donnée métier n'est figée dans ces fichiers.**
 
-**Ce n'est pas du code applicatif** : `index.html` est un instantané des données
-au moment de la génération (réalisations publiées, produits photographiés,
-mot du DG, coordonnées…). Il doit être **régénéré et redéposé ici** à chaque
-mise à jour de ces contenus — il ne se met pas à jour tout seul.
+Modifier le contenu dans l'ERP (Paramètres → 🌐 Portail client, Réalisations,
+Produits) suffit — le site public le reflète aussitôt, **sans régénérer ni
+redéployer**. Ces deux fichiers ne doivent être régénérés que si le **code** du
+portail change (design, fonctionnalités) — depuis Paramètres → Portail client,
+bouton « 🔗 Générer « portail-unique.html » ».
 
-Déployé séparément de l'ERP (projet Vercel dédié, racine = `public-site/`)
-pour ne pas hériter de la protection SSO de l'outil interne.
+Déployé séparément de l'ERP (projet Vercel dédié, racine = `public-site/`) pour
+ne pas hériter de la protection SSO de l'outil interne.
