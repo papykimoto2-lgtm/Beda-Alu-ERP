@@ -252,3 +252,58 @@ L'accueil reprend la structure du tableau de bord de Menko Immo, adaptée à la 
 - **Justification après validation** : un administrateur ou un manager peut compléter ou corriger une justification (`inventaire_justifier`). La modification est tracée et ne change pas le stock.
 - **Comptabilité** (inventaire intermittent SYSCOHADA) : la valeur réelle des stocks est reprise à la clôture (variation des stocks, journal INV).
 - **Installation** : exécuter `sql/inventaires.sql` (section 16 de `00_installation_complete.sql`).
+
+## Familles d'articles et unités de mesure (référentiels paramétrables)
+- **Où** : Composants → **Familles & unités**, ou Paramètres → 🗂 Familles & unités.
+- **Trois onglets** :
+  - familles de **composants / consommables** : icône, couleur, ordre, **compte de stock SYSCOHADA** (321 profilés et panneaux, 322 vitrages, 323 fournitures, 331 consommables) ;
+  - familles de **produits / ouvrages**, aussi utilisées par les réalisations et le site public ;
+  - **unités de mesure** des composants.
+- **Création rapide** depuis une fiche composant, produit ou réalisation : « ➕ Nouvelle famille… » et « ➕ Nouvelle unité… » dans les listes déroulantes.
+- **Renommer une famille renomme ses articles**. Une famille utilisée ne se supprime pas : on la **fusionne** dans une autre (🔀) ou on la **désactive**.
+- **Une famille présente dans les données mais absente du référentiel n'est plus jamais masquée.** Un bandeau propose de l'ajouter au référentiel.
+- **Comptabilité** : le compte de stock vient du réglage de la famille, et non plus d'une déduction à partir de son nom. Un article de type « Consommable » va toujours en 331.
+- **Unités** : la contrainte CHECK figée des composants est remplacée par une clé étrangère vers `unites_mesure`. Une unité utilisée ne peut pas être supprimée.
+- **Installation** : exécuter `sql/familles_referentiels.sql` (section 17 de `00_installation_complete.sql`).
+
+## Revue des données codées en dur (septembre 2026)
+**Défaut corrigé** : les familles de composants « Motorisation » et « Panneau », créées par le catalogue d'ouvrages, n'étaient pas dans la liste codée en dur de l'application.
+- Leurs articles (13 par base) n'apparaissaient ni dans le catalogue groupé ni au comptoir.
+- Ouvrir puis enregistrer un de ces articles le basculait dans une autre famille.
+- Le passage au référentiel corrige ces trois points.
+
+**Rendu paramétrable dans cette version**
+
+| Donnée | Avant | Maintenant |
+|---|---|---|
+| Familles de composants (icône, couleur) | `COMPOSANT_FAMILLES`, `COMPOSANT_FAM_ICONS/COLORS` | table `familles_articles` |
+| Familles de produits et de réalisations | `PRODUIT_FAMILLES`, `FAMILLE_ICONS/COLORS` (et une copie dans le site public) | table `familles_articles` |
+| Compte de stock d'une famille | déduit du nom de la famille (« vitr », « profil »…) | réglage de la famille |
+| Unités des composants | liste fixe + contrainte CHECK en base | table `unites_mesure` |
+
+**Déjà paramétrable** (rien à changer) :
+- société, logo, TVA et conditions des documents ;
+- comptes comptables par défaut, plan comptable, journaux ;
+- FNE (clé, URL, taxe par défaut) ;
+- moteur d'impression ;
+- catégories de clients et de devis ;
+- dépôts, caisses, points de vente, affectations ;
+- rôles, droits et plafonds ;
+- règles de ventilation de caisse ;
+- prix des composants par standing ;
+- portail client.
+
+**Volontairement figé** (le code dépend de ces valeurs, ou elles sont réglementaires) :
+- **statuts et étapes de cycle de vie** : projets, devis, factures, transferts, ventes, caisse, tickets Z ;
+- **types de mouvements de stock** et **modes de paiement**, liés aux journaux comptables et à la correspondance FNE ;
+- **FNE** : modèles B2C, B2B et B2G, codes de taxe TVA à TVAD (nomenclature DGI) ;
+- **SYSCOHADA révisé** : classes, rubriques du bilan et du compte de résultat (réglementaire) ;
+- **unités des produits** (unité, m², ml) : elles pilotent le calcul du prix des ouvrages ;
+- **types d'article** (Composant / Consommable) et **standings** (économique, standard, premium) : ils pilotent la comptabilité et le chiffrage.
+
+**À traiter plus tard** (recommandations)
+1. **Prix de secours du configurateur** (`OUV_PRIX_HISTO`) : des prix unitaires codés en dur servent si un composant est absent du catalogue. Risque de devis au mauvais prix. Il faudrait plutôt signaler le composant manquant.
+2. **Catalogue technique du configurateur** (séries de profilés, vitrages, finitions RAL : `CATALOGUE_SYSTEMES/VITRAGES/FINITIONS`) : à passer en tables pour ajouter une série ou une teinte sans développement.
+3. **Motifs d'écart d'inventaire** : ils sont définis deux fois, dans l'application (`INV_MOTIFS`) et dans la base (`inventaire_motif_libelle`). À passer en table si la liste doit évoluer.
+4. **Types de dépôts** (dépôt, magasin, atelier, chantier) : contrainte CHECK, à passer en référentiel si besoin.
+5. **Sauvegarde JSON** : les inventaires, les tickets Z et le registre des documents imprimés ne sont pas dans l'export. Ils sont protégés en écriture et ne peuvent donc pas être réimportés tels quels. Il faudrait un export en lecture seule de ces journaux.

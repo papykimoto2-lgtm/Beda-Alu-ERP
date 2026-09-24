@@ -273,6 +273,7 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
       <div class="sidebar-children" data-children="composants-g">
         <button class="nav-child" data-page="composants-add">→ Ajouter un composant</button>
         <button class="nav-child" data-page="composants">→ Catalogue composants & consommables</button>
+        <button class="nav-child" data-page="referentiels">→ Familles & unités</button>
       </div>
 
       <div class="sidebar-group-title">Stock</div>
@@ -842,7 +843,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e)=>{
 async function handleLogout(auto){
   const n=HL.enAttente();
   if(!auto && (n||HL.horsLigne()) && !confirm((n?`${n} opération(s) saisie(s) hors ligne ne sont pas encore envoyées au serveur : elles restent sur cet appareil et partiront à la prochaine connexion.\n`:'')+(HL.horsLigne()?"Vous êtes hors ligne : impossible de vous reconnecter avant le retour du réseau.\n":'')+'Se déconnecter quand même ?')) return;
-  clearInterval(window._session?.minuteur); document.getElementById('hlVerrou')?.remove(); window._rbac.loaded=false; window._rbac.monProfil=null; window._affect.charge=false; window.APP_PARAMS=null; document.getElementById('modalMdp')?.remove();
+  clearInterval(window._session?.minuteur); document.getElementById('hlVerrou')?.remove(); window._rbac.loaded=false; window._rbac.monProfil=null; window._REF={familles:null,unites:null}; window._affect.charge=false; window.APP_PARAMS=null; document.getElementById('modalMdp')?.remove();
   if(HL.horsLigne()){ await sb.auth.signOut({scope:'local'}).catch(()=>{}); try{ localStorage.removeItem(sb.auth.storageKey); }catch(e){} }
   else await sb.auth.signOut().catch(()=>{});
   HL.viderLectures(); CURRENT_USER=null; document.getElementById('appScreen').classList.add('hidden'); document.getElementById('authScreen').classList.remove('hidden'); preparerEcranConnexion(); }
@@ -874,6 +875,7 @@ async function enterApp(){
   refreshStockAlertesBadge();
   refreshTransfertsBadge();
   await loadAppParams();
+  await chargerReferentiels(true);
   await rbacCharger(true);   // toujours les droits de l'utilisateur qui vient de se connecter
   rbacAppliquerSidebar();
   demarrerSurveillanceSession();
@@ -894,9 +896,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-inventaires':"Stock — États d'inventaire",'stock-inventaire-view':"État d'inventaire",'stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'État périodique — Point de vente & caisse','comptoir-z':'Ticket Z — Clôture du point de vente','caisse-brouillard':'Brouillard de caisse',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-inventaires':renderStockInventaires,'stock-inventaire-view':renderInventaireDetail,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,'caisse-validations':renderCaisseValidations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,'comptoir-z':renderComptoirZ,'caisse-brouillard':renderCaisseBrouillard,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-inventaires':'stock-g','stock-inventaire-view':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g','caisse-validations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g','comptoir-z':'comptoir-g','caisse-brouillard':'caisse-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant',referentiels:"Familles d'articles & unités",'stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-inventaires':"Stock — États d'inventaire",'stock-inventaire-view':"État d'inventaire",'stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'État périodique — Point de vente & caisse','comptoir-z':'Ticket Z — Clôture du point de vente','caisse-brouillard':'Brouillard de caisse',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,referentiels:renderReferentiels,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-inventaires':renderStockInventaires,'stock-inventaire-view':renderInventaireDetail,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,'caisse-validations':renderCaisseValidations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,'comptoir-z':renderComptoirZ,'caisse-brouillard':renderCaisseBrouillard,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',referentiels:'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-inventaires':'stock-g','stock-inventaire-view':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g','caisse-validations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g','comptoir-z':'comptoir-g','caisse-brouillard':'caisse-g'};
 /* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
 const ALL_MODULES=[
   {code:'Clients',label:'Clients',groupe:'Clients'},
@@ -2548,12 +2550,13 @@ const FAMILLE_COLORS={'Fenêtres & châssis':'#1d4ed8','Coulissants, baies & pli
 window._produitsView=window._produitsView||'grille';
 window._produitsFamFilter=window._produitsFamFilter||'';
 async function renderProduits(el){
+  await chargerReferentiels();
   const {data,error}=await sb.from('produits').select('*').order('nom');
   if(error) throw error;
   window._produitsCache=data;
-  const presentFamilles=PRODUIT_FAMILLES.filter(f=>data.some(p=>(p.famille||'Autre')===f));
+  const presentFamilles=famillesPresentes('produit',data.map(p=>p.famille));
   const chips=[`<button class="fam-chip ${!window._produitsFamFilter?'active':''}" onclick="setProduitsFamFilter('')">🗂️ Toutes</button>`]
-    .concat(presentFamilles.map(f=>`<button class="fam-chip ${window._produitsFamFilter===f?'active':''}" style="--fc:${FAMILLE_COLORS[f]||'#6d28d9'}" onclick="setProduitsFamFilter('${f}')">${FAMILLE_ICONS[f]||'📦'} ${escapeHtml(f)}</button>`))
+    .concat(presentFamilles.map(f=>`<button class="fam-chip ${window._produitsFamFilter===f?'active':''}" style="--fc:${famCouleur('produit',f,'#6d28d9')}" onclick="setProduitsFamFilter(${jsArg(f)})">${famIcone('produit',f,'📦')} ${escapeHtml(f)}</button>`))
     .join('');
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
@@ -2607,17 +2610,17 @@ function filterProduitsCatalogue(){
   });
   const groups={};
   filtered.forEach(p=>{ const f=p.famille||'Autre'; (groups[f]=groups[f]||[]).push(p); });
-  const familles=PRODUIT_FAMILLES.filter(f=>groups[f]?.length);
+  const familles=famillesPresentes('produit',Object.keys(groups));
   const host=document.getElementById('produitsCatalogue');
   if(!host) return;
   if(!familles.length){ host.innerHTML='<div class="card text-center text-gray-400 p-8">Aucun produit.</div>'; return; }
   host.innerHTML=familles.map(f=>{
-    const fc=FAMILLE_COLORS[f]||'#6d28d9';
+    const fc=famCouleur('produit',f,'#6d28d9');
     return `
     <div class="mb-7">
       <div class="fam-section-head">
         <div class="bar" style="background:${fc}"></div>
-        <h3>${FAMILLE_ICONS[f]||'📦'} ${escapeHtml(f)}</h3>
+        <h3>${famIcone('produit',f,'📦')} ${escapeHtml(f)}</h3>
         <span class="count">${groups[f].length}</span>
       </div>
       ${window._produitsView==='grille' ? `
@@ -2625,7 +2628,7 @@ function filterProduitsCatalogue(){
           ${groups[f].map(p=>`
             <div class="produit-card" style="--fc:${fc}">
               <div class="flex justify-between items-start">
-                <div ${p.photo?`onclick="photoAgrandir('produit','${p.id}')" style="cursor:zoom-in"`:''}>${photoVignette(p.photo,FAMILLE_ICONS[f]||'📦',p.photo?64:46)}</div>
+                <div ${p.photo?`onclick="photoAgrandir('produit','${p.id}')" style="cursor:zoom-in"`:''}>${photoVignette(p.photo,famIcone('produit',f,'📦'),p.photo?64:46)}</div>
                 <span class="produit-pct">${p.cout_materiel_pct}%</span>
               </div>
               <div class="pname">${escapeHtml(p.nom)}${p.config_json?' <span title="Créé via le Configurateur">🧩</span>':''}</div>
@@ -2660,6 +2663,7 @@ function filterProduitsCatalogue(){
   }).join('');
 }
 async function renderProduitForm(el){
+  await chargerReferentiels();
   let p={};
   if(window._editId){ const {data}=await sb.from('produits').select('*').eq('id',window._editId).single(); p=data||{}; }
   el.innerHTML=`
@@ -2672,9 +2676,9 @@ async function renderProduitForm(el){
       </div>`:''}
       <form id="prodForm" class="grid sm:grid-cols-2 gap-4">
         <input type="hidden" id="prId" value="${p.id||''}">
-        <div class="field sm:col-span-2"><label>Photo du produit</label>${photoZoneHtml('prPhoto',p.photo,FAMILLE_ICONS[p.famille]||'📦')}</div>
+        <div class="field sm:col-span-2"><label>Photo du produit</label>${photoZoneHtml('prPhoto',p.photo,famIcone('produit',p.famille,'📦'))}</div>
         <div class="field sm:col-span-2"><label>Désignation</label>${fieldWrap('📦',`<input id="prNom" required value="${escapeHtml(p.nom||'')}">`)}</div>
-        <div class="field sm:col-span-2"><label>Famille</label>${fieldWrap('🏷️',`<select id="prFamille">${PRODUIT_FAMILLES.map(f=>`<option value="${f}" ${p.famille===f?'selected':''}>${f}</option>`).join('')}</select>`)}</div>
+        <div class="field sm:col-span-2"><label>Famille</label>${fieldWrap('🏷️',familleSelectHtml('prFamille','produit',p.famille))}</div>
         <div class="field"><label>Unité</label>${fieldWrap('📐',`<select id="prUnite"><option value="unite" ${p.unite==='unite'?'selected':''}>Unité</option><option value="m2" ${p.unite==='m2'?'selected':''}>m²</option><option value="ml" ${p.unite==='ml'?'selected':''}>ml</option></select>`)}</div>
         <div class="field"><label>% coût matériel estimé</label>${fieldWrap('💰',`<input id="prPct" type="number" min="0" max="100" value="${p.cout_materiel_pct??60}">`)}</div>
         <div class="field"><label>Prix de vente (FCFA)</label>${fieldWrap('🏷️',`<input id="prPrixVente" type="number" min="0" step="1" value="${+p.prix_vente||''}" placeholder="Prix catalogue / comptoir">`)}</div>
@@ -2787,6 +2791,226 @@ function photoVignette(src,icone,taille){
   return src?`<img src="${src}" alt="" style="width:${taille}px;height:${taille}px;object-fit:cover;border-radius:12px;box-shadow:inset 0 0 0 1px #e5e7eb;flex-shrink:0">`:`<div class="produit-icon" style="width:${taille}px;height:${taille}px">${icone||'📦'}</div>`;
 }
 
+/* ============================== RÉFÉRENTIELS : FAMILLES D'ARTICLES & UNITÉS ==============================
+   Les familles (composants et produits : icône, couleur, ordre, compte de stock) et les unités de mesure
+   des composants sont des données de la base (tables familles_articles, unites_mesure), créées et
+   modifiées depuis Composants → Familles & unités, ou directement depuis les fiches article
+   (« ➕ Nouvelle famille… »). Les anciennes listes codées en dur ne servent plus que de secours si
+   le référentiel n'est pas encore installé. Une famille présente dans les données mais absente du
+   référentiel n'est jamais masquée (elle apparaît en fin de liste). */
+window._REF=window._REF||{familles:null,unites:null};
+const REF_UNITES_DEFAUT=[['unite','Unité'],['ml','Mètre linéaire (ml)'],['m2','Mètre carré (m²)'],['kg','Kilogramme (kg)'],['litre','Litre'],['boite','Boîte'],['cartouche','Cartouche']];
+const REF_EMOJIS=['📦','🪜','🪟','🧱','🔩','🔧','🪛','➰','⚙️','🧴','🔗','🚪','🛡️','🏢','🌗','⛱️','🚧','🚿','💡','🧰','🎨','🪚','🔌','🧯'];
+const REF_COMPTES_STOCK=['stock_profiles','stock_vitrage','stock_fournitures','stock_consommables'];
+const jsArg=v=>escapeHtml(JSON.stringify(String(v??'')));   // argument texte sûr dans un onclick="…"
+async function chargerReferentiels(force){
+  if(window._REF.charge && !force) return window._REF;
+  try{
+    const [f,u]=await Promise.all([
+      sb.from('familles_articles').select('*').order('ordre').order('nom'),
+      sb.from('unites_mesure').select('*').order('ordre').order('libelle')
+    ]);
+    window._REF.familles=f.error?null:(f.data||[]).sort((a,b)=>(a.ordre-b.ordre)||String(a.nom).localeCompare(b.nom,'fr'));
+    window._REF.unites=u.error?null:(u.data||[]).sort((a,b)=>(a.ordre-b.ordre)||String(a.libelle).localeCompare(b.libelle,'fr'));
+  }catch(e){ window._REF.familles=null; window._REF.unites=null; }
+  window._REF.charge=true;
+  return window._REF;
+}
+function refInstalle(){ return Array.isArray(window._REF.familles); }
+function refFamillesDefaut(dom){
+  return dom==='composant'
+    ?COMPOSANT_FAMILLES.map((nom,i)=>({domaine:dom,nom,icone:COMPOSANT_FAM_ICONS[nom],couleur:COMPOSANT_FAM_COLORS[nom],ordre:i,actif:true}))
+    :PRODUIT_FAMILLES.map((nom,i)=>({domaine:dom,nom,icone:FAMILLE_ICONS[nom],couleur:FAMILLE_COLORS[nom],ordre:i,actif:true}));
+}
+function refFamilles(dom,avecInactives){
+  const src=refInstalle()&&window._REF.familles.some(f=>f.domaine===dom)?window._REF.familles.filter(f=>f.domaine===dom):refFamillesDefaut(dom);
+  return src.filter(f=>avecInactives||f.actif!==false);
+}
+function familleInfo(dom,nom){
+  return refFamilles(dom,true).find(f=>f.nom===nom)||refFamillesDefaut(dom).find(f=>f.nom===nom)||{nom};
+}
+function famIcone(dom,nom,defaut){ return familleInfo(dom,nom).icone||defaut||'📦'; }
+function famCouleur(dom,nom,defaut){ return familleInfo(dom,nom).couleur||defaut||'#6b7280'; }
+/* Familles à afficher pour un jeu de données : ordre du référentiel, puis familles inconnues (jamais masquées) */
+function famillesPresentes(dom,noms){
+  const set=new Set(noms.map(n=>n||'Autre')), ref=refFamilles(dom,true).map(f=>f.nom);
+  return [...ref.filter(n=>set.has(n)),...[...set].filter(n=>!ref.includes(n)).sort((a,b)=>a.localeCompare(b,'fr'))];
+}
+function familleOptionsHtml(dom,courante){
+  const l=refFamilles(dom).map(f=>f.nom); if(courante&&!l.includes(courante)) l.push(courante);
+  return l.map(n=>`<option value="${escapeHtml(n)}" ${n===courante?'selected':''}>${escapeHtml(famIcone(dom,n))} ${escapeHtml(n)}</option>`).join('')+`<option value="__nouvelle__">➕ Nouvelle famille…</option>`;
+}
+function familleSelectHtml(id,dom,courante){
+  return `<select id="${id}" data-prec="${escapeHtml(courante||'')}" onchange="familleSelectChange(this,'${dom}')">${familleOptionsHtml(dom,courante)}</select>`;
+}
+function familleSelectChange(sel,dom){
+  if(sel.value!=='__nouvelle__'){ sel.dataset.prec=sel.value; return; }
+  sel.value=sel.dataset.prec||sel.options[0]?.value||''; ouvrirNouvelleFamille(dom,sel.id);
+}
+function unitesListe(){
+  const l=refInstalle()&&window._REF.unites?.length?window._REF.unites:REF_UNITES_DEFAUT.map(([code,libelle],i)=>({code,libelle,ordre:i,actif:true}));
+  return l;
+}
+function uniteLibelle(code){ return unitesListe().find(u=>u.code===code)?.libelle||code; }
+function uniteSelectHtml(id,courante){
+  const l=unitesListe().filter(u=>u.actif!==false||u.code===courante);
+  if(courante&&!l.some(u=>u.code===courante)) l.push({code:courante,libelle:courante});
+  return `<select id="${id}" data-prec="${escapeHtml(courante||'')}" onchange="if(this.value==='__nouvelle__'){this.value=this.dataset.prec||'unite';ouvrirNouvelleUnite(this.id);}else this.dataset.prec=this.value">${l.map(u=>`<option value="${escapeHtml(u.code)}" ${u.code===courante?'selected':''}>${escapeHtml(u.libelle)}</option>`).join('')}${refInstalle()?'<option value="__nouvelle__">➕ Nouvelle unité…</option>':''}</select>`;
+}
+function compteStockLibelle(cle){
+  if(!cle) return 'Automatique (selon le type de l\'article)';
+  const d=COMPTES_DEFAUT_CLES.find(x=>x.cle===cle);
+  let code=''; try{ code=requireCompteDefaut(cle); }catch(e){ code=d?.fallback||''; }
+  return `${code} — ${d?.label||cle}`;
+}
+function compteStockOptionsHtml(courant){
+  return `<option value="">${escapeHtml(compteStockLibelle(null))}</option>`+REF_COMPTES_STOCK.map(k=>`<option value="${k}" ${k===courant?'selected':''}>${escapeHtml(compteStockLibelle(k))}</option>`).join('');
+}
+/* ---------- Création rapide (depuis une fiche article ou la page Familles & unités) ---------- */
+function ouvrirNouvelleFamille(dom,selId){
+  if(!refInstalle()){ toast('Référentiel non installé : exécutez sql/familles_referentiels.sql dans Supabase.','error'); return; }
+  openModal(`<h3 class="text-lg font-bold mb-1">➕ Nouvelle famille de ${dom==='composant'?'composants / consommables':'produits / ouvrages'}</h3>
+    <p class="text-xs text-gray-500 mb-3">Elle apparaîtra dans les catalogues, les filtres, la vente au comptoir et les états.</p>
+    <div class="field mb-3"><label>Nom de la famille *</label><input id="nfNom" class="border rounded-lg px-3 py-2 w-full" maxlength="60" placeholder="${dom==='composant'?'Ex : Accessoires inox':'Ex : Portes d\'entrée'}"></div>
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div class="field"><label>Icône</label><input id="nfIcone" class="border rounded-lg px-3 py-2 w-full text-center text-xl" value="📦" maxlength="4"></div>
+      <div class="field"><label>Couleur</label><input id="nfCouleur" type="color" value="#6d28d9" class="border rounded-lg w-full" style="height:44px;padding:2px"></div>
+    </div>
+    <div class="flex flex-wrap gap-1 mb-3">${REF_EMOJIS.map(e=>`<button type="button" class="border rounded-lg px-2 py-1 text-lg hover:bg-gray-50" onclick="document.getElementById('nfIcone').value='${e}'">${e}</button>`).join('')}</div>
+    ${dom==='composant'?`<div class="field mb-1"><label>Compte de stock (SYSCOHADA)</label><select id="nfCompte" class="border rounded-lg px-3 py-2 w-full">${compteStockOptionsHtml('stock_fournitures')}</select></div>
+      <p class="text-[11px] text-gray-400 mb-3">Utilisé par la comptabilisation automatique des achats et par la variation des stocks à la clôture. Un article de type « Consommable » va toujours en 331.</p>`:''}
+    <div class="flex justify-end gap-2 mt-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="creerFamille('${dom}',${selId?`'${selId}'`:'null'})">Créer la famille</button></div>`);
+  setTimeout(()=>document.getElementById('nfNom')?.focus(),50);
+}
+async function creerFamille(dom,selId){
+  const nom=val('nfNom').replace(/\s+/g,' ');
+  if(!nom){ toast('Le nom de la famille est obligatoire.','error'); return; }
+  const doublon=refFamilles(dom,true).find(f=>f.nom.toLowerCase()===nom.toLowerCase());
+  if(doublon){ toast(`La famille « ${doublon.nom} » existe déjà${doublon.actif===false?' (désactivée : réactivez-la dans Familles & unités)':''}.`,'error'); return; }
+  const rec={domaine:dom,nom,icone:val('nfIcone')||'📦',couleur:val('nfCouleur')||'#6b7280',compte_stock:dom==='composant'?(val('nfCompte')||null):null,ordre:500};
+  const {error}=await sb.from('familles_articles').insert(rec);
+  if(error){ toast(error.message,'error'); return; }
+  await chargerReferentiels(true); closeModal();
+  toast(`Famille « ${nom} » créée.`);
+  const sel=selId&&document.getElementById(selId);
+  if(sel){ sel.innerHTML=familleOptionsHtml(dom,nom); sel.value=nom; sel.dataset.prec=nom; }
+  else if(window._pageCourante==='referentiels') showPage('referentiels');
+}
+function ouvrirNouvelleUnite(selId){
+  openModal(`<h3 class="text-lg font-bold mb-3">➕ Nouvelle unité de mesure</h3>
+    <div class="field mb-3"><label>Libellé *</label><input id="nuLib" class="border rounded-lg px-3 py-2 w-full" placeholder="Ex : Barre de 6 m" oninput="document.getElementById('nuCode').value=this.value.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,20)"></div>
+    <div class="field mb-1"><label>Code (court, sans espace)</label><input id="nuCode" class="border rounded-lg px-3 py-2 w-full font-mono" placeholder="barre_6_m" maxlength="20"></div>
+    <p class="text-[11px] text-gray-400 mb-3">Le code est enregistré sur les articles ; le libellé est affiché.</p>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="creerUnite(${selId?`'${selId}'`:'null'})">Créer l'unité</button></div>`);
+  setTimeout(()=>document.getElementById('nuLib')?.focus(),50);
+}
+async function creerUnite(selId){
+  const libelle=val('nuLib'), code=val('nuCode');
+  if(!libelle||!/^[a-z0-9_]{1,20}$/.test(code)){ toast('Libellé obligatoire ; code en minuscules, chiffres ou « _ » (20 caractères max).','error'); return; }
+  if(unitesListe().some(u=>u.code===code)){ toast(`L'unité « ${code} » existe déjà.`,'error'); return; }
+  const {error}=await sb.from('unites_mesure').insert({code,libelle,ordre:500});
+  if(error){ toast(error.message,'error'); return; }
+  await chargerReferentiels(true); closeModal(); toast(`Unité « ${libelle} » créée.`);
+  const sel=selId&&document.getElementById(selId);
+  if(sel){ sel.outerHTML=uniteSelectHtml(selId,code); }
+  else if(window._pageCourante==='referentiels') showPage('referentiels');
+}
+/* ---------- Page Composants → Familles & unités ---------- */
+window._refTab=window._refTab||'composant';
+async function renderReferentiels(el){
+  await chargerReferentiels(true);
+  if(!refInstalle()){ el.innerHTML=`<div class="card p-6 text-sm text-amber-700">Le référentiel des familles et unités n'est pas installé : exécutez <b>sql/familles_referentiels.sql</b> dans Supabase (SQL Editor). En attendant, l'application utilise ses listes par défaut.</div>`; return; }
+  const [{data:comps},{data:prods},{data:reals}]=await Promise.all([sb.from('composants').select('id,famille,unite,type'),sb.from('produits').select('id,famille'),sb.from('realisations').select('id,famille')]);
+  const cpt={composant:{},produit:{},unite:{}};
+  (comps||[]).forEach(c=>{ cpt.composant[c.famille||'Autre']=(cpt.composant[c.famille||'Autre']||0)+1; cpt.unite[c.unite]=(cpt.unite[c.unite]||0)+1; });
+  [...(prods||[]),...(reals||[])].forEach(p=>{ if(p.famille) cpt.produit[p.famille]=(cpt.produit[p.famille]||0)+1; });
+  const gest=['admin','manager'].includes(monRole()?.code)||!window._rbac?.provisionne;
+  const tab=window._refTab, dis=gest?'':'disabled';
+  const onglet=(k,l)=>`<button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${tab===k?'bg-indigo-600 text-white':''}" onclick="window._refTab='${k}';showPage('referentiels')">${l}</button>`;
+  let corps='';
+  if(tab==='unites'){
+    const l=window._REF.unites||[];
+    corps=`<div class="flex justify-between items-center mb-3 gap-2 flex-wrap"><p class="text-xs text-gray-500">Unités des composants et consommables. Une unité utilisée ne peut pas être supprimée (désactivez-la). Les unités des <b>produits</b> (unité, m², ml) restent fixes : elles pilotent le calcul du prix.</p>
+      <button class="btn btn-primary" onclick="ouvrirNouvelleUnite(null)">➕ Nouvelle unité</button></div>
+      <div class="card overflow-x-auto"><table><thead><tr><th style="width:80px">Ordre</th><th>Code</th><th>Libellé</th><th class="text-right">Articles</th><th class="text-center">Active</th><th></th></tr></thead><tbody>
+      ${l.map(u=>`<tr${u.actif===false?' style="opacity:.55"':''}><td><input type="number" value="${u.ordre}" style="width:64px" ${dis} onchange="refMajUnite(${jsArg(u.code)},'ordre',+this.value)"></td>
+        <td class="font-mono">${escapeHtml(u.code)}</td>
+        <td><input value="${escapeHtml(u.libelle)}" class="border rounded px-2 py-1 w-full" ${dis} onchange="refMajUnite(${jsArg(u.code)},'libelle',this.value.trim())"></td>
+        <td class="text-right">${cpt.unite[u.code]||0}</td>
+        <td class="text-center"><input type="checkbox" ${u.actif!==false?'checked':''} ${dis} onchange="refMajUnite(${jsArg(u.code)},'actif',this.checked)"></td>
+        <td>${gest&&!cpt.unite[u.code]?`<button class="btn btn-outline text-xs" onclick="refSupprimerUnite(${jsArg(u.code)})">🗑</button>`:''}</td></tr>`).join('')}</tbody></table></div>`;
+  } else {
+    const dom=tab, l=refFamilles(dom,true), cnt=cpt[dom];
+    const orphelines=Object.keys(cnt).filter(n=>!l.some(f=>f.nom===n));
+    corps=`<div class="flex justify-between items-center mb-3 gap-2 flex-wrap"><p class="text-xs text-gray-500">${dom==='composant'?'Familles des composants et consommables : regroupement du catalogue, filtres, vente au comptoir, inventaire et <b>compte de stock SYSCOHADA</b> utilisé par la comptabilité.':'Familles des produits / ouvrages et des réalisations du site public.'} Renommer une famille renomme ses articles ; une famille utilisée se fusionne dans une autre ou se désactive.</p>
+      <button class="btn btn-primary" onclick="ouvrirNouvelleFamille('${dom}',null)">➕ Nouvelle famille</button></div>
+      ${orphelines.length?`<div class="text-xs bg-amber-50 text-amber-800 border border-amber-200 rounded-lg px-3 py-2 mb-3">⚠ Familles utilisées par des articles mais absentes du référentiel : ${orphelines.map(n=>`<b>${escapeHtml(n)}</b> (${cnt[n]})`).join(', ')}. <button class="underline" onclick="refAjouterOrphelines('${dom}',${jsArg(JSON.stringify(orphelines))})">Les ajouter au référentiel</button></div>`:''}
+      <div class="card overflow-x-auto"><table><thead><tr><th style="width:74px">Ordre</th><th style="width:62px">Icône</th><th>Nom</th><th style="width:60px">Couleur</th>${dom==='composant'?'<th>Compte de stock</th>':''}<th class="text-right">Articles</th><th class="text-center">Active</th><th></th></tr></thead><tbody>
+      ${l.map(f=>`<tr${f.actif===false?' style="opacity:.55"':''}>
+        <td><input type="number" value="${f.ordre}" style="width:60px" ${dis} onchange="refMajFamille('${f.id}','ordre',+this.value)"></td>
+        <td><input value="${escapeHtml(f.icone||'')}" maxlength="4" style="width:48px;text-align:center;font-size:18px" ${dis} onchange="refMajFamille('${f.id}','icone',this.value.trim()||'📦')"></td>
+        <td><input value="${escapeHtml(f.nom)}" class="border rounded px-2 py-1 w-full" style="min-width:180px;border-left:4px solid ${escapeHtml(f.couleur||'#6b7280')}" ${dis} onchange="refRenommerFamille('${f.id}',this)" data-ancien="${escapeHtml(f.nom)}"></td>
+        <td><input type="color" value="${escapeHtml(f.couleur||'#6b7280')}" style="width:44px;height:30px;padding:1px" ${dis} onchange="refMajFamille('${f.id}','couleur',this.value)"></td>
+        ${dom==='composant'?`<td><select class="border rounded px-2 py-1 text-xs" ${dis} onchange="refMajFamille('${f.id}','compte_stock',this.value||null)">${compteStockOptionsHtml(f.compte_stock)}</select></td>`:''}
+        <td class="text-right">${cnt[f.nom]||0}</td>
+        <td class="text-center"><input type="checkbox" ${f.actif!==false?'checked':''} ${dis} onchange="refMajFamille('${f.id}','actif',this.checked)"></td>
+        <td class="whitespace-nowrap">${gest?`<button class="btn btn-outline text-xs" title="Fusionner dans une autre famille" onclick="refFusionnerFamille('${f.id}')">🔀</button>${cnt[f.nom]?'':` <button class="btn btn-outline text-xs" title="Supprimer" onclick="refSupprimerFamille('${f.id}')">🗑</button>`}`:''}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  }
+  el.innerHTML=`<div class="flex flex-wrap gap-2 mb-4 border-b pb-2">${onglet('composant','🔩 Familles de composants')}${onglet('produit','🧩 Familles de produits')}${onglet('unites','📐 Unités de mesure')}</div>
+    ${gest?'':'<div class="text-xs text-gray-500 mb-2">🔒 Lecture seule : seuls un administrateur ou un manager modifient le référentiel (vous pouvez créer une famille).</div>'}${corps}`;
+}
+async function refMajFamille(id,champ,valeur){
+  const {error}=await sb.from('familles_articles').update({[champ]:valeur}).eq('id',id);
+  if(error){ toast(error.message,'error'); showPage('referentiels'); return; }
+  await chargerReferentiels(true); toast('Famille mise à jour.');
+  if(['actif','ordre','couleur'].includes(champ)) showPage('referentiels');
+}
+async function refRenommerFamille(id,input){
+  const nouveau=input.value.trim().replace(/\s+/g,' '), ancien=input.dataset.ancien;
+  if(!nouveau||nouveau===ancien){ input.value=ancien; return; }
+  const f=(window._REF.familles||[]).find(x=>x.id===id);
+  if(refFamilles(f.domaine,true).some(x=>x.id!==id&&x.nom.toLowerCase()===nouveau.toLowerCase())){ toast(`« ${nouveau} » existe déjà : utilisez 🔀 Fusionner.`,'error'); input.value=ancien; return; }
+  if(!confirm(`Renommer « ${ancien} » en « ${nouveau} » ?\nTous les articles de cette famille seront renommés.`)){ input.value=ancien; return; }
+  await refMajFamille(id,'nom',nouveau); showPage('referentiels');
+}
+function refFusionnerFamille(id){
+  const f=(window._REF.familles||[]).find(x=>x.id===id); if(!f) return;
+  const cibles=refFamilles(f.domaine,true).filter(x=>x.id!==id);
+  openModal(`<h3 class="text-lg font-bold mb-1">🔀 Fusionner « ${escapeHtml(f.nom)} »</h3>
+    <p class="text-sm text-gray-500 mb-3">Tous ses articles passent dans la famille choisie, puis « ${escapeHtml(f.nom)} » est supprimée.</p>
+    <select id="fusCible" class="border rounded-lg px-3 py-2 w-full">${cibles.map(c=>`<option value="${c.id}">${escapeHtml(c.icone||'')} ${escapeHtml(c.nom)}</option>`).join('')}</select>
+    <div class="flex justify-end gap-2 mt-4"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="refConfirmerFusion('${id}')">Fusionner</button></div>`);
+}
+async function refConfirmerFusion(id){
+  const {data,error}=await sb.rpc('famille_fusionner',{p_source:id,p_cible:val('fusCible')});
+  if(error){ toast(error.message,'error'); return; }
+  closeModal(); toast(`Fusion effectuée : ${data??0} article(s) déplacé(s).`); showPage('referentiels');
+}
+async function refSupprimerFamille(id){
+  const f=(window._REF.familles||[]).find(x=>x.id===id); if(!f||!confirm(`Supprimer la famille « ${f.nom} » ?`)) return;
+  const {error}=await sb.from('familles_articles').delete().eq('id',id);
+  if(error){ toast(error.message,'error'); return; }
+  toast('Famille supprimée.'); showPage('referentiels');
+}
+async function refAjouterOrphelines(dom,json){
+  const noms=JSON.parse(json);
+  const {error}=await sb.from('familles_articles').insert(noms.map(nom=>({domaine:dom,nom,icone:'📦',couleur:'#6b7280',ordre:500})));
+  if(error){ toast(error.message,'error'); return; }
+  toast(`${noms.length} famille(s) ajoutée(s) au référentiel.`); showPage('referentiels');
+}
+async function refMajUnite(code,champ,valeur){
+  const {error}=await sb.from('unites_mesure').update({[champ]:valeur}).eq('code',code);
+  if(error){ toast(error.message,'error'); showPage('referentiels'); return; }
+  await chargerReferentiels(true); toast('Unité mise à jour.'); if(champ!=='libelle') showPage('referentiels');
+}
+async function refSupprimerUnite(code){
+  if(!confirm(`Supprimer l'unité « ${code} » ?`)) return;
+  const {error}=await sb.from('unites_mesure').delete().eq('code',code);
+  if(error){ toast(error.message.includes('foreign key')?'Unité utilisée par des articles : désactivez-la plutôt.':error.message,'error'); return; }
+  toast('Unité supprimée.'); showPage('referentiels');
+}
+
 /* ============================== COMPOSANTS & CONSOMMABLES ============================== */
 const COMPOSANT_FAMILLES=['Profilé aluminium','Vitrage','Quincaillerie','Visserie & fixations','Joint & étanchéité','Consommable atelier','Autre'];
 const COMPOSANT_FAM_ICONS={'Profilé aluminium':'🪜','Vitrage':'🪟','Quincaillerie':'🔩','Visserie & fixations':'🔧','Joint & étanchéité':'➰','Consommable atelier':'🧴','Autre':'📦'};
@@ -2798,15 +3022,16 @@ window._composantsTypeFilter=window._composantsTypeFilter||'';
 window._composantsFamFilter=window._composantsFamFilter||'';
 window._composantsStandingFilter=window._composantsStandingFilter||'';
 async function renderComposants(el){
+  await chargerReferentiels();
   const {data,error}=await sb.from('composants').select('*').order('nom');
   if(error) throw error;
   window._composantsCache=data;
-  const presentFamilles=COMPOSANT_FAMILLES.filter(f=>data.some(c=>(c.famille||'Autre')===f));
+  const presentFamilles=famillesPresentes('composant',data.map(c=>c.famille));
   const typeChips=[`<button class="fam-chip ${!window._composantsTypeFilter?'active':''}" onclick="setComposantsTypeFilter('')">🗂️ Tous</button>`]
     .concat(COMPOSANT_TYPES.map(t=>`<button class="fam-chip ${window._composantsTypeFilter===t?'active':''}" style="--fc:${t==='Composant'?'#2563eb':'#d97706'}" onclick="setComposantsTypeFilter('${t}')">${t==='Composant'?'🔩':'🧴'} ${t}</button>`))
     .join('');
   const famChips=[`<button class="fam-chip ${!window._composantsFamFilter?'active':''}" onclick="setComposantsFamFilter('')">🏷️ Toutes familles</button>`]
-    .concat(presentFamilles.map(f=>`<button class="fam-chip ${window._composantsFamFilter===f?'active':''}" style="--fc:${COMPOSANT_FAM_COLORS[f]||'#6d28d9'}" onclick="setComposantsFamFilter('${f}')">${COMPOSANT_FAM_ICONS[f]||'📦'} ${escapeHtml(f)}</button>`))
+    .concat(presentFamilles.map(f=>`<button class="fam-chip ${window._composantsFamFilter===f?'active':''}" style="--fc:${famCouleur('composant',f,'#6d28d9')}" onclick="setComposantsFamFilter(${jsArg(f)})">${famIcone('composant',f,'📦')} ${escapeHtml(f)}</button>`))
     .join('');
   const standingChips=[`<button class="fam-chip ${!window._composantsStandingFilter?'active':''}" onclick="setComposantsStandingFilter('')">⭐ Tous standings</button>`]
     .concat(Object.entries(COMPOSANT_STANDINGS).map(([k,v])=>`<button class="fam-chip ${window._composantsStandingFilter===k?'active':''}" style="--fc:${v.color}" onclick="setComposantsStandingFilter('${k}')">${v.icon} ${v.label}</button>`))
@@ -2857,17 +3082,17 @@ function filterComposantsCatalogue(){
   });
   const groups={};
   filtered.forEach(c=>{ const f=c.famille||'Autre'; (groups[f]=groups[f]||[]).push(c); });
-  const familles=COMPOSANT_FAMILLES.filter(f=>groups[f]?.length);
+  const familles=famillesPresentes('composant',Object.keys(groups));
   const host=document.getElementById('composantsCatalogue');
   if(!host) return;
   if(!familles.length){ host.innerHTML='<div class="card text-center text-gray-400 p-8">Aucun composant.</div>'; return; }
   host.innerHTML=familles.map(f=>{
-    const fc=COMPOSANT_FAM_COLORS[f]||'#6d28d9';
+    const fc=famCouleur('composant',f,'#6d28d9');
     return `
     <div class="mb-7">
       <div class="fam-section-head">
         <div class="bar" style="background:${fc}"></div>
-        <h3>${COMPOSANT_FAM_ICONS[f]||'📦'} ${escapeHtml(f)}</h3>
+        <h3>${famIcone('composant',f,'📦')} ${escapeHtml(f)}</h3>
         <span class="count">${groups[f].length}</span>
       </div>
       ${window._composantsView==='grille' ? `
@@ -2875,7 +3100,7 @@ function filterComposantsCatalogue(){
           ${groups[f].map(c=>`
             <div class="produit-card" style="--fc:${fc}">
               <div class="flex justify-between items-start">
-                <div ${c.photo?`onclick="photoAgrandir('composant','${c.id}')" style="cursor:zoom-in"`:''}>${photoVignette(c.photo,COMPOSANT_FAM_ICONS[f]||'📦',c.photo?64:46)}</div>
+                <div ${c.photo?`onclick="photoAgrandir('composant','${c.id}')" style="cursor:zoom-in"`:''}>${photoVignette(c.photo,famIcone('composant',f,'📦'),c.photo?64:46)}</div>
                 <span class="produit-pct" style="--fc:${c.type==='Consommable'?'#d97706':'#2563eb'}">${escapeHtml(c.type)}</span>
               </div>
               <div class="pname">${escapeHtml(c.nom)}${c.code?' <span title="Utilisé par le Configurateur ('+escapeHtml(c.code)+')">🧩</span>':''}${(+c.stock_actuel||0)<(+c.stock_min||0)?' <span title="Sous le seuil minimum">🔴</span>':''}</div>
@@ -2927,6 +3152,7 @@ async function dupliquerComposant(id){
   window._editId=newC.id; showPage('composants-add');
 }
 async function renderComposantForm(el){
+  await chargerReferentiels();
   let c={};
   if(window._editId){ const {data}=await sb.from('composants').select('*').eq('id',window._editId).single(); c=data||{}; }
   el.innerHTML=`
@@ -2935,11 +3161,11 @@ async function renderComposantForm(el){
       <div class="divider"></div>
       <form id="composantForm" class="grid sm:grid-cols-2 gap-4">
         <input type="hidden" id="coId" value="${c.id||''}">
-        <div class="field sm:col-span-2"><label>Photo de l'article</label>${photoZoneHtml('coPhoto',c.photo,COMPOSANT_FAM_ICONS[c.famille]||'🔩')}</div>
+        <div class="field sm:col-span-2"><label>Photo de l'article</label>${photoZoneHtml('coPhoto',c.photo,famIcone('composant',c.famille,'🔩'))}</div>
         <div class="field sm:col-span-2"><label>Désignation</label>${fieldWrap('🔩',`<input id="coNom" required value="${escapeHtml(c.nom||'')}">`)}</div>
         <div class="field"><label>Type</label>${fieldWrap('🗂️',`<select id="coType">${COMPOSANT_TYPES.map(t=>`<option value="${t}" ${c.type===t?'selected':''}>${t}</option>`).join('')}</select>`)}</div>
-        <div class="field"><label>Famille</label>${fieldWrap('🏷️',`<select id="coFamille">${COMPOSANT_FAMILLES.map(f=>`<option value="${f}" ${c.famille===f?'selected':''}>${f}</option>`).join('')}</select>`)}</div>
-        <div class="field"><label>Unité</label>${fieldWrap('📐',`<select id="coUnite">${['unite','ml','m2','kg','litre','boite','cartouche'].map(u=>`<option value="${u}" ${c.unite===u?'selected':''}>${u}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Famille</label>${fieldWrap('🏷️',familleSelectHtml('coFamille','composant',c.famille))}</div>
+        <div class="field"><label>Unité</label>${fieldWrap('📐',uniteSelectHtml('coUnite',c.unite||'unite'))}</div>
         <div class="field"><label>Standing</label>${fieldWrap('⭐',`<select id="coStanding">${Object.entries(COMPOSANT_STANDINGS).map(([k,v])=>`<option value="${k}" ${(c.standing||'standard')===k?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select>`)}</div>
         <div class="sm:col-span-2 border-t pt-3 mt-1">
           <div class="text-xs font-bold text-gray-500 uppercase mb-2">💱 Achat / Vente</div>
@@ -3018,6 +3244,7 @@ async function refreshStockAlertesBadge(){
 }
 function stockValeur(c){ return (+c.stock_actuel||0)*(+c.cmup||0); }
 async function renderStockDashboard(el){
+  await chargerReferentiels();
   const [{data:composants},{data:mouvements}]=await Promise.all([
     sb.from('composants').select('*'),
     sb.from('mouvements_stock').select('*, composants(nom,famille)').order('created_at',{ascending:true})
@@ -3068,7 +3295,7 @@ async function renderStockDashboard(el){
   const parFamille={};
   composants.forEach(c=>{ const f=c.famille||'Autre'; parFamille[f]=(parFamille[f]||0)+stockValeur(c); });
   const famEntries=Object.entries(parFamille).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-  renderStockChart('chartStockFamille','doughnut',{labels:famEntries.map(e=>e[0]),datasets:[{data:famEntries.map(e=>e[1]),backgroundColor:famEntries.map(e=>COMPOSANT_FAM_COLORS[e[0]]||'#6b7280')}]});
+  renderStockChart('chartStockFamille','doughnut',{labels:famEntries.map(e=>e[0]),datasets:[{data:famEntries.map(e=>e[1]),backgroundColor:famEntries.map(e=>famCouleur('composant',e[0],'#6b7280'))}]});
 
   // --- Chart 3 : top 5 consommations 30j ---
   const consoParComposant={};
@@ -7714,7 +7941,7 @@ async function printEstimation(){
 }
 
 /* ============================== PARAMÉTRAGE : SOCIÉTÉ / LOGO / SUPABASE / SYNCHRO / SAUVEGARDE ============================== */
-const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','depots','stocks_depot','transferts_stock','transferts_stock_lignes','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','points_vente','caisse_affectations','point_vente_affectations','paiements','ventes_comptoir','ventes_comptoir_lignes','roles','role_permissions','invitations','caisse_demandes','tickets_z','photos_articles'];
+const BACKUP_TABLES=['familles_articles','unites_mesure','clients','client_categories','prospects','fournisseurs','projets','produits','composants','depots','stocks_depot','transferts_stock','transferts_stock_lignes','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','points_vente','caisse_affectations','point_vente_affectations','paiements','ventes_comptoir','ventes_comptoir_lignes','roles','role_permissions','invitations','caisse_demandes','tickets_z','photos_articles'];
 async function loadAppParams(){
   let {data}=await sb.from('parametres').select('*').limit(1).maybeSingle();
   if(!data){ const res=await sb.from('parametres').insert({}).select().single(); data=res.data; }
@@ -7746,6 +7973,7 @@ async function renderParametres(el){
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white" data-paramtab="societe" onclick="switchParamTab('societe')">🏢 Société</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="fne" onclick="switchParamTab('fne')">🧾 FNE (DGI)</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="impression" onclick="switchParamTab('impression')">🖨 Impression</button>
+      <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" onclick="showPage('referentiels')">🗂 Familles & unités</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="portail" onclick="switchParamTab('portail')">🌐 Portail client</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="compta" onclick="switchParamTab('compta')">📗 Comptabilité</button>
       ${peutModule('Utilisateurs','voir')?`<button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="utilisateurs" onclick="switchParamTab('utilisateurs')">👤 Utilisateurs</button>`:''}
@@ -8051,11 +8279,15 @@ function compteTresorerie(mode,caisse){
 }
 function journalTresorerie(mode){ return mode==='espece'?'CA':mode==='mobile_money'?'MM':'BQ'; }
 /* Famille de composant → comptes d'achat, de stock et de variation (inventaire intermittent SYSCOHADA) */
+/* Compte de stock d'un article : réglage de sa FAMILLE (Composants → Familles & unités) ; un article de type
+   « Consommable » va toujours en consommables. La déduction par le nom de famille ne sert plus que de secours
+   pour une famille absente du référentiel. */
 function comptesStockComposant(c){
-  const f=String(c?.famille||'').toLowerCase(), cons=c?.type==='Consommable'||/consommable/.test(f);
-  if(cons) return {achat:requireCompteDefaut('achats_consommables'),stock:requireCompteDefaut('stock_consommables'),variation:requireCompteDefaut('variation_consommables')};
-  const stock=/vitr/.test(f)?requireCompteDefaut('stock_vitrage'):/profil|panneau|tôle|tole/.test(f)?requireCompteDefaut('stock_profiles'):requireCompteDefaut('stock_fournitures');
-  return {achat:requireCompteDefaut('achats'),stock,variation:requireCompteDefaut('variation_matieres')};
+  const f=String(c?.famille||'').toLowerCase();
+  const reglee=(window._REF?.familles||[]).find(x=>x.domaine==='composant'&&x.nom===c?.famille)?.compte_stock;
+  const cle=c?.type==='Consommable'?'stock_consommables':reglee||(/consommable/.test(f)?'stock_consommables':/vitr/.test(f)?'stock_vitrage':/profil|panneau|tôle|tole/.test(f)?'stock_profiles':'stock_fournitures');
+  if(cle==='stock_consommables') return {achat:requireCompteDefaut('achats_consommables'),stock:requireCompteDefaut('stock_consommables'),variation:requireCompteDefaut('variation_consommables')};
+  return {achat:requireCompteDefaut('achats'),stock:requireCompteDefaut(cle),variation:requireCompteDefaut('variation_matieres')};
 }
 /* Création d'une écriture automatique (en-tête + lignes) ; retourne l'écriture ou null */
 async function comptaEcritureAuto(entete,lignes){
@@ -8662,6 +8894,7 @@ async function comptaRenderCloture(host){
     </div></div>`;
 }
 async function comptaVariationStocks(){
+  await chargerReferentiels();
   await comptaChargerReferentiel();
   const ex=exerciceActif(); if(!ex||ex.statut==='cloture') return;
   const {data:comps}=await sb.from('composants').select('nom,type,famille,stock_actuel,cmup,prix_unitaire');
@@ -10349,6 +10582,7 @@ function posChangerPointVente(id){
   showPage('comptoir');
 }
 async function renderComptoir(el){
+  await chargerReferentiels();
   const [{data:pdvs}]=await Promise.all([sb.from('points_vente').select('*, depots(nom,type)').eq('actif',true).order('code'),chargerAffectations(true)]);
   window._posPdvs=(pdvs||[]).filter(p=>peutUtiliserPdv(p.id));
   const pos0=window._pos;
@@ -10375,7 +10609,7 @@ async function renderComptoir(el){
   const pos=window._pos;
   if(!pos.caisseId){ const ouverte=window._posCaisses.find(c=>c.sessionId); pos.caisseId=(ouverte||window._posCaisses[0]||{}).id||''; }
   pos.panier.forEach(l=>{ l.stock=l.composant_id?posStockDe(l.composant_id):Infinity; });
-  const familles=COMPOSANT_FAMILLES.filter(f=>window._posComposants.some(c=>(c.famille||'Autre')===f));
+  const familles=famillesPresentes('composant',window._posComposants.map(c=>c.famille));
   const sansPrix=window._posComposants.filter(c=>c.prix_vente==null).length;
   el.innerHTML=`
     <div class="grid lg:grid-cols-5 gap-4 items-start">
@@ -10391,7 +10625,7 @@ async function renderComptoir(el){
           </div>
           <div class="flex flex-wrap gap-2">
             <button class="fam-chip ${!pos.famille?'active':''}" onclick="posSetFamille('')">🗂️ Tous</button>
-            ${familles.map(f=>`<button class="fam-chip ${pos.famille===f?'active':''}" style="--fc:${COMPOSANT_FAM_COLORS[f]||'#6d28d9'}" onclick="posSetFamille('${f}')">${COMPOSANT_FAM_ICONS[f]||'📦'} ${escapeHtml(f)}</button>`).join('')}
+            ${familles.map(f=>`<button class="fam-chip ${pos.famille===f?'active':''}" style="--fc:${famCouleur('composant',f,'#6d28d9')}" onclick="posSetFamille(${jsArg(f)})">${famIcone('composant',f,'📦')} ${escapeHtml(f)}</button>`).join('')}
             ${window._posProduits.length?`<button class="fam-chip ${pos.famille==='__produits'?'active':''}" style="--fc:#be185d" onclick="posSetFamille('__produits')">🧩 Produits & ouvrages (${window._posProduits.length})</button>`:''}
             <button class="fam-chip ml-auto" onclick="posBasculerVue()" title="Afficher les photos ou une liste compacte">${posVuePhotos()?'☰ Vue compacte':'🖼️ Vue photos'}</button>
           </div>
@@ -10427,8 +10661,8 @@ function posRenderCatalogue(){
   host.className=photos?'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5':'grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2';
   host.innerHTML=items.slice(0,160).map(c=>{
     const prod=!!c._produit, cle=(prod?'p:':'')+c.id;
-    const fc=prod?(FAMILLE_COLORS[c.famille]||'#be185d'):(COMPOSANT_FAM_COLORS[c.famille]||'#6b7280');
-    const icone=prod?(FAMILLE_ICONS[c.famille]||'🧩'):(COMPOSANT_FAM_ICONS[c.famille]||'📦');
+    const fc=prod?(famCouleur('produit',c.famille,'#be185d')):(famCouleur('composant',c.famille,'#6b7280'));
+    const icone=prod?(famIcone('produit',c.famille,'🧩')):(famIcone('composant',c.famille,'📦'));
     const stock=prod?null:posStockDe(c.id), prix=prod?(+c.prix_vente||0):posPrixVente(c), sansPrix=prod?!(+c.prix_vente):c.prix_vente==null;
     const infos=`<div class="text-sm font-semibold leading-tight line-clamp-2">${photos&&c.photo?'':icone+' '}${escapeHtml(c.nom)}</div>
       <div class="mt-1 text-base font-bold" style="color:${sansPrix?'#b45309':'#111827'}">${money(prix)}<span class="text-xs font-normal text-gray-500"> /${escapeHtml(c.unite||'u')}</span></div>
@@ -12110,6 +12344,7 @@ async function rbacSupprimerRole(roleId){
 /* ============================== RÉALISATIONS (galerie du site public) ============================== */
 window._realisationsView=window._realisationsView||'grille';
 async function renderRealisations(el){
+  await chargerReferentiels();
   const {data,error}=await sb.from('realisations').select('*').order('ordre').order('created_at',{ascending:false});
   if(error) throw error;
   window._realisationsCache=data;
@@ -12137,9 +12372,9 @@ function renderRealisationsBody(){
   if(!data.length){ host.innerHTML='<div class="card text-center text-gray-400 p-8">Aucune réalisation. Ajoutez vos premiers chantiers terminés pour alimenter le site public.</div>'; return; }
   if(getListView('realisations')==='grille'){
     host.innerHTML=`<div class="entity-grid">${data.map(r=>{
-      const fc=FAMILLE_COLORS[r.famille]||'#6d28d9';
+      const fc=famCouleur('produit',r.famille,'#6d28d9');
       return `<div class="produit-card" style="--fc:${fc}">
-        ${r.photo_base64?`<img src="${r.photo_base64}" style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:10px">`:`<div class="produit-icon" style="margin-bottom:10px">${FAMILLE_ICONS[r.famille]||'🛠️'}</div>`}
+        ${r.photo_base64?`<img src="${r.photo_base64}" style="width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:10px">`:`<div class="produit-icon" style="margin-bottom:10px">${famIcone('produit',r.famille,'🛠️')}</div>`}
         <span class="produit-pct">${r.publie?'✅ Publiée':'🚫 Masquée'}</span>
         <div class="pname">${escapeHtml(r.titre)}</div>
         <div class="punite">${escapeHtml(r.famille||'—')}</div>
@@ -12161,6 +12396,7 @@ function renderRealisationsBody(){
   }
 }
 async function renderRealisationForm(el){
+  await chargerReferentiels();
   let r={};
   if(window._editId){ const {data}=await sb.from('realisations').select('*').eq('id',window._editId).single(); r=data||{}; }
   el.innerHTML=`
@@ -12178,7 +12414,7 @@ async function renderRealisationForm(el){
           <input type="hidden" id="rePhoto" value="${r.photo_base64||''}">
         </div>
         <div class="field sm:col-span-2"><label>Titre</label>${fieldWrap('🛠️',`<input id="reTitre" required value="${escapeHtml(r.titre||'')}">`)}</div>
-        <div class="field"><label>Famille</label>${fieldWrap('🏷️',`<select id="reFamille"><option value="">—</option>${PRODUIT_FAMILLES.map(f=>`<option value="${f}" ${r.famille===f?'selected':''}>${f}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Famille</label>${fieldWrap('🏷️',`<select id="reFamille" data-prec="${escapeHtml(r.famille||'')}" onchange="familleSelectChange(this,'produit')"><option value="">—</option>${familleOptionsHtml('produit',r.famille)}</select>`)}</div>
         <div class="field"><label>Ordre d'affichage</label>${fieldWrap('#',`<input id="reOrdre" type="number" value="${r.ordre??0}">`)}</div>
         <div class="field sm:col-span-2"><label>Description</label>${fieldWrap('📝',`<textarea id="reDescription" rows="3">${escapeHtml(r.description||'')}</textarea>`)}</div>
         <div class="field sm:col-span-2 flex items-center gap-2">
@@ -12225,7 +12461,8 @@ function buildPortailBrand(){
     facebook: p.site_facebook || '',
     instagram: p.site_instagram || '',
     rccm: p.rccm || '',
-    ncc: p.ncc || ''
+    ncc: p.ncc || '',
+    familleIcones: Object.fromEntries(refFamilles('produit',true).map(f=>[f.nom,f.icone||'🛠️']))
   };
 }
 const PORTAIL_TEMPLATE = `<!DOCTYPE html>
@@ -12350,7 +12587,7 @@ function renderAccueil(){
       <div class="section-title">Nos savoir-faire</div>
       <div class="section-sub">Menuiserie aluminium sur-mesure, fabriquée et posée par nos équipes.</div>
       <div class="grid-auto">
-        \${familles.length?familles.map(f=>\`<div class="card service-card"><div class="ic">\${FAMILLE_ICONS[f]||'🛠️'}</div><div style="font-weight:700;font-size:13px">\${esc(f)}</div></div>\`).join('')
+        \${familles.length?familles.map(f=>\`<div class="card service-card"><div class="ic">\${(b.familleIcones||{})[f]||FAMILLE_ICONS[f]||'🛠️'}</div><div style="font-weight:700;font-size:13px">\${esc(f)}</div></div>\`).join('')
           :\`<div class="card service-card"><div class="ic">🛠️</div><div style="font-weight:700;font-size:13px">Menuiserie aluminium sur-mesure</div></div>\`}
       </div>
     </div>
