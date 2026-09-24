@@ -375,3 +375,31 @@ L'ERP est une **application web progressive (PWA)** : elle s'installe comme un l
 - **Régularisation des ajustements hors registre** : les ajustements « inventaire » passés sans être rattachés à un inventaire (saisie unitaire, ou poste resté sur une ancienne version) sont signalés dans les États d'inventaire.
   - « Régulariser » (administrateur ou manager) crée l'inventaire enregistré correspondant, imprimable et justifié, **sans retoucher le stock**.
 - **Installation** : exécuter `sql/inventaires_brouillons.sql` (section 18 de `00_installation_complete.sql`).
+
+## Achats & approvisionnement — commandes fournisseur, réceptions, commandes internes
+Menu **Approvisionnement → Achats & commandes**.
+- **Bon de commande fournisseur** (BC-AAAA-NNNN) :
+  - saisie : fournisseur, dépôt de livraison, dates, référence du devis fournisseur, conditions, chantier ;
+  - lignes avec prix HT et remise, frais, TVA, totaux HT et TTC ;
+  - statuts : brouillon → envoyée → partiellement reçue → reçue, ou soldée (le reste est abandonné) ou annulée ;
+  - impression avec le montant en lettres, et **envoi du PDF au fournisseur** par WhatsApp ou e-mail (numéro et adresse du fournisseur préremplis).
+- **Réception** (BR-AAAA-NNNN) depuis une commande (reste à recevoir prérempli, réceptions partielles suivies) ou **sans commande** :
+  - chaque réception **augmente le stock du dépôt choisi** au prix d'achat, et le coût moyen pondéré (CMUP) est recalculé ;
+  - le mouvement « entrée » porte la référence BR ;
+  - l'achat est comptabilisé : journal AC, comptes d'achat selon la famille des articles, crédit fournisseur ;
+  - bon de réception imprimable.
+  - Une quantité reçue supérieure au reste commandé est refusée.
+- **Commande interne** (CI-AAAA-NNNN) : un dépôt, magasin, atelier ou chantier demande des articles à un autre dépôt.
+  - Cycle : brouillon → soumise → **validée** (administrateur ou manager) ou refusée → **servie** par un **transfert de stock**.
+  - Au service, le stock sort du dépôt fournisseur. Il entre au dépôt demandeur tout de suite (réception immédiate) ou à la réception du transfert.
+  - Service partiel possible, et solde de la commande.
+- **Alertes stock** : « Commander les ruptures » prérempli un bon de commande fournisseur avec les articles sous le seuil, au niveau du stock maximum (ou 2 × le minimum). « Demander à un autre dépôt » crée une commande interne.
+- **Installation** : exécuter `sql/achats_commandes.sql` (section 19 de `00_installation_complete.sql`).
+
+## Journal des mouvements de stock
+Stock → **Journal des mouvements** : tous les mouvements (réceptions, ventes, sorties chantier, transferts, inventaires, ajustements).
+- **Filtres** : période (du / au), dépôt, type, entrées ou sorties, famille, article, utilisateur, chantier, pièce ou référence (BR-, INV-, TR-…).
+- **Indicateurs** : nombre de mouvements, entrées et sorties **en valeur**, variation nette.
+- **Synthèses** par type et par dépôt.
+- **Détail** : pièce cliquable (bon de réception, inventaire, transfert), prix unitaire, valeur, stock du dépôt après le mouvement, auteur.
+- **Sorties** : impression A4 paysage, Excel (CSV), envoi PDF par WhatsApp ou e-mail.
