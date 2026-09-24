@@ -436,4 +436,12 @@ Le portail devient un vrai site vitrine, avec les commodités d'un site moderne 
 - **Bandeau d'appel à l'action** (« Prêt à démarrer votre projet ? ») avant le pied de page.
 - **Le mot du DG** : nouvelle rubrique dans Paramètres → Portail client — photo, nom, fonction et message de la direction, affichés en citation sur la page « À propos » (masquée si aucun message n'est renseigné).
 - **Référencement** : balises Open Graph (titre, description, image) et méta-description mises à jour dynamiquement, en plus du favicon et du titre d'onglet déjà générés automatiquement.
-- Migration : `sql/portail_dg.sql` (colonnes `portail_dg_nom/titre/message/photo` sur `parametres`), copiée en section 21 de `00_installation_complete.sql`. Toujours un seul fichier HTML autonome, régénéré et redéposé après chaque modification.
+- Migration : `sql/portail_dg.sql` (colonnes `portail_dg_nom/titre/message/photo` sur `parametres`), copiée en section 21 de `00_installation_complete.sql`.
+
+## Portail « toujours à jour » — `portail-unique.html` (modèle Menko Immo)
+Deux façons de générer le site, depuis Paramètres → 🌐 Portail client :
+- **🔗 « portail-unique.html » (recommandé)** : ne fige **aucune donnée métier** — juste la connexion Supabase. À chaque visite, la page interroge en direct la fonction publique `portail_donnees_publiques()` (lecture seule, SECURITY DEFINER, jamais de données internes). **Un seul dépôt suffit** : toute modification faite dans l'ERP (réalisations, produits, mot du DG, coordonnées, activation) apparaît aussitôt sur le site, sans régénérer ni redéposer le fichier. C'est ce fichier qu'on connecte à un dépôt GitHub → déploiement Vercel automatique (`git push` sur `main` → site à jour ; le contenu, lui, est déjà à jour en continu grâce à la RPC).
+- **📤 Instantané (.html)** : comportement précédent, données figées au moment de la génération — utile pour un envoi ponctuel ou un hébergement sans dépôt automatisé, mais à régénérer et redéposer à chaque changement de contenu.
+- La case **« Portail actif »** est désormais réellement respectée par les deux formats : décochée, le site public affiche « momentanément indisponible » sans exposer la moindre donnée (auparavant seul le portail de connexion client (`portail_lookup`) la respectait).
+- Migration : `sql/portail_public.sql` (fonction `portail_donnees_publiques()`, accessible en lecture par `anon`), copiée en section 22 de `00_installation_complete.sql`.
+- Déploiement : `public-site/portail-unique.html` — dossier dédié, pensé pour un **projet Vercel séparé** de l'ERP (qui reste protégé par SSO), avec la protection désactivée sur ce projet précis puisque le site est public par nature.
