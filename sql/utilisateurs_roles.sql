@@ -153,7 +153,7 @@ declare
   m text;
   tous_modules text[] := array['Clients','Prospects','Fournisseurs','Projets','Devis','Factures',
                                 'FichesExecution','Produits','Composants','Stock','Comptabilite',
-                                'Caisse','Realisations','Utilisateurs','Parametres'];
+                                'Caisse','Comptoir','Realisations','Utilisateurs','Parametres'];
 begin
   -- ADMINISTRATEUR : accès total, y compris Utilisateurs et Paramètres
   insert into roles(code,label,icon,niveau,est_systeme,peut_supprimer,plafond_validation,description)
@@ -190,7 +190,7 @@ begin
     if m in ('Comptabilite','Caisse','Factures','Fournisseurs') then
       insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
         values (rid,m,true,true,true,false,true) on conflict (role_id,module_code) do nothing;
-    elsif m in ('Clients','Devis','Projets','Stock','Produits','Composants','Realisations','FichesExecution') then
+    elsif m in ('Clients','Devis','Projets','Stock','Produits','Composants','Realisations','FichesExecution','Comptoir') then
       insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
         values (rid,m,true,false,false,false,false) on conflict (role_id,module_code) do nothing;
     else
@@ -205,7 +205,7 @@ begin
     on conflict (code) do nothing;
   select id into rid from roles where code='commercial';
   foreach m in array tous_modules loop
-    if m in ('Clients','Prospects','Devis','Realisations') then
+    if m in ('Clients','Prospects','Devis','Realisations','Comptoir') then
       insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
         values (rid,m,true,true,true,false,true) on conflict (role_id,module_code) do nothing;
     elsif m in ('Projets','FichesExecution','Produits','Composants','Stock','Factures') then
@@ -224,7 +224,7 @@ begin
     on conflict (code) do nothing;
   select id into rid from roles where code='caissiere';
   foreach m in array tous_modules loop
-    if m='Caisse' then
+    if m in ('Caisse','Comptoir') then
       insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
         values (rid,m,true,true,true,false,false) on conflict (role_id,module_code) do nothing;
     elsif m='Comptabilite' then
