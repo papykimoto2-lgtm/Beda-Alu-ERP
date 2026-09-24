@@ -11,11 +11,13 @@ Le logiciel n'est lié à aucune entreprise : le nom, le logo, les coordonnées 
 - Backend : Supabase (Postgres + Auth + RLS + Edge Function `fne-proxy`).
 
 ## Installer pour une nouvelle structure
-1. Créer un projet Supabase dédié à la structure.
-2. Copier `config.example.js` en `config.js` et y mettre l'URL et la clé publique (anon) du projet.
-3. Créer le schéma de base, puis exécuter les scripts de `sql/` dans cet ordre : `comptabilite_syscohada.sql`, `parametres_comptes_defaut.sql`, `utilisateurs_roles.sql` (optionnel), `composants_prix_achat_vente.sql`, `vente_comptoir.sql`, `depots_points_vente_transferts.sql`, `vente_comptoir_fne.sql`, `affectations_caisse_pdv.sql`, `parametres_conditions_documents.sql`.
+1. Créer un projet Supabase dédié à la structure (un projet par entreprise).
+2. Dans Supabase → SQL Editor, exécuter **une seule fois** `sql/00_installation_complete.sql` : il crée toute la base (tables, fonctions, sécurité) et les référentiels de départ — journaux et plan comptable SYSCOHADA de base, exercice de l'année, catalogue technique du configurateur (prix indicatifs à ajuster), dépôt / caisse / point de vente principaux. Aucune donnée d'une autre entreprise n'y figure.
+3. Copier `config.example.js` en `config.js` et y mettre l'URL et la clé publique (anon) du projet (Supabase → Project Settings → API).
 4. Déployer l'Edge Function `supabase/functions/fne-proxy` (certification FNE).
-5. Publier le dossier (Vercel / Netlify / GitHub Pages), ouvrir l'application, « Première connexion ? Créer un compte administrateur », puis renseigner **Paramètres → Entreprise**.
+5. Publier le dossier (Vercel / Netlify / GitHub Pages), ouvrir l'application, « Première connexion ? Créer un compte administrateur » (le premier compte devient administrateur), puis renseigner **Paramètres → Entreprise** : raison sociale, logo, RCCM / NCC, TVA, conditions des devis et factures.
+
+Les autres scripts de `sql/` servent uniquement à mettre à jour une installation existante, étape par étape.
 
 ## Installation actuelle
 Ce dépôt est déployé pour Beda Alu : `config.js` pointe vers le projet Supabase `beda-alu-erp` (org vosgeycwzrixylyhmzlv).
