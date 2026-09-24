@@ -2098,6 +2098,7 @@ function filterClientsTable(){
   const actionsHtml=c=>`<div class="dropdown">
       <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
       <div class="dropdown-menu hidden">
+        <button style="color:#16a34a" onclick="envoyerCodeAccesPortail('${c.id}')">📲 Envoyer le code d'accès</button>
         <button style="color:#6b7280" onclick="printClientFiche('${c.id}')">🖨 Imprimer la fiche</button>
         <button style="color:#4f46e5" onclick="window._editId='${c.id}';showPage('clients-add')">✏️ Modifier</button>
         <button style="color:#dc2626" onclick="deleteRow('clients','${c.id}','clients')">🗑️ Supprimer</button>
@@ -2153,6 +2154,29 @@ async function printClientFiche(id){
     <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script>
     </body></html>`);
   win.document.close(); win.focus();
+}
+/* Envoie au client son code d'accès au portail (WhatsApp / e-mail) : rappelle le code + le numéro attendu,
+   jamais un mot de passe — l'accès reste soumis au verrou anti-énumération de portail_lookup côté serveur. */
+async function envoyerCodeAccesPortail(id){
+  const {data:c,error}=await sb.from('clients').select('*').eq('id',id).single();
+  if(error){ toast(error.message,'error'); return; }
+  const p=window.APP_PARAMS||await loadAppParams();
+  const url=(p.portail_url||'').trim();
+  if(!url){ toast("Renseignez d'abord l'URL du portail dans Paramètres → Portail client.",'error'); showPage('parametres'); return; }
+  if(!p.portail_actif && !confirm("Le portail n'est pas encore activé (Paramètres → Portail client) : le lien affichera « momentanément indisponible » tant qu'il ne l'est pas. Envoyer quand même ?")) return;
+  const nomComplet=[c.civilite,c.nom,c.prenoms].filter(Boolean).join(' ')||c.entreprise||'';
+  const texte=`Bonjour ${nomComplet}, vous pouvez suivre l'avancement de votre chantier, vos devis et vos factures sur notre portail en ligne :\n${url}\n\nVotre code client : ${c.code}\nConnectez-vous avec ce code et votre numéro de téléphone enregistré chez nous${c.telephone?' ('+c.telephone+')':''}.`;
+  const sujet=`Votre accès au portail client — ${nomEntreprise()||APP_NOM}`;
+  const waHref=c.telephone?`https://wa.me/${dashTel(c.telephone)}?text=${encodeURIComponent(texte)}`:null;
+  const mailHref=c.email?`mailto:${encodeURIComponent(c.email)}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(texte)}`:null;
+  openModal(`<h3 class="text-lg font-bold mb-1">📲 Envoyer le code d'accès</h3>
+    <p class="text-sm text-gray-500 mb-3">${escapeHtml(nomComplet)} — code <b>${escapeHtml(c.code)}</b></p>
+    <div class="card p-3 mb-3 text-sm" style="background:#f9fafb;white-space:pre-line">${escapeHtml(texte)}</div>
+    <div class="flex flex-wrap gap-2">
+      ${waHref?`<a class="btn btn-primary" style="background:#16a34a" href="${waHref}" target="_blank" rel="noopener">💬 WhatsApp</a>`:`<span class="text-xs text-gray-400 self-center">Aucun téléphone enregistré</span>`}
+      ${mailHref?`<a class="btn btn-outline" href="${mailHref}">✉️ E-mail</a>`:`<span class="text-xs text-gray-400 self-center">Aucun e-mail enregistré</span>`}
+      <button class="btn btn-outline" onclick="closeModal()">Fermer</button>
+    </div>`);
 }
 function fieldWrap(icon,inputHtml){ return `<div class="field-input"><span class="fi">${icon}</span>${inputHtml}</div>`; }
 /* ---------- Bascule Grille/Liste générique, réutilisée par toutes les listes ---------- */
@@ -2242,7 +2266,10 @@ async function renderClientForm(el){
   const catOptions=(cats||[]).map(x=>`<option ${c.categorie===x.nom?'selected':''}>${escapeHtml(x.nom)}</option>`).join('');
   el.innerHTML=`
     <div class="page-card max-w-4xl">
-      <h2>👤 ${c.id?'Modifier':'Ajouter'} un client</h2>
+      <div class="flex flex-wrap justify-between items-center gap-2">
+        <h2>👤 ${c.id?'Modifier':'Ajouter'} un client</h2>
+        ${c.id?`<button type="button" class="btn btn-outline" onclick="envoyerCodeAccesPortail('${c.id}')">📲 Envoyer le code d'accès</button>`:''}
+      </div>
       <div class="divider"></div>
       <form id="clientForm" class="grid sm:grid-cols-3 gap-4">
         <input type="hidden" id="clId" value="${c.id||''}">
@@ -9541,6 +9568,8 @@ async function renderParametres(el){
             <input type="checkbox" id="ptActif" ${p.portail_actif?'checked':''} style="width:16px;height:16px">
             <label style="font-size:12px;color:#374151" for="ptActif">Portail actif (sinon le site affiche « momentanément indisponible »)</label>
           </div>
+          <div class="field sm:col-span-2"><label>URL du portail en ligne</label>${fieldWrap('🔗',`<input id="ptUrl" placeholder="https://mon-portail.vercel.app" value="${escapeHtml(p.portail_url||'')}">`)}</div>
+          <div class="text-xs text-gray-400 sm:col-span-2 -mt-3">Utilisée par « 📲 Envoyer le code d'accès » (fiche client) pour composer le message envoyé au client.</div>
           <div class="field sm:col-span-2"><label>Nom affiché sur le portail</label>${fieldWrap('🏷️',`<input id="ptNom" placeholder="Laisser vide pour utiliser la raison sociale" value="${escapeHtml(p.portail_nom||'')}">`)}</div>
           <div class="field sm:col-span-2"><label>Slogan (accroche du site)</label>${fieldWrap('📢',`<input id="ptSlogan" placeholder="Ex : Votre menuiserie aluminium sur-mesure" value="${escapeHtml(p.portail_slogan||'')}">`)}</div>
           <div class="field"><label>Couleur principale</label>${fieldWrap('🎨',`<input id="ptCouleur" type="color" value="${escapeHtml(p.portail_couleur||'#1D3557')}" style="height:42px;padding:2px">`)}</div>
@@ -9660,7 +9689,7 @@ async function renderParametres(el){
   };
   document.getElementById('portailForm').onsubmit=async(e)=>{
     e.preventDefault();
-    const rec={portail_actif:document.getElementById('ptActif').checked,portail_nom:val('ptNom'),portail_slogan:val('ptSlogan'),portail_couleur:val('ptCouleur'),site_a_propos:val('ptAPropos'),site_facebook:val('ptFacebook'),site_instagram:val('ptInstagram')};
+    const rec={portail_actif:document.getElementById('ptActif').checked,portail_url:val('ptUrl').replace(/\/+$/,''),portail_nom:val('ptNom'),portail_slogan:val('ptSlogan'),portail_couleur:val('ptCouleur'),site_a_propos:val('ptAPropos'),site_facebook:val('ptFacebook'),site_instagram:val('ptInstagram')};
     const {error}=await sb.from('parametres').update(rec).eq('id',p.id);
     if(error){ toast(error.message,'error'); return; }
     toast('Paramètres portail enregistrés.'); await loadAppParams();

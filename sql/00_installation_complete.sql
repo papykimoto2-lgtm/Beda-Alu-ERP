@@ -4842,3 +4842,11 @@ $function$;
 revoke all on function public.portail_lookup(text,text) from public;
 grant execute on function public.portail_lookup(text,text) to anon, authenticated;
 
+
+-- ===========================================================================
+-- 24. Portail client — URL du site public, pour l'envoi du code d'accès (copie de sql/portail_url.sql)
+-- ===========================================================================
+-- ============================================================================
+-- Portail client — URL du site public (pour l'envoi du code d'accès aux clients)
+-- ============================================================================
+alter table public.parametres add column if not exists portail_url text;
