@@ -1568,7 +1568,8 @@ function filterComposantsCatalogue(){
                 <span class="produit-pct" style="--fc:${c.type==='Consommable'?'#d97706':'#2563eb'}">${escapeHtml(c.type)}</span>
               </div>
               <div class="pname">${escapeHtml(c.nom)}${c.code?' <span title="Utilisé par le Configurateur ('+escapeHtml(c.code)+')">🧩</span>':''}${(+c.stock_actuel||0)<(+c.stock_min||0)?' <span title="Sous le seuil minimum">🔴</span>':''}</div>
-              <div class="punite">${COMPOSANT_STANDINGS[c.standing||'standard']?.icon||''} ${COMPOSANT_STANDINGS[c.standing||'standard']?.label||''} · ${escapeHtml(c.unite)} · ${money(c.prix_unitaire)} · Stock : ${(+c.stock_actuel||0).toFixed(1)}</div>
+              <div class="punite">${COMPOSANT_STANDINGS[c.standing||'standard']?.icon||''} ${COMPOSANT_STANDINGS[c.standing||'standard']?.label||''} · ${escapeHtml(c.unite)} · Stock : ${(+c.stock_actuel||0).toFixed(1)}</div>
+              <div class="punite">🛒 Achat : ${money(c.prix_unitaire)} · 💰 Vente : ${c.prix_vente!=null?money(c.prix_vente):'—'}${c.prix_vente!=null?' · Marge : '+composantMargeHtml(c):''}</div>
               <div class="pactions">
                 <div class="dropdown">
                   <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
@@ -1582,8 +1583,8 @@ function filterComposantsCatalogue(){
             </div>`).join('')}
         </div>` : `
         <div class="card overflow-x-auto">
-          <table><thead><tr><th>Désignation</th><th>Type</th><th>Standing</th><th>Unité</th><th class="text-right">Prix unitaire</th><th></th></tr></thead>
-          <tbody>${groups[f].map(c=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(c.nom)}${c.code?' 🧩':''}</td><td>${escapeHtml(c.type)}</td><td>${COMPOSANT_STANDINGS[c.standing||'standard']?.icon||''} ${COMPOSANT_STANDINGS[c.standing||'standard']?.label||''}</td><td>${escapeHtml(c.unite)}</td><td class="text-right">${money(c.prix_unitaire)}</td>
+          <table><thead><tr><th>Désignation</th><th>Type</th><th>Standing</th><th>Unité</th><th class="text-right">Prix d'achat</th><th class="text-right">Prix de vente</th><th class="text-right">Marge</th><th></th></tr></thead>
+          <tbody>${groups[f].map(c=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(c.nom)}${c.code?' 🧩':''}</td><td>${escapeHtml(c.type)}</td><td>${COMPOSANT_STANDINGS[c.standing||'standard']?.icon||''} ${COMPOSANT_STANDINGS[c.standing||'standard']?.label||''}</td><td>${escapeHtml(c.unite)}</td><td class="text-right">${money(c.prix_unitaire)}</td><td class="text-right">${c.prix_vente!=null?money(c.prix_vente):'<span class="text-gray-400">—</span>'}</td><td class="text-right">${composantMargeHtml(c)}</td>
           <td class="text-right whitespace-nowrap">
             <div class="dropdown">
               <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
@@ -1628,7 +1629,13 @@ async function renderComposantForm(el){
         <div class="field"><label>Famille</label>${fieldWrap('🏷️',`<select id="coFamille">${COMPOSANT_FAMILLES.map(f=>`<option value="${f}" ${c.famille===f?'selected':''}>${f}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Unité</label>${fieldWrap('📐',`<select id="coUnite">${['unite','ml','m2','kg','litre','boite','cartouche'].map(u=>`<option value="${u}" ${c.unite===u?'selected':''}>${u}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Standing</label>${fieldWrap('⭐',`<select id="coStanding">${Object.entries(COMPOSANT_STANDINGS).map(([k,v])=>`<option value="${k}" ${(c.standing||'standard')===k?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select>`)}</div>
-        <div class="field"><label>Prix unitaire (FCFA)</label>${fieldWrap('💰',`<input id="coPrix" type="number" min="0" step="0.1" value="${c.prix_unitaire??0}">`)}</div>
+        <div class="sm:col-span-2 border-t pt-3 mt-1">
+          <div class="text-xs font-bold text-gray-500 uppercase mb-2">💱 Achat / Vente</div>
+        </div>
+        <div class="field"><label>Prix d'achat unitaire (FCFA)</label>${fieldWrap('🛒',`<input id="coPrix" type="number" min="0" step="0.1" value="${c.prix_unitaire??0}" oninput="updateComposantMarge()">`)}</div>
+        <div class="field"><label>Prix de vente unitaire (FCFA)</label>${fieldWrap('💰',`<input id="coPrixVente" type="number" min="0" step="0.1" value="${c.prix_vente??''}" placeholder="Non vendu seul" oninput="updateComposantMarge()">`)}</div>
+        <div class="field"><label>Coefficient de vente (optionnel)</label>${fieldWrap('✖️',`<input id="coCoef" type="number" min="0" step="0.01" placeholder="Ex : 1.35" oninput="applyComposantCoef()">`)}</div>
+        <div class="field"><label>Marge unitaire</label><div id="coMarge" class="text-sm font-semibold px-3 py-2.5 rounded-lg bg-gray-50 border">—</div></div>
         ${c.code?`<div class="field sm:col-span-2"><label>Code technique (Configurateur)</label>${fieldWrap('🧩',`<input value="${escapeHtml(c.code)}" readonly style="background:#f9fafb;color:#6b7280">`)}</div>
         <div class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 sm:col-span-2">🧩 Ce composant alimente le calcul du BOM dans le Configurateur pour le standing <b>${COMPOSANT_STANDINGS[c.standing||'standard']?.label}</b> (code <b>${escapeHtml(c.code)}</b>). Pour créer une variante Économique ou Premium de ce même poste, utilisez « ⧉ Dupliquer » depuis le catalogue.</div>`:''}
         <div class="field sm:col-span-2"><label>Référence fournisseur (optionnel)</label>${fieldWrap('🏷️',`<input id="coRef" value="${escapeHtml(c.reference||'')}">`)}</div>
@@ -1644,9 +1651,10 @@ async function renderComposantForm(el){
         <div class="sm:col-span-2 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
       </form>
     </div>`;
+  updateComposantMarge();
   document.getElementById('composantForm').onsubmit=async (e)=>{
     e.preventDefault();
-    const rec={nom:val('coNom'),type:val('coType'),famille:val('coFamille'),unite:val('coUnite'),standing:val('coStanding'),prix_unitaire:+val('coPrix')||0,reference:val('coRef')||null,stock_min:+val('coStockMin')||0,stock_max:val('coStockMax')?+val('coStockMax'):null,emplacement:val('coEmplacement')||null};
+    const rec={nom:val('coNom'),type:val('coType'),famille:val('coFamille'),unite:val('coUnite'),standing:val('coStanding'),prix_unitaire:+val('coPrix')||0,prix_vente:val('coPrixVente')!==''?+val('coPrixVente'):null,reference:val('coRef')||null,stock_min:+val('coStockMin')||0,stock_max:val('coStockMax')?+val('coStockMax'):null,emplacement:val('coEmplacement')||null};
     const id=val('coId');
     let error;
     if(id){ ({error}=await sb.from('composants').update(rec).eq('id',id)); }
@@ -1654,6 +1662,29 @@ async function renderComposantForm(el){
     if(error){ toast(error.message,'error'); return; }
     toast('Composant enregistré.'); window._editId=null; showPage('composants');
   };
+}
+
+function composantMarge(achat,vente){
+  if(vente==null||vente==='') return null;
+  const a=+achat||0, v=+vente||0, m=v-a;
+  return {montant:m,taux:v?m/v*100:null,coef:a?v/a:null};
+}
+function composantMargeHtml(c){
+  const m=composantMarge(c.prix_unitaire,c.prix_vente);
+  if(!m) return '<span class="text-gray-400">—</span>';
+  return `<span style="color:${m.montant<0?'#dc2626':'#059669'}">${money(m.montant)}${m.taux!=null?' ('+m.taux.toFixed(1)+' %)':''}</span>`;
+}
+function updateComposantMarge(){
+  const el=document.getElementById('coMarge'); if(!el) return;
+  const m=composantMarge(val('coPrix'),val('coPrixVente'));
+  if(!m){ el.innerHTML='<span class="text-gray-400">Renseignez un prix de vente</span>'; return; }
+  el.innerHTML=`<span style="color:${m.montant<0?'#dc2626':'#059669'}">${money(m.montant)}${m.taux!=null?' · taux de marge '+m.taux.toFixed(1)+' %':''}${m.coef!=null?' · coef. '+m.coef.toFixed(2):''}</span>`;
+}
+function applyComposantCoef(){
+  const coef=+val('coCoef'), achat=+val('coPrix')||0;
+  if(!coef) return;
+  document.getElementById('coPrixVente').value=Math.round(achat*coef*100)/100;
+  updateComposantMarge();
 }
 
 /* ============================== STOCK ============================== */
@@ -3766,12 +3797,14 @@ async function deleteDevisCategory(id){
 let devisEditorState=null;
 async function renderDevisEditorPage(el){
   const devisId=window._editId;
-  const [clientsRes, projetsRes, produitsRes, catRes] = await Promise.all([
+  const [clientsRes, projetsRes, produitsRes, catRes, composantsRes] = await Promise.all([
     sb.from('clients').select('id,nom,prenoms').order('nom'),
     sb.from('projets').select('id,libelle,client_id').order('created_at',{ascending:false}),
     sb.from('produits').select('*').order('nom'),
-    sb.from('devis_categories').select('nom').order('nom')
+    sb.from('devis_categories').select('nom').order('nom'),
+    sb.from('composants').select('id,nom,unite,standing,prix_unitaire,prix_vente').order('nom')
   ]);
+  window._devisComposantsCache=composantsRes.data||[];
   window._clientsCache=clientsRes.data||[];
   window._projetsCache=projetsRes.data||[];
   window._produitsCache=produitsRes.data||[];
@@ -3809,7 +3842,10 @@ function renderDevisEditorBody(){
     <div class="page-card">
       <div class="flex justify-between items-center mb-3">
         <h3 class="font-bold text-sm">Lignes du devis</h3>
-        <button type="button" class="btn btn-outline text-xs" onclick="addLigne()">+ Ajouter une ligne</button>
+        <div class="flex gap-2">
+          <button type="button" class="btn btn-outline text-xs" onclick="addLigneComposant()">🔩 + Vendre un composant</button>
+          <button type="button" class="btn btn-outline text-xs" onclick="addLigne()">+ Ajouter une ligne</button>
+        </div>
       </div>
       <div class="overflow-x-auto mb-3"><table id="lignesTable"><thead><tr><th>Pièce</th><th>Produit / Titre</th><th>L (cm)</th><th>H (cm)</th><th>Qté</th><th>Remise %</th><th>Prix</th><th class="text-right">Total</th><th></th></tr></thead>
       <tbody>${lignes.map((l,i)=>ligneRowHtml(l,i)).join('')}</tbody></table></div>
@@ -3829,7 +3865,8 @@ function ligneRowHtml(l,i){
   return `<tr data-idx="${i}">
     <td><input value="${escapeHtml(l.piece||'')}" placeholder="Ex: Salon" oninput="updateLigne(${i},'piece',this.value)" style="min-width:100px"></td>
     <td>
-      <div style="min-width:150px">${smartSelect('dvLigneProduit'+i,(window._produitsCache||[]).map(p=>({id:p.id,label:p.nom})),l.produit_id,{placeholder:'— Produit / titre libre —',onChange:`onProduitSelect(${i},this.value)`})}</div>
+      ${l.composant_id||l._composant?`<div style="min-width:150px">${smartSelect('dvLigneComposant'+i,(window._devisComposantsCache||[]).map(c=>({id:c.id,label:'🔩 '+c.nom+(c.prix_vente!=null?' — '+money(c.prix_vente)+'/'+c.unite:'')})),l.composant_id,{placeholder:'— Composant du catalogue —',onChange:`onComposantLigneSelect(${i},this.value)`})}</div>${ligneComposantMargeHtml(l)}`
+      :`<div style="min-width:150px">${smartSelect('dvLigneProduit'+i,(window._produitsCache||[]).map(p=>({id:p.id,label:p.nom})),l.produit_id,{placeholder:'— Produit / titre libre —',onChange:`onProduitSelect(${i},this.value)`})}</div>`}
       <input value="${escapeHtml(l.titre||'')}" placeholder="Titre / détail" oninput="updateLigne(${i},'titre',this.value)" class="mt-1" style="min-width:150px">
     </td>
     <td><input type="number" step="0.1" value="${l.largeur||0}" oninput="updateLigne(${i},'largeur',+this.value)" style="width:70px"></td>
@@ -3843,6 +3880,26 @@ function ligneRowHtml(l,i){
 }
 function ligneTotal(l){ return (+l.quantite||0) * (+l.prix_unitaire||0) * (1-(+l.remise_pct||0)/100); }
 function addLigne(){ devisEditorState.lignes.push({piece:'',titre:'',largeur:0,hauteur:0,quantite:1,remise_pct:0,prix_unitaire:0,cout_materiel_pct:60,ordre:devisEditorState.lignes.length}); renderDevisEditorBody(); }
+function addLigneComposant(){ devisEditorState.lignes.push({piece:'',titre:'',largeur:0,hauteur:0,quantite:1,remise_pct:0,prix_unitaire:0,cout_materiel_pct:100,composant_id:null,_composant:true,ordre:devisEditorState.lignes.length}); renderDevisEditorBody(); }
+function onComposantLigneSelect(i,composantId){
+  const c=(window._devisComposantsCache||[]).find(x=>x.id===composantId);
+  const l=devisEditorState.lignes[i];
+  l.composant_id=composantId||null; l.produit_id=null;
+  if(c){
+    l.titre=c.nom;
+    l.prix_unitaire=+(c.prix_vente??c.prix_unitaire)||0;
+    // Le « % coût matériel » d'une ligne composant = prix d'achat / prix de vente, pour l'estimation financière du devis.
+    l.cout_materiel_pct=l.prix_unitaire?Math.round((+c.prix_unitaire||0)/l.prix_unitaire*10000)/100:100;
+    if(c.prix_vente==null) toast("Ce composant n'a pas de prix de vente — prix d'achat repris, ajustez-le.",'error');
+  }
+  renderDevisEditorBody();
+}
+function ligneComposantMargeHtml(l){
+  const c=(window._devisComposantsCache||[]).find(x=>x.id===l.composant_id);
+  if(!c) return '';
+  const pu=(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100), m=pu-(+c.prix_unitaire||0);
+  return `<div class="text-xs mt-1 text-gray-500">🛒 Achat ${money(c.prix_unitaire)} · marge/u <span style="color:${m<0?'#dc2626':'#059669'};font-weight:600">${money(m)}</span></div>`;
+}
 function removeLigne(i){ devisEditorState.lignes.splice(i,1); renderDevisEditorBody(); }
 function updateLigne(i,field,value){
   devisEditorState.lignes[i][field]=value;
@@ -3867,7 +3924,7 @@ async function saveDevis(){
   if(error){ toast(error.message,'error'); return; }
   await sb.from('devis_lignes').delete().eq('devis_id',devisId);
   if(lignes.length){
-    const rows=lignes.map((l,i)=>({devis_id:devisId,piece:l.piece||'Non renseigné',produit_id:l.produit_id||null,titre:l.titre||'Sans titre',largeur:+l.largeur||0,hauteur:+l.hauteur||0,quantite:+l.quantite||1,remise_pct:+l.remise_pct||0,prix_unitaire:+l.prix_unitaire||0,total:ligneTotal(l),cout_materiel_pct:+l.cout_materiel_pct||60,ordre:i}));
+    const rows=lignes.map((l,i)=>({devis_id:devisId,piece:l.piece||'Non renseigné',produit_id:l.produit_id||null,composant_id:l.composant_id||null,titre:l.titre||'Sans titre',largeur:+l.largeur||0,hauteur:+l.hauteur||0,quantite:+l.quantite||1,remise_pct:+l.remise_pct||0,prix_unitaire:+l.prix_unitaire||0,total:ligneTotal(l),cout_materiel_pct:+l.cout_materiel_pct||60,ordre:i}));
     const {error:e2}=await sb.from('devis_lignes').insert(rows);
     if(e2){ toast(e2.message,'error'); return; }
   }
