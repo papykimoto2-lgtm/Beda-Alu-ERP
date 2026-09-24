@@ -11,8 +11,8 @@
 --
 -- Généré à partir de la base de référence ; équivaut à l'ensemble des scripts de sql/
 -- (qui restent pour mettre à jour une installation existante).
--- Ensuite : déployer l'Edge Function supabase/functions/fne-proxy, créer config.js,
--- créer le premier compte (il devient administrateur) et remplir Paramètres → Entreprise.
+-- Ensuite : déployer les Edge Functions de supabase/functions/ (connexion, gestion-utilisateurs,
+-- fne-proxy), créer config.js, créer le premier compte (administrateur) puis remplir Paramètres → Entreprise.
 -- ============================================================================
 
 create extension if not exists pgcrypto with schema extensions;
@@ -1502,7 +1502,7 @@ on conflict (code, standing) do nothing;
 reset check_function_bodies;
 
 -- ===========================================================================
--- 6. Utilisateurs, rôles et droits par module (copie de sql/utilisateurs_roles.sql)
+-- 7. Utilisateurs, rôles et droits par module (copie de sql/utilisateurs_roles.sql)
 -- ===========================================================================
 -- ============================================================================
 -- Sanix AluExpert ERP — Module Utilisateurs, Rôles & Accès (à l'image de ImmoSuite)
@@ -1793,7 +1793,7 @@ end $$;
 update profiles set role_id = (select id from roles where code = 'admin') where role_id is null;
 
 -- ===========================================================================
--- 7. Comptes, connexion et sécurité à la manière de Menko Immo
+-- 8. Comptes, connexion et sécurité à la manière de Menko Immo
 --    (copie de sql/utilisateurs_auth_menko.sql)
 -- ===========================================================================
 -- ============================================================================
