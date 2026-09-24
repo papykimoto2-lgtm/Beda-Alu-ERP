@@ -445,3 +445,9 @@ Deux façons de générer le site, depuis Paramètres → 🌐 Portail client :
 - La case **« Portail actif »** est désormais réellement respectée par les deux formats : décochée, le site public affiche « momentanément indisponible » sans exposer la moindre donnée (auparavant seul le portail de connexion client (`portail_lookup`) la respectait).
 - Migration : `sql/portail_public.sql` (fonction `portail_donnees_publiques()`, accessible en lecture par `anon`), copiée en section 22 de `00_installation_complete.sql`.
 - Déploiement : `public-site/portail-unique.html` — dossier dédié, pensé pour un **projet Vercel séparé** de l'ERP (qui reste protégé par SSO), avec la protection désactivée sur ce projet précis puisque le site est public par nature.
+
+## Revue de sécurité — accès au portail par code client + téléphone
+Constat : `portail_lookup(code, téléphone)` est appelable par n'importe qui (public), sans authentification. Or les codes clients sont **séquentiels** (`C-1`, `C-2`, `C-3`…), donc triviaux à énumérer, et le téléphone n'est comparé que sur ses **8 derniers chiffres** (tolérance de saisie volontaire, conservée). Sans limite d'appels, un script automatisé pouvait donc parcourir tous les codes et essayer des numéros jusqu'à tomber juste, exposant les projets, devis et factures de chaque client — une vraie fuite de données personnelles et financières.
+- **Corrigé** : limite globale anti-parcours (30 appels/minute, tous codes confondus) + verrou par code (5 échecs en 15 min → blocage 30 min, y compris avec le bon numéro tant que le verrou tient). Un autre code client n'est jamais affecté par le verrou d'un autre.
+- Aucun changement du format de réponse ni de la tolérance de saisie pour un utilisateur légitime (message dédié « Trop de tentatives » uniquement en cas de blocage).
+- Migration : `sql/portail_securite.sql` (table `portail_tentatives`, fonction `portail_lookup` durcie), section 23 de `00_installation_complete.sql`.
