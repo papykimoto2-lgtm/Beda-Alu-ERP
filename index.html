@@ -462,6 +462,15 @@ const HL=(()=>{
     const enCache=await tx('lectures','readonly',s=>req(s.get(cle))).catch(()=>null);
     const {table,params}=decouper(url);
     const unique=/vnd\.pgrst\.object/.test(h.get('Accept')||'');
+    if(!enCache && table){                 // jamais lu sur cet appareil : copie locale complète (miroir) si reçue
+      const mi=await depuisMiroir(table,params,unique).catch(()=>null);
+      if(mi){
+        const sup=superposer(table,params,mi.res);
+        if(method==='HEAD') return new Response(null,{status:200,headers:{'Content-Range':`*/${mi.total}`,'X-Hors-Ligne':'1'}});
+        if(unique) return sup.length?reponse(sup[0],200):reponse({code:'PGRST116',message:'Aucune ligne (copie locale)'},406);
+        return reponse(sup,200,{'Content-Range':`0-${Math.max(0,sup.length-1)}/${mi.total}`});
+      }
+    }
     if(method==='HEAD') return enCache?new Response(null,{status:enCache.status,headers:{'Content-Range':enCache.range||'*/0','X-Hors-Ligne':'1'}}):reponse(HORS_LIGNE,503);
     let donnees=enCache?JSON.parse(enCache.corps||'null'):null;
     if(table){
@@ -621,7 +630,7 @@ const HL=(()=>{
       <h3 class="font-semibold text-sm mb-1">En attente d'envoi (${file.length})</h3>
       ${file.length?`<table class="w-full mb-3">${file.map(o=>lig(o,false)).join('')}</table>`:'<div class="text-sm text-gray-400 mb-3">Rien en attente.</div>'}
       ${erreurs.length?`<h3 class="font-semibold text-sm mb-1 text-red-700">Refusées par le serveur (${erreurs.length})</h3><p class="text-xs text-gray-500 mb-1">Souvent : donnée modifiée entre-temps par un collègue, droits insuffisants ou doublon. Corrigez puis réessayez, ou abandonnez.</p><table class="w-full mb-3">${erreurs.map(o=>lig(o,true)).join('')}</table>`:''}
-      <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Fermer</button>${file.length&&etat.enLigne?`<button class="btn btn-primary" onclick="closeModal();HL.synchroniser()">🔄 Synchroniser maintenant</button>`:''}</div>`);
+      <div class="flex justify-end gap-2 flex-wrap"><button class="btn btn-outline" onclick="closeModal();showPage('parametres').then(()=>switchParamTab('synchro'))">📊 État détaillé (local ↔ cloud)</button><button class="btn btn-outline" onclick="closeModal()">Fermer</button>${file.length&&etat.enLigne?`<button class="btn btn-primary" onclick="closeModal();HL.synchroniser()">🔄 Synchroniser maintenant</button>`:''}</div>`);
   }
   async function reessayer(n){
     const e=await tx('erreurs','readonly',s=>req(s.get(n))); if(!e) return;
@@ -633,6 +642,107 @@ const HL=(()=>{
   async function abandonner(n){
     if(!confirm('Abandonner définitivement cette opération ? Elle ne sera jamais envoyée au serveur.')) return;
     await tx('erreurs','readwrite',s=>req(s.delete(n))); etat.erreurs=Math.max(0,etat.erreurs-1); majIndicateur(); ouvrirPanneau();
+  }
+
+  /* ---------- Copie locale complète (miroir) : réception cloud → appareil, table par table ----------
+     Chaque table reçue est gardée entière dans IndexedDB (clé « miroir|utilisateur|table »). Hors ligne,
+     une lecture jamais faite sur cet appareil est servie depuis ce miroir (filtres, tri, pagination et
+     relations simples appliqués localement) : l'application est utilisable sur tout poste synchronisé. */
+  const cleMiroir=(t)=>['miroir',utilisateurId(),t].join('|');
+  async function miroirLire(t){ const m=await tx('lectures','readonly',s=>req(s.get(cleMiroir(t)))).catch(()=>null); return m?{lignes:JSON.parse(m.corps||'[]'),t:m.t}:null; }
+  async function miroirEcrire(t,lignes){ await tx('lectures','readwrite',s=>req(s.put({cle:cleMiroir(t),table:t,corps:JSON.stringify(lignes),n:lignes.length,t:Date.now()}))); }
+  async function miroirInfos(){
+    const pre='miroir|'+utilisateurId()+'|', out={};
+    const tout=await tx('lectures','readonly',s=>req(s.getAll(IDBKeyRange.bound(pre,pre+'\uffff')))).catch(()=>[]);
+    tout.forEach(m=>{ out[m.table]={n:m.n,t:m.t}; });
+    return out;
+  }
+  async function recevoirTable(t){
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session?.access_token) throw new Error('Session expirée — reconnectez-vous.');
+    const lignes=[]; const pas=1000;
+    for(let a=0;;a+=pas){
+      const res=await fetch(`${BASE}/rest/v1/${t}?select=*&offset=${a}&limit=${pas}`,{headers:{apikey:CLE,Authorization:'Bearer '+session.access_token},cache:'no-store'});
+      if(!res.ok){ let m=''; try{ m=(await res.json()).message; }catch(e){} throw new Error(`HTTP ${res.status}${m?' — '+m:''}`); }
+      const lot=await res.json(); lignes.push(...lot);
+      if(lot.length<pas) break;
+    }
+    await miroirEcrire(t,lignes);
+    return lignes.length;
+  }
+  async function recevoir(tables,surProgres){
+    if(!navigator.onLine) throw new Error('Hors ligne : réception impossible.');
+    const bilan={ok:0,lignes:0,erreurs:[]};
+    for(let i=0;i<tables.length;i++){
+      try{ bilan.lignes+=await recevoirTable(tables[i]); bilan.ok++; }
+      catch(e){ if(estReseau(e)){ marquerEnLigne(false); bilan.erreurs.push(tables[i]+' : réseau perdu'); break; } bilan.erreurs.push(tables[i]+' : '+(e.message||e)); }
+      surProgres&&surProgres(i+1,tables.length,tables[i]);
+    }
+    try{ localStorage.setItem('hl_derniere_reception',String(Date.now())); }catch(e){}
+    return bilan;
+  }
+  async function envoyer(){
+    await synchroniser(true);
+    try{ localStorage.setItem('hl_dernier_envoi',String(Date.now())); }catch(e){}
+    return {restant:file.length,erreurs:etat.erreurs};
+  }
+  // Nombre d'opérations en attente par table (créations comptées ligne par ligne)
+  function attenteParTable(){
+    const m={};
+    file.forEach(op=>{
+      const loc=op.locales||{};
+      if(Object.keys(loc).length) Object.entries(loc).forEach(([t,l])=>{ m[t]=m[t]||{creations:0,autres:0}; m[t].creations+=(l||[]).length; });
+      else if(op.table){ m[op.table]=m[op.table]||{creations:0,autres:0}; if(op.method==='POST'){ let n=1; try{ const b=JSON.parse(op.body||'null'); n=Array.isArray(b)?b.length:1; }catch(e){} m[op.table].creations+=n; } else m[op.table].autres++; }
+      else if(op.action){ m['(actions)']=m['(actions)']||{creations:0,autres:0}; m['(actions)'].autres++; }
+    });
+    return m;
+  }
+  // Filtres PostgREST appliqués localement sur le miroir (eq, neq, gt, gte, lt, lte, like, ilike, is, in, not.*)
+  function filtrer(lignes,params){
+    let res=lignes;
+    for(const [k,v0] of params){
+      if(['select','order','limit','offset','columns','on_conflict','or','and'].includes(k)) continue;
+      let v=v0, non=false; if(v.startsWith('not.')){ non=true; v=v.slice(4); }
+      const i=v.indexOf('.'); if(i<0) continue;
+      const op=v.slice(0,i), val=v.slice(i+1);
+      const test=(x)=>{ const a=x?.[k];
+        switch(op){
+          case 'eq': return String(a??'')===val; case 'neq': return String(a??'')!==val;
+          case 'gt': return a!=null&&(isNaN(+val)?String(a)>val:+a>+val); case 'gte': return a!=null&&(isNaN(+val)?String(a)>=val:+a>=+val);
+          case 'lt': return a!=null&&(isNaN(+val)?String(a)<val:+a<+val); case 'lte': return a!=null&&(isNaN(+val)?String(a)<=val:+a<=+val);
+          case 'is': return val==='null'?a==null:val==='true'?a===true:val==='false'?a===false:true;
+          case 'in': return val.replace(/^\(|\)$/g,'').split(',').map(s=>s.replace(/^"|"$/g,'')).includes(String(a));
+          case 'like': case 'ilike': return new RegExp('^'+val.replace(/[.+?^${}()|[\]\\]/g,'\\$&').replace(/[*%]/g,'.*')+'$',op==='ilike'?'i':'').test(String(a??''));
+          default: return true; } };
+      res=res.filter(x=>non?!test(x):test(x));
+    }
+    return res;
+  }
+  async function depuisMiroir(table,params,unique){
+    const m=await miroirLire(table); if(!m) return null;
+    let res=filtrer(m.lignes,params);
+    const ord=params.get('order');
+    if(ord){ const cles=ord.split(',').map(o=>{ const [c,dir]=o.split('.'); return [c,dir==='desc']; });
+      res=[...res].sort((a,b)=>{ for(const [c,d] of cles){ const x=a[c],y=b[c]; if(x==y) continue; const r=(x==null)?1:(y==null)?-1:(x>y?1:-1); return d?-r:r; } return 0; }); }
+    const total=res.length;
+    const off=+params.get('offset')||0, lim=params.get('limit'); if(off||lim) res=res.slice(off,lim?off+(+lim):undefined);
+    // Relations : « table(col,…) » résolues depuis les autres miroirs (clé étrangère <singulier>_id, ou liste enfant)
+    const rel=relationsSelect(params.get('select'));
+    if(rel.length){
+      const sing=w=>w.replace(/ies$/,'y').replace(/s$/,'');
+      for(const r of rel){
+        const mr=await miroirLire(r); const L=mr?mr.lignes:[];
+        const idx=new Map(L.map(x=>[x.id,x]));
+        const fkUn=r.split('_').map(w=>sing(w)+'_id').concat([sing(r)+'_id']);
+        const fkEnf=table.split('_').map(w=>sing(w)+'_id');
+        res=res.map(x=>{ const c={...x};
+          const fk=fkUn.find(f=>x[f]!=null&&idx.has(x[f]));
+          if(fk) c[r]=idx.get(x[fk]);
+          else { const fe=fkEnf.find(f=>L.some(y=>y[f]===x.id)); c[r]=fe?L.filter(y=>y[fe]===x.id):(L.length&&fkEnf.some(f=>f in (L[0]||{}))?[]:null); }
+          return c; });
+      }
+    }
+    return {res,total,t:m.t,unique};
   }
 
   /* ---------- Démarrage ---------- */
@@ -648,7 +758,8 @@ const HL=(()=>{
 
   demarrer();
   return {fetch:hlFetch,synchroniser,differer,enregistrerAction:(nom,fn)=>{ ACTIONS[nom]=fn; },ouvrirPanneau,reessayer,abandonner,
-    horsLigne,viderLectures,majIndicateur,etat,enAttente:()=>file.length,jetonLocal:()=>jetonLocal,uuid};
+    horsLigne,viderLectures,majIndicateur,etat,enAttente:()=>file.length,jetonLocal:()=>jetonLocal,uuid,
+    recevoir,recevoirTable,envoyer,miroirInfos,miroirLire,attenteParTable,nbErreurs:()=>etat.erreurs};
 })();
 if('serviceWorker' in navigator && location.protocol!=='file:') window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 const { createClient } = supabase;
@@ -764,6 +875,7 @@ async function enterApp(){
   rbacAppliquerSidebar();
   demarrerSurveillanceSession();
   HL.synchroniser();
+  syncDemarrerAuto();
   majBadgeValidations().catch(()=>{});
   if(monRole()?.code==='sans_role'){
     document.getElementById('pageContent').innerHTML=`<div class="card p-10 text-center max-w-lg mx-auto mt-10"><div class="text-5xl mb-3">⏳</div><h2 class="text-lg font-bold mb-2">Compte en attente</h2><p class="text-gray-500">Votre compte n'a pas encore de rôle. Un administrateur doit vous en attribuer un (Paramètres → Utilisateurs & Rôles).</p><button class="btn btn-outline mt-5" onclick="handleLogout()">Se déconnecter</button></div>`;
@@ -7085,7 +7197,7 @@ async function renderParametres(el){
       <div class="page-card max-w-2xl">
         <h2>☁️ Connexion Supabase</h2>
         <div class="divider"></div>
-        <p class="text-xs text-gray-500 mb-4">Cette application fonctionne exclusivement en direct sur Supabase (aucun mode local) : ces informations sont en lecture seule pour éviter de casser la connexion en cours.</p>
+        <p class="text-xs text-gray-500 mb-4">Supabase est la base de référence (cloud) ; chaque poste en garde une copie locale pour travailler hors ligne (onglet 🔄 Synchro). Ces informations sont en lecture seule pour éviter de casser la connexion en cours.</p>
         <div class="field mb-3"><label>URL du projet</label>${fieldWrap('🔗',`<input value="${escapeHtml(window.SB_CFG.SUPABASE_URL)}" readonly>`)}</div>
         <div class="field mb-4"><label>Clé publique (anon)</label>${fieldWrap('🔑',`<input value="${escapeHtml(window.SB_CFG.SUPABASE_ANON_KEY.slice(0,16))}...${escapeHtml(window.SB_CFG.SUPABASE_ANON_KEY.slice(-8))}" readonly>`)}</div>
         <button class="btn btn-primary" onclick="testerConnexionSupabase()">🔌 Tester la connexion</button>
@@ -7096,11 +7208,11 @@ async function renderParametres(el){
     <div id="paramTab-synchro" class="param-tab hidden">
       <div class="page-card">
         <div class="flex justify-between items-center mb-3">
-          <h2>🔄 État de la synchronisation</h2>
-          <button class="btn btn-outline text-xs" onclick="refreshSyncCounts()">↻ Actualiser</button>
+          <div><h2>🔄 Synchronisation</h2><p class="text-xs text-gray-500">Synchronisez les données locales (IndexedDB) vers Supabase pour accès multi-appareils.</p></div>
         </div>
         <div class="divider"></div>
-        <p class="text-xs text-gray-500 mb-3">Aucune copie locale : chaque écran lit et écrit directement sur Supabase. Ce panneau confirme que la connexion est active et affiche le volume de données par module.</p>
+        <h3 class="font-bold text-sm mb-1">📊 État de la synchronisation (envoi ↔ réception)</h3>
+        <p class="text-xs text-gray-500 mb-3">Compare le nombre d'enregistrements en local (ce poste) et dans le cloud, élément par élément.</p>
         <div id="syncStatusPanel" class="text-sm text-gray-400">Chargement…</div>
       </div>
     </div>
@@ -11727,22 +11839,133 @@ async function testerConnexionSupabase(){
   if(error){ el.textContent='❌ Échec : '+error.message; el.className='text-sm mt-3 text-red-600'; }
   else { el.textContent=`✅ Connexion OK (${ms} ms)`; el.className='text-sm mt-3 text-emerald-600'; }
 }
+/* ============================== SYNCHRONISATION LOCAL (IndexedDB) ↔ CLOUD (Supabase) ==============================
+   Envoi : la file d'attente des saisies faites hors ligne part vers Supabase.
+   Réception : chaque table est copiée entièrement sur l'appareil (miroir IndexedDB) ; hors ligne, tous les écrans
+   lisent cette copie → accès aux mêmes données depuis plusieurs appareils, connectés ou non.
+   État : par élément (table), nombre d'enregistrements sur ce poste ↔ dans le cloud, opérations en attente d'envoi. */
+const SYNC_LIBELLES={clients:'Clients',client_categories:'Catégories clients',prospects:'Prospects',fournisseurs:'Fournisseurs',projets:'Projets / chantiers',produits:'Produits',
+  composants:'Composants & consommables',depots:'Dépôts',stocks_depot:'Stocks par dépôt',transferts_stock:'Transferts de stock',transferts_stock_lignes:'Lignes de transfert',mouvements_stock:'Mouvements de stock',
+  devis:'Devis',devis_categories:'Catégories de devis',devis_lignes:'Lignes de devis',factures:'Factures',paiements:'Encaissements',fiches_execution:"Fiches d'exécution",fiche_execution_lignes:"Lignes de fiche d'exécution",
+  realisations:'Réalisations',parametres:'Paramètres',compta_comptes:'Plan comptable',compta_journaux:'Journaux',compta_exercices:'Exercices',compta_ecritures:'Écritures comptables',compta_lignes:"Lignes d'écriture",
+  caisses:'Caisses',caisse_sessions:'Séances de caisse',caisse_mouvements:'Mouvements de caisse',caisse_regles_ventilation:'Règles de ventilation',points_vente:'Points de vente',caisse_affectations:'Affectations caisse',
+  point_vente_affectations:'Affectations point de vente',ventes_comptoir:'Ventes au comptoir',ventes_comptoir_lignes:'Lignes de vente',roles:'Rôles',role_permissions:'Permissions',invitations:'Invitations',
+  caisse_demandes:'Demandes de caisse (validation DG)',tickets_z:'Tickets Z',profiles:'Profils utilisateurs'};
+const SYNC_TABLES=[...new Set([...BACKUP_TABLES,'profiles'])];
+window._sync=window._sync||{etat:null,enCours:false,progres:''};
+function syncAuto(){ try{ return localStorage.getItem('hl_sync_auto')!=='0'; }catch(e){ return true; } }
+function syncHorodatage(k){ try{ const v=+localStorage.getItem(k); return v?new Date(v):null; }catch(e){ return null; } }
+function syncIlYa(d){ if(!d) return 'jamais'; const s=Math.round((Date.now()-d)/1000); if(s<60) return 'à l’instant'; if(s<3600) return `il y a ${Math.round(s/60)} min`; if(s<86400) return `il y a ${Math.round(s/3600)} h`; return d.toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}); }
+async function syncCompter(){
+  const [infos,attente]=[await HL.miroirInfos(),HL.attenteParTable()];
+  const enLigne=!HL.horsLigne();
+  const lignes=[];
+  for(let i=0;i<SYNC_TABLES.length;i+=8){
+    const lot=await Promise.all(SYNC_TABLES.slice(i,i+8).map(async t=>{
+      let cloud=null, err='';
+      if(enLigne){ const {count,error}=await sb.from(t).select('*',{count:'exact',head:true}); if(error) err=error.message; else cloud=count??0; }
+      const a=attente[t]||{creations:0,autres:0};
+      const m=infos[t];
+      return {t,lib:SYNC_LIBELLES[t]||t,local:m?m.n+a.creations:null,miroir:m?m.n:null,recu:m?new Date(m.t):null,cloud,err,envoi:a.creations+a.autres};
+    }));
+    lignes.push(...lot);
+  }
+  return lignes;
+}
+function syncStatut(l){
+  if(l.envoi) return {k:'envoi',txt:`⬆️ ${l.envoi} à envoyer`,cls:'text-amber-700 bg-amber-50'};
+  if(l.err) return {k:'err',txt:'⚠️ '+(/permission|policy|denied|42501/i.test(l.err)?'Accès refusé (droits)':'Erreur cloud'),cls:'text-red-700 bg-red-50'};
+  if(l.miroir==null) return {k:'jamais',txt:l.cloud?`⬇️ ${l.cloud} à recevoir (jamais reçu)`:'— vide',cls:l.cloud?'text-sky-700 bg-sky-50':'text-gray-400 bg-gray-50'};
+  if(l.cloud==null) return {k:'hl',txt:'📴 Copie locale (cloud hors ligne)',cls:'text-gray-500 bg-gray-50'};
+  if(l.local===l.cloud) return {k:'ok',txt:l.cloud?'✅ À jour':'— vide',cls:l.cloud?'text-emerald-700 bg-emerald-50':'text-gray-400 bg-gray-50'};
+  if(l.cloud>l.local) return {k:'recevoir',txt:`⬇️ ${l.cloud-l.local} à recevoir`,cls:'text-sky-700 bg-sky-50'};
+  return {k:'ecart',txt:`⬇️ ${l.local-l.cloud} en trop sur ce poste (supprimé(s) dans le cloud)`,cls:'text-violet-700 bg-violet-50'};
+}
 async function refreshSyncCounts(){
   const el=document.getElementById('syncStatusPanel'); if(!el) return;
-  const modules=[['Clients','clients'],['Prospects','prospects'],['Fournisseurs','fournisseurs'],['Projets','projets'],['Devis','devis'],['Factures','factures'],['Produits','produits'],["Fiches d'exécution",'fiches_execution']];
-  const t0=performance.now();
-  let online=true;
-  const rows=await Promise.all(modules.map(async([label,table])=>{
-    const {count,error}=await sb.from(table).select('*',{count:'exact',head:true});
-    if(error) online=false;
-    return {label,count:error?'—':count};
-  }));
-  const ms=Math.round(performance.now()-t0);
+  const S=window._sync, enLigne=!HL.horsLigne();
+  el.innerHTML=`<div class="text-gray-400 py-6 text-center">⏳ Comparaison ce poste ↔ cloud…</div>`;
+  let lignes; try{ lignes=await syncCompter(); }catch(e){ el.innerHTML=`<div class="text-red-600">${escapeHtml(e.message||String(e))}</div>`; return; }
+  S.etat=lignes;
+  const st=lignes.map(l=>({...l,s:syncStatut(l)}));
+  const ordre={envoi:0,err:1,recevoir:2,jamais:3,ecart:4,hl:5,ok:6};
+  st.sort((a,b)=>(ordre[a.s.k]-ordre[b.s.k])||a.lib.localeCompare(b.lib));
+  const nbOk=st.filter(l=>l.s.k==='ok').length, aEnv=HL.enAttente(), nbErr=HL.nbErreurs();
+  const aRec=st.reduce((s,l)=>s+(l.s.k==='recevoir'?l.cloud-l.local:l.s.k==='jamais'?(l.cloud||0):0),0);
+  const totLoc=st.reduce((s,l)=>s+(l.local||0),0), totCloud=st.reduce((s,l)=>s+(l.cloud||0),0);
   el.innerHTML=`
-    <div class="mb-3">${online?`<span class="text-emerald-600 font-semibold">🟢 En ligne</span> — vérifié en ${ms} ms`:'<span class="text-red-600 font-semibold">🔴 Connexion perturbée</span>'}</div>
-    <table><thead><tr><th>Module</th><th class="text-right">Enregistrements</th></tr></thead>
-    <tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td><td class="text-right font-semibold">${r.count}</td></tr>`).join('')}</tbody></table>
-    <div class="text-xs text-gray-400 mt-2">Dernière vérification : ${new Date().toLocaleTimeString('fr-FR')}</div>`;
+    <div class="flex flex-wrap items-center gap-2 mb-3">
+      <span class="badge ${enLigne?'bg-emerald-50 text-emerald-700':'bg-amber-50 text-amber-700'}">${enLigne?'🟢 Connecté au cloud':'📴 Hors ligne'}</span>
+      <span class="text-xs text-gray-500">⬆️ Dernier envoi : <b class="text-gray-700">${syncIlYa(syncHorodatage('hl_dernier_envoi'))}</b></span>
+      <span class="text-xs text-gray-500">⬇️ Dernière réception : <b class="text-gray-700">${syncIlYa(syncHorodatage('hl_derniere_reception'))}</b></span>
+      <label class="text-xs text-gray-600 flex items-center gap-1.5 ml-auto"><input type="checkbox" ${syncAuto()?'checked':''} onchange="try{localStorage.setItem('hl_sync_auto',this.checked?'1':'0')}catch(e){};toast(this.checked?'Synchronisation automatique activée (toutes les 30 min et à la connexion).':'Synchronisation automatique désactivée.')" style="width:15px;height:15px"> Synchronisation automatique</label>
+    </div>
+    <div class="flex flex-wrap gap-2 mb-3">
+      <button class="btn btn-primary btn-sm" ${enLigne&&!S.enCours?'':'disabled'} onclick="syncMaintenant()">🔄 Synchroniser maintenant</button>
+      <button class="btn btn-outline btn-sm" ${enLigne&&aEnv&&!S.enCours?'':'disabled'} onclick="syncEnvoyer()">⬆️ Envoyer local → cloud (${aEnv})</button>
+      <button class="btn btn-outline btn-sm" ${enLigne&&!S.enCours?'':'disabled'} onclick="syncRecevoir()">⬇️ Tout récupérer cloud → local</button>
+      <button class="btn btn-outline btn-sm" onclick="HL.ouvrirPanneau()">📋 File d'attente (${aEnv})${nbErr?` · ⚠️ ${nbErr} refusée(s)`:''}</button>
+      <button class="btn btn-outline btn-sm" onclick="refreshSyncCounts()">↻ Vérifier l'état</button>
+    </div>
+    ${S.progres?`<div class="text-xs text-indigo-700 mb-2">${escapeHtml(S.progres)}</div>`:''}
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3 text-sm">
+      <div class="card p-2.5"><div class="text-[11px] text-gray-400">Éléments à jour</div><b>${nbOk} / ${st.length}</b></div>
+      <div class="card p-2.5"><div class="text-[11px] text-gray-400">À envoyer</div><b class="${aEnv?'text-amber-700':''}">${aEnv} opération(s)</b></div>
+      <div class="card p-2.5"><div class="text-[11px] text-gray-400">À recevoir</div><b class="${aRec?'text-sky-700':''}">${aRec} enregistrement(s)</b></div>
+      <div class="card p-2.5"><div class="text-[11px] text-gray-400">Sur ce poste</div><b>${totLoc.toLocaleString('fr-FR')}</b></div>
+      <div class="card p-2.5"><div class="text-[11px] text-gray-400">Dans le cloud</div><b>${enLigne?totCloud.toLocaleString('fr-FR'):'—'}</b></div>
+    </div>
+    <div class="overflow-x-auto"><table><thead><tr><th>Élément</th><th class="text-right">Local (ce poste)</th><th class="text-center">↔</th><th class="text-right">Cloud</th><th>État</th><th>Reçu</th><th></th></tr></thead>
+    <tbody>${st.map(l=>`<tr><td><b>${escapeHtml(l.lib)}</b><div class="text-[10px] text-gray-400 font-mono">${escapeHtml(l.t)}</div></td>
+      <td class="text-right">${l.local==null?'<span class="text-gray-300">—</span>':l.local.toLocaleString('fr-FR')}${l.envoi?`<div class="text-[10px] text-amber-700">dont ${l.envoi} en attente</div>`:''}</td>
+      <td class="text-center text-gray-400">${l.s.k==='ok'?'=':l.s.k==='envoi'?'→':l.s.k==='recevoir'||l.s.k==='jamais'?'←':l.s.k==='hl'?'·':'≠'}</td>
+      <td class="text-right">${l.cloud==null?'<span class="text-gray-300">—</span>':l.cloud.toLocaleString('fr-FR')}</td>
+      <td><span class="text-xs font-semibold rounded-full px-2 py-0.5 ${l.s.cls}" ${l.err?`title="${escapeHtml(l.err)}"`:''}>${l.s.txt}</span></td>
+      <td class="text-xs text-gray-500 whitespace-nowrap">${syncIlYa(l.recu)}</td>
+      <td class="text-right whitespace-nowrap">${enLigne&&!l.err?`<button class="text-xs text-indigo-600 mr-2" onclick="syncRecevoir(['${l.t}'])">⬇️ Recevoir</button><button class="text-xs text-gray-600" onclick="syncDetail('${l.t}')">🔍 Détail</button>`:''}</td></tr>`).join('')}</tbody></table></div>
+    <p class="text-[11px] text-gray-400 mt-2">« Local » = copie complète reçue sur ce poste (IndexedDB) + créations saisies hors ligne pas encore envoyées. Hors ligne, les écrans lisent cette copie ; les saisies partent automatiquement au retour du réseau. La copie locale est effacée à la déconnexion.</p>`;
+}
+async function syncEnvoyer(silencieux){
+  const S=window._sync; if(S.enCours) return;
+  S.enCours=true; S.progres='⬆️ Envoi de la file d’attente…'; if(!silencieux) refreshSyncCounts();
+  try{ const r=await HL.envoyer(); if(!silencieux) toast(r.restant?`⬆️ Envoi partiel : ${r.restant} opération(s) restent en attente.`:'⬆️ Tout est envoyé au cloud.',r.restant?'error':undefined); }
+  finally{ S.enCours=false; S.progres=''; if(!silencieux) refreshSyncCounts(); }
+}
+async function syncRecevoir(tables,silencieux){
+  const S=window._sync; if(S.enCours) return;
+  tables=tables||SYNC_TABLES; S.enCours=true;
+  try{
+    const b=await HL.recevoir(tables,(i,n,t)=>{ S.progres=`⬇️ Réception ${i}/${n} — ${SYNC_LIBELLES[t]||t}`; const p=document.querySelector('#syncStatusPanel .text-indigo-700'); if(p) p.textContent=S.progres; });
+    if(!silencieux) toast(`⬇️ ${b.ok} élément(s) reçu(s) — ${b.lignes.toLocaleString('fr-FR')} enregistrement(s) copiés sur ce poste${b.erreurs.length?` · ${b.erreurs.length} en erreur (${b.erreurs[0]})`:''}.`,b.erreurs.length?'error':undefined);
+  }catch(e){ if(!silencieux) toast(e.message||String(e),'error'); }
+  finally{ S.enCours=false; S.progres=''; if(!silencieux) refreshSyncCounts(); }
+}
+async function syncMaintenant(silencieux){
+  if(HL.horsLigne()){ if(!silencieux) toast('📴 Hors ligne : synchronisation impossible.','error'); return; }
+  await syncEnvoyer(true);
+  await syncRecevoir(null,true);
+  if(!silencieux){ toast('🔄 Synchronisation terminée : envoi puis réception.'); refreshSyncCounts(); }
+}
+/* Détail élément par élément : identifiants présents d'un seul côté */
+async function syncDetail(t){
+  const m=await HL.miroirLire(t);
+  const cle=(m?.lignes?.[0]&&!('id' in m.lignes[0]))?Object.keys(m.lignes[0])[0]:'id';
+  const cloud=[]; for(let a=0;;a+=1000){ const {data,error}=await sb.from(t).select(cle).range(a,a+999); if(error){ toast(error.message,'error'); return; } cloud.push(...data); if(data.length<1000) break; }
+  const idsC=new Set(cloud.map(x=>String(x[cle]))), idsL=new Set((m?.lignes||[]).map(x=>String(x[cle])));
+  const manqueLocal=[...idsC].filter(x=>!idsL.has(x)), enTrop=[...idsL].filter(x=>!idsC.has(x));
+  const liste=a=>a.length?`<div class="font-mono text-[11px] max-h-40 overflow-auto bg-gray-50 rounded p-2">${a.slice(0,200).map(escapeHtml).join('<br>')}${a.length>200?`<br>… + ${a.length-200}`:''}</div>`:'<div class="text-xs text-emerald-700">Aucun.</div>';
+  openModal(`<h3 class="font-bold text-lg mb-1">🔍 ${escapeHtml(SYNC_LIBELLES[t]||t)} — local ↔ cloud</h3>
+    <p class="text-xs text-gray-500 mb-3">Comparaison des identifiants (${escapeHtml(cle)}) : ${idsL.size} sur ce poste${m?` (reçu ${syncIlYa(new Date(m.t))})`:' (jamais reçu)'}, ${idsC.size} dans le cloud.</p>
+    <div class="grid sm:grid-cols-2 gap-3 mb-4"><div><div class="text-sm font-semibold text-sky-700 mb-1">⬇️ Dans le cloud, absents de ce poste (${manqueLocal.length})</div>${liste(manqueLocal)}</div>
+      <div><div class="text-sm font-semibold text-violet-700 mb-1">Sur ce poste, absents du cloud (${enTrop.length})</div>${liste(enTrop)}<div class="text-[11px] text-gray-400 mt-1">Supprimés dans le cloud depuis la dernière réception.</div></div></div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Fermer</button>${manqueLocal.length||enTrop.length?`<button class="btn btn-primary" onclick="closeModal();syncRecevoir(['${t}'])">⬇️ Recevoir cet élément</button>`:''}</div>`);
+}
+/* Synchronisation automatique : à l'ouverture de session puis toutes les 30 minutes (envoi + réception) */
+function syncDemarrerAuto(){
+  if(window._sync.minuteur) return;
+  const tour=()=>{ if(syncAuto() && typeof CURRENT_USER!=='undefined' && CURRENT_USER && !HL.horsLigne()) syncMaintenant(true).catch(()=>{}); };
+  setTimeout(tour,15000);
+  window._sync.minuteur=setInterval(tour,30*60*1000);
 }
 async function exporterSauvegarde(){
   const resEl=document.getElementById('backupResult');

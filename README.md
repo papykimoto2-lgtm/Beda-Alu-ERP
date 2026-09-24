@@ -160,3 +160,24 @@ L'accueil reprend la structure du tableau de bord de Menko Immo, adaptée à la 
   - **Bilan** (AD… BZ / CA… DZ) et **Compte de résultat** (TA… XI : marge commerciale, valeur ajoutée, EBE, résultats d'exploitation, financier, HAO et net) au format SYSCOHADA système normal, imprimables. Les tiers et la trésorerie sont classés selon le sens de leur solde.
 - **Comptes par défaut** (Paramètres → Comptabilité) regroupés par thème, avec les codes révisés : caisse, banque, Mobile Money, chèques, virements, clients, ventes d'ouvrages, ventes au comptoir, TVA, fournisseurs, achats, stocks, variations, écarts.
 - Migration : `sql/syscohada_revise.sql` (aussi dans `00_installation_complete.sql`).
+
+## Synchronisation local (IndexedDB) ↔ cloud (Supabase), multi-appareils
+Écran **Paramètres → 🔄 Synchro**.
+- **Envoi** : la file d'attente des saisies faites hors ligne part vers Supabase.
+- **Réception** : chaque élément (table) est copié entièrement sur le poste, dans un miroir IndexedDB. Hors ligne, tout écran lit cette copie, **même un écran jamais ouvert sur ce poste**. Les filtres, le tri, la pagination et les relations simples sont appliqués localement.
+- **État de la synchronisation (envoi ↔ réception)** : le nombre d'enregistrements **local ↔ cloud**, élément par élément, avec l'un de ces états :
+  - ✅ À jour ;
+  - ⬆️ n à envoyer ;
+  - ⬇️ n à recevoir ;
+  - « en trop sur ce poste » (supprimé dans le cloud) ;
+  - accès refusé.
+
+  L'écran affiche aussi la date de la dernière réception par élément, les dates du dernier envoi et de la dernière réception, et des totaux.
+- **Boutons** :
+  - « Synchroniser maintenant » (envoi puis réception) ;
+  - « Envoyer local → cloud » ;
+  - « Tout récupérer cloud → local » ;
+  - « Recevoir » un seul élément ;
+  - **🔍 Détail**, qui liste les identifiants présents d'un seul côté ;
+  - « File d'attente ».
+- **Synchronisation automatique** (désactivable sur le poste) : à l'ouverture de session puis toutes les 30 minutes. La copie locale est effacée à la déconnexion.
