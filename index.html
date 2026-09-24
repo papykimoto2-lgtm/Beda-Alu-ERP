@@ -2424,9 +2424,10 @@ async function renderSuiviChantier(projetId){
 }
 
 /* ============================== PRODUITS ============================== */
-const PRODUIT_FAMILLES=['Fenêtre coulissante','Porte à la française','Porte coulissante','Coulissant galandage','Fenêtre jalousie','Moustiquaire fixe','Moustiquaire coulissante','Garde-corps inox','Verrière / mur rideau','Autre'];
-const FAMILLE_ICONS={'Fenêtre coulissante':'🪟','Porte à la française':'🚪','Porte coulissante':'🚪','Coulissant galandage':'🚪','Fenêtre jalousie':'🪟','Moustiquaire fixe':'🦟','Moustiquaire coulissante':'🦟','Garde-corps inox':'🛡️','Verrière / mur rideau':'🏢','Autre':'📦'};
-const FAMILLE_COLORS={'Fenêtre coulissante':'#2563eb','Porte à la française':'#d97706','Porte coulissante':'#ea580c','Coulissant galandage':'#0891b2','Fenêtre jalousie':'#7c3aed','Moustiquaire fixe':'#059669','Moustiquaire coulissante':'#0d9488','Garde-corps inox':'#475569','Verrière / mur rideau':'#db2777','Autre':'#6b7280'};
+const PRODUIT_FAMILLES=['Fenêtre coulissante','Porte à la française','Porte coulissante','Coulissant galandage','Fenêtre jalousie','Moustiquaire fixe','Moustiquaire coulissante','Garde-corps inox','Verrière / mur rideau',
+  'Fenêtres & châssis','Coulissants, baies & pliants','Portes','Façades, vitrines, cloisons & verrières','Fermetures, volets & protections solaires','Pergolas, auvents & abris','Garde-corps, rampes & mains courantes','Portails, clôtures & grilles','Douche & aménagements inox','Habillage & bardage composite','Autre'];
+const FAMILLE_ICONS={'Fenêtres & châssis':'🪟','Coulissants, baies & pliants':'↔️','Portes':'🚪','Façades, vitrines, cloisons & verrières':'🏢','Fermetures, volets & protections solaires':'🌗','Pergolas, auvents & abris':'⛱️','Garde-corps, rampes & mains courantes':'🛡️','Portails, clôtures & grilles':'🚧','Douche & aménagements inox':'🚿','Habillage & bardage composite':'🧱','Fenêtre coulissante':'🪟','Porte à la française':'🚪','Porte coulissante':'🚪','Coulissant galandage':'🚪','Fenêtre jalousie':'🪟','Moustiquaire fixe':'🦟','Moustiquaire coulissante':'🦟','Garde-corps inox':'🛡️','Verrière / mur rideau':'🏢','Autre':'📦'};
+const FAMILLE_COLORS={'Fenêtres & châssis':'#1d4ed8','Coulissants, baies & pliants':'#0369a1','Portes':'#b45309','Façades, vitrines, cloisons & verrières':'#be185d','Fermetures, volets & protections solaires':'#4d7c0f','Pergolas, auvents & abris':'#15803d','Garde-corps, rampes & mains courantes':'#334155','Portails, clôtures & grilles':'#7c2d12','Douche & aménagements inox':'#0e7490','Habillage & bardage composite':'#6d28d9','Fenêtre coulissante':'#2563eb','Porte à la française':'#d97706','Porte coulissante':'#ea580c','Coulissant galandage':'#0891b2','Fenêtre jalousie':'#7c3aed','Moustiquaire fixe':'#059669','Moustiquaire coulissante':'#0d9488','Garde-corps inox':'#475569','Verrière / mur rideau':'#db2777','Autre':'#6b7280'};
 window._produitsView=window._produitsView||'grille';
 window._produitsFamFilter=window._produitsFamFilter||'';
 async function renderProduits(el){
@@ -3075,7 +3076,7 @@ async function proposerDechargeStock(ficheId){
     const largeur=(+fl.largeur_mesuree>0)?+fl.largeur_mesuree:+fl.largeur_commande||0;
     const hauteur=(+fl.hauteur_mesuree>0)?+fl.hauteur_mesuree:+fl.hauteur_commande||0;
     if(+fl.largeur_mesuree>0 && +fl.hauteur_mesuree>0) nbMesures++;
-    const res=configCalculerBOM(c.type,largeur,hauteur,c.leaves||1,+dl.quantite||1,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill,standing});
+    const res=configCalculerBOM(c.type,largeur,hauteur,c.leaves||1,+dl.quantite||1,{...c,standing});
     res.rows.forEach(r=>{
       const composant=resolveComposant(r[0],standing);
       if(!composant) return;
@@ -3203,7 +3204,7 @@ async function lancerSimulationDebit(){
     const p=produitMap[l.produit_id];
     if(!p?.config_json) return;
     const c=p.config_json;
-    const res=configCalculerBOM(c.type,+l.largeur||0,+l.hauteur||0,c.leaves||1,+l.quantite||1,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill,standing:c.standing});
+    const res=configCalculerBOM(c.type,+l.largeur||0,+l.hauteur||0,c.leaves||1,+l.quantite||1,{...c,standing:c.standing||'standard'});
     res.rows.forEach(r=>{
       const [code,label,qty,longueur]=r;
       if(!(longueur>0) || classifyBOMLine(label)==='remplissage') return;
@@ -3439,12 +3440,1125 @@ function getPrix(code,standing,fallback){
   const any=Object.values(variants).find(v=>v!=null);
   return any!=null?any:fallback;
 }
+/* ============================== CATALOGUE ÉTENDU D'OUVRAGES — MENUISERIE ALUMINIUM & INOX ==============================
+   Plus de 60 ouvrages pilotés par des données (familles, paramètres, moteur de calcul). Chaque moteur produit, à partir
+   des cotes et des paramètres, UNE géométrie (« primitives » en mm) réutilisée partout : nomenclature (BOM) et débit,
+   vue de face à l'échelle avec symboles d'ouverture normalisés, coupes du plan de fabrication, vue 3D et vignette de
+   galerie. Les 8 types historiques (CONFIG_TYPES) gardent leurs formules d'origine.
+   Références techniques retenues :
+   • ouvertures et conventions de représentation (triangle dont la pointe désigne le côté des ferrures / l'axe) ;
+   • garde-corps : NF P01-012 (révision nov. 2024) — hauteur ≥ 1,00 m, vide entre barreaux ≤ 110 mm, zone basse non
+     escaladable de 600 mm, lisses horizontales ≤ 110 mm sous 600 mm puis ≤ 180 mm, main courante 900-1000 mm ;
+     clôture de piscine NF P90-306 (hauteur ≥ 1,10 m) ; inox 316 (A4) recommandé en bord de mer ;
+   • murs-rideaux VEP / VEC (montants et traverses 50 mm, trame courante 1 200-1 500 mm) ;
+   • fermetures : lames de volet 39 / 55 / 77 mm, rideau métallique 100 mm, panneaux sectionnels 40 mm (≈ 610 mm) ;
+   • pergolas bioclimatiques : poteaux 150×150, lames orientables 200 mm, portée ≤ 6 m ;
+   • composite aluminium (ACM) 4 mm : cassettes pliées sur ossature, plaques 1 500 × 4 000 mm, joint 10-15 mm.
+   Tous les prix sont des valeurs indicatives en FCFA, modifiables dans Composants & consommables (codes 🧩). */
+const OUV_FAMILLES=[
+  {k:'fenetres',label:'Fenêtres & châssis',icon:'🪟'},
+  {k:'coulissants',label:'Coulissants, baies & pliants',icon:'↔️'},
+  {k:'portes',label:'Portes',icon:'🚪'},
+  {k:'facades',label:'Façades, vitrines, cloisons & verrières',icon:'🏢'},
+  {k:'fermetures',label:'Fermetures, volets & protections solaires',icon:'🌗'},
+  {k:'exterieurs',label:'Pergolas, auvents & abris',icon:'⛱️'},
+  {k:'gardecorps',label:'Garde-corps, rampes & mains courantes',icon:'🛡️'},
+  {k:'portails',label:'Portails, clôtures & grilles',icon:'🚧'},
+  {k:'sanitaire',label:'Douche & aménagements inox',icon:'🚿'},
+  {k:'habillage',label:'Habillage & bardage composite',icon:'🧱'}
+];
+/* Composants utilisés par les nouveaux ouvrages : [code, désignation, type, famille, unité, prix FCFA].
+   Servent de prix de secours ET de semence du catalogue (sql/catalogue_ouvrages.sql). */
+const OUV_COMPOSANTS=[
+  ['P-MEN-001','Meneau / traverse aluminium','Composant','Profilé aluminium','ml',9800],
+  ['P-COU-RH','Rail haut coulissant','Composant','Profilé aluminium','ml',9500],
+  ['P-COU-RB','Rail bas coulissant','Composant','Profilé aluminium','ml',10500],
+  ['P-COU-MD','Montant dormant coulissant','Composant','Profilé aluminium','ml',8500],
+  ['P-COU-OV','Ouvrant coulissant (montant/traverse)','Composant','Profilé aluminium','ml',9800],
+  ['P-LEV-OV','Ouvrant levant-coulissant renforcé','Composant','Profilé aluminium','ml',16500],
+  ['P-POR-DOR','Dormant de porte','Composant','Profilé aluminium','ml',11500],
+  ['P-POR-OUV','Ouvrant de porte (montant large)','Composant','Profilé aluminium','ml',13500],
+  ['P-MR-MON','Montant de mur-rideau 50 mm','Composant','Profilé aluminium','ml',18500],
+  ['P-MR-TRA','Traverse de mur-rideau 50 mm','Composant','Profilé aluminium','ml',15500],
+  ['P-MR-CAP','Serreur + capot de mur-rideau','Composant','Profilé aluminium','ml',6500],
+  ['P-VER-40','Profilé verrière 40×20 aspect acier','Composant','Profilé aluminium','ml',7200],
+  ['P-CLO-001','Profilé de cloison (rail / montant)','Composant','Profilé aluminium','ml',6800],
+  ['P-GUI-OV','Ouvrant guillotine','Composant','Profilé aluminium','ml',9800],
+  ['P-PLI-OV','Ouvrant pliant (accordéon)','Composant','Profilé aluminium','ml',12500],
+  ['P-PLI-RAIL','Rail haut/bas porte pliante','Composant','Profilé aluminium','ml',14500],
+  ['PAN-SAND-24','Panneau sandwich alu 24 mm (remplissage)','Composant','Panneau','m2',18500],
+  ['TOL-ALU-20','Tôle aluminium 2 mm laquée','Composant','Panneau','m2',16500],
+  ['TOL-PERF-INX','Tôle inox perforée 1,5 mm','Composant','Panneau','m2',42000],
+  ['VIT-FEU-442','Verre feuilleté 44.2 (sécurité)','Composant','Vitrage','m2',19500],
+  ['VIT-TRE-8','Verre trempé 8 mm (douche)','Composant','Vitrage','m2',24000],
+  ['VIT-TRE-10','Verre trempé 10 mm (porte tout verre)','Composant','Vitrage','m2',29000],
+  ['VIT-POLY-16','Polycarbonate alvéolaire 16 mm','Composant','Vitrage','m2',9500],
+  ['VIT-HUB-001','Hublot vitré de porte sectionnelle','Composant','Vitrage','unite',18000],
+  ['JNT-FRP-001','Joint de frappe EPDM','Consommable','Joint & étanchéité','ml',650],
+  ['JNT-MR-001','Joint EPDM de mur-rideau','Consommable','Joint & étanchéité','ml',1200],
+  ['CON-SIL-STR','Silicone structurel (VEC)','Consommable','Consommable atelier','cartouche',9500],
+  ['FIX-CHV-001','Cheville + vis de fixation dormant','Consommable','Visserie & fixations','unite',250],
+  ['FIX-MR-ATT','Attache de mur-rideau (équerre de dalle)','Composant','Visserie & fixations','unite',6500],
+  ['FIX-SCE-001','Patte de scellement','Composant','Visserie & fixations','unite',900],
+  ['QUI-CRM-001','Crémone + poignée de fenêtre','Composant','Quincaillerie','unite',6500],
+  ['QUI-VER-001','Verrou de semi-fixe','Composant','Quincaillerie','unite',2200],
+  ['QUI-OB-KIT','Kit ferrage oscillo-battant','Composant','Quincaillerie','unite',38000],
+  ['QUI-CMP-SOU','Compas de soufflet','Composant','Quincaillerie','unite',4500],
+  ['QUI-BRA-PRJ','Paire de bras de projection (italienne)','Composant','Quincaillerie','unite',14500],
+  ['QUI-PIV-001','Paire de pivots avec frein','Composant','Quincaillerie','unite',17500],
+  ['QUI-GUI-RES','Balancier / ressorts de guillotine','Composant','Quincaillerie','unite',16000],
+  ['QUI-ROU-001','Roulette réglable de coulissant','Composant','Quincaillerie','unite',1800],
+  ['QUI-FER-COU','Fermeture à crochet + poignée coquille','Composant','Quincaillerie','unite',5500],
+  ['QUI-BUT-001','Butée de coulissant','Composant','Quincaillerie','unite',600],
+  ['QUI-LEV-KIT','Kit levant-coulissant (chariots + levier)','Composant','Quincaillerie','unite',95000],
+  ['QUI-CHA-PLI','Charnière de porte pliante','Composant','Quincaillerie','unite',6500],
+  ['QUI-CHR-PLI','Chariot de porte pliante','Composant','Quincaillerie','unite',12500],
+  ['QUI-CYL-001','Cylindre de sécurité 5 clés','Composant','Quincaillerie','unite',9500],
+  ['QUI-SER-3P','Serrure 3 points de porte','Composant','Quincaillerie','unite',42000],
+  ['QUI-PIV-SOL','Pivot de sol avec frein (va-et-vient)','Composant','Quincaillerie','unite',85000],
+  ['QUI-PIV-POR','Pivot de porte désaxée','Composant','Quincaillerie','unite',120000],
+  ['QUI-POI-TIR','Poignée tirant inox','Composant','Quincaillerie','unite',18000],
+  ['LAM-VR-39','Lame de volet roulant alu 39 mm isolée','Composant','Profilé aluminium','ml',2600],
+  ['LAM-VR-55','Lame de volet alu 55 mm','Composant','Profilé aluminium','ml',3400],
+  ['LAM-GA-77','Lame de porte de garage alu 77 mm','Composant','Profilé aluminium','ml',5200],
+  ['LAM-RM-100','Lame de rideau métallique 100 mm','Composant','Profilé aluminium','ml',6800],
+  ['LAM-RM-MAI','Tablier grille maillée (anneaux)','Composant','Panneau','m2',38000],
+  ['TOI-MOU-ENR','Toile de moustiquaire enroulable','Consommable','Vitrage','m2',4500],
+  ['LAM-FIN','Lame finale avec joint','Composant','Profilé aluminium','ml',4500],
+  ['P-ENR-COF','Coffre de volet / rideau','Composant','Profilé aluminium','ml',12500],
+  ['P-ENR-COU','Coulisse avec joint brosse','Composant','Profilé aluminium','ml',5500],
+  ['AXE-OCT-60','Axe octogonal Ø60','Composant','Profilé aluminium','ml',5800],
+  ['AXE-RM-102','Axe de rideau métallique Ø102 + ressorts','Composant','Quincaillerie','ml',22000],
+  ['QUI-ATT-TAB','Attache tablier / verrou','Composant','Quincaillerie','unite',650],
+  ['QUI-JOU-001','Paire de joues / flasques de coffre','Composant','Quincaillerie','unite',6500],
+  ['MOT-TUB-001','Moteur tubulaire filaire + inverseur','Composant','Motorisation','unite',75000],
+  ['MOT-RID-001','Moteur central de rideau métallique','Composant','Motorisation','unite',260000],
+  ['QUI-MAN-001','Treuil + manivelle','Composant','Quincaillerie','unite',18000],
+  ['QUI-SER-RID','Serrure de sol de rideau','Composant','Quincaillerie','unite',22000],
+  ['PAN-SEC-40','Panneau sectionnel isolé 40 mm','Composant','Panneau','m2',32000],
+  ['P-SEC-RAIL','Rail de porte sectionnelle','Composant','Profilé aluminium','ml',7500],
+  ['QUI-RES-TOR','Ressort de torsion + tambour','Composant','Quincaillerie','unite',48000],
+  ['QUI-GAL-001','Galet + support de panneau','Composant','Quincaillerie','unite',3500],
+  ['QUI-CHA-SEC','Charnière intermédiaire de panneau','Composant','Quincaillerie','unite',2500],
+  ['MOT-PLA-001','Motorisation plafond de porte de garage','Composant','Motorisation','unite',220000],
+  ['P-CAD-LAM','Cadre porte-lames (persienne / volet)','Composant','Profilé aluminium','ml',7800],
+  ['LAM-PER-50','Lame de persienne 50 mm','Composant','Profilé aluminium','ml',2400],
+  ['LAM-BS-150','Lame brise-soleil aile d’avion 150 mm','Composant','Profilé aluminium','ml',9500],
+  ['LAM-BSO-80','Lame orientable BSO 80 mm','Composant','Profilé aluminium','ml',3800],
+  ['LAM-CLA-100','Lame claustra 100×30','Composant','Profilé aluminium','ml',5200],
+  ['QUI-EMB-LAM','Embout / clip de lame','Composant','Quincaillerie','unite',450],
+  ['FIX-CONS-BS','Console de brise-soleil','Composant','Visserie & fixations','unite',9500],
+  ['QUI-PEN-001','Penture + gond de volet battant','Composant','Quincaillerie','unite',6500],
+  ['QUI-ESP-001','Espagnolette de volet','Composant','Quincaillerie','unite',8500],
+  ['MOT-BSO-001','Moteur de BSO','Composant','Motorisation','unite',95000],
+  ['P-PER-POT','Poteau de pergola 150×150','Composant','Profilé aluminium','ml',32000],
+  ['P-PER-POU','Poutre-chéneau de pergola','Composant','Profilé aluminium','ml',36000],
+  ['LAM-PER-200','Lame orientable de pergola 200 mm','Composant','Profilé aluminium','ml',14500],
+  ['LAM-PER-FIX','Chevron / lame fixe de toiture','Composant','Profilé aluminium','ml',9800],
+  ['MOT-PER-001','Vérin / moteur de lames de pergola','Composant','Motorisation','unite',185000],
+  ['PLA-PER-001','Platine d’ancrage de poteau','Composant','Visserie & fixations','unite',14500],
+  ['FIX-MUR-PER','Fixation murale de pergola adossée','Composant','Visserie & fixations','unite',4500],
+  ['P-AUV-MUR','Profil mural d’auvent','Composant','Profilé aluminium','ml',16500],
+  ['TIR-INX-001','Tirant inox + rotules','Composant','Quincaillerie','unite',38000],
+  ['TUB-ALU-80','Tube aluminium 80×40 (cadre)','Composant','Profilé aluminium','ml',8800],
+  ['TUB-ALU-25','Tube aluminium 25×25 (barreau)','Composant','Profilé aluminium','ml',3200],
+  ['LAM-POR-150','Lame de portail / clôture 150 mm','Composant','Profilé aluminium','ml',6500],
+  ['TUB-INX-40','Tube inox 40×40 (cadre)','Composant','Profilé aluminium','ml',19500],
+  ['TUB-INX-20','Tube inox Ø20 (barreau)','Composant','Profilé aluminium','ml',7800],
+  ['QUI-GON-001','Gond réglable de portail','Composant','Quincaillerie','unite',9500],
+  ['QUI-SER-POR','Serrure de portail + gâche','Composant','Quincaillerie','unite',28000],
+  ['QUI-ROU-POR','Roue à gorge de portail coulissant','Composant','Quincaillerie','unite',14000],
+  ['QUI-GUI-POR','Guide haut à galets','Composant','Quincaillerie','unite',16000],
+  ['P-RAI-SOL','Rail au sol à sceller','Composant','Profilé aluminium','ml',6500],
+  ['MOT-POR-BAT','Motorisation portail battant (2 vérins)','Composant','Motorisation','unite',320000],
+  ['MOT-POR-COU','Motorisation portail coulissant','Composant','Motorisation','unite',260000],
+  ['POT-CLO-001','Poteau de clôture aluminium','Composant','Profilé aluminium','ml',12500],
+  ['BAR-DEF-012','Barreau de défense acier galva Ø12','Composant','Profilé aluminium','ml',2200],
+  ['POT-ALU-001','Poteau de garde-corps alu 50×50','Composant','Profilé aluminium','ml',14500],
+  ['MC-ALU-001','Main courante aluminium','Composant','Profilé aluminium','ml',9800],
+  ['LIS-ALU-001','Lisse / barreau aluminium','Composant','Profilé aluminium','ml',4200],
+  ['LIS-GI-012','Lisse inox Ø12','Composant','Profilé aluminium','ml',6800],
+  ['P-SAB-001','Sabot aluminium pour verre (profil U)','Composant','Profilé aluminium','ml',45000],
+  ['QUI-CAL-SAB','Cale / kit de serrage de sabot','Composant','Quincaillerie','unite',2800],
+  ['SUP-MC-001','Support de main courante murale inox','Composant','Quincaillerie','unite',6500],
+  ['QUI-EMB-MC','Embout / coude de main courante','Composant','Quincaillerie','unite',4500],
+  ['FIX-ANG-001','Fixation à l’anglaise (nez de dalle)','Composant','Visserie & fixations','unite',7800],
+  ['P-DOU-MUR','Profil mural de paroi de douche','Composant','Profilé aluminium','ml',9500],
+  ['BAR-STA-INX','Barre de stabilisation inox','Composant','Quincaillerie','unite',22000],
+  ['QUI-CHA-DOU','Charnière verre-mur de douche inox','Composant','Quincaillerie','unite',19000],
+  ['QUI-POI-DOU','Poignée de porte de douche','Composant','Quincaillerie','unite',9500],
+  ['P-DOU-RAIL','Rail haut de douche coulissante inox','Composant','Profilé aluminium','ml',28000],
+  ['QUI-ROU-DOU','Roulette de douche coulissante','Composant','Quincaillerie','unite',8500],
+  ['JNT-DOU-001','Joint d’étanchéité de douche','Consommable','Joint & étanchéité','ml',1800],
+  ['ACM-004','Panneau composite aluminium 4 mm (ACM)','Composant','Panneau','m2',21000],
+  ['P-OSS-OME','Ossature oméga aluminium','Composant','Profilé aluminium','ml',4800],
+  ['FIX-EQU-ACM','Équerre de fixation d’ossature','Composant','Visserie & fixations','unite',1200],
+  ['FIX-RIV-001','Rivet / vis de cassette','Consommable','Visserie & fixations','unite',120]
+];
+const OUV_PRIX=Object.fromEntries(OUV_COMPOSANTS.map(r=>[r[0],r[5]]));
+const OUV_UNITE=Object.fromEntries(OUV_COMPOSANTS.map(r=>[r[0],r[4]]));
+const OUV_NOM=Object.fromEntries(OUV_COMPOSANTS.map(r=>[r[0],r[1]]));
+/* ---------- Outils communs de nomenclature ---------- */
+const OUV_PRIX_HISTO={'P-STD-001':8500,'P-STD-002':8500,'P-STD-003':9200,'P-STD-004':9200,'P-PAR-001':3200,'VIT-001':6500,'JNT-001':900,'QUI-001':4500,'QUI-002':850,
+  'QUI-001-PORTE':12500,'QUI-002-PORTE':1600,'QUI-003':7800,'P-SEU-001':11500,'CON-001':2800,'JNT-ONG-001':1500,'JNT-EQ-001':1200,'JNT-ABT-001':900,'BRO-001':1100,
+  'POT-GI-001':22500,'MC-GI-001':16800,'PLA-GI-001':3800,'BAR-GI-001':8200,'VIT-GI-001':9500,'PIN-GI-001':2400,'CAB-GI-001':4500,'TEN-GI-001':1800,'CAD-MO-001':3800,'TUL-MO-001':3200,'RAI-MO-001':4200};
+const OUV_NOM_HISTO={'P-STD-001':'Dormant horizontal','P-STD-002':'Dormant vertical','P-STD-003':'Ouvrant horizontal','P-STD-004':'Ouvrant vertical','P-PAR-001':'Parclose','JNT-001':'Joint vitrage',
+  'QUI-001':'Poignée','QUI-002':'Paumelle','QUI-001-PORTE':'Ensemble serrure + poignée','QUI-002-PORTE':'Paumelle renforcée','QUI-003':'Gâche + ferme-porte','P-SEU-001':'Seuil bas renforcé','CON-001':'Silicone',
+  'BRO-001':'Joint brosse étanchéité','POT-GI-001':'Poteau inox tube 42.4mm','MC-GI-001':'Main courante inox','PLA-GI-001':'Platine fixation inox','BAR-GI-001':'Barreau vertical inox Ø12mm',
+  'VIT-GI-001':'Verre feuilleté sécurit 33.2','PIN-GI-001':'Pince de fixation verre inox','CAB-GI-001':'Câble inox Ø6mm tendu','TEN-GI-001':'Tendeur + terminaison sertie'};
+function ouvPrix(code,standing){ return getPrix(code,standing,OUV_PRIX[code]??OUV_PRIX_HISTO[code]??0); }
+/* Collecteur de lignes BOM au format historique [code, désignation, quantité, longueur unitaire mm, montant] */
+function ouvBom(standing){
+  const rows=[], idx={};
+  const push=(code,label,q,l,m)=>{
+    const k=code+'|'+Math.round(l||0)+'|'+label;
+    if(idx[k]!==undefined){ rows[idx[k]][2]+=q; rows[idx[k]][4]+=m; return; }
+    idx[k]=rows.length; rows.push([code,label,q,l||0,m]);
+  };
+  const nom=(code,label)=>label||OUV_NOM[code]||OUV_NOM_HISTO[code]||code;
+  return {rows,
+    barre:(code,n,longueur,label)=>{ if(n>0&&longueur>0) push(code,nom(code,label),n,Math.round(longueur),n*longueur/1000*ouvPrix(code,standing)); },
+    surf:(code,m2,label,prix)=>{ if(m2>0) push(code,nom(code,label),+m2.toFixed(3),0,m2*(prix??ouvPrix(code,standing))); },
+    unit:(code,n,label)=>{ if(n>0) push(code,nom(code,label),n,0,n*ouvPrix(code,standing)); },
+    lin:(code,ml,label)=>{ if(ml>0) push(code,nom(code,label),+ml.toFixed(2),0,ml*ouvPrix(code,standing)); }};
+}
+const OUV_OUV_LABELS={fixe:'Fixe',fr_g:'À la française — ferrage gauche',fr_d:'À la française — ferrage droit',ob_g:'Oscillo-battant — ferrage gauche',ob_d:'Oscillo-battant — ferrage droit',
+  souf:'Soufflet (abattant)',proj:"Projetant à l'italienne",basc:'Basculant',piv:'Pivotant vertical',guil:'Guillotine',coul_g:'Coulissant ←',coul_d:'Coulissant →',lev_g:'Levant-coulissant ←',lev_d:'Levant-coulissant →',
+  pli:'Pliant (accordéon)',coul_f:'Vantail coulissant fixe',porte_g:'Porte — ferrage gauche',porte_d:'Porte — ferrage droit',vv:'Va-et-vient (pivot de sol)',pivp:'Porte pivot désaxée'};
+const OUV_REMP={v:'Vitrage choisi',vs:'Verre feuilleté 44.2',pan:'Panneau sandwich',tole:'Tôle alu',v10:'Verre trempé 10 mm',poly:'Polycarbonate'};
+const estOuvrant=o=>o&&o!=='fixe';
+const estPorteOuv=o=>/^porte|^vv$|^pivp$/.test(o||'');
+
+/* ---------- Générateurs de disposition (cellules + meneaux / traverses), cotes en mm, y depuis le haut ---------- */
+function layColonnes(W,H,cols,o){
+  o=o||{}; const cells=[], bars=[];
+  const iH=Math.max(0,+o.imposteH||0), aH=Math.max(0,+o.allegeH||0);
+  const y0=iH, y1=H-aH, hMain=Math.max(100,y1-y0);
+  if(iH>0){
+    const n=Math.max(1,+o.imposteCols||1), cw=W/n;
+    for(let i=0;i<n;i++){ cells.push({x:i*cw,y:0,w:cw,h:iH,ouv:o.imposteOuv||'fixe',remp:o.imposteRemp||'v',zone:'Imposte'}); if(i) bars.push({o:'v',x:i*cw,y:0,l:iH}); }
+    bars.push({o:'h',x:0,y:iH,l:W});
+  }
+  if(aH>0){
+    const n=Math.max(1,+o.allegeCols||1), cw=W/n;
+    for(let i=0;i<n;i++){ cells.push({x:i*cw,y:y1,w:cw,h:aH,ouv:o.allegeOuv||'fixe',remp:o.allegeRemp||'pan',zone:'Allège'}); if(i) bars.push({o:'v',x:i*cw,y:y1,l:aH}); }
+    bars.push({o:'h',x:0,y:y1,l:W});
+  }
+  const fixes=cols.reduce((s,c)=>s+(+c.w||0),0), nLibres=cols.filter(c=>!c.w).length;
+  const libre=nLibres?Math.max(0,W-fixes)/nLibres:0;
+  let x=0;
+  cols.forEach((c,i)=>{
+    const cw=+c.w||libre;
+    cells.push({x,y:y0,w:cw,h:hMain,ouv:c.ouv,remp:c.remp||'v',zone:c.zone||'Partie principale',semi:!!c.semi,soub:+c.soub||0,dir:c.dir});
+    if(i<cols.length-1 && !c.sansMeneau) bars.push({o:'v',x:x+cw,y:y0,l:hMain});
+    x+=cw;
+  });
+  return {cells,bars};
+}
+function layGrille(W,H,nx,ny,fn){
+  const cells=[], bars=[], cw=W/nx, ch=H/ny;
+  for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){ const r=fn?fn(i,j,nx,ny):{}; cells.push({x:i*cw,y:j*ch,w:cw,h:ch,ouv:r.ouv||'fixe',remp:r.remp||'v',zone:r.zone||`Trame ${j+1}.${i+1}`,soub:r.soub||0}); }
+  for(let i=1;i<nx;i++) bars.push({o:'v',x:i*cw,y:0,l:H});
+  for(let j=1;j<ny;j++) for(let i=0;i<nx;i++) bars.push({o:'h',x:i*cw,y:j*ch,l:cw});
+  return {cells,bars};
+}
+const nbPaumelles=h=>h<=1400?2:h<=2200?3:4;
+
+/* ---------- Moteur « châssis » : fenêtres, portes, coulissants, pliants, façades, cloisons, verrières ---------- */
+const OUV_PROFILS={
+  battant:{dorH:'P-STD-001',dorV:'P-STD-002',ouvH:'P-STD-003',ouvV:'P-STD-004',men:'P-MEN-001',F:50,M:60,O:55},
+  coulissant:{dorH:'P-COU-RH',dorB:'P-COU-RB',dorV:'P-COU-MD',ouvH:'P-COU-OV',ouvV:'P-COU-OV',men:'P-MEN-001',F:55,M:60,O:60},
+  levant:{dorH:'P-COU-RH',dorB:'P-COU-RB',dorV:'P-COU-MD',ouvH:'P-LEV-OV',ouvV:'P-LEV-OV',men:'P-MEN-001',F:65,M:70,O:80},
+  porte:{dorH:'P-POR-DOR',dorV:'P-POR-DOR',ouvH:'P-POR-OUV',ouvV:'P-POR-OUV',men:'P-MEN-001',F:60,M:70,O:90},
+  pliant:{dorH:'P-PLI-RAIL',dorB:'P-PLI-RAIL',dorV:'P-POR-DOR',ouvH:'P-PLI-OV',ouvV:'P-PLI-OV',men:'P-MEN-001',F:60,M:60,O:75},
+  guillotine:{dorH:'P-STD-001',dorV:'P-COU-MD',ouvH:'P-GUI-OV',ouvV:'P-GUI-OV',men:'P-MEN-001',F:55,M:60,O:55},
+  murrideau:{dorH:'P-MR-TRA',dorV:'P-MR-MON',ouvH:'P-STD-003',ouvV:'P-STD-004',men:'P-MR-TRA',menV:'P-MR-MON',F:50,M:50,O:55},
+  verriere:{dorH:'P-VER-40',dorV:'P-VER-40',ouvH:'P-VER-40',ouvV:'P-VER-40',men:'P-VER-40',F:40,M:30,O:40},
+  cloison:{dorH:'P-CLO-001',dorV:'P-CLO-001',ouvH:'P-POR-OUV',ouvV:'P-POR-OUV',men:'P-CLO-001',F:45,M:45,O:80}
+};
+function moteurChassis(def,W,H,qty,o,standing,vit,fin){
+  const L=def.plan(W,H,o);
+  const P={...OUV_PROFILS[def.profils||'battant']};
+  const B=ouvBom(standing), prims=[], sym=[], cellsInfo=[];
+  const rails=+o.rails||def.rails||2;
+  const vitPrix=ouvPrix('VIT-001',standing)*(vit.facteurPrix||1);
+  let glassArea=0; const glassPanels=[];
+  // Dormant
+  if(def.profils==='murrideau'){
+    // Montants filants toute hauteur, traverses entre montants
+    const nMont=L.bars.filter(b=>b.o==='v'&&b.l>=H-1).length+2;
+    B.barre('P-MR-MON',nMont*qty,H);
+    const trav=L.bars.filter(b=>b.o==='h');
+    const nx=nMont-1; B.barre('P-MR-TRA',(trav.length+2*nx)*qty,W/nx);
+    const grille=(nMont*H+(trav.length+2*nx)*(W/nx))/1000;
+    if(o.facade!=='vec') B.lin('P-MR-CAP',grille*qty,'Serreur + capot extérieur (VEP)');
+    B.lin('JNT-MR-001',2*grille*qty);
+    B.unit('FIX-MR-ATT',nMont*(2+Math.floor(H/3000))*qty);
+  } else {
+    B.barre(P.dorH,qty,W,def.profils==='coulissant'||def.profils==='levant'?`Rail haut ${rails} rails`:null);
+    const basPorte=L.cells.some(c=>estPorteOuv(c.ouv)&&c.y+c.h>=H-1);
+    if(basPorte){ const lp=L.cells.filter(c=>estPorteOuv(c.ouv)&&c.y+c.h>=H-1).reduce((s,c)=>s+c.w,0); B.barre('P-SEU-001',qty,lp); if(W-lp>1) B.barre(P.dorH,qty,W-lp,'Traverse basse de dormant'); }
+    else B.barre(P.dorB||P.dorH,qty,W,P.dorB?`Rail bas ${rails} rails`:null);
+    B.barre(P.dorV,2*qty,H);
+    L.bars.forEach(b=>B.barre(b.o==='v'?(P.menV||P.men):P.men,qty,b.l,b.o==='v'?'Meneau':'Traverse intermédiaire'));
+  }
+  // Dormant, meneaux et traverses en primitives
+  const F=P.F, M=P.M;
+  if(def.profils==='murrideau' && o.facade==='vec'){
+    [[0,0,W,12],[0,H-12,W,12],[0,0,12,H],[W-12,0,12,H]].forEach(r=>prims.push({m:'joint',x:r[0],y:r[1],w:r[2],h:r[3],d:40,layer:'dormant'}));
+    L.bars.forEach(b=>prims.push(b.o==='v'?{m:'joint',x:b.x-6,y:b.y,w:12,h:b.l,d:40,layer:'dormant'}:{m:'joint',x:b.x,y:b.y-6,w:b.l,h:12,d:40,layer:'dormant'}));
+  } else {
+    prims.push({m:'alu',x:0,y:0,w:W,h:F,d:70,layer:'dormant'},{m:'alu',x:0,y:H-F,w:W,h:F,d:70,layer:'dormant'},{m:'alu',x:0,y:F,w:F,h:H-2*F,d:70,layer:'dormant'},{m:'alu',x:W-F,y:F,w:F,h:H-2*F,d:70,layer:'dormant'});
+    L.bars.forEach(b=>prims.push(b.o==='v'?{m:'alu',x:b.x-M/2,y:b.y,w:M,h:b.l,d:70,layer:'dormant'}:{m:'alu',x:b.x,y:b.y-M/2,w:b.l,h:M,d:70,layer:'dormant'}));
+  }
+  const bordure=(c)=>{ // bord visible de la cellule (dormant ou demi-meneau)
+    const e=v=>v?F:M/2;
+    return {l:e(c.x<=1),r:e(c.x+c.w>=W-1),t:e(c.y<=1),b:e(c.y+c.h>=H-1)};
+  };
+  // Cellules
+  L.cells.forEach((c,i)=>{ const n=L.cells[i+1];
+    if(!n || Math.abs(n.y-c.y)>1 || Math.abs(c.x+c.w-n.x)>1) return;
+    const paire=(c.ouv==='fr_g'&&n.ouv==='fr_d')||(c.ouv==='porte_g'&&n.ouv==='porte_d')||(c.ouv==='ob_g'&&n.ouv==='fr_d')||(c.ouv==='fr_g'&&n.ouv==='ob_d');
+    if(!paire || c.semi || n.semi) return;
+    if(c.ouv.startsWith('ob')) n.semi=true; else c.semi=true;   // semi-fixe : vantail sans poignée, verrouillé par verrous
+  });
+  let nFrames=1, perimVitre=0, perimOuv=0, porteH=0;
+  const recouvr=/^coul|^lev/;
+  L.cells.forEach((c,i)=>{
+    const bd=bordure(c);
+    let gx=c.x+bd.l, gy=c.y+bd.t, gw=c.w-bd.l-bd.r, gh=c.h-bd.t-bd.b;
+    const ouvrant=estOuvrant(c.ouv);
+    if(ouvrant){
+      nFrames++;
+      // Coulissants : les vantaux se chevauchent (recouvrement 40 mm) — cotes de fabrication majorées
+      const ow=recouvr.test(c.ouv)?gw+20:gw, oh=gh;
+      if(c.ouv==='pli'){ B.barre(P.ouvH,2*qty,ow); B.barre(P.ouvV,2*qty,oh); }
+      else { B.barre(P.ouvH,2*qty,ow); B.barre(P.ouvV,2*qty,oh); }
+      perimOuv+=2*(ow+oh);
+      const O=P.O;
+      prims.push({m:'aluF',x:gx,y:gy,w:gw,h:O,d:60,z:8,layer:'ouvrant'},{m:'aluF',x:gx,y:gy+gh-O,w:gw,h:O,d:60,z:8,layer:'ouvrant'},{m:'aluF',x:gx,y:gy+O,w:O,h:gh-2*O,d:60,z:8,layer:'ouvrant'},{m:'aluF',x:gx+gw-O,y:gy+O,w:O,h:gh-2*O,d:60,z:8,layer:'ouvrant'});
+      sym.push({ouv:c.ouv,x:gx,y:gy,w:gw,h:gh,dir:c.dir,semi:!!c.semi});
+      gx+=O; gy+=O; gw-=2*O; gh-=2*O;
+      // Quincaillerie par type d'ouverture
+      const q=qty, principal=!c.semi;
+      switch(c.ouv){
+        case 'fr_g': case 'fr_d': B.unit('QUI-002',nbPaumelles(c.h)*q); if(principal) B.unit('QUI-CRM-001',q); else B.unit('QUI-VER-001',2*q); break;
+        case 'ob_g': case 'ob_d': B.unit('QUI-OB-KIT',q); break;
+        case 'souf': B.unit('QUI-CMP-SOU',2*q); B.unit('QUI-002',2*q); B.unit('QUI-001',q); break;
+        case 'proj': B.unit('QUI-BRA-PRJ',q); B.unit('QUI-001',q); break;
+        case 'basc': case 'piv': B.unit('QUI-PIV-001',q); B.unit('QUI-001',q); break;
+        case 'guil': B.unit('QUI-GUI-RES',q); B.unit('QUI-001',q); break;
+        case 'coul_g': case 'coul_d': B.unit('QUI-ROU-001',(c.w>1500?4:2)*q); B.unit('QUI-FER-COU',q); B.unit('QUI-BUT-001',2*q); B.barre('BRO-001',2*q,c.h); break;
+        case 'lev_g': case 'lev_d': B.unit('QUI-LEV-KIT',q); B.barre('BRO-001',2*q,c.h); break;
+        case 'porte_g': case 'porte_d':
+          B.unit('QUI-002-PORTE',nbPaumelles(c.h+400)*q);
+          if(principal){ B.unit(o.serrure==='3p'?'QUI-SER-3P':'QUI-001-PORTE',q); B.unit('QUI-CYL-001',q); if(o.fermePorte) B.unit('QUI-003',q); }
+          else B.unit('QUI-VER-001',2*q);
+          porteH=Math.max(porteH,c.h); break;
+        case 'vv': B.unit('QUI-PIV-SOL',q); B.unit('QUI-POI-TIR',q); break;
+        case 'pivp': B.unit('QUI-PIV-POR',q); B.unit('QUI-POI-TIR',q); B.unit('QUI-SER-3P',q); break;
+      }
+    } else {
+      sym.push({ouv:'fixe',x:gx,y:gy,w:gw,h:gh});
+    }
+    // Soubassement plein (portes) : traverse + panneau en partie basse de l'ouvrant
+    let soub=0;
+    if(c.soub>0 && gh>c.soub+200){
+      soub=Math.min(c.soub,gh-200);
+      B.barre(P.ouvH,qty,gw,'Traverse de soubassement');
+      B.surf('PAN-SAND-24',gw*soub/1e6*qty,'Panneau de soubassement');
+      prims.push({m:'panneau',x:gx,y:gy+gh-soub,w:gw,h:soub,d:24,z:10,layer:'vitrage'},{m:'aluF',x:gx,y:gy+gh-soub-30,w:gw,h:30,d:60,z:8,layer:'ouvrant'});
+      gh-=soub+30;
+    }
+    // Remplissage
+    const remp=c.remp||'v';
+    const jeu=+o.gap||5;
+    const vw=Math.max(0,gw+20-jeu), vh=Math.max(0,gh+20-jeu);   // prise en feuillure 10 mm par côté
+    const s=vw*vh/1e6*qty;
+    if(remp==='pan'||remp==='tole'){
+      B.surf(remp==='pan'?'PAN-SAND-24':'TOL-ALU-20',s);
+      prims.push({m:remp==='pan'?'panneau':'tole',x:gx,y:gy,w:gw,h:gh,d:24,z:10,layer:'vitrage'});
+    } else {
+      const code=remp==='vs'?'VIT-FEU-442':remp==='v10'?'VIT-TRE-10':remp==='poly'?'VIT-POLY-16':'VIT-001';
+      const label=remp==='v'?vit.label:null;
+      B.surf(code,s,label,remp==='v'?vitPrix:undefined);
+      glassArea+=s; perimVitre+=2*(vw+vh)*qty;
+      glassPanels.push({code,w:Math.round(vw),h:Math.round(vh),qty});
+      prims.push({m:'verre',x:gx,y:gy,w:gw,h:gh,d:Math.max(6,vit.epaisseur||24),z:10,layer:'vitrage'});
+      if(def.profils!=='murrideau') B.barre('P-PAR-001',2*qty,vw,null), B.barre('P-PAR-001',2*qty,vh,null);
+    }
+    cellsInfo.push({rep:`V${i+1}`,zone:c.zone,ouv:c.ouv,w:Math.round(c.w),h:Math.round(c.h),remp:OUV_REMP[remp]||remp,vitrage:remp==='pan'||remp==='tole'?'—':`${Math.round(vw)} × ${Math.round(vh)}`});
+  });
+  // Pliant : rails, chariots et charnières
+  const nPli=L.cells.filter(c=>c.ouv==='pli').length;
+  if(nPli){ B.unit('QUI-CHA-PLI',(nPli-1)*3*qty); B.unit('QUI-CHR-PLI',Math.ceil(nPli/2)*qty); B.unit('QUI-CRM-001',qty); B.unit('QUI-VER-001',2*qty); }
+  // Joints, assemblage, fixations, consommables
+  B.lin('JNT-001',perimVitre/1000,'Joint vitrage (2 faces)');
+  if(perimOuv) B.lin('JNT-FRP-001',perimOuv*qty/1000);
+  if(def.profils==='murrideau' && o.facade==='vec') B.unit('CON-SIL-STR',Math.max(1,Math.ceil(perimVitre/6000)));
+  const jt=o.jointType||'onglet';
+  B.unit({onglet:'JNT-ONG-001',equerre:'JNT-EQ-001',about:'JNT-ABT-001'}[jt]||'JNT-ONG-001',4*nFrames*qty,{onglet:'Jonction onglet 45° (colle+sertissage)',equerre:"Équerre d'angle mécanique",about:'Aboutage 90° + vis'}[jt]);
+  const perim=2*(W+H);
+  B.unit('FIX-CHV-001',Math.ceil(perim/500)*qty);
+  B.unit('CON-001',Math.max(1,Math.ceil(perim*qty/5000)));
+  const alu=B.rows.filter(r=>r[3]>0 && classifyBOMLine(r[1])!=='remplissage').reduce((s,r)=>s+r[2]*r[3],0)/1000;
+  // Contrôles
+  const conf=[];
+  const bas=L.cells.filter(c=>c.y+c.h>=H-1 && (c.remp||'v')!=='pan' && (c.remp||'v')!=='tole');
+  if(def.porte || L.cells.some(c=>estPorteOuv(c.ouv))) conf.push({ok:L.cells.filter(c=>estPorteOuv(c.ouv)).every(c=>['vs','v10','pan','tole'].includes(c.remp||'v')||c.soub>=800), txt:'Vitrage de sécurité (feuilleté / trempé) sur les parties vitrées de porte'});
+  if(bas.length && (def.porte||H>=1900) && L.cells.some(c=>c.y+c.h>=H-1&&c.h>1000)) conf.push({ok:bas.every(c=>['vs','v10'].includes(c.remp)||(vit.label||'').toLowerCase().includes('feuillet')), txt:"Partie vitrée basse (< 1 m du sol) : verre de sécurité recommandé (risque de choc)", info:true});
+  L.cells.filter(c=>/^(fr|ob)/.test(c.ouv)).forEach(c=>{ if(c.w>1000) conf.push({ok:false,txt:`Vantail ${Math.round(c.w)} mm : largeur > 1 000 mm, au-delà des ferrages courants (prévoir renfort / 2 vantaux)`}); });
+  L.cells.filter(c=>/^(coul_[gd]|lev)/.test(c.ouv)).forEach(c=>{ if(c.w*c.h/1e6>(c.ouv.startsWith('lev')?9:4.5)) conf.push({ok:false,txt:`Vantail coulissant de ${(c.w*c.h/1e6).toFixed(1)} m² : poids élevé, prévoir un système ${c.ouv.startsWith('lev')?'renforcé':'levant-coulissant'}`}); });
+  const nOuv=L.cells.filter(c=>estOuvrant(c.ouv)&&c.ouv!=='coul_f').length;
+  const infos=[`${L.cells.length} cellule(s) · ${nOuv} ouvrant(s)${def.profils==='coulissant'||def.profils==='levant'?` · ${rails} rails`:''}`,({battant:'Profilés battants à frappe',coulissant:'Profilés coulissants',levant:'Levant-coulissant renforcé',porte:'Profilés de porte renforcés',pliant:'Système pliant (rail haut porteur)',guillotine:'Châssis à guillotine',murrideau:o.facade==='vec'?'Mur-rideau VEC — verre collé (silicone structurel)':'Mur-rideau VEP — serreurs + capots',verriere:'Profils de verrière fins 40 mm',cloison:'Cloison aluminium 45 mm'})[def.profils||'battant']];
+  return {rows:B.rows,alu,glassArea,glassPanels,geom:{kind:'prims',moteur:'chassis',prims,sym,cells:cellsInfo,conf,W,H,profils:def.profils||'battant',rails,infos}};
+}
+/* ---------- Moteur « enroulable » : volets roulants, portes de garage enroulables, rideaux métalliques, grilles, moustiquaires ---------- */
+const OUV_TABLIERS={
+  '39':{code:'LAM-VR-39',label:'Lame alu 39 mm isolée',pas:39,ep:9,axe:60,max:3.5},
+  '55':{code:'LAM-VR-55',label:'Lame alu 55 mm',pas:55,ep:14,axe:60,max:6.5},
+  '77':{code:'LAM-GA-77',label:'Lame alu 77 mm (garage)',pas:77,ep:19,axe:70,max:14},
+  '100':{code:'LAM-RM-100',label:'Lame 100 mm de rideau métallique',pas:100,ep:20,axe:102,max:30},
+  'maille':{code:'LAM-RM-MAI',label:'Grille maillée (anneaux)',pas:0,ep:12,axe:102,max:30,surf:true},
+  'toile':{code:'TOI-MOU-ENR',label:'Toile moustiquaire enroulable',pas:0,ep:0.6,axe:32,max:4,surf:true}
+};
+function moteurEnroulable(def,W,H,qty,o,standing){
+  const T=OUV_TABLIERS[o.lame||def.lame||'39'], B=ouvBom(standing), prims=[];
+  const rideau=['100','maille'].includes(o.lame||def.lame), toile=(o.lame||def.lame)==='toile';
+  const C=toile?60:+o.coffre||(rideau?350:(o.lame||def.lame)==='77'?300:H<=1500?165:H<=2500?205:250);
+  const hT=Math.max(100,H-C), lL=W-(toile?30:50);
+  const cot=toile?25:rideau?90:45;
+  B.barre('P-ENR-COF',qty,W,toile?'Cassette de moustiquaire':rideau?'Caisson / coffre de rideau':null);
+  B.unit('QUI-JOU-001',qty);
+  B.barre('P-ENR-COU',2*qty,hT,rideau?'Coulisse de rideau 90 mm':null);
+  B.barre(rideau?'AXE-RM-102':'AXE-OCT-60',qty,W-20);
+  let nL=0;
+  if(T.surf){ B.surf(T.code,lL*(hT+300)/1e6*qty); }
+  else { nL=Math.ceil(hT/T.pas)+2; B.barre(T.code,nL*qty,lL); B.barre('LAM-FIN',qty,lL); B.unit('QUI-ATT-TAB',(Math.ceil(W/500)+1)*qty); }
+  const surf=W*H/1e6;
+  const man=o.manoeuvre||(surf>6||rideau?'moteur':'manivelle');
+  if(!toile){
+    if(man==='moteur') B.unit(rideau?'MOT-RID-001':'MOT-TUB-001',qty); else B.unit('QUI-MAN-001',qty);
+    if(rideau||(o.lame||def.lame)==='77') B.unit('QUI-SER-RID',qty);
+  }
+  B.unit('FIX-CHV-001',(4+Math.ceil(2*H/500))*qty);
+  // Diamètre d'enroulement du tablier (axe + épaisseur × longueur enroulée) — doit tenir dans le coffre
+  const Dr=Math.sqrt(T.axe*T.axe+4*T.ep*hT/Math.PI);
+  const conf=[{ok:Dr<=C-15,txt:`Enroulement Ø ${Math.round(Dr)} mm pour un coffre de ${C} mm${Dr>C-15?' : coffre trop petit, prendre '+(Math.ceil((Dr+20)/10)*10)+' mm':''}`}];
+  if(!T.surf) conf.push({ok:surf<=T.max,txt:`Surface ${surf.toFixed(1)} m² — ${T.label} admis jusqu'à ${T.max} m²${surf>T.max?' : choisir une lame plus forte':''}`});
+  if(!toile) conf.push({ok:man==='moteur'||surf<=6,txt:surf>6?'Au-delà de 6 m² : motorisation recommandée':'Manœuvre manuelle adaptée à la surface',info:true});
+  prims.push({m:'alu',x:0,y:0,w:W,h:C,d:C,z:0,layer:'dormant'});
+  prims.push({m:'alu',x:0,y:C,w:cot,h:hT,d:40,z:10,layer:'dormant'},{m:'alu',x:W-cot,y:C,w:cot,h:hT,d:40,z:10,layer:'dormant'});
+  if(T.surf) prims.push({m:toile?'toile':'maille',x:cot,y:C,w:W-2*cot,h:hT-40,d:4,z:20,layer:'vitrage'});
+  else { const nV=Math.ceil(hT/T.pas); for(let i=0;i<nV;i++){ const y=C+i*T.pas; prims.push({m:'lame',x:cot,y,w:W-2*cot,h:Math.min(T.pas-3,H-y),d:T.ep,z:20,layer:'vitrage'}); } }
+  prims.push({m:'aluF',x:cot,y:H-40,w:W-2*cot,h:40,d:30,z:18,layer:'ouvrant'});
+  return {rows:B.rows,alu:(W+2*hT+nL*lL)*qty/1000,glassArea:0,glassPanels:[],geom:{kind:'prims',moteur:'enroulable',prims,sym:[{ouv:'enrouleur',x:cot,y:C,w:W-2*cot,h:hT}],conf,W,H,C,Dr,T,nL,man,infos:[`Tablier : ${T.label}${nL?` — ${nL} lames de ${lL} mm`:''}`,`Coffre ${C} mm · coulisses ${cot} mm`,`Manœuvre : ${{moteur:'motorisée',manivelle:'treuil + manivelle',sangle:'sangle'}[man]||man}`]}};
+}
+/* ---------- Moteur « sectionnelle » : porte de garage à panneaux ---------- */
+function moteurSectionnelle(def,W,H,qty,o,standing){
+  const B=ouvBom(standing), prims=[];
+  const n=Math.max(3,Math.ceil(H/610)), ph=H/n;
+  B.surf('PAN-SEC-40',W*H/1e6*qty);
+  B.barre('P-SEC-RAIL',2*qty,H,'Rail vertical'); B.barre('P-SEC-RAIL',2*qty,H+300,'Rail horizontal');
+  B.unit('QUI-RES-TOR',(W>3000?2:1)*qty); B.unit('QUI-GAL-001',2*(n+1)*qty); B.unit('QUI-CHA-SEC',(n-1)*(Math.ceil(W/1000)+1)*qty);
+  B.lin('JNT-FRP-001',(2*H+W)*qty/1000,'Joint périphérique');
+  if(o.hublots>0) B.unit('VIT-HUB-001',o.hublots*qty);
+  if(o.moteur!==false) B.unit('MOT-PLA-001',qty); else B.unit('QUI-SER-RID',qty,'Serrure de porte sectionnelle');
+  const conf=[{ok:ph>=480&&ph<=620,txt:`${n} panneaux de ${Math.round(ph)} mm (standard 500-610 mm)`},{ok:W<=5500,txt:W>5500?'Largeur > 5,5 m : panneaux renforcés (raidisseurs) nécessaires':'Largeur standard, pas de raidisseur'},{ok:true,info:true,txt:'Retombée de linteau ≥ 200 mm et écoinçons ≥ 100 mm à vérifier sur site'}];
+  for(let i=0;i<n;i++){
+    const y=i*ph; prims.push({m:'panneau',x:0,y,w:W,h:ph-4,d:40,z:0,layer:'vitrage'});
+    const nr=4; for(let r=1;r<nr;r++) prims.push({m:'joint',x:12,y:y+r*ph/nr,w:W-24,h:3,d:41,z:0,layer:'ouvrant'});
+    if(i===1 && o.hublots>0){ const k=o.hublots, hw=Math.min(600,(W-200)/k-100); for(let j=0;j<k;j++) prims.push({m:'verre',x:(j+0.5)*W/k-hw/2,y:y+ph*0.3,w:hw,h:ph*0.4,d:6,z:0,layer:'vitrage'}); }
+  }
+  return {rows:B.rows,alu:(4*H+600)*qty/1000,glassArea:0,glassPanels:[],geom:{kind:'prims',moteur:'sectionnelle',prims,sym:[{ouv:'monte',x:0,y:0,w:W,h:H}],conf,W,H,n,ph,infos:[`${n} panneaux sandwich 40 mm de ${Math.round(ph)} mm`,`${W>3000?2:1} ressort(s) de torsion · ${2*(n+1)} galets`,o.moteur!==false?'Motorisation plafond':'Manœuvre manuelle']}};
+}
+/* ---------- Moteur « lames » : persiennes, volets battants, brise-soleil (orientables / fixes), claustras ---------- */
+function moteurLames(def,W,H,qty,o,standing){
+  const B=ouvBom(standing), prims=[], v=def.lames, sym=[];
+  const cfg={persienne:{code:'LAM-PER-50',pas:+o.pas||45,larg:50,cadre:true},volet:{code:'LAM-PER-50',pas:+o.pas||45,larg:50,cadre:true},
+    bso:{code:'LAM-BSO-80',pas:72,larg:80,cadre:false},bsfixe:{code:'LAM-BS-150',pas:+o.pas||200,larg:150,cadre:false},claustra:{code:'LAM-CLA-100',pas:+o.pas||160,larg:100,cadre:true,vertical:true}}[v];
+  const leaves=v==='volet'?Math.max(1,+o.leaves||2):1;
+  const cadre=40, vw=W/leaves;
+  let nTot=0;
+  for(let k=0;k<leaves;k++){
+    const x0=k*vw;
+    if(cfg.cadre){ B.barre('P-CAD-LAM',2*qty,vw); B.barre('P-CAD-LAM',2*qty,H);
+      prims.push({m:'alu',x:x0,y:0,w:vw,h:cadre,d:50,layer:'dormant'},{m:'alu',x:x0,y:H-cadre,w:vw,h:cadre,d:50,layer:'dormant'},{m:'alu',x:x0,y:cadre,w:cadre,h:H-2*cadre,d:50,layer:'dormant'},{m:'alu',x:x0+vw-cadre,y:cadre,w:cadre,h:H-2*cadre,d:50,layer:'dormant'}); }
+    const ic=cfg.cadre?cadre:0;
+    if(cfg.vertical){
+      const n=Math.floor((vw-2*ic)/cfg.pas); nTot+=n; const esp=(vw-2*ic)/n;
+      B.barre(cfg.code,n*qty,H-2*ic);
+      for(let i=0;i<n;i++) prims.push({m:'lame',x:x0+ic+i*esp+(esp-30)/2,y:ic,w:30,h:H-2*ic,d:cfg.larg,z:0,layer:'vitrage'});
+    } else {
+      const n=Math.ceil((H-2*ic)/cfg.pas); nTot+=n;
+      B.barre(cfg.code,n*qty,vw-2*ic-(cfg.cadre?0:0));
+      for(let i=0;i<n;i++){ const y=ic+i*cfg.pas; prims.push({m:'lame',x:x0+ic,y,w:vw-2*ic,h:Math.min(cfg.pas*0.8,H-ic-y),d:cfg.larg,z:0,layer:'vitrage'}); }
+    }
+    if(v==='volet') sym.push({ouv:k%2?'fr_d':'fr_g',x:x0,y:0,w:vw,h:H});
+  }
+  B.unit('QUI-EMB-LAM',2*nTot*qty);
+  if(v==='volet'){ B.unit('QUI-PEN-001',leaves*(H>1600?3:2)*qty); B.unit('QUI-ESP-001',qty); }
+  if(v==='bso'){ B.barre('P-ENR-COU',2*qty,H,'Coulisse de BSO'); B.barre('P-ENR-COF',qty,W,'Caisson de BSO'); B.unit('MOT-BSO-001',qty);
+    prims.push({m:'alu',x:0,y:0,w:W,h:120,d:120,layer:'dormant'},{m:'alu',x:0,y:120,w:30,h:H-120,d:40,layer:'dormant'},{m:'alu',x:W-30,y:120,w:30,h:H-120,d:40,layer:'dormant'}); }
+  if(v==='bsfixe'){ const nc=(Math.ceil(W/1500)+1); B.unit('FIX-CONS-BS',nc*Math.max(1,Math.ceil(H/1500))*qty); for(let i=0;i<nc;i++) prims.push({m:'aluF',x:i*(W-40)/(nc-1),y:0,w:40,h:H,d:cfg.larg+60,z:-20,layer:'dormant'}); }
+  if(cfg.cadre) B.unit('FIX-CHV-001',Math.ceil(2*(W+H)/500)*qty);
+  const conf=[];
+  if(v==='bso') conf.push({ok:W<=4500&&H<=4000,txt:`BSO ${W}×${H} : ${W<=4500&&H<=4000?'dans les limites courantes (L ≤ 4,5 m, H ≤ 4 m)':'hors limites courantes, fractionner'}`});
+  if(v==='bsfixe'||v==='claustra') conf.push({ok:true,info:true,txt:`Pas des lames ${cfg.pas} mm — occultation ≈ ${Math.min(100,Math.round(cfg.larg/cfg.pas*100))} %`});
+  if(v==='volet') conf.push({ok:vw<=900,txt:`Vantail de ${Math.round(vw)} mm${vw>900?' : > 900 mm, prévoir 2 vantaux supplémentaires ou un renfort':''}`});
+  return {rows:B.rows,alu:nTot*(cfg.vertical?H:vw)*qty/1000,glassArea:0,glassPanels:[],geom:{kind:'prims',moteur:'lames',variante:v,prims,sym,conf,W,H,cfg,nTot,infos:[`${nTot} lames ${cfg.larg} mm au pas de ${cfg.pas} mm`,{persienne:'Persienne / ventelles fixes',volet:`Volet battant ${leaves} vantail(aux)`,bso:'Brise-soleil orientable motorisé',bsfixe:'Brise-soleil fixe sur consoles',claustra:'Claustra à lames verticales'}[v]]}};
+}
+/* ---------- Moteur « pergola » : pergolas bioclimatiques / toiture fixe, carports, auvents ---------- */
+function moteurPergola(def,W,H,qty,o,standing){
+  const B=ouvBom(standing), prims=[], v=def.pergola;
+  const prof=Math.max(600,+o.prof||(v.startsWith('auvent')?1200:3500));
+  const adossee=def.adossee||o.adossee===true;
+  const conf=[];
+  if(v.startsWith('auvent')){
+    const nT=Math.ceil(W/1200)+1, e=24;
+    B.barre('P-AUV-MUR',qty,W);
+    B.surf('VIT-FEU-442',W*prof/1e6*qty,'Verre feuilleté 44.2 de couverture');
+    B.unit('TIR-INX-001',nT*qty);
+    if(v==='auvent_inox') B.unit('PIN-GI-001',nT*2*qty,'Pince / rotule de verre inox'); else { B.barre('P-MEN-001',2*qty,prof,'Chevron porteur'); B.barre('P-MEN-001',qty,W,'Profil de rive'); }
+    B.unit('FIX-CHV-001',(Math.ceil(W/400)+nT*2)*qty); B.unit('CON-001',Math.ceil(W/3000)*qty);
+    prims.push({m:'alu',x:0,y:H-80,w:W,h:80,d:60,z:0,layer:'dormant'});
+    prims.push({m:'verre',x:0,y:H-40,w:W,h:e,d:prof,z:0,layer:'vitrage'});
+    for(let i=0;i<nT;i++){ const x=i*(W-20)/(nT-1); prims.push({m:'inox',x,y:0,w:20,h:H-40,d:20,z:0,rx:true,prof,layer:'ouvrant'}); }
+    conf.push({ok:prof<=1500,txt:`Avancée ${prof} mm ${prof<=1500?'(≤ 1,5 m courante)':': au-delà de 1,5 m, étude de structure'}`},{ok:true,info:true,txt:'Verre feuilleté obligatoire en toiture (sécurité en cas de bris)'});
+    return {rows:B.rows,alu:W/1000,glassArea:W*prof/1e6*qty,glassPanels:[{code:'VIT-FEU-442',w:Math.round(W/Math.ceil(W/1500)),h:prof,qty:Math.ceil(W/1500)*qty}],geom:{kind:'prims',moteur:'pergola',variante:v,prims,sym:[],conf,W,H,prof,infos:[`Avancée ${prof} mm · ${nT} tirants inox`,v==='auvent_inox'?'Verre suspendu par pinces / rotules inox':'Cadre alu + verre feuilleté']}};
+  }
+  const P=150, PH=220;
+  const nFace=Math.max(2,Math.ceil(W/4500)+1);
+  const nPot=adossee?nFace:2*nFace;
+  B.barre('P-PER-POT',nPot*qty,H-PH);
+  B.barre('P-PER-POU',(adossee?1:2)*qty,W,'Poutre-chéneau de façade');
+  B.barre('P-PER-POU',2*qty,prof,'Poutre latérale');
+  if(adossee) B.unit('FIX-MUR-PER',Math.ceil(W/800)*qty);
+  B.unit('PLA-PER-001',nPot*qty);
+  let nL=0;
+  if(v==='bioclim'){ nL=Math.ceil((W-2*P)/190); B.barre('LAM-PER-200',nL*qty,prof-2*P); B.unit('QUI-EMB-LAM',2*nL*qty); B.unit('MOT-PER-001',Math.ceil(W/4500)*qty);
+    conf.push({ok:prof-2*P<=4500,txt:`Portée des lames ${prof-2*P} mm ${prof-2*P<=4500?'(≤ 4,5 m)':': > 4,5 m, poutre intermédiaire nécessaire'}`}); }
+  else { nL=Math.ceil(W/700)+1; B.barre('LAM-PER-FIX',nL*qty,prof,'Chevron de toiture'); B.surf(v==='carport'?'TOL-ALU-20':'VIT-POLY-16',W*prof/1e6*qty,v==='carport'?'Couverture tôle alu':null);
+    conf.push({ok:true,info:true,txt:'Pente de toiture ≥ 5 % vers le chéneau à prévoir'}); }
+  conf.push({ok:W/(nFace-1)<=4500,txt:`Entraxe des poteaux ${Math.round(W/(nFace-1))} mm (≤ 4,5 m sans renfort)`},{ok:H>=2200,txt:`Hauteur sous poutre ${H-PH} mm${H<2200?' : faible (< 2 m)':''}`});
+  // Géométrie 3D : poteaux avant (et arrière si autoportante), poutres, lames / chevrons
+  for(let i=0;i<nFace;i++){ const x=i*(W-P)/(nFace-1);
+    prims.push({m:'alu',x,y:PH,w:P,h:H-PH,d:P,z:0,layer:'dormant'});
+    if(!adossee) prims.push({m:'alu',x,y:PH,w:P,h:H-PH,d:P,z:prof-P,layer:'dormant',cache:true}); }
+  prims.push({m:'alu',x:0,y:0,w:W,h:PH,d:P,z:0,layer:'dormant'});
+  prims.push({m:'alu',x:0,y:0,w:W,h:PH,d:P,z:prof-P,layer:'dormant',cache:true});
+  prims.push({m:'alu',x:0,y:0,w:P,h:PH,d:prof,z:0,layer:'dormant',cache:true},{m:'alu',x:W-P,y:0,w:P,h:PH,d:prof,z:0,layer:'dormant',cache:true});
+  if(v==='bioclim') for(let i=0;i<nL;i++) prims.push({m:'lame',x:P+i*190,y:30,w:170,h:25,d:prof-2*P,z:P,layer:'vitrage',cache:true});
+  else { for(let i=0;i<nL;i++) prims.push({m:'aluF',x:Math.min(W-60,i*700),y:0,w:60,h:120,d:prof,z:0,layer:'ouvrant',cache:true}); prims.push({m:v==='carport'?'tole':'poly',x:0,y:-10,w:W,h:10,d:prof,z:0,layer:'vitrage',cache:true}); }
+  return {rows:B.rows,alu:((H-PH)*nPot+2*W+2*prof+nL*prof)*qty/1000,glassArea:0,glassPanels:[],geom:{kind:'prims',moteur:'pergola',variante:v,prims,sym:[],conf,W,H,prof,adossee,nL,infos:[`${nPot} poteaux 150×150 · avancée ${prof} mm${adossee?' · adossée':' · autoportante'}`,v==='bioclim'?`${nL} lames orientables 200 mm motorisées`:`${nL} chevrons + ${v==='carport'?'tôle':'polycarbonate 16 mm'}`]}};
+}
+/* ---------- Moteur « portail » : portails battants / coulissants, portillons, clôtures, grilles de défense ---------- */
+function moteurPortail(def,W,H,qty,o,standing){
+  const B=ouvBom(standing), prims=[], sym=[], v=def.portail, inox=def.mat==='inox';
+  const remp=o.remp||def.remp||'barreaux';
+  const cad=v==='defense'?25:inox?40:80, cadCode=v==='defense'?'TUB-ALU-25':inox?'TUB-INX-40':'TUB-ALU-80';
+  const barCode=v==='defense'?'BAR-DEF-012':inox?'TUB-INX-20':'TUB-ALU-25', bar=v==='defense'?12:inox?20:25;
+  const m=inox?'inox':'alu';
+  const conf=[];
+  // Découpage en vantaux / panneaux
+  let panneaux=[];
+  if(v==='cloture'){ const n=Math.ceil(W/2000); const pw=(W-(n+1)*80)/n; for(let i=0;i<n;i++) panneaux.push({x:80+i*(pw+80),w:pw}); 
+    B.barre('POT-CLO-001',(n+1)*qty,H+500,'Poteau de clôture (scellement 500 mm)'); for(let i=0;i<=n;i++) prims.push({m:'alu',x:i*(pw+80),y:0,w:80,h:H,d:80,layer:'dormant'}); }
+  else if(v==='coulissant'){ panneaux.push({x:0,w:W}); }
+  else { const n=v==='battant2'?2:1; const pw=W/n; for(let i=0;i<n;i++) panneaux.push({x:i*pw,w:pw}); }
+  let nBar=0;
+  panneaux.forEach((p,k)=>{
+    const ph=H, tr=ph>1200&&v!=='defense'?1:0;
+    B.barre(cadCode,2*qty,p.w); B.barre(cadCode,2*qty,ph-2*cad);
+    if(tr) B.barre(cadCode,qty,p.w-2*cad,'Traverse intermédiaire');
+    prims.push({m,x:p.x,y:0,w:p.w,h:cad,d:cad,layer:'dormant'},{m,x:p.x,y:ph-cad,w:p.w,h:cad,d:cad,layer:'dormant'},{m,x:p.x,y:cad,w:cad,h:ph-2*cad,d:cad,layer:'dormant'},{m,x:p.x+p.w-cad,y:cad,w:cad,h:ph-2*cad,d:cad,layer:'dormant'});
+    if(tr) prims.push({m,x:p.x+cad,y:ph/2-cad/2,w:p.w-2*cad,h:cad,d:cad,layer:'dormant'});
+    const iw=p.w-2*cad, ih=ph-2*cad;
+    if(remp==='barreaux'){
+      const n=Math.max(1,Math.ceil((iw-110)/(110+bar))); nBar+=n; const esp=iw/(n+1);
+      B.barre(barCode,n*qty,ih);
+      for(let i=1;i<=n;i++) prims.push({m,x:p.x+cad+i*esp-bar/2,y:cad,w:bar,h:ih,d:bar,layer:'vitrage',cyl:inox||v==='defense'});
+      if(esp-bar>110) conf.push({ok:false,txt:`Vide entre barreaux ${Math.round(esp-bar)} mm > 110 mm`});
+    } else if(remp==='lames'||remp==='ajoure'){
+      const pas=remp==='ajoure'?175:150, n=Math.ceil(ih/pas); nBar+=n;
+      B.barre('LAM-POR-150',n*qty,iw,remp==='ajoure'?'Lame ajourée 150 mm (jour 25 mm)':null);
+      for(let i=0;i<n;i++){ const y=cad+i*pas; prims.push({m:'lame',x:p.x+cad,y,w:iw,h:Math.min(146,ph-cad-y),d:30,layer:'vitrage'}); }
+    } else {
+      B.surf(inox?'TOL-PERF-INX':'TOL-ALU-20',iw*ih/1e6*qty,inox?null:'Tôle alu pleine 2 mm');
+      prims.push({m:inox?'tolePerf':'tole',x:p.x+cad,y:cad,w:iw,h:ih,d:4,layer:'vitrage'});
+    }
+    if(v==='battant2'||v==='battant1') sym.push({ouv:(k===0?'porte_g':'porte_d'),x:p.x,y:0,w:p.w,h:H});
+  });
+  if(v==='battant2'||v==='battant1'){ const nv=v==='battant2'?2:1; B.unit('QUI-GON-001',nv*(H>2000?3:2)*qty); B.unit('QUI-SER-POR',qty); if(nv===2) B.unit('QUI-VER-001',qty,'Verrou baïonnette au sol'); if(o.moteur) B.unit('MOT-POR-BAT',qty); }
+  if(v==='coulissant'){ B.barre('P-RAI-SOL',qty,2*W,'Rail au sol (course + vantail)'); B.unit('QUI-ROU-POR',(W>4000?3:2)*qty); B.unit('QUI-GUI-POR',qty); B.unit('QUI-SER-POR',qty); B.unit('QUI-BUT-001',2*qty); if(o.moteur) B.unit('MOT-POR-COU',qty);
+    prims.push({m:'aluF',x:0,y:H-20,w:W,h:20,d:40,z:-10,layer:'dormant'}); [0.2,0.8].forEach(f=>prims.push({m:'aluF',x:W*f-60,y:H-50,w:120,h:30,d:40,layer:'ouvrant'})); sym.push({ouv:'coul_g',x:0,y:0,w:W,h:H}); }
+  if(v==='defense'){ B.unit('FIX-SCE-001',(4+2*Math.floor((W+H)/1000))*qty); conf.push({ok:!conf.some(c=>!c.ok),txt:'Barreaudage anti-intrusion : vide ≤ 110 mm'}); }
+  if(v==='cloture') conf.push({ok:H<=2000,txt:`Hauteur ${H} mm${H>2000?' : > 2 m, vérifier le règlement d’urbanisme':''}`,info:H<=2000});
+  if(v!=='defense'&&v!=='cloture'){ const vl=W/(v==='battant2'?2:1), lim=v==='coulissant'?6000:2500; conf.push({ok:vl<=lim,txt:`Vantail de ${Math.round(vl)} mm${vl>lim?` : > ${lim/1000} m, cadre renforcé / étude`:''}`}); }
+  if(inox) conf.push({ok:true,info:true,txt:'Bord de mer / milieu salin : inox 316 (A4) recommandé'});
+  return {rows:B.rows,alu:B.rows.filter(r=>r[3]>0).reduce((s,r)=>s+r[2]*r[3],0)/1000,glassArea:0,glassPanels:[],geom:{kind:'prims',moteur:'portail',variante:v,prims,sym,conf,W,H,remp,infos:[{battant2:'Portail battant 2 vantaux',battant1:'Portillon / portail 1 vantail',coulissant:'Portail coulissant sur rail',cloture:'Clôture sur poteaux',defense:'Grille de défense fixe'}[v],`Cadre ${inox?'inox 40×40':v==='defense'?'25×25':'alu 80×40'} · remplissage ${({barreaux:'barreaudage',lames:'lames pleines',ajoure:'lames ajourées',tole:inox?'tôle perforée':'tôle pleine'})[remp]}`]}};
+}
+/* ---------- Moteur « garde-corps » (NF P01-012) : alu / inox, barreaux, lisses, câbles, verre, tôle, rampes, mains courantes ---------- */
+function moteurGardeCorps(def,W,H,qty,o,standing){
+  const B=ouvBom(standing), prims=[], inox=def.mat==='inox', m=inox?'inox':'alu';
+  const remp=o.remp||def.remp, pente=Math.max(0,Math.min(45,+o.pente||def.pente||0)), rad=pente*Math.PI/180;
+  const Ld=W/Math.cos(rad);
+  const conf=[];
+  const hMin=def.piscine?1100:pente>0?900:1000;
+  if(def.murale){
+    const nS=Math.ceil(Ld/1000)+1;
+    B.barre(inox?'MC-GI-001':'MC-ALU-001',qty,Ld); B.unit('SUP-MC-001',nS*qty); B.unit('QUI-EMB-MC',2*qty); B.unit('FIX-CHV-001',nS*3*qty);
+    prims.push({m,x:0,y:0,w:W,h:42,d:42,z:60,cyl:inox,layer:'dormant'});
+    for(let i=0;i<nS;i++) prims.push({m,x:i*(W-20)/(nS-1),y:42,w:20,h:60,d:60,z:0,layer:'ouvrant'});
+    conf.push({ok:H>=800&&H<=1000,txt:`Hauteur de pose ${H} mm (main courante d'escalier : 800-1 000 mm)`},{ok:nS>=2,txt:`${nS} supports (1 tous les ≤ 1 000 mm)`});
+    return {rows:B.rows,alu:Ld*qty/1000,glassArea:0,glassPanels:[],geom:{kind:'prims',moteur:'gardecorps',prims,sym:[],conf,W,H:120,Hreel:H,pente,infos:[`Main courante Ø42,4 · ${nS} supports muraux`,pente?`Rampant ${pente}° — longueur développée ${Math.round(Ld)} mm`:'Horizontale']}};
+  }
+  const sabot=remp==='verre_sabot';
+  const spacing=+o.spacing||(inox?1000:1200);
+  const nP=sabot?0:Math.ceil(Ld/spacing)+1, travee=sabot?Ld:Ld/(nP-1);
+  const mc=!sabot||o.mainCourante!==false;
+  const Pw=inox?42:50;
+  if(nP) B.barre(inox?'POT-GI-001':'POT-ALU-001',nP*qty,H);
+  if(mc) B.barre(inox?'MC-GI-001':'MC-ALU-001',qty,Ld);
+  if(nP){ if((o.fixation||'dalle')==='anglaise') B.unit('FIX-ANG-001',nP*qty); else B.unit('PLA-GI-001',nP*qty,inox?null:'Platine de fixation'); }
+  // Poteaux et main courante (dessin à plat, cisaillé ensuite pour les rampants)
+  for(let i=0;i<nP;i++) prims.push({m,x:i*(W-Pw)/(nP-1),y:0,w:Pw,h:H,d:Pw,cyl:inox,layer:'dormant'});
+  if(mc) prims.push({m,x:0,y:0,w:W,h:inox?42:50,d:inox?42:60,cyl:inox,horiz:true,layer:'dormant'});
+  const iw=W/Math.max(1,nP-1||1);
+  if(remp==='barreaux'){
+    const b=inox?12:20, nb=Math.ceil(Ld/(110+b))-nP; const esp=(110+b)*Math.cos(rad);
+    B.barre(inox?'BAR-GI-001':'LIS-ALU-001',nb*qty,H-160,inox?null:'Barreau aluminium 20×20');
+    B.barre(inox?'LIS-GI-012':'LIS-ALU-001',qty,Ld,'Lisse basse');
+    prims.push({m,x:0,y:H-100,w:W,h:20,d:20,layer:'dormant'});
+    for(let x=esp;x<W-10;x+=esp) prims.push({m,x:x-b/2,y:60,w:b,h:H-160,d:b,cyl:inox,layer:'vitrage'});
+    conf.push({ok:110<=110,txt:'Vide entre barreaux ≤ 110 mm (tête d’enfant)'});
+  } else if(remp==='lisses'||remp==='cables'){
+    const ys=[]; for(let y=100;y<600;y+=110) ys.push(y); for(let y=ys[ys.length-1]+180;y<=H-150;y+=180) ys.push(y);
+    const n=ys.length;
+    if(remp==='cables'){ B.barre('CAB-GI-001',n*qty,Ld); B.unit('TEN-GI-001',2*n*qty); } else B.barre(inox?'LIS-GI-012':'LIS-ALU-001',n*qty,Ld,inox?null:'Lisse horizontale alu');
+    ys.forEach(y=>prims.push({m,x:0,y:H-y,w:W,h:remp==='cables'?6:12,d:remp==='cables'?6:12,cyl:inox,horiz:true,layer:'vitrage'}));
+    conf.push({ok:true,txt:`${n} ${remp==='cables'?'câbles':'lisses'} : écart ≤ 110 mm sous 600 mm puis ≤ 180 mm`},{ok:false,info:true,txt:'Éléments horizontaux escaladables : à éviter si des enfants fréquentent le lieu (zone basse de 600 mm)'});
+  } else if(remp==='verre_sabot'||remp==='verre_pinces'){
+    const nv=sabot?Math.ceil(Ld/1500):Math.max(1,nP-1), vw=Ld/nv-(sabot?10:60), vh=H-(sabot?(mc?140:100):200);
+    B.surf('VIT-FEU-442',nv*vw*vh/1e6*qty);
+    if(sabot){ B.barre('P-SAB-001',qty,Ld); B.unit('QUI-CAL-SAB',Math.ceil(Ld/250)*qty); prims.push({m:'alu',x:0,y:H-100,w:W,h:100,d:70,layer:'dormant'}); }
+    else B.unit('PIN-GI-001',4*nv*qty);
+    for(let i=0;i<nv;i++){ const x0=sabot?i*W/nv+5:i*iw+Pw/2+30; prims.push({m:'verre',x:x0,y:sabot?(mc?50:0):120,w:sabot?W/nv-10:iw-Pw-60,h:vh,d:17,layer:'vitrage'}); }
+    conf.push({ok:true,txt:'Verre feuilleté 44.2 minimum (maintien en cas de bris)'});
+    if(sabot) conf.push({ok:!o.mainCourante===false||mc,info:true,txt:mc?'Main courante de liaison posée sur le verre':'Sans main courante : verre feuilleté renforcé (55.2 / 66.2) selon la hauteur'});
+  } else if(remp==='tole'){
+    const nt=Math.max(1,nP-1);
+    B.surf('TOL-PERF-INX',nt*(iw-Pw-40)*(H-200)/1e6*qty); B.unit('PIN-GI-001',4*nt*qty,'Fixation de tôle inox');
+    for(let i=0;i<nt;i++) prims.push({m:'tolePerf',x:i*iw+Pw/2+20,y:100,w:iw-Pw-40,h:H-200,d:4,layer:'vitrage'});
+    conf.push({ok:true,txt:'Remplissage plein : zone basse non escaladable conforme'});
+  }
+  conf.unshift({ok:H>=hMin,txt:`Hauteur ${H} mm ${H>=hMin?'≥':'<'} ${hMin} mm${def.piscine?' (NF P90-306, piscine)':pente>0?' (NF P01-012, rampant)':' (NF P01-012)'}`});
+  if(nP) conf.push({ok:travee<=(inox?1500:1600),txt:`Entraxe des poteaux ${Math.round(travee)} mm`});
+  if(pente) conf.push({ok:true,info:true,txt:`Rampant ${pente}° : hauteur ≥ 900 mm mesurée à l’aplomb des nez de marche, main courante continue`});
+  if(inox) conf.push({ok:true,info:true,txt:'Extérieur / bord de mer : inox 316 (A4) recommandé'});
+  return {rows:B.rows,alu:B.rows.filter(r=>r[3]>0).reduce((s,r)=>s+r[2]*r[3],0)/1000,glassArea:B.rows.filter(r=>r[0]==='VIT-FEU-442').reduce((s,r)=>s+r[2],0),glassPanels:[],geom:{kind:'prims',moteur:'gardecorps',prims,sym:[],conf,W,H,pente,remp,infos:[`${nP?nP+' poteaux · ':''}longueur ${pente?'développée ':''}${Math.round(Ld)} mm`,`Remplissage : ${({barreaux:'barreaudage vertical',lisses:'lisses horizontales',cables:'câbles inox tendus',verre_sabot:'verre sur sabot',verre_pinces:'verre à pinces',tole:'tôle perforée'})[remp]}`]}};
+}
+/* ---------- Moteur « douche » : parois et portes de douche en verre trempé, profils et ferrures inox ---------- */
+function moteurDouche(def,W,H,qty,o,standing){
+  const B=ouvBom(standing), prims=[], sym=[], v=def.douche, conf=[];
+  const panneaux=[]; // {x,w,retour}
+  if(v==='walkin') panneaux.push({x:0,w:W,fixe:true});
+  if(v==='pivot'){ const pw=Math.min(W,+o.porteW||700); if(W-pw>150) panneaux.push({x:0,w:W-pw,fixe:true}); panneaux.push({x:W-pw,w:pw,porte:true}); }
+  if(v==='coulissante'){ const f=W/2+30; panneaux.push({x:0,w:f,fixe:true},{x:W/2-30,w:f,coul:true}); }
+  if(v==='angle'){ const r=+o.retour||900; panneaux.push({x:0,w:W-600,fixe:true},{x:W-600,w:600,porte:true},{x:W+40,w:r,fixe:true,retour:true}); }
+  let s=0;
+  panneaux.forEach(p=>{ s+=p.w*(H-20)/1e6; prims.push({m:'verre',x:p.x,y:0,w:p.w,h:H-20,d:8,z:p.coul?20:0,layer:p.porte||p.coul?'ouvrant':'vitrage',ry:p.retour?true:false});
+    if(p.porte) sym.push({ouv:'porte_d',x:p.x,y:0,w:p.w,h:H-20}); if(p.coul) sym.push({ouv:'coul_g',x:p.x,y:0,w:p.w,h:H-20}); });
+  B.surf('VIT-TRE-8',s*qty);
+  B.barre('P-DOU-MUR',(v==='angle'?2:1)*qty,H);
+  prims.push({m:'inox',x:-20,y:0,w:20,h:H,d:30,layer:'dormant'});
+  if(v==='walkin'){ B.unit('BAR-STA-INX',qty); prims.push({m:'inox',x:W*0.3,y:0,w:W*0.7,h:20,d:20,cyl:true,horiz:true,layer:'dormant'}); }
+  if(v==='pivot'||v==='angle'){ B.unit('QUI-CHA-DOU',2*qty); B.unit('QUI-POI-DOU',qty); }
+  if(v==='coulissante'){ B.barre('P-DOU-RAIL',qty,W); B.unit('QUI-ROU-DOU',2*qty); B.unit('QUI-POI-DOU',qty); prims.push({m:'inox',x:0,y:0,w:W,h:30,d:30,layer:'dormant'}); }
+  B.lin('JNT-DOU-001',((v==='angle'?4:2)*H+W)*qty/1000); B.unit('CON-001',qty,'Silicone sanitaire');
+  conf.push({ok:true,txt:'Verre trempé de sécurité 8 mm (EN 12150)'});
+  if(v==='walkin') conf.push({ok:W>=900,txt:`Paroi de ${W} mm${W<900?' : étroite, risque d’éclaboussures':''}`,info:W>=900});
+  if(v==='pivot') conf.push({ok:(+o.porteW||700)>=600,txt:`Passage de porte ${(+o.porteW||700)} mm (≥ 600 mm)`});
+  return {rows:B.rows,alu:H*qty/1000,glassArea:s*qty,glassPanels:panneaux.map(p=>({code:'VIT-TRE-8',w:Math.round(p.w),h:H-20,qty})),geom:{kind:'prims',moteur:'douche',variante:v,prims,sym,conf,W:v==='angle'?W+40+(+o.retour||900):W,H,infos:[{walkin:'Paroi fixe walk-in + barre de stabilisation',pivot:'Porte pivotante sur charnières verre-mur',coulissante:'Porte coulissante sur rail inox',angle:`Cabine d’angle, retour ${+o.retour||900} mm`}[v],'Verre trempé 8 mm, ferrures inox']}};
+}
+/* ---------- Moteur « habillage » : bardage composite aluminium (ACM) en cassettes ---------- */
+function moteurHabillage(def,W,H,qty,o,standing){
+  const B=ouvBom(standing), prims=[], conf=[];
+  const j=+o.joint||12, mw=+o.modW||1000, mh=+o.modH||1500, ret=40;
+  const nx=Math.max(1,Math.ceil(W/mw-0.001)), ny=Math.max(1,Math.ceil(H/mh-0.001));
+  const cw=W/nx-j, ch=H/ny-j, n=nx*ny;
+  const dw=cw+2*ret, dh=ch+2*ret;
+  const pl=o.plaque==='1250'?[1250,3200]:[1500,4000];
+  const fit=(a,b)=>Math.floor(pl[0]/a)*Math.floor(pl[1]/b);
+  const parPlaque=Math.max(fit(dw,dh),fit(dh,dw));
+  const nPl=parPlaque>0?Math.ceil(n/parPlaque):n;
+  const surfPl=nPl*pl[0]*pl[1]/1e6, surfUtile=n*dw*dh/1e6;
+  B.surf('ACM-004',surfPl*qty,`Panneau composite 4 mm — ${nPl} plaque(s) ${pl[0]}×${pl[1]}`);
+  const nRails=nx+1+(cw>700?nx:0);
+  B.barre('P-OSS-OME',nRails*qty,H);
+  B.unit('FIX-EQU-ACM',nRails*(Math.ceil(H/1000)+1)*qty);
+  B.unit('FIX-RIV-001',Math.ceil(n*2*(cw+ch)/300)*qty);
+  B.unit('FIX-CHV-001',nRails*(Math.ceil(H/1000)+1)*qty);
+  conf.push({ok:parPlaque>0,txt:parPlaque>0?`Cassette développée ${Math.round(dw)}×${Math.round(dh)} mm : ${parPlaque} par plaque`:`Cassette développée ${Math.round(dw)}×${Math.round(dh)} mm : dépasse la plaque ${pl[0]}×${pl[1]}`},
+    {ok:surfPl?surfUtile/surfPl>=0.75:true,info:true,txt:`Taux d’utilisation matière ${surfPl?Math.round(surfUtile/surfPl*100):0} % (chutes ${surfPl?Math.round((1-surfUtile/surfPl)*100):0} %)`},
+    {ok:j>=10&&j<=20,txt:`Joint creux ${j} mm (10-20 mm)`});
+  for(let r=0;r<ny;r++) for(let c=0;c<nx;c++) prims.push({m:'acm',x:c*(cw+j)+j/2,y:r*(ch+j)+j/2,w:cw,h:ch,d:40,z:0,layer:'vitrage'});
+  for(let i=0;i<nRails;i++) prims.push({m:'aluF',x:i*(W-40)/(nRails-1),y:0,w:40,h:H,d:40,z:45,layer:'dormant',cache:true});
+  return {rows:B.rows,alu:nRails*H*qty/1000,glassArea:0,glassPanels:[],geom:{kind:'prims',moteur:'habillage',prims,sym:[],conf,W,H,nx,ny,cw,ch,j,ret,nPl,parPlaque,pl,infos:[`${n} cassettes ${Math.round(cw)}×${Math.round(ch)} mm (retours ${ret} mm)`,`${nPl} plaque(s) ${pl[0]}×${pl[1]} · ${nRails} rails oméga`]}};
+}
+/* ---------- Définition des ouvrages : famille, matériau, moteur, cotes par défaut, paramètres, disposition ---------- */
+const OP={ // paramètres réutilisables
+  sens:{k:'sens',label:'Sens (vu de l’intérieur)',type:'sel',def:'d',opts:[['g','Ferrage gauche'],['d','Ferrage droit']]},
+  imposte:{k:'imposteH',label:'Imposte (mm, 0 = sans)',type:'num',def:0,min:0,max:1500,step:50},
+  imposteOuv:{k:'imposteOuv',label:'Imposte',type:'sel',def:'fixe',opts:[['fixe','Fixe'],['souf','Soufflet'],['proj','Projetante']]},
+  allege:{k:'allegeH',label:'Allège (mm, 0 = sans)',type:'num',def:0,min:0,max:1200,step:50},
+  allegeRemp:{k:'allegeRemp',label:'Remplissage allège',type:'sel',def:'pan',opts:[['pan','Panneau sandwich'],['tole','Tôle alu'],['vs','Verre feuilleté']]},
+  rempPorte:{k:'remp',label:'Remplissage',type:'sel',def:'vs',opts:[['vs','Verre feuilleté 44.2'],['v','Vitrage choisi'],['pan','Panneau sandwich'],['tole','Tôle alu']]},
+  rempFixe:{k:'rempFixe',label:'Remplissage des fixes',type:'sel',def:'vs',opts:[['vs','Verre feuilleté 44.2'],['v','Vitrage choisi'],['v10','Verre trempé 10 mm']]},
+  soub:{k:'soub',label:'Soubassement plein (mm)',type:'num',def:0,min:0,max:1200,step:50},
+  serrure:{k:'serrure',label:'Serrure',type:'sel',def:'std',opts:[['std','Serrure 1 point + cylindre'],['3p','Serrure 3 points']]},
+  fermePorte:{k:'fermePorte',label:'Ferme-porte',type:'bool',def:false},
+  moteur:{k:'moteur',label:'Motorisation',type:'bool',def:false},
+  prof:(d)=>({k:'prof',label:'Avancée / profondeur (mm)',type:'num',def:d,min:600,max:7000,step:100})
+};
+const _s=o=>o.sens==='g'?'g':'d';
+const TYPES_OUVRAGES={
+  /* ---- Fenêtres & châssis ---- */
+  'Fenêtre à la française 1 vantail':{famille:'fenetres',mat:'alu',moteur:'chassis',profils:'battant',dim:[700,1200],desc:'Ouvrant battant sur paumelles, crémone 1 point.',params:[OP.sens,OP.imposte,OP.imposteOuv,OP.allege],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'fr_'+_s(o)}],o)},
+  'Fenêtre à la française 2 vantaux':{famille:'fenetres',mat:'alu',moteur:'chassis',profils:'battant',dim:[1200,1350],desc:'Vantail principal (crémone) + semi-fixe (verrous), battement central sans meneau.',params:[OP.imposte,OP.imposteOuv,OP.allege],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'fr_g',sansMeneau:true},{ouv:'fr_d'}],o)},
+  'Fenêtre à la française 3 vantaux':{famille:'fenetres',mat:'alu',moteur:'chassis',profils:'battant',dim:[1800,1350],desc:'2 vantaux en battement + 1 vantail séparé par un meneau.',params:[{k:'v3',label:'3e vantail',type:'sel',def:'fr_d',opts:[['fr_d','Ouvrant'],['fixe','Fixe']]},OP.imposte,OP.allege],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'fr_g',sansMeneau:true},{ouv:'fr_d'},{ouv:o.v3||'fr_d'}],o)},
+  'Fenêtre oscillo-battante 1 vantail':{famille:'fenetres',mat:'alu',moteur:'chassis',profils:'battant',dim:[700,1250],desc:'Ouverture à la française + basculement en partie haute (ventilation sécurisée).',params:[OP.sens,OP.imposte,OP.allege],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'ob_'+_s(o)}],o)},
+  'Fenêtre oscillo-battante 2 vantaux':{famille:'fenetres',mat:'alu',moteur:'chassis',profils:'battant',dim:[1300,1350],desc:'Vantail oscillo-battant + vantail semi-fixe à la française.',params:[OP.imposte,OP.allege],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'ob_g',sansMeneau:true},{ouv:'fr_d'}],o)},
+  'Fenêtre à soufflet (abattant)':{famille:'fenetres',mat:'alu',moteur:'chassis',profils:'battant',dim:[800,500],desc:'Axe en partie basse, ouverture vers l’intérieur par le haut (compas limiteurs). Sanitaires, impostes.',params:[OP.allege],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'souf'}],o)},
+  'Fenêtre projetante à l’italienne':{famille:'fenetres',mat:'alu',moteur:'chassis',profils:'battant',dim:[800,800],desc:'Ouvrant projeté vers l’extérieur sur bras à compas, protège de la pluie : très répandue en climat tropical.',params:[{k:'nx',label:'Nombre de vantaux',type:'num',def:1,min:1,max:4},OP.allege],
+    plan:(W,H,o)=>layColonnes(W,H,Array.from({length:Math.max(1,+o.nx||1)},()=>({ouv:'proj'})),o)},
+  'Fenêtre basculante':{famille:'fenetres',mat:'alu',moteur:'chassis',profils:'battant',dim:[1000,1000],desc:'Rotation sur axe horizontal médian (pivots latéraux) ; nettoyage des deux faces depuis l’intérieur.',params:[OP.allege],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'basc'}],o)},
+  'Fenêtre pivotante verticale':{famille:'fenetres',mat:'alu',moteur:'chassis',profils:'battant',dim:[900,1500],desc:'Rotation sur axe vertical (pivots haut / bas).',params:[OP.allege],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'piv'}],o)},
+  'Châssis fixe (grille)':{famille:'fenetres',mat:'alu',moteur:'chassis',profils:'battant',dim:[1500,1200],desc:'Châssis fixe, découpé en carreaux par meneaux et traverses.',params:[{k:'nx',label:'Colonnes',type:'num',def:1,min:1,max:8},{k:'ny',label:'Rangées',type:'num',def:1,min:1,max:6}],
+    plan:(W,H,o)=>layGrille(W,H,Math.max(1,+o.nx||1),Math.max(1,+o.ny||1))},
+  'Châssis composé fixe + ouvrant':{famille:'fenetres',mat:'alu',moteur:'chassis',profils:'battant',dim:[1800,1400],desc:'Partie fixe + vantail ouvrant séparés par un meneau.',params:[{k:'ouvW',label:'Largeur de l’ouvrant (mm)',type:'num',def:600,min:300,max:1000,step:50},{k:'ouvT',label:'Ouvrant',type:'sel',def:'fr',opts:[['fr','À la française'],['ob','Oscillo-battant'],['proj','Projetant']]},OP.sens,OP.imposte,OP.allege],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'fixe'},{ouv:o.ouvT==='proj'?'proj':(o.ouvT||'fr')+'_'+_s(o),w:+o.ouvW||600}],o)},
+  'Fenêtre avec imposte':{famille:'fenetres',mat:'alu',moteur:'chassis',profils:'battant',dim:[1200,1900],desc:'2 vantaux à la française sous une imposte fixe ou à soufflet (traverse intermédiaire).',params:[{...OP.imposte,def:450},OP.imposteOuv,{k:'imposteCols',label:'Carreaux d’imposte',type:'num',def:1,min:1,max:4}],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'fr_g',sansMeneau:true},{ouv:'fr_d'}],o)},
+  'Fenêtre à guillotine':{famille:'fenetres',mat:'alu',moteur:'chassis',profils:'guillotine',dim:[900,1500],desc:'Châssis bas coulissant verticalement devant le châssis haut fixe, équilibré par ressorts.',params:[],
+    plan:(W,H,o)=>({cells:[{x:0,y:0,w:W,h:H/2,ouv:'fixe',remp:'v',zone:'Châssis haut'},{x:0,y:H/2,w:W,h:H/2,ouv:'guil',remp:'v',zone:'Châssis bas'}],bars:[{o:'h',x:0,y:H/2,l:W}]})},
+  /* ---- Coulissants, baies & pliants ---- */
+  'Baie coulissante 2 vantaux':{famille:'coulissants',mat:'alu',moteur:'chassis',profils:'coulissant',rails:2,dim:[2400,2200],desc:'2 vantaux mobiles sur rail double, fermeture à crochet.',params:[OP.imposte,OP.allege],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'coul_d',sansMeneau:true},{ouv:'coul_g'}],o)},
+  'Baie coulissante 3 vantaux 3 rails':{famille:'coulissants',mat:'alu',moteur:'chassis',profils:'coulissant',rails:3,dim:[3000,2200],desc:'3 vantaux mobiles sur 3 rails : ouverture des 2/3 de la baie.',params:[OP.imposte],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'coul_d',sansMeneau:true},{ouv:'coul_d',sansMeneau:true},{ouv:'coul_g'}],o)},
+  'Baie coulissante 4 vantaux (2 fixes + 2 mobiles)':{famille:'coulissants',mat:'alu',moteur:'chassis',profils:'coulissant',rails:2,dim:[4000,2200],desc:'Vantaux centraux mobiles glissant devant les fixes latéraux : ouverture centrale.',params:[OP.imposte],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'coul_f',sansMeneau:true},{ouv:'coul_g',sansMeneau:true},{ouv:'coul_d',sansMeneau:true},{ouv:'coul_f'}],o)},
+  'Baie coulissante 6 vantaux 3 rails':{famille:'coulissants',mat:'alu',moteur:'chassis',profils:'coulissant',rails:3,dim:[5400,2400],desc:'Très grande baie : ouverture centrale des 4 vantaux mobiles.',params:[OP.imposte],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'coul_f',sansMeneau:true},{ouv:'coul_g',sansMeneau:true},{ouv:'coul_g',sansMeneau:true},{ouv:'coul_d',sansMeneau:true},{ouv:'coul_d',sansMeneau:true},{ouv:'coul_f'}],o)},
+  'Coulissant 1 vantail + fixe':{famille:'coulissants',mat:'alu',moteur:'chassis',profils:'coulissant',rails:2,dim:[1800,1200],desc:'1 vantail mobile devant un vantail fixe.',params:[OP.sens,OP.allege],
+    plan:(W,H,o)=>layColonnes(W,H,_s(o)==='g'?[{ouv:'coul_d',sansMeneau:true},{ouv:'coul_f'}]:[{ouv:'coul_f',sansMeneau:true},{ouv:'coul_g'}],o)},
+  'Levant-coulissant (grande baie)':{famille:'coulissants',mat:'alu',moteur:'chassis',profils:'levant',rails:2,dim:[4000,2400],desc:'Le vantail se soulève à la manœuvre puis coulisse : grands vantaux lourds (jusqu’à 300-400 kg), étanchéité élevée.',params:[OP.sens],
+    plan:(W,H,o)=>layColonnes(W,H,_s(o)==='g'?[{ouv:'lev_d',sansMeneau:true},{ouv:'coul_f'}]:[{ouv:'coul_f',sansMeneau:true},{ouv:'lev_g'}],o)},
+  'Porte-fenêtre coulissante avec imposte':{famille:'coulissants',mat:'alu',moteur:'chassis',profils:'coulissant',rails:2,dim:[2400,2700],desc:'Baie 2 vantaux sous imposte fixe (traverse).',params:[{...OP.imposte,def:500},{k:'imposteCols',label:'Carreaux d’imposte',type:'num',def:2,min:1,max:4}],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'coul_d',sansMeneau:true},{ouv:'coul_g'}],o)},
+  'Porte pliante accordéon':{famille:'coulissants',mat:'alu',moteur:'chassis',profils:'pliant',dim:[3600,2300],desc:'Vantaux articulés repliés en paquet sur le côté, suspendus à un rail haut : ouverture totale.',params:[{k:'n',label:'Nombre de vantaux',type:'num',def:4,min:2,max:8}],
+    plan:(W,H,o)=>layColonnes(W,H,Array.from({length:Math.max(2,+o.n||4)},()=>({ouv:'pli',sansMeneau:true,remp:'vs'})),o)},
+  /* ---- Portes ---- */
+  'Porte d’entrée 1 vantail':{famille:'portes',mat:'alu',moteur:'chassis',profils:'porte',porte:true,dim:[950,2150],desc:'Vantail sur paumelles renforcées, seuil alu, serrure + cylindre.',params:[OP.sens,OP.rempPorte,OP.soub,OP.serrure,OP.fermePorte,OP.imposte],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'porte_'+_s(o),remp:o.remp||'vs',soub:+o.soub||0}],o)},
+  'Porte tiercée (vantail + semi-fixe)':{famille:'portes',mat:'alu',moteur:'chassis',profils:'porte',porte:true,dim:[1300,2150],desc:'Vantail principal + petit vantail semi-fixe (1/3) ouvrable pour le passage d’objets.',params:[{k:'tierce',label:'Largeur du semi-fixe (mm)',type:'num',def:400,min:250,max:700,step:50},OP.rempPorte,OP.soub,OP.serrure,OP.fermePorte],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'porte_g',w:+o.tierce||400,remp:o.remp||'vs',soub:+o.soub||0,sansMeneau:true},{ouv:'porte_d',remp:o.remp||'vs',soub:+o.soub||0}],o)},
+  'Porte 2 vantaux':{famille:'portes',mat:'alu',moteur:'chassis',profils:'porte',porte:true,dim:[1600,2200],desc:'2 vantaux égaux en battement (verrous haut et bas sur le semi-fixe).',params:[OP.rempPorte,OP.soub,OP.serrure,OP.fermePorte,OP.imposte],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'porte_g',remp:o.remp||'vs',soub:+o.soub||0,sansMeneau:true},{ouv:'porte_d',remp:o.remp||'vs',soub:+o.soub||0}],o)},
+  'Porte-fenêtre 1 vantail':{famille:'portes',mat:'alu',moteur:'chassis',profils:'battant',porte:true,dim:[900,2150],desc:'Ouvrant vitré toute hauteur donnant sur balcon / terrasse, soubassement optionnel.',params:[OP.sens,{...OP.soub,def:400},{...OP.rempPorte,def:'vs'}],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'porte_'+_s(o),remp:o.remp||'vs',soub:+o.soub||0}],o)},
+  'Porte-fenêtre 2 vantaux':{famille:'portes',mat:'alu',moteur:'chassis',profils:'battant',porte:true,dim:[1400,2150],desc:'2 vantaux vitrés toute hauteur en battement.',params:[{...OP.soub,def:400},{...OP.rempPorte,def:'vs'},OP.imposte],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'porte_g',remp:o.remp||'vs',soub:+o.soub||0,sansMeneau:true},{ouv:'porte_d',remp:o.remp||'vs',soub:+o.soub||0}],o)},
+  'Porte va-et-vient 1 vantail':{famille:'portes',mat:'alu',moteur:'chassis',profils:'porte',porte:true,dim:[900,2150],desc:'Ouverture dans les deux sens sur pivot de sol à frein (restaurants, commerces, ERP).',params:[{...OP.rempPorte,def:'vs'}],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'vv',remp:o.remp||'vs'}],o)},
+  'Porte va-et-vient 2 vantaux':{famille:'portes',mat:'alu',moteur:'chassis',profils:'porte',porte:true,dim:[1800,2200],desc:'2 vantaux va-et-vient sur pivots de sol.',params:[{...OP.rempPorte,def:'vs'}],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'vv',remp:o.remp||'vs',sansMeneau:true},{ouv:'vv',remp:o.remp||'vs'}],o)},
+  'Porte pivot désaxée':{famille:'portes',mat:'alu',moteur:'chassis',profils:'porte',porte:true,dim:[1200,2600],desc:'Grand vantail pivotant sur axe décalé (pivots haut / bas), serrure 3 points : entrée de prestige.',params:[{...OP.rempPorte,def:'pan'}],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'pivp',remp:o.remp||'pan'}],o)},
+  'Porte de service tôlée':{famille:'portes',mat:'alu',moteur:'chassis',profils:'porte',porte:true,dim:[900,2100],desc:'Vantail plein en tôle alu (locaux techniques, magasins, cours).',params:[OP.sens,OP.serrure],
+    plan:(W,H,o)=>layColonnes(W,H,[{ouv:'porte_'+_s(o),remp:'tole'}],o)},
+  'Ensemble d’entrée (porte + fixes + imposte)':{famille:'portes',mat:'alu',moteur:'chassis',profils:'porte',porte:true,dim:[2000,2800],desc:'Porte encadrée de 2 fixes latéraux vitrés et d’une imposte filante.',params:[{k:'porteW',label:'Largeur de la porte (mm)',type:'num',def:1000,min:800,max:1800,step:50},{k:'porteT',label:'Porte',type:'sel',def:'1',opts:[['1','1 vantail'],['2','2 vantaux']]},OP.rempPorte,OP.rempFixe,{...OP.imposte,def:550},{k:'imposteCols',label:'Carreaux d’imposte',type:'num',def:3,min:1,max:5},OP.serrure],
+    plan:(W,H,o)=>{ const pw=+o.porteW||1000, rf=o.rempFixe||'vs', r=o.remp||'vs';
+      const porte=o.porteT==='2'?[{ouv:'porte_g',w:pw/2,remp:r,sansMeneau:true},{ouv:'porte_d',w:pw/2,remp:r}]:[{ouv:'porte_d',w:pw,remp:r}];
+      return layColonnes(W,H,[{ouv:'fixe',remp:rf},...porte,{ouv:'fixe',remp:rf}],o); }},
+  /* ---- Façades, vitrines, cloisons, verrières ---- */
+  'Mur-rideau VEP (grille apparente)':{famille:'facades',mat:'alu',moteur:'chassis',profils:'murrideau',fixe:{facade:'vep'},dim:[4800,3500],desc:'Façade à montants / traverses 50 mm, verres pris par serreurs et capots extérieurs.',params:[{k:'trameX',label:'Trame horizontale (mm)',type:'num',def:1200,min:600,max:2000,step:50},{k:'trameY',label:'Trame verticale (mm)',type:'num',def:1750,min:600,max:3500,step:50},{k:'ouvrants',label:'Ouvrants projetants (rangée 2)',type:'bool',def:false}],
+    plan:(W,H,o)=>layGrille(W,H,Math.max(1,Math.round(W/(+o.trameX||1200))),Math.max(1,Math.round(H/(+o.trameY||1750))),(i,j)=>o.ouvrants&&j===1&&i%2===0?{ouv:'proj'}:{})},
+  'Mur-rideau VEC (verre extérieur collé)':{famille:'facades',mat:'alu',moteur:'chassis',profils:'murrideau',fixe:{facade:'vec'},dim:[4800,3500],desc:'Façade lisse : verres collés au silicone structurel, joints creux noirs de 12 mm, aucun capot visible.',params:[{k:'trameX',label:'Trame horizontale (mm)',type:'num',def:1200,min:600,max:2000,step:50},{k:'trameY',label:'Trame verticale (mm)',type:'num',def:1750,min:600,max:3500,step:50}],
+    plan:(W,H,o)=>layGrille(W,H,Math.max(1,Math.round(W/(+o.trameX||1200))),Math.max(1,Math.round(H/(+o.trameY||1750))))},
+  'Vitrine / devanture de magasin':{famille:'facades',mat:'alu',moteur:'chassis',profils:'porte',porte:true,dim:[4000,3000],desc:'Grands fixes en verre feuilleté, porte d’accès et bandeau d’enseigne en imposte.',params:[{k:'porteW',label:'Largeur de la porte (mm)',type:'num',def:1000,min:800,max:1800,step:50},{k:'porteT',label:'Porte',type:'sel',def:'porte',opts:[['porte','Battante 1 vantail'],['porte2','Battante 2 vantaux'],['vv','Va-et-vient']]},{k:'position',label:'Position de la porte',type:'sel',def:'centre',opts:[['centre','Centre'],['gauche','Gauche'],['droite','Droite']]},{...OP.imposte,def:500},{k:'imposteRemp',label:'Bandeau d’imposte',type:'sel',def:'tole',opts:[['tole','Tôle / enseigne'],['vs','Vitré']]},OP.rempFixe],
+    plan:(W,H,o)=>{ const pw=+o.porteW||1000, rf=o.rempFixe||'vs';
+      const porte=o.porteT==='porte2'?[{ouv:'porte_g',w:pw/2,remp:'vs',sansMeneau:true},{ouv:'porte_d',w:pw/2,remp:'vs'}]:o.porteT==='vv'?[{ouv:'vv',w:pw,remp:'vs'}]:[{ouv:'porte_d',w:pw,remp:'vs'}];
+      const cols=o.position==='gauche'?[...porte,{ouv:'fixe',remp:rf}]:o.position==='droite'?[{ouv:'fixe',remp:rf},...porte]:[{ouv:'fixe',remp:rf},...porte,{ouv:'fixe',remp:rf}];
+      return layColonnes(W,H,cols,o); }},
+  'Cloison vitrée de bureau':{famille:'facades',mat:'alu',moteur:'chassis',profils:'cloison',porte:true,dim:[4000,2600],desc:'Cloison aluminium à modules vitrés, porte intégrée, allège pleine optionnelle.',params:[{k:'nx',label:'Modules fixes',type:'num',def:3,min:1,max:10},{k:'porte',label:'Porte intégrée',type:'bool',def:true},{...OP.allege,def:0},OP.allegeRemp],
+    plan:(W,H,o)=>{ const n=Math.max(1,+o.nx||3); const cols=Array.from({length:n},()=>({ouv:'fixe',remp:'vs'}));
+      if(o.porte!==false) cols.push({ouv:'porte_d',w:900,remp:'vs',zone:'Porte'});
+      if(o.porte!==false&&(+o.allegeH||0)>0){ const L=layColonnes(W,H,cols,{...o,allegeH:0}); const aH=+o.allegeH, pw=900;
+        const L2=layColonnes(W-pw,H,Array.from({length:n},()=>({ouv:'fixe',remp:'vs'})),o); L2.cells.push(L.cells[L.cells.length-1]); L2.bars.push({o:'v',x:W-pw,y:0,l:H}); return L2; }
+      return layColonnes(W,H,cols,o); }},
+  'Verrière d’atelier (style industriel)':{famille:'facades',mat:'alu',moteur:'chassis',profils:'verriere',dim:[2400,2200],desc:'Profils fins noirs, petits bois formant des carreaux ; porte verrière optionnelle.',params:[{k:'nx',label:'Colonnes',type:'num',def:4,min:1,max:10},{k:'ny',label:'Rangées',type:'num',def:3,min:1,max:6},{k:'porte',label:'Porte verrière',type:'bool',def:false}],
+    plan:(W,H,o)=>{ const nx=Math.max(1,+o.nx||4), ny=Math.max(1,+o.ny||3);
+      if(o.porte){ const pw=Math.min(900,W/2); const L=layGrille(W-pw,H,Math.max(1,nx-1),ny,()=>({remp:'vs'})); L.cells.push({x:W-pw,y:0,w:pw,h:H,ouv:'porte_d',remp:'vs',zone:'Porte'}); L.bars.push({o:'v',x:W-pw,y:0,l:H}); return L; }
+      return layGrille(W,H,nx,ny,()=>({remp:'vs'})); }},
+  'Châssis filant avec allège':{famille:'facades',mat:'alu',moteur:'chassis',profils:'battant',dim:[4800,2700],desc:'Bande vitrée continue d’étage : alternance fixes / ouvrants au-dessus d’une allège pleine.',params:[{k:'nx',label:'Modules',type:'num',def:4,min:2,max:10},{k:'ouvT',label:'Ouvrants',type:'sel',def:'proj',opts:[['proj','Projetants'],['fr','À la française'],['coul','Aucun (fixes)']]},{...OP.allege,def:900},OP.allegeRemp],
+    plan:(W,H,o)=>layColonnes(W,H,Array.from({length:Math.max(2,+o.nx||4)},(_,i)=>({ouv:o.ouvT==='coul'||i%2?'fixe':o.ouvT==='fr'?'fr_d':'proj'})),o)},
+  /* ---- Fermetures, volets, protections solaires ---- */
+  'Volet roulant aluminium':{famille:'fermetures',mat:'alu',moteur:'enroulable',lame:'39',dim:[1200,1400],desc:'Tablier de lames alu isolées, coffre, coulisses ; manœuvre manivelle ou moteur tubulaire.',params:[{k:'lame',label:'Lame',type:'sel',def:'39',opts:[['39','39 mm (≤ 3,5 m²)'],['55','55 mm (≤ 6,5 m²)']]},{k:'manoeuvre',label:'Manœuvre',type:'sel',def:'manivelle',opts:[['manivelle','Treuil + manivelle'],['moteur','Moteur tubulaire']]}]},
+  'Porte de garage enroulable':{famille:'fermetures',mat:'alu',moteur:'enroulable',lame:'77',dim:[2500,2250],desc:'Tablier de lames alu 77 mm, coffre 300 mm, moteur et serrure.',params:[{k:'manoeuvre',label:'Manœuvre',type:'sel',def:'moteur',opts:[['moteur','Motorisée'],['manivelle','Manuelle (treuil)']]}]},
+  'Rideau métallique de magasin':{famille:'fermetures',mat:'alu',moteur:'enroulable',lame:'100',dim:[3000,3000],desc:'Rideau à lames pleines ou microperforées 100 mm, axe Ø102, moteur central, serrure au sol.',params:[{k:'manoeuvre',label:'Manœuvre',type:'sel',def:'moteur',opts:[['moteur','Moteur central'],['manivelle','Manuelle (ressorts + treuil)']]}]},
+  'Grille enroulable maillée':{famille:'fermetures',mat:'alu',moteur:'enroulable',lame:'maille',dim:[3000,2800],desc:'Grille à maille (anneaux / tubes) laissant voir la vitrine, fermeture anti-effraction.',params:[{k:'manoeuvre',label:'Manœuvre',type:'sel',def:'moteur',opts:[['moteur','Motorisée'],['manivelle','Manuelle']]}]},
+  'Moustiquaire enroulable':{famille:'fermetures',mat:'alu',moteur:'enroulable',lame:'toile',dim:[1000,1300],desc:'Toile fibre de verre dans une cassette 60 mm, rappel par ressort, coulisses à brosse.',params:[]},
+  'Porte de garage sectionnelle':{famille:'fermetures',mat:'alu',moteur:'sectionnelle',dim:[2500,2125],desc:'Panneaux sandwich 40 mm articulés remontant sous plafond, ressorts de torsion.',params:[{k:'hublots',label:'Hublots',type:'num',def:0,min:0,max:6},{k:'moteur',label:'Motorisation',type:'bool',def:true}]},
+  'Volet battant persienné':{famille:'fermetures',mat:'alu',moteur:'lames',lames:'volet',dim:[1200,1400],desc:'Vantaux à lames fixes inclinées (persiennes), pentures et espagnolette.',params:[{k:'leaves',label:'Vantaux',type:'num',def:2,min:1,max:4},{k:'pas',label:'Pas des lames (mm)',type:'num',def:45,min:35,max:80}]},
+  'Persienne / ventelles fixes':{famille:'fermetures',mat:'alu',moteur:'lames',lames:'persienne',dim:[800,600],desc:'Grille de ventilation à lames pare-pluie dans un cadre (locaux techniques, climatisation).',params:[{k:'pas',label:'Pas des lames (mm)',type:'num',def:45,min:35,max:80}]},
+  'Brise-soleil orientable (BSO)':{famille:'fermetures',mat:'alu',moteur:'lames',lames:'bso',dim:[1800,2200],desc:'Lames 80 mm orientables et relevables, motorisées, dans des coulisses.',params:[]},
+  'Brise-soleil fixe à lames':{famille:'fermetures',mat:'alu',moteur:'lames',lames:'bsfixe',dim:[3000,2000],desc:'Lames 150 mm sur consoles murales : protection solaire passive de façade.',params:[{k:'pas',label:'Pas des lames (mm)',type:'num',def:200,min:120,max:400,step:10}]},
+  'Claustra à lames verticales':{famille:'fermetures',mat:'alu',moteur:'lames',lames:'claustra',dim:[2000,2000],desc:'Lames verticales 100 mm dans un cadre : séparation, brise-vue, cache-climatiseur.',params:[{k:'pas',label:'Pas des lames (mm)',type:'num',def:160,min:110,max:300,step:10}]},
+  /* ---- Pergolas, auvents, abris ---- */
+  'Pergola bioclimatique autoportante':{famille:'exterieurs',mat:'alu',moteur:'pergola',pergola:'bioclim',dim:[4000,2600],desc:'4 poteaux 150×150, poutres-chéneaux, lames orientables 200 mm motorisées.',params:[OP.prof(3500)]},
+  'Pergola bioclimatique adossée':{famille:'exterieurs',mat:'alu',moteur:'pergola',pergola:'bioclim',adossee:true,dim:[4000,2600],desc:'Fixée à la façade côté mur, 2 poteaux en façade.',params:[OP.prof(3500)]},
+  'Pergola toiture fixe (polycarbonate)':{famille:'exterieurs',mat:'alu',moteur:'pergola',pergola:'fixe',dim:[4000,2600],desc:'Chevrons alu et couverture polycarbonate alvéolaire 16 mm.',params:[OP.prof(3500),{k:'adossee',label:'Adossée à un mur',type:'bool',def:true}]},
+  'Carport aluminium':{famille:'exterieurs',mat:'alu',moteur:'pergola',pergola:'carport',dim:[5500,2500],desc:'Abri voiture à couverture tôle alu, 4 à 6 poteaux.',params:[OP.prof(5000),{k:'adossee',label:'Adossé à un mur',type:'bool',def:false}]},
+  'Auvent / marquise alu et verre':{famille:'exterieurs',mat:'alu',moteur:'pergola',pergola:'auvent_alu',dim:[2000,600],desc:'Profil mural, cadre alu, verre feuilleté, tirants inox. H = hauteur des tirants au-dessus du verre.',params:[OP.prof(1200)]},
+  'Marquise verre suspendue inox':{famille:'exterieurs',mat:'inox',moteur:'pergola',pergola:'auvent_inox',dim:[2000,600],desc:'Verre feuilleté suspendu par tirants et rotules inox, sans cadre.',params:[OP.prof(1200)]},
+  /* ---- Garde-corps, rampes, mains courantes ---- */
+  'Garde-corps alu barreaudé':{famille:'gardecorps',mat:'alu',moteur:'gardecorps',remp:'barreaux',dim:[3000,1000],desc:'Poteaux, main courante, barreaux verticaux au pas de 110 mm (NF P01-012).',params:[{k:'spacing',label:'Entraxe poteaux (mm)',type:'num',def:1200,min:600,max:1800,step:50},{k:'fixation',label:'Fixation',type:'sel',def:'dalle',opts:[['dalle','Sur dalle (platine)'],['anglaise','À l’anglaise (en nez de dalle)']]}]},
+  'Garde-corps alu à lisses':{famille:'gardecorps',mat:'alu',moteur:'gardecorps',remp:'lisses',dim:[3000,1000],desc:'Lisses horizontales : écart ≤ 110 mm sous 600 mm puis ≤ 180 mm.',params:[{k:'spacing',label:'Entraxe poteaux (mm)',type:'num',def:1200,min:600,max:1800,step:50},{k:'fixation',label:'Fixation',type:'sel',def:'dalle',opts:[['dalle','Sur dalle'],['anglaise','À l’anglaise']]}]},
+  'Garde-corps tout verre sur sabot':{famille:'gardecorps',mat:'alu',moteur:'gardecorps',remp:'verre_sabot',dim:[3000,1000],desc:'Verre feuilleté pris dans un sabot (profil U) alu, calage, main courante optionnelle.',params:[{k:'mainCourante',label:'Main courante sur verre',type:'bool',def:true}]},
+  'Garde-corps inox + verre à pinces':{famille:'gardecorps',mat:'inox',moteur:'gardecorps',remp:'verre_pinces',dim:[3000,1000],desc:'Poteaux inox Ø42,4, main courante, verre feuilleté tenu par pinces.',params:[{k:'spacing',label:'Entraxe poteaux (mm)',type:'num',def:1000,min:600,max:1500,step:50},{k:'fixation',label:'Fixation',type:'sel',def:'dalle',opts:[['dalle','Sur dalle'],['anglaise','À l’anglaise']]}]},
+  'Garde-corps inox à lisses Ø12':{famille:'gardecorps',mat:'inox',moteur:'gardecorps',remp:'lisses',dim:[3000,1000],desc:'Lisses tubes inox Ø12 traversant les poteaux.',params:[{k:'spacing',label:'Entraxe poteaux (mm)',type:'num',def:1000,min:600,max:1500,step:50},{k:'fixation',label:'Fixation',type:'sel',def:'dalle',opts:[['dalle','Sur dalle'],['anglaise','À l’anglaise']]}]},
+  'Garde-corps inox à câbles':{famille:'gardecorps',mat:'inox',moteur:'gardecorps',remp:'cables',dim:[3000,1000],desc:'Câbles inox Ø6 tendus, tendeurs sertis.',params:[{k:'spacing',label:'Entraxe poteaux (mm)',type:'num',def:1000,min:600,max:1500,step:50}]},
+  'Garde-corps inox barreaudé':{famille:'gardecorps',mat:'inox',moteur:'gardecorps',remp:'barreaux',dim:[3000,1000],desc:'Barreaux inox Ø12 verticaux entre lisse basse et main courante.',params:[{k:'spacing',label:'Entraxe poteaux (mm)',type:'num',def:1000,min:600,max:1500,step:50},{k:'fixation',label:'Fixation',type:'sel',def:'dalle',opts:[['dalle','Sur dalle'],['anglaise','À l’anglaise']]}]},
+  'Garde-corps inox tôle perforée':{famille:'gardecorps',mat:'inox',moteur:'gardecorps',remp:'tole',dim:[3000,1000],desc:'Remplissage tôle inox perforée : non escaladable, design contemporain.',params:[{k:'spacing',label:'Entraxe poteaux (mm)',type:'num',def:1000,min:600,max:1500,step:50}]},
+  'Rampe d’escalier inox':{famille:'gardecorps',mat:'inox',moteur:'gardecorps',remp:'barreaux',pente:32,dim:[3000,900],desc:'Garde-corps rampant (largeur = projection horizontale), barreaux verticaux.',params:[{k:'pente',label:'Pente (°)',type:'num',def:32,min:15,max:45},{k:'remp',label:'Remplissage',type:'sel',def:'barreaux',opts:[['barreaux','Barreaux Ø12'],['lisses','Lisses Ø12'],['verre_pinces','Verre à pinces']]},{k:'spacing',label:'Entraxe poteaux (mm)',type:'num',def:1000,min:600,max:1500,step:50}]},
+  'Main courante murale inox':{famille:'gardecorps',mat:'inox',moteur:'gardecorps',murale:true,dim:[3000,900],desc:'Tube Ø42,4 sur supports muraux, embouts ; H = hauteur de pose.',params:[{k:'pente',label:'Pente (°) — 0 = horizontale',type:'num',def:0,min:0,max:45}]},
+  'Clôture de piscine en verre':{famille:'gardecorps',mat:'inox',moteur:'gardecorps',remp:'verre_pinces',piscine:true,dim:[5000,1200],desc:'Panneaux verre feuilleté sur poteaux inox 316 : hauteur ≥ 1,10 m (NF P90-306).',params:[{k:'spacing',label:'Entraxe poteaux (mm)',type:'num',def:1200,min:600,max:1500,step:50}]},
+  /* ---- Portails, clôtures, grilles ---- */
+  'Portail battant 2 vantaux alu':{famille:'portails',mat:'alu',moteur:'portail',portail:'battant2',dim:[3500,1800],desc:'Cadre tube 80×40, gonds réglables, serrure, verrou au sol, motorisation à vérins optionnelle.',params:[{k:'remp',label:'Remplissage',type:'sel',def:'lames',opts:[['lames','Lames pleines'],['ajoure','Lames ajourées'],['barreaux','Barreaudage'],['tole','Tôle pleine']]},OP.moteur]},
+  'Portail coulissant alu':{famille:'portails',mat:'alu',moteur:'portail',portail:'coulissant',dim:[4000,1800],desc:'Vantail roulant sur rail au sol, galets de guidage, moteur à crémaillère optionnel.',params:[{k:'remp',label:'Remplissage',type:'sel',def:'lames',opts:[['lames','Lames pleines'],['ajoure','Lames ajourées'],['barreaux','Barreaudage'],['tole','Tôle pleine']]},OP.moteur]},
+  'Portillon alu':{famille:'portails',mat:'alu',moteur:'portail',portail:'battant1',dim:[1000,1800],desc:'Portillon piéton assorti au portail.',params:[{k:'remp',label:'Remplissage',type:'sel',def:'lames',opts:[['lames','Lames pleines'],['ajoure','Lames ajourées'],['barreaux','Barreaudage'],['tole','Tôle pleine']]}]},
+  'Portail battant inox':{famille:'portails',mat:'inox',moteur:'portail',portail:'battant2',dim:[3500,1800],desc:'Cadre inox 40×40, barreaux Ø20 ou tôle perforée.',params:[{k:'remp',label:'Remplissage',type:'sel',def:'barreaux',opts:[['barreaux','Barreaux Ø20'],['tole','Tôle perforée']]},OP.moteur]},
+  'Clôture alu à lames':{famille:'portails',mat:'alu',moteur:'portail',portail:'cloture',dim:[6000,1800],desc:'Panneaux de lames entre poteaux scellés (entraxe ≤ 2 m).',params:[{k:'remp',label:'Remplissage',type:'sel',def:'lames',opts:[['lames','Lames pleines'],['ajoure','Lames ajourées'],['barreaux','Barreaudage']]}]},
+  'Grille de défense (anti-effraction)':{famille:'portails',mat:'alu',moteur:'portail',portail:'defense',dim:[1200,1200],desc:'Barreaudage acier Ø12 dans un cadre, scellé en tableau : vide ≤ 110 mm.',params:[]},
+  /* ---- Douche & sanitaire ---- */
+  'Paroi de douche walk-in':{famille:'sanitaire',mat:'inox',moteur:'douche',douche:'walkin',dim:[1200,2000],desc:'Verre trempé 8 mm fixe, profil mural et barre de stabilisation inox.',params:[]},
+  'Porte de douche pivotante':{famille:'sanitaire',mat:'inox',moteur:'douche',douche:'pivot',dim:[1000,2000],desc:'Porte verre sur charnières verre-mur + fixe éventuel.',params:[{k:'porteW',label:'Largeur de la porte (mm)',type:'num',def:700,min:500,max:900,step:10}]},
+  'Porte de douche coulissante':{famille:'sanitaire',mat:'inox',moteur:'douche',douche:'coulissante',dim:[1400,2000],desc:'Verre fixe + verre coulissant sur rail inox à roulettes.',params:[]},
+  'Cabine de douche d’angle':{famille:'sanitaire',mat:'inox',moteur:'douche',douche:'angle',dim:[1200,2000],desc:'Façade (fixe + porte) + retour fixe (vue développée).',params:[{k:'retour',label:'Retour (mm)',type:'num',def:900,min:600,max:1400,step:10}]},
+  /* ---- Habillage composite ---- */
+  'Bardage composite ACM (cassettes)':{famille:'habillage',mat:'alu',moteur:'habillage',dim:[6000,3000],desc:'Cassettes ACM 4 mm pliées (retours 40 mm) sur rails oméga, joint creux ; optimisation des plaques.',params:[{k:'modW',label:'Largeur max. de module (mm)',type:'num',def:1400,min:300,max:1500,step:10},{k:'modH',label:'Hauteur max. de module (mm)',type:'num',def:1900,min:300,max:3900,step:10},{k:'joint',label:'Joint creux (mm)',type:'num',def:12,min:8,max:25},{k:'plaque',label:'Plaque',type:'sel',def:'1500',opts:[['1500','1500 × 4000'],['1250','1250 × 3200']]}]},
+  'Habillage d’acrotère / enseigne ACM':{famille:'habillage',mat:'alu',moteur:'habillage',dim:[8000,800],desc:'Bandeau composite d’acrotère ou d’enseigne de devanture.',params:[{k:'modW',label:'Largeur max. de module (mm)',type:'num',def:2700,min:300,max:3900,step:10},{k:'modH',label:'Hauteur max. de module (mm)',type:'num',def:800,min:200,max:1450,step:10},{k:'joint',label:'Joint creux (mm)',type:'num',def:12,min:8,max:25},{k:'plaque',label:'Plaque',type:'sel',def:'1500',opts:[['1500','1500 × 4000'],['1250','1250 × 3200']]}]}
+};
+/* Types historiques rangés dans les familles */
+const OUV_FAMILLE_HISTO={'Fenêtre coulissante':'coulissants','Porte à la française':'portes','Porte coulissante':'coulissants','Coulissant galandage':'coulissants','Fenêtre jalousie':'fenetres','Moustiquaire fixe':'fermetures','Moustiquaire coulissante':'fermetures','Garde-corps inox':'gardecorps'};
+const OUV_MOTEURS={chassis:moteurChassis,enroulable:moteurEnroulable,sectionnelle:moteurSectionnelle,lames:moteurLames,pergola:moteurPergola,portail:moteurPortail,gardecorps:moteurGardeCorps,douche:moteurDouche,habillage:moteurHabillage};
+function ouvDefauts(T){ const d={}; (T.params||[]).forEach(p=>{ d[p.k]=p.def; }); return d; }
+function ouvFamilleDe(type){ return TYPES_OUVRAGES[type]?.famille||OUV_FAMILLE_HISTO[type]||'fenetres'; }
+function ouvCalculer(type,w,h,qty,opts,system,vitrage,finition){
+  const T=TYPES_OUVRAGES[type];
+  if(!(+w>0&&+h>0)) return {rows:[],alu:0,glassArea:0,coutMateriel:0,surface:0,glassPanels:[],system,vitrage,finition,geom:{kind:'prims',moteur:T.moteur,prims:[],sym:[],conf:[],infos:[],W:1,H:1,type,famille:T.famille,mat:T.mat,o:{}}};
+  const o={...ouvDefauts(T),...(opts.p||{}),...(T.fixe||{}),jointType:opts.jointType||'onglet',gap:opts.gap??5};
+  const r=OUV_MOTEURS[T.moteur](T,Math.max(100,+w||0),Math.max(100,+h||0),Math.max(1,+qty||1),o,opts.standing||'standard',vitrage,finition);
+  Object.assign(r.geom,{type,famille:T.famille,mat:T.mat,o});
+  const coutMateriel=r.rows.reduce((s,x)=>s+(+x[4]||0),0);
+  return {rows:r.rows,alu:r.alu||0,glassArea:r.glassArea||0,coutMateriel,surface:w*h/1e6,glassPanels:r.glassPanels||[],system,vitrage,finition,geom:r.geom};
+}
+/* ---------- Rendu des ouvrages à primitives : vue de face, symboles d'ouverture, coupes, 3D, vignettes ---------- */
+function ouvDefsExtra(uid){
+  return `<linearGradient id="inox-${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#8a9199"/><stop offset="35%" stop-color="#f4f6f8"/><stop offset="65%" stop-color="#c3c9cf"/><stop offset="100%" stop-color="#7d848c"/></linearGradient>
+    <pattern id="perf-${uid}" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#d5dade"/><circle cx="3" cy="3" r="1.3" fill="#6b7280"/></pattern>
+    <pattern id="toile-${uid}" width="3" height="3" patternUnits="userSpaceOnUse"><rect width="3" height="3" fill="#e5e7eb" fill-opacity="0.5"/><path d="M0 0 L3 0 M0 0 L0 3" stroke="#6b7280" stroke-width="0.35"/></pattern>
+    <pattern id="maille-${uid}" width="10" height="6" patternUnits="userSpaceOnUse"><rect width="10" height="6" fill="#f1f5f9" fill-opacity="0.3"/><rect x="1" y="1" width="8" height="4" rx="2" fill="none" stroke="#475569" stroke-width="0.9"/></pattern>
+    <pattern id="poly-${uid}" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="8" fill="#e0f2fe"/><path d="M0 0 L0 8" stroke="#93c5fd" stroke-width="1"/></pattern>
+    <pattern id="pan-${uid}" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#eef0f2"/><path d="M0 0 L0 8" stroke="#cbd2d9" stroke-width="1.2"/></pattern>`;
+}
+function ouvStyle(m,uid,fin){
+  const a=`fill="url(#alu-${uid})" stroke="${fin.hexDark}"`;
+  return ({alu:a,aluF:a,lame:a,acm:`fill="${fin.hex}" stroke="${fin.hexDark}"`,inox:`fill="url(#inox-${uid})" stroke="#5b6168"`,verre:`fill="url(#glass-${uid})" stroke="#4a7ba6"`,
+    panneau:`fill="url(#pan-${uid})" stroke="#94a3b8"`,tole:`fill="#cfd5db" stroke="#8a94a3"`,tolePerf:`fill="url(#perf-${uid})" stroke="#6b7280"`,maille:`fill="url(#maille-${uid})" stroke="#475569"`,
+    toile:`fill="url(#toile-${uid})" stroke="#6b7280"`,joint:`fill="#111827" stroke="#111827"`,poly:`fill="url(#poly-${uid})" stroke="#60a5fa"`})[m]||a;
+}
+/* Symboles normalisés, dessinés en px dans la cellule (x,y,w,h) : triangle pointe côté ferrage / axe, flèches pour coulissants */
+function ouvSymbole(s,k,uid){
+  const x=s.x*k, y=s.y*k, w=s.w*k, h=s.h*k, f=v=>v.toFixed(1);
+  const st=`fill="none" stroke="#2563eb" stroke-width="1.2" stroke-dasharray="6 4"`;
+  const tri=(ax,ay,b1x,b1y,b2x,b2y)=>`<polyline points="${f(b1x)},${f(b1y)} ${f(ax)},${f(ay)} ${f(b2x)},${f(b2y)}" ${st}/>`;
+  const fl=(x1,y1,x2,y2)=>`<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-${uid})"/>`;
+  const poignee=(px)=>s.semi?'':`<rect x="${f(px-2)}" y="${f(y+h/2-Math.max(6,h*0.04))}" width="4" height="${f(Math.max(12,h*0.08))}" rx="2" fill="#1f2937"/>`;
+  const lbl=(t)=>`<text x="${f(x+w/2)}" y="${f(y+h/2+4)}" text-anchor="middle" font-size="${Math.max(8,Math.min(13,w/8)).toFixed(0)}" font-weight="700" fill="#2563eb" fill-opacity="0.75">${t}</text>`;
+  const cote=s.ouv.slice(-1);
+  switch(s.ouv){
+    case 'fixe': return w>30&&h>30?`<text x="${f(x+w/2)}" y="${f(y+h/2+4)}" text-anchor="middle" font-size="${Math.max(8,Math.min(12,w/8)).toFixed(0)}" fill="#64748b" fill-opacity="0.8">F</text>`:'';
+    case 'fr_g': case 'fr_d': case 'porte_g': case 'porte_d': {
+      const g=cote==='g'; return tri(g?x:x+w,y+h/2,g?x+w:x,y,g?x+w:x,y+h)+poignee(g?x+w-8:x+8); }
+    case 'ob_g': case 'ob_d': { const g=cote==='g';
+      return tri(g?x:x+w,y+h/2,g?x+w:x,y,g?x+w:x,y+h)+tri(x+w/2,y+h,x,y,x+w,y)+poignee(g?x+w-8:x+8); }
+    case 'souf': return tri(x+w/2,y+h,x,y,x+w,y)+`<rect x="${f(x+w/2-8)}" y="${f(y+4)}" width="16" height="4" rx="2" fill="#1f2937"/>`;
+    case 'proj': return tri(x+w/2,y,x,y+h,x+w,y+h)+`<rect x="${f(x+w/2-8)}" y="${f(y+h-8)}" width="16" height="4" rx="2" fill="#1f2937"/>`;
+    case 'basc': return `<line x1="${f(x)}" y1="${f(y+h/2)}" x2="${f(x+w)}" y2="${f(y+h/2)}" stroke="#2563eb" stroke-width="1" stroke-dasharray="10 3 2 3"/>`+tri(x,y+h/2,x+w/2,y,x+w,y+h/2)+tri(x,y+h/2,x+w/2,y+h,x+w,y+h/2);
+    case 'piv': return `<line x1="${f(x+w/2)}" y1="${f(y)}" x2="${f(x+w/2)}" y2="${f(y+h)}" stroke="#2563eb" stroke-width="1" stroke-dasharray="10 3 2 3"/>`+tri(x+w/2,y,x,y+h/2,x+w/2,y+h)+tri(x+w/2,y,x+w,y+h/2,x+w/2,y+h);
+    case 'pivp': return `<line x1="${f(x+w*0.25)}" y1="${f(y)}" x2="${f(x+w*0.25)}" y2="${f(y+h)}" stroke="#2563eb" stroke-width="1" stroke-dasharray="10 3 2 3"/>`+tri(x+w*0.25,y+h/2,x+w,y,x+w,y+h)+lbl('PIVOT');
+    case 'vv': return tri(x,y+h/2,x+w,y,x+w,y+h)+`<path d="M ${f(x+w*0.35)} ${f(y+h*0.62)} l -8 0 m 8 0 l 8 0" stroke="#2563eb" stroke-width="1.6"/>`+lbl('↔ VV');
+    case 'guil': return fl(x+w/2,y+h*0.8,x+w/2,y+h*0.2);
+    case 'coul_g': return fl(x+w*0.75,y+h/2,x+w*0.25,y+h/2);
+    case 'coul_d': return fl(x+w*0.25,y+h/2,x+w*0.75,y+h/2);
+    case 'coul_f': return lbl('F');
+    case 'lev_g': case 'lev_d': { const g=s.ouv==='lev_g';
+      return `<polyline points="${f(g?x+w*0.75:x+w*0.25)},${f(y+h*0.6)} ${f(g?x+w*0.75:x+w*0.25)},${f(y+h*0.45)} ${f(g?x+w*0.25:x+w*0.75)},${f(y+h*0.45)}" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-${uid})"/>`; }
+    case 'pli': return `<polyline points="${f(x)},${f(y+h*0.15)} ${f(x+w/2)},${f(y+h*0.3)} ${f(x+w)},${f(y+h*0.15)}" ${st}/>`+fl(x+w*0.7,y+h*0.55,x+w*0.3,y+h*0.55);
+    case 'enrouleur': case 'monte': return fl(x+w/2,y+h*0.75,x+w/2,y+h*0.25);
+  }
+  return '';
+}
+function ouvElevation(c,res,uid,boxW,boxH){
+  const fin=res.finition, g=res.geom;
+  const Wm=Math.max(1,g.W||c.w), Hm=Math.max(1,g.H||c.h);
+  const t=g.pente?Math.tan(g.pente*Math.PI/180):0;
+  const scale=Math.min(boxW/Wm, boxH/(Hm+Wm*t));
+  const W=Wm*scale, H=(Hm+Wm*t)*scale;
+  const defs=`<linearGradient id="alu-${uid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${fin.hexLight}"/><stop offset="50%" stop-color="${fin.hex}"/><stop offset="100%" stop-color="${fin.hexDark}"/></linearGradient>
+    <linearGradient id="glass-${uid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#eef7ff"/><stop offset="45%" stop-color="#cfe8fb"/><stop offset="100%" stop-color="#93c5e8"/></linearGradient>
+    <pattern id="mesh-${uid}" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 0 L4 4 M4 0 L0 4" stroke="#8a94a3" stroke-width="0.5"/></pattern>
+    <marker id="arrow-${uid}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2563eb"/></marker>${ouvDefsExtra(uid)}`;
+  const L={dormant:'',ouvrant:'',vitrage:''};
+  const ordre={vitrage:0,ouvrant:1,dormant:2};
+  const vis=g.prims.filter(p=>!p.cache);
+  vis.forEach(p=>{
+    const r=`<rect x="${(p.x*scale).toFixed(1)}" y="${(p.y*scale).toFixed(1)}" width="${Math.max(0.6,p.w*scale).toFixed(1)}" height="${Math.max(0.6,p.h*scale).toFixed(1)}" ${p.cyl&&p.m==='inox'?'rx="'+Math.min(p.w,p.h)*scale/2+'"':''} ${ouvStyle(p.m,uid,fin)} stroke-width="${p.m==='verre'?0.8:0.9}"/>`;
+    L[p.layer||'dormant']+=r;
+    if(p.m==='verre'&&p.w*scale>20&&p.h*scale>20) L.vitrage+=`<line x1="${((p.x+p.w*0.12)*scale).toFixed(1)}" y1="${((p.y+p.h*0.12)*scale).toFixed(1)}" x2="${((p.x+p.w*0.5)*scale).toFixed(1)}" y2="${((p.y+p.h*0.8)*scale).toFixed(1)}" stroke="#fff" stroke-opacity="0.4" stroke-width="${Math.max(1,p.w*scale*0.03).toFixed(1)}"/>`;
+  });
+  // Enroulables : coffre et tambour d'enroulement en traits cachés
+  if(g.moteur==='enroulable'){ const C=g.C*scale; L.dormant=`<rect x="0" y="0" width="${W.toFixed(1)}" height="${C.toFixed(1)}" fill="url(#alu-${uid})" stroke="${fin.hexDark}"/><circle cx="${(W/2).toFixed(1)}" cy="${(C/2).toFixed(1)}" r="${Math.min(C*0.45,g.Dr*scale/2).toFixed(1)}" fill="none" stroke="#64748b" stroke-dasharray="4 3"/>`+L.dormant; }
+  let symb=(g.sym||[]).map(s=>ouvSymbole(s,scale,uid)).join('');
+  // Ordre de dessin : remplissage, ouvrants, dormant (le dormant recouvre les bords), symboles au-dessus
+  let inner=`<g class="layer-vitrage">${L.vitrage}</g><g class="layer-ouvrant">${L.ouvrant}</g><g class="layer-dormant">${L.dormant}</g><g class="layer-ouvrant">${symb}</g>`;
+  if(t) inner=`<g transform="matrix(1,${(-t).toFixed(4)},0,1,0,${(Wm*t*scale).toFixed(1)})">${inner}</g>`;
+  return {defs,inner,W,H,scale};
+}
+/* Coupes du plan de fabrication, par moteur (boîte A ≈ 180×270, boîte B ≈ 410×100) */
+function ouvListeTexte(lignes,x,y,pas){ return lignes.map((l,i)=>`<text x="${x}" y="${y+i*(pas||16)}" font-size="11" fill="${i?'#475569':'#0f172a'}" ${i?'':'font-weight="700"'}>${escapeHtml(String(l))}</text>`).join(''); }
+function ouvCoupes(c,res,uid,bw,bh){
+  const g=res.geom, fin=res.finition, m=g.moteur, f=v=>(+v).toFixed(1);
+  const alu=`fill="url(#alu-${uid})" stroke="${fin.hexDark}" stroke-width="1.2"`, inox=`fill="url(#inox-${uid})" stroke="#4b5563" stroke-width="1.2"`;
+  const mat=g.mat==='inox'?inox:alu;
+  const infos=['Caractéristiques',...(g.infos||[])];
+  const cote=(x1,y1,x2,y2,t,vert)=>`<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="#334155" stroke-width="1" marker-start="url(#dArrow-${uid})" marker-end="url(#dArrow-${uid})"/><text x="${f((x1+x2)/2+(vert?-6:0))}" y="${f((y1+y2)/2+(vert?0:-5))}" font-size="10" font-weight="700" text-anchor="middle" ${vert?`transform="rotate(-90 ${f((x1+x2)/2-6)} ${f((y1+y2)/2)})"`:''}>${t}</text>`;
+  if(m==='chassis'){
+    const aa=buildCoupeStandardAA(res,uid,bw,bh-50);
+    const lignes=(g.cells||[]).slice(0,5).map(x=>`${x.rep} · ${x.zone} · ${OUV_OUV_LABELS[x.ouv]||x.ouv} · ${x.w}×${x.h} · ${x.remp}${x.vitrage!=='—'?' '+x.vitrage:''}`);
+    if((g.cells||[]).length>5) lignes.push(`… + ${(g.cells.length-5)} autres cellules (onglet Vitrage)`);
+    return {titleA:g.profils==='murrideau'?'COUPE MONTANT — MUR-RIDEAU 50 mm':'COUPE A-A — DORMANT / OUVRANT / VITRAGE',
+      contentA:aa.content+`<text x="0" y="${f(aa.barH+18)}" font-size="10" fill="#475569">${escapeHtml(res.vitrage.label)}</text>`,
+      titleB:'NOMENCLATURE DES CELLULES',contentB:ouvListeTexte(['Repère · zone · ouverture · cotes · remplissage',...lignes],0,12,15)};
+  }
+  if(m==='enroulable'){
+    const k=Math.min(bw,bh-40)/(g.C*1.15), C=g.C*k, r=Math.min(C*0.46,g.Dr*k/2), ra=Math.max(4,(g.T.axe||60)*k/2);
+    const a=`<rect x="0" y="0" width="${f(C)}" height="${f(C)}" ${alu} fill-opacity="0.35"/><circle cx="${f(C/2)}" cy="${f(C/2)}" r="${f(r)}" fill="#cbd5e1" stroke="#475569"/><circle cx="${f(C/2)}" cy="${f(C/2)}" r="${f(ra)}" fill="#64748b" stroke="#1f2937"/>
+      <line x1="${f(C/2+r)}" y1="${f(C/2)}" x2="${f(C/2+r)}" y2="${f(C+40)}" stroke="#475569" stroke-width="3"/>
+      ${cote(0,C+14,C,C+14,g.C+' mm')}<text x="0" y="${f(C+52)}" font-size="10" fill="#475569">Enroulement Ø ${Math.round(g.Dr)} mm ${g.Dr<=g.C-10?'✔ tient':'✖ coffre trop petit'}</text>`;
+    return {titleA:'COUPE COFFRE / ENROULEMENT',contentA:a,titleB:'TABLIER & MANŒUVRE',contentB:ouvListeTexte(infos,0,12)};
+  }
+  if(m==='sectionnelle'){
+    const k=(bh-30)/g.H, x0=40; let a='';
+    for(let i=0;i<g.n;i++) a+=`<rect x="${x0}" y="${f(i*g.ph*k)}" width="14" height="${f(g.ph*k-2)}" fill="url(#pan-${uid})" stroke="#475569"/>`;
+    a+=`<path d="M ${x0+22} ${f(g.H*k)} L ${x0+22} 30 Q ${x0+22} 0 ${x0+52} 0 L ${f(bw)} 0" fill="none" stroke="#1f2937" stroke-width="2"/>`+cote(20,0,20,g.H*k,g.H+' mm',true);
+    return {titleA:'COUPE LATÉRALE — PANNEAUX & RAILS',contentA:a,titleB:'COMPOSITION',contentB:ouvListeTexte(infos,0,12)};
+  }
+  if(m==='lames'){
+    const cfg=g.cfg, k=Math.min(bw/(cfg.larg*1.6),(bh-40)/(cfg.pas*3.2)); let a='';
+    const ang=g.variante==='claustra'?0:g.variante==='bsfixe'||g.variante==='bso'?-15:-40;
+    for(let i=0;i<3;i++) a+=`<g transform="translate(${f(bw/2)},${f(30+i*cfg.pas*k)}) rotate(${ang})"><rect x="${f(-cfg.larg*k/2)}" y="-2.5" width="${f(cfg.larg*k)}" height="5" rx="2" ${alu}/></g>`;
+    a+=cote(bw/2+cfg.larg*k*0.7,30,bw/2+cfg.larg*k*0.7,30+cfg.pas*k,cfg.pas+'',true)+`<text x="0" y="${f(bh-4)}" font-size="10" fill="#475569">Lame ${cfg.larg} mm · pas ${cfg.pas} mm</text>`;
+    return {titleA:'COUPE DES LAMES',contentA:a,titleB:'COMPOSITION',contentB:ouvListeTexte(infos,0,12)};
+  }
+  if(m==='pergola'){
+    const prof=g.prof||1200, k=Math.min(bw/g.W,(bh-40)/prof), P=150*k;
+    let a=`<rect x="0" y="0" width="${f(g.W*k)}" height="${f(prof*k)}" fill="${g.variante==='carport'?'#e5e7eb':'#f1f5f9'}" stroke="#94a3b8"/>`;
+    if(g.variante&&g.variante.startsWith('auvent')){ a+=`<rect x="0" y="0" width="${f(g.W*k)}" height="${f(prof*k)}" fill="url(#glass-${uid})" stroke="#4a7ba6"/><rect x="0" y="-5" width="${f(g.W*k)}" height="5" ${alu}/>`; }
+    else {
+      if(g.variante==='bioclim') for(let i=0;i<g.nL;i++) a+=`<line x1="${f(P+i*190*k)}" y1="${f(P)}" x2="${f(P+i*190*k)}" y2="${f(prof*k-P)}" stroke="#64748b" stroke-width="${Math.max(0.6,20*k).toFixed(1)}" stroke-opacity="0.5"/>`;
+      else for(let i=0;i<g.nL;i++) a+=`<line x1="${f(Math.min(g.W-30,i*700)*k)}" y1="0" x2="${f(Math.min(g.W-30,i*700)*k)}" y2="${f(prof*k)}" stroke="#64748b" stroke-width="1.5"/>`;
+      g.prims.filter(p=>p.x!==undefined&&p.w===150&&p.h>1000).forEach(p=>{ a+=`<rect x="${f(p.x*k)}" y="${f((p.z||0)*k)}" width="${f(P)}" height="${f(P)}" ${alu}/>`; });
+      if(g.adossee) a+=`<rect x="0" y="${f(prof*k)}" width="${f(g.W*k)}" height="6" fill="#9ca3af"/><text x="4" y="${f(prof*k+18)}" font-size="9" fill="#475569">MUR</text>`;
+    }
+    a+=cote(0,-14,g.W*k,-14,g.W+' mm')+cote(g.W*k+12,0,g.W*k+12,prof*k,prof+' mm',true);
+    return {titleA:'VUE EN PLAN (DESSUS)',contentA:`<g transform="translate(0,16) scale(${Math.min(1,(bw-20)/(g.W*k+20)).toFixed(3)})">${a}</g>`,titleB:'STRUCTURE',contentB:ouvListeTexte(infos,0,12)};
+  }
+  if(m==='portail'){
+    const inx=g.mat==='inox', cad=g.variante==='defense'?25:inx?40:80, k=Math.min(bw*0.6/cad,6), cw=cad*k, ch=(inx?40:40)*k;
+    const a=`<rect x="10" y="10" width="${f(cw)}" height="${f(ch)}" ${mat}/><rect x="${f(10+3*k)}" y="${f(10+3*k)}" width="${f(cw-6*k)}" height="${f(ch-6*k)}" fill="#fff" stroke="#9ca3af"/>`+cote(10,ch+26,10+cw,ch+26,cad+' mm')+
+      `<text x="10" y="${f(ch+50)}" font-size="10" fill="#475569">Tube ${inx?'inox':'alu'} ${cad}×${g.variante==='defense'?25:40} — ép. ${inx?'1,5':'2'} mm</text>`;
+    return {titleA:'COUPE DU CADRE',contentA:a,titleB:'COMPOSITION',contentB:ouvListeTexte(infos,0,12)};
+  }
+  if(m==='gardecorps'){
+    const Hr=g.Hreel||g.H, k=(bh-40)/Math.max(Hr,1000), x0=60, sol=Hr*k;
+    const ang=(g.o&&g.o.fixation)==='anglaise';
+    let a=`<rect x="0" y="${f(sol)}" width="${f(bw)}" height="18" fill="url(#pan-${uid})" stroke="#94a3b8"/>`;
+    a+=`<rect x="${x0}" y="${f(sol-600*k)}" width="${f(bw-x0-10)}" height="${f(600*k)}" fill="#fde68a" fill-opacity="0.35" stroke="#f59e0b" stroke-dasharray="3 2"/><text x="${x0+16}" y="${f(sol-600*k+12)}" font-size="9" fill="#92400e">Zone basse 600 mm</text>`;
+    if(g.remp==='verre_sabot') a+=`<rect x="${x0}" y="${f(sol-100*k)}" width="${f(70*k+6)}" height="${f(100*k)}" ${alu}/><rect x="${f(x0+3+35*k-4)}" y="${f(sol-Hr*k+10)}" width="8" height="${f(Hr*k-14)}" fill="url(#glass-${uid})" stroke="#4a7ba6"/>`;
+    else a+=`<rect x="${ang?x0-12:x0}" y="${f(sol-Hr*k)}" width="10" height="${f(Hr*k+(ang?18:0))}" ${mat}/>`+(ang?`<rect x="${x0-2}" y="${f(sol+2)}" width="6" height="14" fill="#374151"/>`:`<rect x="${x0-12}" y="${f(sol-4)}" width="34" height="4" fill="#4b5563"/>`);
+    a+=`<rect x="${x0-12}" y="${f(sol-Hr*k-8)}" width="34" height="10" rx="5" ${mat}/>`+cote(x0-30,sol-Hr*k,x0-30,sol,Hr+' mm',true);
+    const conf=(g.conf||[]).slice(0,6).map(x=>`${x.ok?'✔':x.info?'ℹ':'✖'} ${x.txt}`);
+    return {titleA:ang?'COUPE — FIXATION À L’ANGLAISE':'COUPE — POTEAU SUR DALLE',contentA:a,titleB:'CONTRÔLE NF P01-012',contentB:ouvListeTexte(['Points vérifiés',...conf],0,12,15)};
+  }
+  if(m==='douche'){
+    const k=Math.min(bw/Math.max(g.W,1),2), y=40; let a=`<rect x="0" y="0" width="${f(bw)}" height="${f(y-10)}" fill="url(#pan-${uid})" stroke="#94a3b8"/><text x="4" y="18" font-size="9" fill="#475569">MUR</text>`;
+    g.prims.filter(p=>p.m==='verre').forEach(p=>{ a+=p.ry?`<rect x="${f(p.x*k)}" y="${y-10}" width="4" height="${f(Math.min(bh-60,p.w*k))}" fill="url(#glass-${uid})" stroke="#4a7ba6"/>`:`<rect x="${f(p.x*k)}" y="${f(y+(p.z?8:0)+60)}" width="${f(p.w*k)}" height="4" fill="url(#glass-${uid})" stroke="#4a7ba6"/>`; });
+    a+=`<text x="0" y="${f(bh-4)}" font-size="10" fill="#475569">Vue en plan — verre trempé 8 mm</text>`;
+    return {titleA:'VUE EN PLAN',contentA:a,titleB:'COMPOSITION',contentB:ouvListeTexte(infos,0,12)};
+  }
+  if(m==='habillage'){
+    const k=Math.min(bw/(g.cw+2*g.j+60),6,(bh-60)/140), cw=Math.min(bw-20,g.cw*k), r=40*k;
+    const a=`<rect x="0" y="0" width="${f(bw)}" height="10" fill="url(#pan-${uid})" stroke="#94a3b8"/><text x="4" y="-4" font-size="9" fill="#475569">SUPPORT</text>
+      <rect x="10" y="10" width="${f(40*k)}" height="${f(45*k)}" ${alu} fill-opacity="0.6"/><rect x="${f(bw-10-40*k)}" y="10" width="${f(40*k)}" height="${f(45*k)}" ${alu} fill-opacity="0.6"/>
+      <path d="M 10 ${f(10+45*k)} l 0 ${f(r)} l ${f(cw)} 0 l 0 ${f(-r)}" fill="none" stroke="${fin.hexDark}" stroke-width="3"/>
+      <text x="10" y="${f(10+45*k+r+18)}" font-size="10" fill="#475569">Cassette ACM 4 mm, retours ${g.ret} mm rivetés, joint ${g.j} mm</text>`;
+    return {titleA:'COUPE CASSETTE / OSSATURE',contentA:a,titleB:'CALEPINAGE & PLAQUES',contentB:ouvListeTexte(infos,0,12)};
+  }
+  return {titleA:'COUPE',contentA:'',titleB:'COMPOSITION',contentB:ouvListeTexte(infos,0,12)};
+}
+/* Vue 3D : chaque primitive devient un volume (x,y,z en mm, z vers l'arrière) */
+function ouv3D(c,res,THREE,group,mats){
+  const g=res.geom, mm=v=>v/1000, Wm=g.W||c.w, Hm=g.H||c.h;
+  const box=(w,h,d,m)=>new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.004,w),Math.max(0.004,h),Math.max(0.004,d)),m);
+  const sub=new THREE.Group();
+  g.prims.forEach(p=>{
+    const m=mats[p.m]||mats.alu;
+    let o;
+    if(p.rx){ // tirant incliné (auvent) : du mur (haut, arrière) vers le bord avant du verre
+      const a=new THREE.Vector3(mm(p.x+p.w/2)-mm(Wm)/2, mm(Hm)/2, -mm(p.prof||1000)), b=new THREE.Vector3(mm(p.x+p.w/2)-mm(Wm)/2, mm(Hm)/2-mm(p.h), 0);
+      const L=a.distanceTo(b); o=new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.006,L,10),m);
+      o.position.copy(a.clone().add(b).multiplyScalar(0.5)); o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize()); sub.add(o); return;
+    }
+    if(p.cyl){ const horiz=p.horiz||p.w>p.h, len=horiz?p.w:p.h, r=Math.min(p.w,p.h)/2;
+      o=new THREE.Mesh(new THREE.CylinderGeometry(mm(r),mm(r),mm(len),14),m); if(horiz) o.rotation.z=Math.PI/2; }
+    else if(p.ry){ o=box(mm(p.d),mm(p.h),mm(p.w),m); o.position.set(mm(p.x-40)-mm(Wm)/2,mm(Hm)/2-mm(p.y+p.h/2),-mm(p.w/2)); sub.add(o); return; }
+    else o=box(mm(p.w),mm(p.h),mm(p.d||20),m);
+    o.position.set(mm(p.x+p.w/2)-mm(Wm)/2, mm(Hm)/2-mm(p.y+p.h/2), -mm((p.z||0)+(p.d||20)/2));
+    sub.add(o);
+  });
+  if(g.pente){ const t=Math.tan(g.pente*Math.PI/180); sub.matrixAutoUpdate=false; sub.matrix.set(1,0,0,0, t,1,0,0, 0,0,1,0, 0,0,0,1); }
+  group.add(sub);
+}
+function ouvMateriaux3D(THREE,fin,base){
+  const S=(o)=>new THREE.MeshStandardMaterial(o);
+  return {alu:base.alu,aluF:base.aluDark,lame:base.alu,verre:base.glassMat,maille:base.meshMat,toile:base.meshMat,
+    inox:S({color:0xdfe3e7,metalness:0.9,roughness:0.22}),panneau:S({color:new THREE.Color(fin.hexLight),roughness:0.6,metalness:0.2}),
+    tole:S({color:0xc5ccd3,metalness:0.5,roughness:0.45}),tolePerf:S({color:0xc9ced3,metalness:0.8,roughness:0.3,transparent:true,opacity:0.75}),
+    joint:S({color:0x111827,roughness:0.9}),poly:S({color:0xdbeafe,transparent:true,opacity:0.55,roughness:0.3}),acm:S({color:new THREE.Color(fin.hex),metalness:0.35,roughness:0.35})};
+}
+function ouvLibelleSysteme(res){
+  const g=res.geom||{};
+  if(g.kind!=='prims'||g.moteur==='chassis') return res.system.label;
+  return ({enroulable:'Fermeture enroulable',sectionnelle:'Porte sectionnelle',lames:'Système à lames',pergola:'Structure extérieure alu',portail:g.mat==='inox'?'Serrurerie inox':'Serrurerie aluminium',
+    gardecorps:g.mat==='inox'?'Inox 304 / 316 (A4 en bord de mer)':'Garde-corps aluminium',douche:'Verre trempé 8 mm + inox',habillage:'Composite aluminium (ACM) 4 mm'})[g.moteur]||(g.mat==='inox'?'Inox':'Aluminium');
+}
+/* Vignette SVG d'un type (galerie) — cotes par défaut, finition gris anthracite */
+const _ouvVignettes={};
+function ouvVignette(type){
+  if(_ouvVignettes[type]) return _ouvVignettes[type];
+  const T=TYPES_OUVRAGES[type]; if(!T) return '';
+  try{
+    const res=ouvCalculer(type,T.dim[0],T.dim[1],1,{p:{}},CATALOGUE_SYSTEMES.STD120,CATALOGUE_VITRAGES['DV6-12-6'],CATALOGUE_FINITIONS.gris7016);
+    const uid='vg'+Object.keys(_ouvVignettes).length;
+    const ev=ouvElevation({w:T.dim[0],h:T.dim[1]},res,uid,150,96);
+    return _ouvVignettes[type]=`<svg viewBox="0 0 170 110" class="w-full h-auto"><defs>${ev.defs}</defs><g transform="translate(${((170-ev.W)/2).toFixed(1)},${((110-ev.H)/2).toFixed(1)})">${ev.inner}</g></svg>`;
+  }catch(e){ return ''; }
+}
+/* ---------- Interface : choix du type (groupé par famille), galerie, paramètres ---------- */
+function ouvOptionsType(courant){
+  return OUV_FAMILLES.map(F=>{
+    const types=[...CONFIG_TYPES.filter(t=>OUV_FAMILLE_HISTO[t]===F.k),...Object.keys(TYPES_OUVRAGES).filter(t=>TYPES_OUVRAGES[t].famille===F.k)];
+    if(!types.length) return '';
+    return `<optgroup label="${F.icon} ${escapeHtml(F.label)}">${types.map(t=>`<option value="${escapeHtml(t)}" ${t===courant?'selected':''}>${escapeHtml(t)}</option>`).join('')}</optgroup>`;
+  }).join('');
+}
+function configChoisirType(type){
+  const c=configState, T=TYPES_OUVRAGES[type];
+  c.type=type;
+  if(T){ c.w=T.dim[0]; c.h=T.dim[1]; c.p=ouvDefauts(T); }
+  if(document.querySelector('.modal-overlay')) closeModal();
+  showEtudeTab('config');
+}
+function configParam(k,v){ configState.p=configState.p||{}; configState.p[k]=v; showEtudeTab(configState.activeTab); }
+function ouvChampsParams(T,c){
+  const p={...ouvDefauts(T),...(c.p||{})};
+  return (T.params||[]).map(d=>{
+    const v=p[d.k];
+    if(d.type==='bool') return `<div class="field"><label>${escapeHtml(d.label)}</label><label class="flex items-center gap-2 text-sm h-10 px-3 border rounded-lg bg-white cursor-pointer"><input type="checkbox" ${v?'checked':''} onchange="configParam('${d.k}',this.checked)" style="width:16px;height:16px"> ${v?'Oui':'Non'}</label></div>`;
+    if(d.type==='sel') return `<div class="field"><label>${escapeHtml(d.label)}</label>${fieldWrap('⚙️',`<select onchange="configParam('${d.k}',this.value)">${d.opts.map(([k,l])=>`<option value="${k}" ${String(v)===String(k)?'selected':''}>${escapeHtml(l)}</option>`).join('')}</select>`)}</div>`;
+    return `<div class="field"><label>${escapeHtml(d.label)}</label>${fieldWrap('📏',`<input type="number" value="${v??''}" ${d.min!=null?`min="${d.min}"`:''} ${d.max!=null?`max="${d.max}"`:''} step="${d.step||1}" onchange="configParam('${d.k}',Math.min(${d.max??1e9},Math.max(${d.min??-1e9},+this.value||0)))">`)}</div>`;
+  }).join('');
+}
+function ouvCarteInfos(c,res){
+  const T=TYPES_OUVRAGES[c.type]; if(!T) return '';
+  const g=res.geom, conf=g.conf||[];
+  const nKo=conf.filter(x=>!x.ok&&!x.info).length;
+  const fam=OUV_FAMILLES.find(f=>f.k===T.famille)||{};
+  return `<div class="page-card mb-4">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div class="min-w-0 flex-1">
+        <div class="text-xs text-gray-500">${fam.icon||''} ${escapeHtml(fam.label||'')} · ${T.mat==='inox'?'Inox':'Aluminium'}</div>
+        <h3 class="font-bold">${escapeHtml(c.type)}</h3>
+        <p class="text-sm text-gray-600 mt-1">${escapeHtml(T.desc||'')}</p>
+        ${(g.infos||[]).length?`<ul class="text-xs text-gray-500 mt-2 space-y-0.5">${g.infos.map(i=>`<li>• ${escapeHtml(i)}</li>`).join('')}</ul>`:''}
+      </div>
+      ${conf.length?`<div class="w-full sm:w-auto sm:max-w-md border rounded-xl p-3 ${nKo?'bg-red-50 border-red-200':'bg-emerald-50 border-emerald-200'}">
+        <div class="text-xs font-bold mb-1 ${nKo?'text-red-700':'text-emerald-700'}">${nKo?`⚠️ ${nKo} point(s) à corriger`:'✅ Contrôles techniques'}</div>
+        <ul class="text-xs space-y-1">${conf.map(x=>`<li class="${x.ok?'text-emerald-800':x.info?'text-amber-700':'text-red-700'}">${x.ok?'✔':x.info?'ℹ️':'✖'} ${escapeHtml(x.txt)}</li>`).join('')}</ul>
+      </div>`:''}
+    </div>
+  </div>`;
+}
+function ouvrirCatalogueOuvrages(){
+  const nb=Object.keys(TYPES_OUVRAGES).length+CONFIG_TYPES.length;
+  openModal(`<div>
+    <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
+      <div><h3 class="font-bold text-lg">📚 Catalogue des ouvrages</h3><p class="text-xs text-gray-500">${nb} ouvrages en menuiserie aluminium et inox — cliquez pour configurer.</p></div>
+      <div class="flex gap-2 items-center"><div class="w-64 max-w-full">${fieldWrap('🔎',`<input id="ouvCatQ" placeholder="Rechercher (porte, inox, coulissant…)" oninput="ouvFiltrerCatalogue()">`)}</div><button class="btn btn-outline btn-sm" onclick="closeModal()">✕</button></div>
+    </div>
+    <div class="flex gap-1.5 flex-wrap mb-3" id="ouvCatFam">${[{k:'',label:'Toutes',icon:'🗂️'},...OUV_FAMILLES].map(F=>`<button class="fam-chip ${F.k?'':'active'}" data-fam="${F.k}" onclick="ouvFiltrerCatalogue('${F.k}')">${F.icon} ${escapeHtml(F.label)}</button>`).join('')}</div>
+    <div id="ouvCatGrille" style="max-height:66vh;overflow:auto"></div>
+  </div>`);
+  const box=document.querySelector('.modal-box'); if(box) box.style.maxWidth='1100px';
+  window._ouvCatFam=''; ouvFiltrerCatalogue('');
+}
+function ouvFiltrerCatalogue(fam){
+  if(fam!==undefined) window._ouvCatFam=fam;
+  document.querySelectorAll('#ouvCatFam .fam-chip').forEach(b=>b.classList.toggle('active',b.dataset.fam===window._ouvCatFam));
+  const q=(document.getElementById('ouvCatQ')?.value||'').trim().toLowerCase();
+  const host=document.getElementById('ouvCatGrille'); if(!host) return;
+  const html=OUV_FAMILLES.filter(F=>!window._ouvCatFam||F.k===window._ouvCatFam).map(F=>{
+    const types=[...CONFIG_TYPES.filter(t=>OUV_FAMILLE_HISTO[t]===F.k),...Object.keys(TYPES_OUVRAGES).filter(t=>TYPES_OUVRAGES[t].famille===F.k)]
+      .filter(t=>!q||(t+' '+(TYPES_OUVRAGES[t]?.desc||'')+' '+(TYPES_OUVRAGES[t]?.mat||'')).toLowerCase().includes(q));
+    if(!types.length) return '';
+    return `<div class="mb-4"><div class="text-sm font-bold mb-2">${F.icon} ${escapeHtml(F.label)} <span class="text-gray-400 font-normal">(${types.length})</span></div>
+      <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr))">${types.map(t=>{ const T=TYPES_OUVRAGES[t];
+        return `<button class="text-left border rounded-xl p-2 bg-white hover:border-indigo-400 hover:shadow ${t===configState.type?'ring-2 ring-indigo-500':''}" onclick="configChoisirType(${escapeHtml(JSON.stringify(t))})">
+          <div class="rounded-lg bg-slate-50 mb-1.5" style="min-height:70px">${T?ouvVignette(t):`<div class="flex items-center justify-center text-3xl" style="height:90px">${F.icon}</div>`}</div>
+          <div class="text-xs font-semibold leading-tight">${escapeHtml(t)}</div>
+          <div class="text-[10px] text-gray-500 mt-0.5">${T?(T.mat==='inox'?'Inox':'Aluminium')+' · '+T.dim[0]+'×'+T.dim[1]:'Modèle historique'}</div></button>`; }).join('')}</div></div>`;
+  }).join('');
+  host.innerHTML=html||'<div class="text-center text-gray-400 p-8">Aucun ouvrage ne correspond.</div>';
+}
 function configCalculerBOM(type,w,h,leaves,qty,opts){
   opts=opts||{};
   const standing=opts.standing||'standard';
   const system=CATALOGUE_SYSTEMES[opts.serie]||CATALOGUE_SYSTEMES.STD120;
   const vitrage=CATALOGUE_VITRAGES[opts.vitrage]||CATALOGUE_VITRAGES['DV6-12-6'];
   const finition=CATALOGUE_FINITIONS[opts.finition]||CATALOGUE_FINITIONS.blanc9010;
+  if(TYPES_OUVRAGES[type]) return ouvCalculer(type,w,h,qty,opts,system,vitrage,finition);
   const perimeter=2*(w+h);
   let rows=[], alu=0, glassArea=0, glassPanels=[], geom={};
   if(type==='Garde-corps inox'){
@@ -3555,10 +4669,10 @@ const BOM_L1_CATEGORIES=[
   {key:'quincaillerie',label:'Quincaillerie & Consommables',icon:'🔩'}
 ];
 const BOM_L1_KEYWORDS={
-  structure:['dormant','montant','traverse','meneau','poteau','limon','cadre','ossature'],
+  structure:['dormant','montant','traverse','meneau','poteau','limon','cadre','ossature','rail haut','rail bas','coulisse','coffre','poutre','chevron','tube','main courante','lisse','barreau','sabot','profil mural','rail vertical','rail horizontal','rail au sol'],
   mobile:['ouvrant','vantail','lame','tablier'],
-  remplissage:['vitrage','verre','toile','parclose'],
-  quincaillerie:['vis','joint','poignée','serrure','paumelle','roulette','silicone','moteur','manivelle','tendeur','pince','clip','platine','sangle','équerre','gâche','ferme-porte','fixation','câble','capot','jonction','loquet','mécanisme','seuil','rail','caisson']
+  remplissage:['vitrage','verre','toile','parclose','panneau','tôle','composite','polycarbonate','hublot','grille maillée','couverture'],
+  quincaillerie:['vis','joint','poignée','serrure','paumelle','roulette','silicone','moteur','manivelle','tendeur','pince','clip','platine','sangle','équerre','gâche','ferme-porte','fixation','câble','capot','jonction','loquet','mécanisme','seuil','rail','caisson','pivot','compas','bras','crémone','cylindre','kit','ressort','charnière','chariot','verrou','butée','galet','tirant','rotule','cheville','rivet','patte','console','embout','penture','espagnolette','gond','axe','attache','support','treuil','crémaillère','motorisation','barre de stabilisation']
 };
 function classifyBOMLine(designation){
   const d=String(designation).toLowerCase();
@@ -3629,26 +4743,29 @@ function showEtudeTab(tab){
 function configUpdate(field,value){ configState[field]=value; showEtudeTab(configState.activeTab); }
 function configResultat(){
   const c=configState;
-  return configCalculerBOM(c.type,c.w,c.h,c.leaves,c.qty,{jointType:c.jointType,gap:c.gap,spacing:c.spacing,infill:c.infill,standing:c.standing,serie:c.serie,vitrage:c.vitrage,finition:c.finition});
+  return configCalculerBOM(c.type,c.w,c.h,c.leaves,c.qty,{...c});
 }
 function renderTabConfig(){
   const c=configState;
+  const TO=TYPES_OUVRAGES[c.type];
   const isGC=c.type==='Garde-corps inox';
-  const showLeaves=!isGC && c.type!=='Moustiquaire fixe' && c.type!=='Fenêtre jalousie';
-  const showJoint=!isGC && !c.type.startsWith('Moustiquaire') && c.type!=='Fenêtre jalousie';
-  const showVitrage=showJoint || (isGC && (c.infill||'cable')==='verre');
+  const showLeaves=!TO && !isGC && c.type!=='Moustiquaire fixe' && c.type!=='Fenêtre jalousie';
+  const showJoint=TO?TO.moteur==='chassis':(!isGC && !c.type.startsWith('Moustiquaire') && c.type!=='Fenêtre jalousie');
+  const showVitrage=TO?TO.moteur==='chassis':(showJoint || (isGC && (c.infill||'cable')==='verre'));
+  const showSerie=!TO||TO.moteur==='chassis';
+  const nbTypes=CONFIG_TYPES.length+Object.keys(TYPES_OUVRAGES).length;
   const res=configResultat();
   document.getElementById('etudeTabContent').innerHTML=`
     <div class="page-card mb-4">
       <div class="flex justify-between items-center">
         <h2>🧩 Configurateur d'ouvrage</h2>
-        <span class="badge bg-blue-50 text-blue-700">BOM paramétrique</span>
+        <div class="flex items-center gap-2"><span class="badge bg-blue-50 text-blue-700">BOM paramétrique</span><button class="btn btn-dark btn-sm" onclick="ouvrirCatalogueOuvrages()">📚 Catalogue (${nbTypes} ouvrages)</button></div>
       </div>
-      <p class="text-xs text-gray-500 mb-3">Les dimensions pilotent automatiquement la nomenclature (aluminium, vitrage, quincaillerie).</p>
+      <p class="text-xs text-gray-500 mb-3">Les dimensions et paramètres pilotent automatiquement la nomenclature (profilés, remplissage, quincaillerie), les schémas, la 3D et les contrôles techniques.</p>
       <div class="divider"></div>
       <div class="grid sm:grid-cols-3 gap-4">
-        <div class="field"><label>Type d'ouvrage</label>${fieldWrap('🏗️',`<select onchange="configUpdate('type',this.value)">${CONFIG_TYPES.map(t=>`<option ${t===c.type?'selected':''}>${t}</option>`).join('')}</select>`)}</div>
-        <div class="field"><label>Série aluminium</label>${fieldWrap('📐',`<select onchange="configUpdate('serie',this.value)">${Object.entries(CATALOGUE_SYSTEMES).map(([k,v])=>`<option value="${k}" ${c.serie===k?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Type d'ouvrage</label>${fieldWrap('🏗️',`<select onchange="configChoisirType(this.value)">${ouvOptionsType(c.type)}</select>`)}</div>
+        ${showSerie?`<div class="field"><label>Série aluminium</label>${fieldWrap('📐',`<select onchange="configUpdate('serie',this.value)">${Object.entries(CATALOGUE_SYSTEMES).map(([k,v])=>`<option value="${k}" ${c.serie===k?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>`)}</div>`:''}
         <div class="field"><label>Finition / Couleur</label>${fieldWrap(`<span class="inline-block w-3.5 h-3.5 rounded-full border border-black/20 align-middle" style="background:${(CATALOGUE_FINITIONS[c.finition]||CATALOGUE_FINITIONS.blanc9010).hex}"></span>`,`<select onchange="configUpdate('finition',this.value)">${Object.entries(CATALOGUE_FINITIONS).map(([k,v])=>`<option value="${k}" ${(c.finition||'blanc9010')===k?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Standing</label>${fieldWrap('⭐',`<select onchange="configUpdate('standing',this.value)">${Object.entries(COMPOSANT_STANDINGS).map(([k,v])=>`<option value="${k}" ${(c.standing||'standard')===k?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Quantité</label>${fieldWrap('#',`<input type="number" min="1" value="${c.qty}" onchange="configUpdate('qty',+this.value||1)">`)}</div>
@@ -3660,8 +4777,10 @@ function renderTabConfig(){
         <div class="field"><label>Jeu vitrage (mm)</label>${fieldWrap('📏',`<input type="number" value="${c.gap}" onchange="configUpdate('gap',+this.value||0)">`)}</div>`:''}
         ${isGC?`<div class="field"><label>Espacement poteaux (mm)</label>${fieldWrap('📏',`<input type="number" min="500" value="${c.spacing}" onchange="configUpdate('spacing',+this.value||1500)">`)}</div>
         <div class="field"><label>Remplissage</label>${fieldWrap('🧱',`<select onchange="configUpdate('infill',this.value)"><option value="cable" ${c.infill==='cable'?'selected':''}>Câble inox</option><option value="barreaudage" ${c.infill==='barreaudage'?'selected':''}>Barreaudage</option><option value="verre" ${c.infill==='verre'?'selected':''}>Verre feuilleté</option></select>`)}</div>`:''}
+        ${TO?ouvChampsParams(TO,c):''}
       </div>
     </div>
+    ${ouvCarteInfos(c,res)}
     <div class="grid sm:grid-cols-4 gap-4 mb-4">
       <div class="card p-4"><div class="text-gray-400 text-xs">Surface</div><div class="text-lg font-black mt-1">${res.surface.toFixed(2)} m²</div></div>
       <div class="card p-4"><div class="text-gray-400 text-xs">Aluminium</div><div class="text-lg font-black mt-1">${res.alu.toFixed(2)} ml</div></div>
@@ -3723,6 +4842,7 @@ function svgScaleBar(uid,scale){
 /* Vue de face à l'échelle : dispatch par nature d'ouvrage (res.geom.kind), seule source de géométrie
    réutilisée à la fois par le schéma simple et par le plan de fabrication. */
 function elevationGroup(c,res,uid,boxW,boxH){
+  if((res.geom||{}).kind==='prims') return ouvElevation(c,res,uid,boxW,boxH);
   const fin=res.finition, sys=res.system, geom=res.geom||{};
   const w=Math.max(1,c.w), h=Math.max(1,c.h);
   const scale=Math.min(boxW/w, boxH/h);
@@ -3863,6 +4983,7 @@ function buildCoupeStandardBB(c,res,uid,boxW,boxH){
 }
 /* Coupes spécifiques aux ouvrages hors fenêtre/porte (garde-corps, moustiquaire, jalousie) */
 function buildCoupeAutre(kind,c,res,uid,boxW,boxH){
+  if(kind==='prims') return ouvCoupes(c,res,uid,boxW,boxH);
   const geom=res.geom;
   if(kind==='gardecorps'){
     const tubeD=Math.min(boxW*0.3,50), cx=boxW/2;
@@ -3905,11 +5026,12 @@ function svgSchemaParametrique(c,res){
   const cx=ox+(boxW-g.W)/2, cy=oy+(boxH-g.H)/2;
   const geom=res.geom;
   let countLabel='1 élément';
-  if(geom.kind==='gardecorps') countLabel=`${geom.nPoteaux} poteaux`;
+  if(geom.kind==='prims') countLabel=(geom.infos||[])[0]||'';
+  else if(geom.kind==='gardecorps') countLabel=`${geom.nPoteaux} poteaux`;
   else if(geom.kind==='jalousie') countLabel=`${geom.nLames} lames`;
   else if(geom.kind==='moustiquaire') countLabel=geom.isCoul?`${geom.leaves} vantaux`:'Fixe';
   else countLabel=geom.leaves>1?`${geom.leaves} vantaux`:'1 vantail';
-  const label=`${c.type} • ${countLabel} • ${res.system.label} • ${res.finition.label}`;
+  const label=`${c.type} • ${countLabel} • ${ouvLibelleSysteme(res)} • ${res.finition.label}`;
   return `<svg viewBox="0 0 860 440" class="w-full h-auto" role="img" aria-label="Schéma technique de l'ouvrage à l'échelle">
     <defs>${g.defs}<marker id="dArrow-${uid}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker></defs>
     <g transform="translate(${cx.toFixed(1)},${cy.toFixed(1)})">${g.inner}</g>
@@ -3931,7 +5053,7 @@ function svgSchemaFabrication(c,res){
   const geom=res.geom, kind=geom.kind||'standard';
   const sys=res.system, vit=res.vitrage, fin=res.finition;
   const isPorte=geom.isPorte;
-  const openingLabel=isPorte?"Sens d'ouverture — porte battante":kind==='gardecorps'?'Garde-corps — vue de face':kind==='moustiquaire'?(geom.isCoul?`Moustiquaire coulissante — ${geom.leaves} vantaux`:'Moustiquaire fixe'):kind==='jalousie'?`Jalousie — ${geom.nLames} lames`:geom.leaves>1?`Sens de coulissement — ${geom.leaves} vantaux`:'Ouvrage fixe';
+  const openingLabel=kind==='prims'?((geom.infos||[])[0]||c.type):isPorte?"Sens d'ouverture — porte battante":kind==='gardecorps'?'Garde-corps — vue de face':kind==='moustiquaire'?(geom.isCoul?`Moustiquaire coulissante — ${geom.leaves} vantaux`:'Moustiquaire fixe'):kind==='jalousie'?`Jalousie — ${geom.nLames} lames`:geom.leaves>1?`Sens de coulissement — ${geom.leaves} vantaux`:'Ouvrage fixe';
   const elevBoxW=430,elevBoxH=330,evOxBase=90,evOyBase=140;
   const ev=elevationGroup(c,res,uid,elevBoxW,elevBoxH);
   const evOx=evOxBase+(elevBoxW-ev.W)/2, evOy=evOyBase+(elevBoxH-ev.H)/2;
@@ -3962,8 +5084,8 @@ function svgSchemaFabrication(c,res){
     <defs>${ev.defs}<marker id="dArrow-${uid}" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker></defs>
     <rect x="15" y="15" width="1170" height="770" fill="#fff" stroke="#0f172a" stroke-width="2"/>
     <text x="35" y="45" font-size="20" font-weight="800" fill="#0f172a">${escapeHtml(c.type.toUpperCase())} — PLAN DE FABRICATION</text>
-    <text x="1160" y="45" text-anchor="end" font-size="12" fill="#475569">${nomEntreprise()?'B.E. '+escapeHtml(nomEntreprise())+' • ':''}${escapeHtml(sys.label)}</text>
-    <text x="35" y="65" font-size="11" fill="#64748b">Finition ${escapeHtml(fin.label)}${kind==='standard'?' • '+escapeHtml(vit.label):''}</text>
+    <text x="1160" y="45" text-anchor="end" font-size="12" fill="#475569">${nomEntreprise()?'B.E. '+escapeHtml(nomEntreprise())+' • ':''}${escapeHtml(ouvLibelleSysteme(res))}</text>
+    <text x="35" y="65" font-size="11" fill="#64748b">Finition ${escapeHtml(fin.label)}${kind==='standard'||geom.moteur==='chassis'?' • '+escapeHtml(vit.label):''}</text>
     <text x="90" y="100" font-size="14" font-weight="800" fill="#1d4ed8">VUE DE FACE — COTES HORS TOUT</text>
     <g transform="translate(${evOx.toFixed(1)},${evOy.toFixed(1)})">${ev.inner}</g>
     <line x1="${evOx.toFixed(1)}" y1="130" x2="${(evOx+ev.W).toFixed(1)}" y2="130" stroke="#334155" stroke-width="1.5" marker-start="url(#dArrow-${uid})" marker-end="url(#dArrow-${uid})"/>
@@ -3982,7 +5104,7 @@ function svgSchemaFabrication(c,res){
     <text x="660" y="608" font-size="11" font-weight="700">REPÈRE</text><text x="800" y="608" font-size="11" font-weight="700">DÉSIGNATION</text>
     <text x="1020" y="608" font-size="11" font-weight="700" text-anchor="end">QTÉ</text><text x="1150" y="608" font-size="11" font-weight="700" text-anchor="end">MM</text>
     ${cutRows}
-    <text x="35" y="760" font-size="11" fill="#475569">Tolérance générale : ±1 mm • Trait de scie : ${c.kerf} mm • Barre commerciale : ${c.barLen} mm • Système ${escapeHtml(sys.label)} (prof. ${sys.profondeur} mm${sys.rupturePontThermique?' — RPT':''}) • Uf ${sys.uf} W/m².K</text>
+    <text x="35" y="760" font-size="11" fill="#475569">Tolérance générale : ±1 mm • Trait de scie : ${c.kerf} mm • Barre commerciale : ${c.barLen} mm • ${kind!=='prims'||geom.moteur==='chassis'?`Système ${escapeHtml(sys.label)} (prof. ${sys.profondeur} mm${sys.rupturePontThermique?' — RPT':''}) • Uf ${sys.uf} W/m².K`:escapeHtml(ouvLibelleSysteme(res))}</text>
   </svg>`;
 }
 function svgJonctionAngle(c,res){
@@ -4262,6 +5384,8 @@ function build3DScene(c,res){
         }
       }
     }
+  } else if(kind==='prims'){
+    ouv3D(c,res,THREE,group,ouvMateriaux3D(THREE,fin,{alu,aluDark,glassMat,meshMat}));
   } else if(kind==='moustiquaire'){
     const W=mm(c.w), H=mm(c.h), fbm=Math.max(0.015,mm(18));
     const top=box(W,fbm,depth*0.6,alu); top.position.set(0,H/2-fbm/2,0); group.add(top);
@@ -4317,9 +5441,10 @@ function build3DScene(c,res){
     }
   }
   scene.add(group);
-  const groundSize=Math.max(mm(c.w),mm(c.h))*4+2;
+  const Hsol=kind==='prims'&&geom.H?geom.H:c.h;
+  const groundSize=Math.max(mm(c.w),mm(Hsol))*4+2;
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(groundSize,groundSize), new THREE.ShadowMaterial({opacity:0.22}));
-  ground.rotation.x=-Math.PI/2; ground.position.y=-mm(c.h)/2-0.002; ground.receiveShadow=true;
+  ground.rotation.x=-Math.PI/2; ground.position.y=-mm(Hsol)/2-0.002; ground.receiveShadow=true;
   scene.add(ground);
   const amb=new THREE.AmbientLight(0xffffff,0.65); scene.add(amb);
   const sun=new THREE.DirectionalLight(0xffffff,0.9);
@@ -4751,10 +5876,11 @@ async function enregistrerProduitConfigure(){
   const total=direct+indirect;
   const sale=Math.round(total*(1+c.margin/100)*(1-Math.min(90,Math.max(0,c.remise))/100));
   const pctCout=sale?Math.round(res.coutMateriel/sale*100):60;
-  const showLeaves=!c.type.startsWith('Moustiquaire')&&c.type!=='Fenêtre jalousie'&&c.type!=='Garde-corps inox';
+  const TO=TYPES_OUVRAGES[c.type];
+  const showLeaves=!TO&&!c.type.startsWith('Moustiquaire')&&c.type!=='Fenêtre jalousie'&&c.type!=='Garde-corps inox';
   const standingLabel=c.standing&&c.standing!=='standard'?' — '+(COMPOSANT_STANDINGS[c.standing]?.label||''):'';
-  const nom=`${c.type} ${c.w}×${c.h}mm${showLeaves&&c.leaves>1?' — '+c.leaves+' vantaux':''} (${c.serie})${standingLabel}`;
-  const famille=PRODUIT_FAMILLES.includes(c.type)?c.type:'Autre';
+  const nom=`${c.type} ${c.w}×${c.h}mm${showLeaves&&c.leaves>1?' — '+c.leaves+' vantaux':''}${!TO||TO.moteur==='chassis'?` (${c.serie})`:TO.mat==='inox'?' (inox)':''}${standingLabel}`;
+  const famille=PRODUIT_FAMILLES.includes(c.type)?c.type:TO?(OUV_FAMILLES.find(f=>f.k===TO.famille)?.label||'Autre'):'Autre';
   const rec={nom,famille,unite:'unite',prix_vente:sale,cout_materiel:res.coutMateriel,cout_materiel_pct:pctCout,alu_ml:res.alu,glass_m2:res.glassArea,config_json:c};
   let error;
   if(window._configEditId){
