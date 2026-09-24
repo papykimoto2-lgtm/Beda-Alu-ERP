@@ -271,4 +271,17 @@ end $$;
 --    NOUVEAUX comptes créés après cette migration seront concernés par le
 --    rôle « Sans rôle » par défaut).
 -- ----------------------------------------------------------------------------
+-- Si un rôle texte existe déjà (profiles.role, cf. sql/affectations_caisse_pdv.sql), on le reprend ;
+-- « utilisateur » / « technicien » (sans équivalent) → « sans rôle » ; profil sans rôle du tout → administrateur
+-- (comportement historique : avant ce module, tout compte connecté avait un accès complet).
+do $$
+begin
+  if exists (select 1 from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='role') then
+    execute $q$
+      update profiles p set role_id = r.id from roles r
+      where p.role_id is null and p.role is not null
+        and r.code = case p.role when 'caissier' then 'caissiere' when 'utilisateur' then 'sans_role'
+                                 when 'technicien' then 'sans_role' else p.role end $q$;
+  end if;
+end $$;
 update profiles set role_id = (select id from roles where code = 'admin') where role_id is null;

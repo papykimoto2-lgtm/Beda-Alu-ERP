@@ -8,14 +8,15 @@ Le logiciel n'est lié à aucune entreprise : le nom, le logo, les coordonnées 
 
 ## Stack
 - Frontend : `index.html` (Tailwind CDN + Supabase JS + Chart.js), aucun build.
-- Backend : Supabase (Postgres + Auth + RLS + Edge Function `fne-proxy`).
+- Backend : Supabase (Postgres + Auth + RLS + Edge Functions `connexion`, `gestion-utilisateurs`, `fne-proxy`).
 
 ## Installer pour une nouvelle structure
 1. Créer un projet Supabase dédié à la structure (un projet par entreprise).
 2. Dans Supabase → SQL Editor, exécuter **une seule fois** `sql/00_installation_complete.sql` : il crée toute la base (tables, fonctions, sécurité) et les référentiels de départ — journaux et plan comptable SYSCOHADA de base, exercice de l'année, catalogue technique du configurateur (prix indicatifs à ajuster), dépôt / caisse / point de vente principaux. Aucune donnée d'une autre entreprise n'y figure.
 3. Copier `config.example.js` en `config.js` et y mettre l'URL et la clé publique (anon) du projet (Supabase → Project Settings → API).
-4. Déployer l'Edge Function `supabase/functions/fne-proxy` (certification FNE).
-5. Publier le dossier (Vercel / Netlify / GitHub Pages), ouvrir l'application, « Première connexion ? Créer un compte administrateur » (le premier compte devient administrateur), puis renseigner **Paramètres → Entreprise** : raison sociale, logo, RCCM / NCC, TVA, conditions des devis et factures.
+4. Déployer les Edge Functions de `supabase/functions/` : `connexion` (sans vérification JWT : `supabase functions deploy connexion --no-verify-jwt`), `gestion-utilisateurs` et `fne-proxy` (certification FNE).
+   Dans Supabase → Authentication → Sign In / Providers, **désactiver « Allow new users to sign up »** une fois le premier administrateur créé : les comptes sont ensuite créés uniquement par l'administrateur.
+5. Publier le dossier (Vercel / Netlify / GitHub Pages), ouvrir l'application, « Première installation ? Créer le compte administrateur » (bouton visible seulement tant qu'aucun compte n'existe ; le premier compte devient administrateur), puis renseigner **Paramètres → Entreprise** : raison sociale, logo, RCCM / NCC, TVA, conditions des devis et factures.
 
 Les autres scripts de `sql/` servent uniquement à mettre à jour une installation existante, étape par étape.
 
@@ -65,3 +66,13 @@ Menu **Caisse → Affectations & codes PIN** (administrateurs et managers). Insp
 - **Code PIN de caisse** personnel (4 chiffres), exigé à l'ouverture de séance ; stocké chiffré (bcrypt) côté serveur, jamais réaffiché ; 5 erreurs → blocage 10 minutes. Chacun peut changer son PIN (Caisse → « Mon code PIN »).
 - Contrôles appliqués **dans la base** : ouverture de séance via `caisse_ouvrir_session` (affectation + PIN), mouvements de caisse et ventes au comptoir refusés hors affectation. Le fond d'ouverture reprend le solde compté à la dernière clôture ; la séance mémorise qui l'ouvre et la clôture.
 - Migration : `sql/affectations_caisse_pdv.sql`.
+
+## Utilisateurs, rôles et connexion (modèle Menko Immo)
+- **Comptes créés par l'administrateur** (Paramètres → Utilisateurs) : identifiant (ex. `a.kone`), nom, e-mail facultatif, téléphone, rôle et **mot de passe provisoire** affiché une seule fois. Plus d'inscription libre.
+- **Connexion par identifiant ou e-mail** via l'Edge Function `connexion` : blocage après 5 échecs sur 24 h, message du nombre de tentatives restantes, journal de chaque tentative (IP, navigateur).
+- **Mot de passe** : 8 caractères minimum dont 1 majuscule, 1 chiffre, 1 caractère spécial ; changement **obligatoire** à la première connexion et après réinitialisation. Chacun peut changer le sien en cliquant sur son avatar.
+- **Désactivation / réactivation** d'un compte, réinitialisation du mot de passe (débloque aussi le compte). Le dernier administrateur actif ne peut être ni rétrogradé ni désactivé.
+- **Rôles & accès** : rôles (administrateur, manager, comptable, commercial, caissière, commissaire, personnalisés) avec droits voir / créer / modifier / supprimer / valider par module. Un compte « sans rôle » voit une page d'attente.
+- **Sécurité & connexions** : déconnexion automatique après inactivité (30 min par défaut), bouton « Déconnecter tous les autres postes », postes connectés récemment, journal des connexions.
+- Appliqué **dans la base** (RLS restrictive) : un compte désactivé, sans rôle ou devant changer son mot de passe n'accède à aucune donnée, même en appelant l'API directement.
+- Migrations (installation existante) : `sql/utilisateurs_roles.sql` puis `sql/utilisateurs_auth_menko.sql`. Les comptes existants reçoivent un identifiant tiré de leur e-mail.

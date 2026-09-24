@@ -151,14 +151,14 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
     <div class="card p-6">
       <div id="authMsg" class="hidden text-sm rounded-lg px-3 py-2 mb-3"></div>
       <form id="loginForm" class="space-y-3">
-        <input id="authEmail" type="email" required placeholder="Email" autocomplete="username">
+        <input id="authEmail" type="text" required placeholder="Identifiant ou e-mail" autocomplete="username" autocapitalize="none" spellcheck="false">
         <div style="position:relative">
           <input id="authPassword" type="password" required placeholder="Mot de passe" autocomplete="current-password" style="padding-right:38px">
           <button type="button" onclick="toggleAuthPasswordVisibility()" tabindex="-1" title="Afficher/masquer le mot de passe" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;line-height:1;padding:4px;color:#9ca3af">👁️</button>
         </div>
         <button type="submit" class="btn btn-primary w-full py-2.5">Se connecter</button>
       </form>
-      <button id="toggleSignup" class="text-xs text-gray-400 hover:text-gray-600 w-full text-center mt-4">Première connexion ? Créer un compte administrateur</button>
+      <button id="toggleSignup" class="hidden text-xs text-gray-400 hover:text-gray-600 w-full text-center mt-4">Première connexion ? Créer un compte administrateur</button>
     </div>
       <p class="text-center text-xs text-gray-400 mt-6">Sanix AluExpert ERP · © Sanix Africa Division Technologies</p>
   </div>
@@ -307,7 +307,7 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
           <div id="hdrUserName" class="text-sm font-semibold text-gray-700">—</div>
           <div class="text-[11px] text-emerald-600">Connecté</div>
         </div>
-        <div id="hdrAvatar" class="avatar">--</div>
+        <div id="hdrAvatar" class="avatar" style="cursor:pointer" title="Changer mon mot de passe" onclick="ouvrirChangementMotDePasse(false)">--</div>
       </div>
     </header>
     <div id="pageContent" class="p-4 sm:p-6"></div>
@@ -355,6 +355,7 @@ document.getElementById('toggleSignup').onclick=()=>{
   authMode = authMode==='login' ? 'signup' : 'login';
   document.getElementById('toggleSignup').textContent = authMode==='login' ? 'Première connexion ? Créer un compte administrateur' : '← Retour à la connexion';
   document.querySelector('#loginForm button[type=submit]').textContent = authMode==='login' ? 'Se connecter' : 'Créer le compte';
+  document.getElementById('authEmail').placeholder = authMode==='login' ? 'Identifiant ou e-mail' : 'E-mail de l\'administrateur';
 };
 function toggleAuthPasswordVisibility(){
   const input=document.getElementById('authPassword');
@@ -375,32 +376,35 @@ document.getElementById('loginForm').addEventListener('submit', async (e)=>{
   const btn=e.target.querySelector('button[type=submit]'); btn.disabled=true;
   try{
     if(authMode==='signup'){
-      const {data,error}=await sb.auth.signUp({email,password});
+      // Uniquement sur une installation vierge : ce premier compte devient administrateur
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("Saisissez l'e-mail de l'administrateur.");
+      const err=politiqueMotDePasse(password); if(err) throw new Error(err);
+      const {error}=await sb.auth.signUp({email,password});
       if(error) throw error;
-      if(data?.user?.id) await rbacAssignerRoleApresInscription(data.user.id,email);
-      showAuthMsg('Compte créé. Connectez-vous.', false);
-      authMode='login'; document.getElementById('toggleSignup').click(); document.getElementById('toggleSignup').click();
+      showAuthMsg('Compte administrateur créé. Connectez-vous.', false);
+      authMode='signup'; document.getElementById('toggleSignup').click();
+      preparerEcranConnexion();
     } else {
-      const {error}=await sb.auth.signInWithPassword({email,password});
-      if(error) throw error;
-      const {data:{user}}=await sb.auth.getUser();
-      const {data:profilConnexion}=await sb.from('profiles').select('actif').eq('id',user.id).maybeSingle();
-      if(profilConnexion && profilConnexion.actif===false){
-        await sb.auth.signOut();
-        throw new Error('Ce compte a été désactivé. Contactez un administrateur.');
-      }
+      await connecterUtilisateur(email,password);
+      document.getElementById('authPassword').value='';
       await enterApp();
     }
   }catch(err){ showAuthMsg(err.message||'Erreur', true); }
   finally{ btn.disabled=false; }
 });
-async function handleLogout(){ await sb.auth.signOut(); CURRENT_USER=null; document.getElementById('appScreen').classList.add('hidden'); document.getElementById('authScreen').classList.remove('hidden'); }
+async function handleLogout(){ clearInterval(window._session?.minuteur); window._rbac.loaded=false; window._rbac.monProfil=null; window._affect.charge=false; window.APP_PARAMS=null; document.getElementById('modalMdp')?.remove(); await sb.auth.signOut(); CURRENT_USER=null; document.getElementById('appScreen').classList.add('hidden'); document.getElementById('authScreen').classList.remove('hidden'); preparerEcranConnexion(); }
 async function enterApp(){
   const {data:{user}}=await sb.auth.getUser();
   if(!user) return;
   CURRENT_USER=user;
   const {data:profile}=await sb.from('profiles').select('*').eq('id',user.id).maybeSingle();
-  if(profile && 'email' in profile && profile.email!==user.email) sb.from('profiles').update({email:user.email}).eq('id',user.id);
+  if(profile && profile.actif===false){ await handleLogout(); showAuthMsg('⛔ Ce compte est désactivé. Contactez un administrateur.',true); return; }
+  if(profile && profile.must_change){
+    // Mot de passe provisoire : aucun accès aux données (bloqué aussi dans la base) tant qu'il n'est pas changé
+    document.getElementById('authScreen').classList.remove('hidden');
+    ouvrirChangementMotDePasse(true,profile.login||profile.nom_complet||user.email);
+    return;
+  }
   window._affect.charge=false; chargerAffectations();
   const displayName=profile?.nom_complet||user.email;
   document.getElementById('authScreen').classList.add('hidden');
@@ -415,14 +419,20 @@ async function enterApp(){
   refreshProjetsBadges();
   refreshStockAlertesBadge();
   refreshTransfertsBadge();
-  loadAppParams();
-  await rbacCharger();
+  await loadAppParams();
+  await rbacCharger(true);   // toujours les droits de l'utilisateur qui vient de se connecter
   rbacAppliquerSidebar();
+  demarrerSurveillanceSession();
+  if(monRole()?.code==='sans_role'){
+    document.getElementById('pageContent').innerHTML=`<div class="card p-10 text-center max-w-lg mx-auto mt-10"><div class="text-5xl mb-3">⏳</div><h2 class="text-lg font-bold mb-2">Compte en attente</h2><p class="text-gray-500">Votre compte n'a pas encore de rôle. Un administrateur doit vous en attribuer un (Paramètres → Utilisateurs & Rôles).</p><button class="btn btn-outline mt-5" onclick="handleLogout()">Se déconnecter</button></div>`;
+    document.getElementById('pageTitle').textContent='Compte en attente';
+    return;
+  }
   showPage('dashboard');
 }
 (async function boot(){
   const {data:{session}}=await sb.auth.getSession();
-  if(session) await enterApp();
+  if(session) await enterApp(); else preparerEcranConnexion();
 })();
 
 /* ============================== ROUTING ============================== */
@@ -6787,7 +6797,6 @@ async function imprimerBonTransfert(id){
    vente sans affectation reste ouvert à tous), gestionnaires (admin, manager) sans restriction, PIN personnel de
    4 chiffres exigé à l'ouverture de séance. Les règles sont appliquées dans la base (sql/affectations_caisse_pdv.sql) ;
    ces fonctions ne font que refléter l'état à l'écran. */
-const ROLES_UTILISATEUR={admin:'👑 Administrateur',manager:'🧭 Manager',comptable:'📗 Comptable',caissier:'💰 Caissier(ère)',commercial:'🤝 Commercial',technicien:'🛠️ Technicien',utilisateur:'👤 Utilisateur'};
 window._affect=window._affect||{charge:false,role:null,caisses:[],pdv:[]};
 async function chargerAffectations(force){
   if(window._affect.charge && !force) return window._affect;
@@ -6814,10 +6823,10 @@ function peutUtiliserPdv(pdvId){
 function monPdvParDefaut(){ return window._affect.pdv.find(x=>x.user_id===CURRENT_USER?.id && x.par_defaut)?.point_vente_id||''; }
 
 async function renderCaisseAffectations(el){
-  await chargerAffectations(true);
+  await Promise.all([chargerAffectations(true),rbacCharger(true)]);
   if(!estGestionnaireCaisse()){ el.innerHTML='<div class="card p-8 text-center text-gray-500">🔒 Réservé aux gestionnaires (administrateur, manager).</div>'; return; }
   const [{data:users},{data:caisses},{data:pdvs},{data:pins,error:ePins}]=await Promise.all([
-    sb.from('profiles').select('id,nom_complet,role,created_at').order('nom_complet'),
+    sb.from('profiles').select('id,nom_complet,login,role,role_id,actif,created_at').order('nom_complet'),
     sb.from('caisses').select('id,nom,actif').order('created_at'),
     sb.from('points_vente').select('id,code,nom,actif,caisse_id').order('code'),
     sb.rpc('etat_pins_caisse')
@@ -6855,8 +6864,8 @@ async function renderCaisseAffectations(el){
         <tbody>${(users||[]).map(u=>{
           const gest=['admin','manager'].includes(u.role);
           return `<tr>
-          <td class="font-semibold">${escapeHtml(u.nom_complet||u.id.slice(0,8))}${u.id===CURRENT_USER?.id?' <span class="text-xs text-gray-400">(vous)</span>':''}</td>
-          <td>${estAdmin?`<select onchange="changerRoleUtilisateur('${u.id}',this.value,this)" style="width:auto;padding:4px 6px" data-old="${u.role}">${Object.entries(ROLES_UTILISATEUR).map(([k,l])=>`<option value="${k}" ${u.role===k?'selected':''}>${l}</option>`).join('')}</select>`:escapeHtml(ROLES_UTILISATEUR[u.role]||u.role||'—')}</td>
+          <td class="font-semibold" style="${u.actif===false?'opacity:.5':''}">${escapeHtml(u.nom_complet||u.id.slice(0,8))}${u.id===CURRENT_USER?.id?' <span class="text-xs text-gray-400">(vous)</span>':''}${u.login?`<div class="text-xs font-normal text-gray-400 font-mono">${escapeHtml(u.login)}</div>`:''}</td>
+          <td>${estAdmin?`<select onchange="changerRoleUtilisateur('${u.id}',this.value,this)" style="width:auto;padding:4px 6px" data-old="${u.role_id||''}">${(window._rbac.roles||[]).map(r=>`<option value="${r.id}" ${u.role_id===r.id?'selected':''}>${r.icon} ${escapeHtml(r.label)}</option>`).join('')}</select>`:escapeHtml((window._rbac.roles||[]).find(r=>r.id===u.role_id)?.label||u.role||'—')}</td>
           <td class="whitespace-nowrap text-xs">${pinCell(u)}
             <div class="mt-1 flex gap-2"><button class="text-violet-700 font-semibold" onclick="openDefinirPinModal('${u.id}')">${pinMap[u.id]?.a_un_pin?'Réinitialiser':'Définir'}</button>${pinMap[u.id]?.a_un_pin?`<button class="text-red-600 font-semibold" onclick="supprimerPinCaisse('${u.id}')">Retirer</button>`:''}</div></td>
           ${(caisses||[]).map((c,i)=>`<td class="text-center" style="${i===0?'border-left:2px solid #e5e7eb':''}">${gest?'<span class="text-xs text-gray-400" title="Accès complet par son rôle">tout</span>':`<input type="checkbox" style="width:18px;height:18px" ${ca(c.id,u.id)?'checked':''} onchange="basculerAffectationCaisse('${c.id}','${u.id}',this.checked,this)">`}</td>`).join('')}
@@ -6867,11 +6876,11 @@ async function renderCaisseAffectations(el){
     </div>
     <div class="text-xs text-gray-500 mt-3 space-y-1">
       <div>🔑 Le code PIN (4 chiffres) est personnel : il est demandé à l'ouverture d'une séance de caisse. Il est stocké chiffré et n'est jamais réaffiché ; 5 codes faux bloquent l'utilisateur 10 minutes (une réinitialisation lève le blocage).</div>
-      <div>👤 Les nouveaux comptes sont créés avec le rôle « Utilisateur » : attribuez-leur ici un rôle puis leurs caisses / points de vente.${estAdmin?'':' Seul un administrateur peut changer les rôles.'}</div>
+      <div>👤 Les comptes se créent dans <a href="#" class="text-violet-700 font-semibold" onclick="showPage('parametres');return false">Paramètres → Utilisateurs & Rôles</a> (identifiant + mot de passe provisoire).${estAdmin?'':' Seul un administrateur peut changer les rôles.'}</div>
     </div>`;
 }
-async function changerRoleUtilisateur(userId,role,sel){
-  const {error}=await sb.from('profiles').update({role}).eq('id',userId);
+async function changerRoleUtilisateur(userId,roleId,sel){
+  const {error}=await sb.from('profiles').update({role_id:roleId}).eq('id',userId);
   if(error){ toast(error.message,'error'); sel.value=sel.dataset.old; return; }
   toast('Rôle mis à jour.'); showPage('caisse-affectations');
 }
@@ -7857,15 +7866,16 @@ async function rbacMonter(host){
   await rbacCharger(true);
   host.innerHTML=`
     <div class="flex gap-2 mb-4">
-      <button class="param-tab-btn rbac-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${window._rbacUI.tab==='utilisateurs'?'bg-indigo-600 text-white':''}" onclick="rbacSwitchTab('utilisateurs')">👤 Utilisateurs</button>
-      <button class="param-tab-btn rbac-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${window._rbacUI.tab==='roles'?'bg-indigo-600 text-white':''}" onclick="rbacSwitchTab('roles')">🛡️ Rôles & Accès</button>
+      <button data-tab="utilisateurs" class="param-tab-btn rbac-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${window._rbacUI.tab==='utilisateurs'?'bg-indigo-600 text-white':''}" onclick="rbacSwitchTab('utilisateurs')">👤 Utilisateurs</button>
+      <button data-tab="roles" class="param-tab-btn rbac-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${window._rbacUI.tab==='roles'?'bg-indigo-600 text-white':''}" onclick="rbacSwitchTab('roles')">🛡️ Rôles & Accès</button>
+      ${peutModule('Utilisateurs','modifier')?`<button data-tab="securite" class="param-tab-btn rbac-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${window._rbacUI.tab==='securite'?'bg-indigo-600 text-white':''}" onclick="rbacSwitchTab('securite')">🔐 Sécurité & connexions</button>`:''}
     </div>
     <div id="rbacTabContent"></div>`;
   rbacRenderTab();
 }
 function rbacSwitchTab(tab){
   window._rbacUI.tab=tab;
-  document.querySelectorAll('.rbac-tab-btn').forEach(b=>{ const on=b.textContent.includes(tab==='utilisateurs'?'Utilisateurs':'Rôles'); b.classList.toggle('bg-indigo-600',on); b.classList.toggle('text-white',on); });
+  document.querySelectorAll('.rbac-tab-btn').forEach(b=>{ const on=b.dataset.tab===tab; b.classList.toggle('bg-indigo-600',on); b.classList.toggle('text-white',on); });
   rbacRenderTab();
 }
 async function rbacRenderTab(){
@@ -7873,83 +7883,279 @@ async function rbacRenderTab(){
   if(!host) return;
   host.innerHTML='<div class="text-sm text-gray-400 p-8 text-center">Chargement…</div>';
   if(window._rbacUI.tab==='roles') await rbacRenderRolesTab(host);
+  else if(window._rbacUI.tab==='securite') await rbacRenderSecuriteTab(host);
   else await rbacRenderUtilisateursTab(host);
 }
-/* ---------- Onglet Utilisateurs ---------- */
+/* ============================== COMPTES UTILISATEURS (à la manière de Menko Immo) ==============================
+   Connexion par identifiant ou e-mail via l'Edge Function « connexion » (blocage après 5 échecs, journal),
+   changement de mot de passe obligatoire, déconnexion après inactivité et déconnexion forcée de tous les postes,
+   gestion des comptes par l'administrateur via l'Edge Function « gestion-utilisateurs ».
+   Règles appliquées dans la base : sql/utilisateurs_roles.sql + sql/utilisateurs_auth_menko.sql. */
+const POLITIQUE_MDP_TEXTE='8 caractères minimum, dont 1 majuscule, 1 chiffre et 1 caractère spécial';
+function politiqueMotDePasse(p){
+  if((p||'').length<8) return 'Le mot de passe doit contenir au moins 8 caractères.';
+  if(!/[A-Z]/.test(p)) return 'Le mot de passe doit contenir au moins une majuscule.';
+  if(!/[0-9]/.test(p)) return 'Le mot de passe doit contenir au moins un chiffre.';
+  if(!/[^A-Za-z0-9]/.test(p)) return 'Le mot de passe doit contenir au moins un caractère spécial.';
+  return null;
+}
+function genererMotDePasseProvisoire(){
+  const maj='ABCDEFGHJKLMNPQRSTUVWXYZ', min='abcdefghijkmnpqrstuvwxyz', chi='23456789', spe='@#$%&*!?';
+  const tirer=s=>s[crypto.getRandomValues(new Uint32Array(1))[0]%s.length];
+  const car=[tirer(maj),tirer(chi),tirer(spe)]; const tous=maj+min+chi;
+  while(car.length<10) car.push(tirer(tous));
+  return car.sort(()=>crypto.getRandomValues(new Uint8Array(1))[0]-128).join('');
+}
+async function appelFonctionServeur(nom,corps,avecSession){
+  const headers={'Content-Type':'application/json',apikey:window.SB_CFG.SUPABASE_ANON_KEY};
+  if(avecSession){ const {data:{session}}=await sb.auth.getSession(); headers.Authorization='Bearer '+(session?.access_token||window.SB_CFG.SUPABASE_ANON_KEY); }
+  else headers.Authorization='Bearer '+window.SB_CFG.SUPABASE_ANON_KEY;
+  let res;
+  try{ res=await fetch(`${window.SB_CFG.SUPABASE_URL}/functions/v1/${nom}`,{method:'POST',headers,body:JSON.stringify(corps)}); }
+  catch(e){ return {ok:false,indisponible:true,message:'Serveur injoignable : '+e.message}; }
+  let data=null; try{ data=await res.json(); }catch(e){}
+  if(!data) return {ok:false,indisponible:res.status===404||res.status>=500,message:'Réponse inattendue du serveur (HTTP '+res.status+').'};
+  return data;
+}
+
+/* ---------- Écran de connexion ---------- */
+async function connecterUtilisateur(identifiant,motDePasse){
+  const r=await appelFonctionServeur('connexion',{identifiant,mot_de_passe:motDePasse},false);
+  if(r.indisponible){
+    // Secours si la fonction « connexion » n'est pas (encore) déployée : connexion directe par e-mail
+    if(!identifiant.includes('@')) throw new Error("Service de connexion indisponible. Réessayez, ou connectez-vous avec votre e-mail.");
+    const {error}=await sb.auth.signInWithPassword({email:identifiant,password:motDePasse});
+    if(error) throw new Error('Identifiant ou mot de passe incorrect.');
+    return;
+  }
+  if(!r.ok){
+    const n=r.tentatives_restantes;
+    throw new Error(r.message+(n!==undefined&&n<=3?` — ${n} tentative(s) restante(s) avant blocage.`:''));
+  }
+  const {error}=await sb.auth.setSession(r.session);
+  if(error) throw error;
+}
+async function preparerEcranConnexion(){
+  // « Créer le compte administrateur » n'apparaît que sur une installation vierge (comme Menko : comptes créés par l'admin)
+  const btn=document.getElementById('toggleSignup'); if(!btn) return;
+  const {data,error}=await sb.rpc('installation_vierge');
+  btn.classList.toggle('hidden',!(error||data===true));
+}
+
+/* ---------- Changement de mot de passe obligatoire / volontaire ---------- */
+function ouvrirChangementMotDePasse(force,nomCompte){
+  document.getElementById('modalMdp')?.remove();
+  const div=document.createElement('div');
+  div.id='modalMdp'; div.className='modal-overlay'; div.style.zIndex='9999';
+  div.innerHTML=`<div class="modal-box" style="max-width:420px">
+    <h3 class="font-bold text-lg mb-1">🔐 ${force?'Changement de mot de passe requis':'Changer mon mot de passe'}</h3>
+    <p class="text-sm text-gray-500 mb-4">${force?`Le compte « ${escapeHtml(nomCompte||'')} » utilise un mot de passe provisoire. Choisissez votre mot de passe personnel pour continuer.`:'Votre nouveau mot de passe remplacera l\'actuel sur tous vos appareils.'}</p>
+    <div class="field mb-3"><label>Nouveau mot de passe</label>${fieldWrap('🔑',`<input type="password" id="mdpNouveau" autocomplete="new-password">`)}</div>
+    <div class="field mb-2"><label>Confirmation</label>${fieldWrap('🔑',`<input type="password" id="mdpConfirm" autocomplete="new-password" onkeydown="if(event.key==='Enter')validerChangementMotDePasse(${force})">`)}</div>
+    <div class="text-xs text-gray-400 mb-3">${POLITIQUE_MDP_TEXTE}.</div>
+    <div id="mdpErreur" class="text-sm text-red-600 mb-3"></div>
+    <div class="flex justify-end gap-2">${force?`<button class="btn btn-outline" onclick="handleLogout()">Se déconnecter</button>`:`<button class="btn btn-outline" onclick="document.getElementById('modalMdp').remove()">Annuler</button>`}
+      <button class="btn btn-primary" id="mdpBtn" onclick="validerChangementMotDePasse(${force})">${force?'Valider et continuer':'Enregistrer'}</button></div>
+  </div>`;
+  document.body.appendChild(div);
+  setTimeout(()=>document.getElementById('mdpNouveau')?.focus(),50);
+}
+async function validerChangementMotDePasse(force){
+  const p=val('mdpNouveau'), c=val('mdpConfirm'), err=document.getElementById('mdpErreur');
+  const e=politiqueMotDePasse(p); if(e){ err.textContent=e; return; }
+  if(p!==c){ err.textContent='Les deux saisies ne correspondent pas.'; return; }
+  const btn=document.getElementById('mdpBtn'); btn.disabled=true; btn.textContent='Enregistrement…';
+  const {error}=await sb.auth.updateUser({password:p});
+  if(error){ err.textContent=/different|same/i.test(error.message)?'Le nouveau mot de passe doit être différent de l\'ancien.':error.message; btn.disabled=false; btn.textContent=force?'Valider et continuer':'Enregistrer'; return; }
+  const {error:e2}=await sb.rpc('mot_de_passe_change');
+  if(e2){ err.textContent=e2.message; btn.disabled=false; return; }
+  document.getElementById('modalMdp')?.remove();
+  toast('✅ Mot de passe mis à jour.');
+  if(force) enterApp();
+}
+
+/* ---------- Session : inactivité + déconnexion forcée de tous les postes ---------- */
+window._session=window._session||{derniereActivite:Date.now(),minuteur:null};
+function demarrerSurveillanceSession(){
+  const s=window._session;
+  s.derniereActivite=Date.now();
+  if(!s.ecoute){ ['click','keydown','mousemove','touchstart','scroll'].forEach(ev=>document.addEventListener(ev,()=>{ window._session.derniereActivite=Date.now(); },{passive:true})); s.ecoute=true; }
+  clearInterval(s.minuteur);
+  let tick=0;
+  s.minuteur=setInterval(async()=>{
+    if(!CURRENT_USER) return;
+    const min=+(window.APP_PARAMS?.session_inactivite_min??30);
+    if(min>0 && Date.now()-s.derniereActivite>min*60000){
+      clearInterval(s.minuteur); await handleLogout();
+      showAuthMsg(`🔒 Déconnecté après ${min} minutes d'inactivité.`,false); return;
+    }
+    if(++tick%2) return;   // toutes les 60 s : déconnexion forcée à distance ?
+    const [{data:p},{data:{user}}]=await Promise.all([sb.from('parametres').select('deconnexion_forcee_le').limit(1).maybeSingle(),sb.auth.getUser()]);
+    const force=p?.deconnexion_forcee_le;
+    if(!user){ clearInterval(s.minuteur); await handleLogout(); showAuthMsg('Session terminée.',false); return; }
+    let exempt=''; try{ exempt=localStorage.getItem('aluexpert_deco_exempt')||''; }catch(e){}
+    if(force && exempt!==force && user.last_sign_in_at && new Date(user.last_sign_in_at)<new Date(force)){
+      clearInterval(s.minuteur); await handleLogout(); showAuthMsg('🔒 Session terminée à distance par un administrateur. Reconnectez-vous.',false);
+    }
+  },30000);
+}
+async function forcerDeconnexionGenerale(){
+  if(!confirm("Déconnecter TOUS les autres postes et onglets connectés ?\nChaque utilisateur devra se reconnecter (dans la minute). Votre session reste ouverte.")) return;
+  const {data,error}=await sb.rpc('forcer_deconnexion_generale');
+  if(error){ toast(error.message,'error'); return; }
+  try{ localStorage.setItem('aluexpert_deco_exempt',data); }catch(e){}
+  toast('🔒 Tous les autres postes seront déconnectés dans la minute.');
+}
+
+/* ---------- Gestion des utilisateurs (Paramètres → Utilisateurs & Rôles) ---------- */
 async function rbacRenderUtilisateursTab(host){
-  const [{data:profils},{data:invitations}]=await Promise.all([
-    sb.from('profiles').select('*, roles(id,code,label,icon)').order('nom_complet',{ascending:true,nullsFirst:false}),
-    sb.from('invitations').select('*, roles(label,icon)').eq('statut','en_attente').order('created_at',{ascending:false})
+  const [{data:profils,error}]=await Promise.all([
+    sb.from('profiles').select('*, roles(id,code,label,icon)').order('nom_complet',{ascending:true,nullsFirst:false})
   ]);
-  const peutModifier=peutModule('Utilisateurs','modifier');
-  const peutCreer=peutModule('Utilisateurs','creer');
-  const peutSupprimer=peutModule('Utilisateurs','supprimer');
+  if(error){ host.innerHTML=`<div class="text-red-600 p-4">${escapeHtml(error.message)}</div>`; return; }
+  window._comptesCache=profils||[];
+  const peutCreer=peutModule('Utilisateurs','creer'), peutModifier=peutModule('Utilisateurs','modifier');
+  const actifs=(profils||[]).filter(p=>p.actif!==false).length;
   host.innerHTML=`
-    <div class="flex justify-end mb-3">
-      <button class="btn btn-primary" onclick="rbacOuvrirInviterModal()">+ Inviter un utilisateur</button>
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+      <div class="text-sm text-gray-500">${(profils||[]).length} compte(s) · ${actifs} actif(s). Les comptes sont créés ici par un administrateur, avec un mot de passe provisoire à changer à la première connexion.</div>
+      ${peutCreer?`<button class="btn btn-primary" onclick="ouvrirCompteModal()">+ Nouvel utilisateur</button>`:''}
     </div>
-    <div class="card overflow-x-auto mb-6">
-      <table><thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Statut</th><th></th></tr></thead>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Utilisateur</th><th>Identifiant</th><th>Contact</th><th>Rôle</th><th>Statut</th><th>Dernière connexion</th><th></th></tr></thead>
       <tbody>${(profils||[]).map(p=>{
         const soi=p.id===CURRENT_USER.id;
-        return `<tr>
+        return `<tr style="${p.actif===false?'opacity:.55':''}">
         <td class="font-semibold">${escapeHtml(p.nom_complet||'—')}${soi?' <span class="text-xs text-gray-400">(vous)</span>':''}</td>
-        <td>${escapeHtml(p.email||'—')}</td>
-        <td>${peutModifier?`<select class="text-xs" onchange="rbacChangerRoleUtilisateur('${p.id}',this.value)">${(window._rbac.roles||[]).filter(r=>r.code!=='sans_role'||r.id===p.role_id).map(r=>`<option value="${r.id}" ${r.id===p.role_id?'selected':''}>${r.icon} ${escapeHtml(r.label)}</option>`).join('')}</select>`
-          :`<span class="badge">${p.roles?p.roles.icon+' '+escapeHtml(p.roles.label):'—'}</span>`}</td>
-        <td>${p.actif===false?'<span class="badge bg-red-50 text-red-700">⛔ Inactif</span>':'<span class="badge bg-emerald-50 text-emerald-700">✅ Actif</span>'}</td>
-        <td class="text-right">${peutModifier && !soi?`<button class="text-xs ${p.actif===false?'text-emerald-600':'text-red-600'}" onclick="rbacToggleActifUtilisateur('${p.id}',${p.actif===false})">${p.actif===false?'✅ Activer':'⛔ Désactiver'}</button>`:''}</td>
-      </tr>`;
-      }).join('')||'<tr><td colspan="5" class="text-gray-400 p-4 text-center">Aucun utilisateur.</td></tr>'}</tbody></table>
+        <td class="font-mono text-sm">${escapeHtml(p.login||'—')}</td>
+        <td class="text-xs">${escapeHtml([p.telephone,p.email].filter(Boolean).join(' · ')||'—')}</td>
+        <td>${p.roles?`<span class="badge">${p.roles.icon} ${escapeHtml(p.roles.label)}</span>`:'—'}</td>
+        <td>${p.actif===false?'<span class="badge bg-red-50 text-red-700">⛔ Désactivé</span>':p.must_change?'<span class="badge bg-amber-50 text-amber-700">🔑 Mot de passe provisoire</span>':p.roles?.code==='sans_role'?'<span class="badge bg-amber-50 text-amber-700">En attente de rôle</span>':'<span class="badge bg-emerald-50 text-emerald-700">✅ Actif</span>'}</td>
+        <td class="text-xs whitespace-nowrap">${p.derniere_connexion?new Date(p.derniere_connexion).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):'<span class="text-gray-400">jamais</span>'}</td>
+        <td class="text-right whitespace-nowrap text-xs font-semibold">${peutModifier?`
+          <button class="text-violet-700 mr-2" onclick="ouvrirCompteModal('${p.id}')">✏️ Modifier</button>
+          <button class="text-amber-700 mr-2" onclick="ouvrirReinitMdpModal('${p.id}')">🔑 Mot de passe</button>
+          ${soi?'':`<button class="${p.actif===false?'text-emerald-600':'text-red-600'}" onclick="basculerCompteActif('${p.id}',${p.actif===false})">${p.actif===false?'✅ Réactiver':'⛔ Désactiver'}</button>`}`:''}</td>
+      </tr>`; }).join('')||'<tr><td colspan="7" class="text-gray-400 p-4 text-center">Aucun utilisateur.</td></tr>'}</tbody></table>
     </div>
-    <h3 class="font-bold text-sm mb-2">Invitations en attente</h3>
-    <div class="card overflow-x-auto">
-      <table><thead><tr><th>Email</th><th>Rôle proposé</th><th>Envoyée le</th><th></th></tr></thead>
-      <tbody>${(invitations||[]).map(i=>`<tr>
-        <td>${escapeHtml(i.email)}</td>
-        <td><span class="badge">${i.roles?i.roles.icon+' '+escapeHtml(i.roles.label):'—'}</span></td>
-        <td>${fmtDate(i.created_at)}</td>
-        <td class="text-right">${peutCreer||peutSupprimer?`<button class="text-xs text-red-600" onclick="rbacAnnulerInvitation('${i.id}')">Annuler</button>`:''}</td>
-      </tr>`).join('')||'<tr><td colspan="4" class="text-gray-400 p-4 text-center">Aucune invitation en attente.</td></tr>'}</tbody></table>
-    </div>`;
+    <div class="text-xs text-gray-500 mt-3">🔢 Les codes PIN de caisse et les affectations aux caisses / points de vente se gèrent dans <a href="#" class="text-violet-700 font-semibold" onclick="showPage('caisse-affectations');return false">Caisse → Affectations & codes PIN</a>.</div>`;
 }
-async function rbacChangerRoleUtilisateur(profilId,roleId){
-  if(!exigerDroit('Utilisateurs','modifier','le rôle de cet utilisateur')) return;
-  const {error}=await sb.from('profiles').update({role_id:roleId}).eq('id',profilId);
-  if(error){ toast(error.message,'error'); return; }
-  toast('Rôle mis à jour.');
-  rbacRenderTab();
-}
-async function rbacToggleActifUtilisateur(profilId,rendreActif){
-  if(!exigerDroit('Utilisateurs','modifier',"le statut de cet utilisateur")) return;
-  const {error}=await sb.from('profiles').update({actif:rendreActif}).eq('id',profilId);
-  if(error){ toast(error.message,'error'); return; }
-  toast(rendreActif?'Utilisateur réactivé.':'Utilisateur désactivé.');
-  rbacRenderTab();
-}
-function rbacOuvrirInviterModal(){
-  if(!exigerDroit('Utilisateurs','creer','une invitation')) return;
+function ouvrirCompteModal(id){
+  const p=(window._comptesCache||[]).find(x=>x.id===id)||{};
+  const roles=(window._rbac.roles||[]).filter(r=>r.code!=='sans_role'||r.id===p.role_id);
+  const mdp=genererMotDePasseProvisoire();
   openModal(`
-    <h3 class="font-bold text-lg mb-4">Inviter un utilisateur</h3>
-    <p class="text-xs text-gray-500 mb-3">La personne devra créer son compte elle-même depuis l'écran de connexion (bouton « Première connexion »), avec cet email exact. Le rôle choisi ici lui sera attribué automatiquement à son inscription.</p>
-    <div class="field mb-3"><label>Email</label>${fieldWrap('✉️',`<input id="inviteEmail" type="email" placeholder="nom@exemple.com">`)}</div>
-    <div class="field mb-4"><label>Rôle</label>${fieldWrap('🛡️',`<select id="inviteRole">${(window._rbac.roles||[]).filter(r=>r.code!=='sans_role').map(r=>`<option value="${r.id}">${r.icon} ${escapeHtml(r.label)}</option>`).join('')}</select>`)}</div>
-    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="rbacEnvoyerInvitation()">Inviter</button></div>`);
+    <h3 class="font-bold text-lg mb-1">${p.id?'✏️ Modifier le compte':'👤 Nouvel utilisateur'}</h3>
+    <p class="text-xs text-gray-500 mb-4">${p.id?'':'La personne se connectera avec son identifiant et le mot de passe provisoire, puis devra choisir son propre mot de passe.'}</p>
+    <div class="grid sm:grid-cols-2 gap-3">
+      <div class="field sm:col-span-2"><label>Nom complet *</label>${fieldWrap('👤',`<input id="cpNom" value="${escapeHtml(p.nom_complet||'')}">`)}</div>
+      <div class="field"><label>Identifiant de connexion *</label>${fieldWrap('🆔',`<input id="cpLogin" value="${escapeHtml(p.login||'')}" placeholder="ex : a.kone" autocomplete="off" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._-]/g,'')">`)}</div>
+      <div class="field"><label>Rôle *</label>${fieldWrap('🛡️',`<select id="cpRole">${roles.map(r=>`<option value="${r.id}" ${r.id===p.role_id?'selected':''}>${r.icon} ${escapeHtml(r.label)}</option>`).join('')}</select>`)}</div>
+      <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input id="cpTel" value="${escapeHtml(p.telephone||'')}">`)}</div>
+      <div class="field"><label>E-mail (facultatif)</label>${fieldWrap('✉️',`<input id="cpEmail" type="email" value="${escapeHtml(p.email||'')}" placeholder="Permet aussi de se connecter par e-mail">`)}</div>
+      ${p.id?'':`<div class="field sm:col-span-2"><label>Mot de passe provisoire *</label>
+        <div class="flex gap-2">${fieldWrap('🔑',`<input id="cpMdp" value="${mdp}" autocomplete="off">`)}<button type="button" class="btn btn-outline text-xs" onclick="document.getElementById('cpMdp').value=genererMotDePasseProvisoire()">🎲 Générer</button></div>
+        <div class="text-xs text-gray-400 mt-1">${POLITIQUE_MDP_TEXTE}. À communiquer en main propre.</div></div>`}
+    </div>
+    <div class="flex justify-end gap-2 mt-4"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" id="cpBtn" onclick="enregistrerCompte('${p.id||''}')">${p.id?'Enregistrer':'Créer le compte'}</button></div>`);
 }
-async function rbacEnvoyerInvitation(){
-  const email=document.getElementById('inviteEmail').value.trim().toLowerCase();
-  const roleId=document.getElementById('inviteRole').value;
-  if(!email||!email.includes('@')){ toast('Email invalide.','error'); return; }
-  const {error}=await sb.from('invitations').upsert({email,role_id:roleId,statut:'en_attente',invited_by:CURRENT_USER.id},{onConflict:'email'});
+async function enregistrerCompte(id){
+  const corps={nom_complet:val('cpNom'),login:val('cpLogin'),role_id:val('cpRole'),telephone:val('cpTel'),email:val('cpEmail')};
+  if(!corps.nom_complet||!corps.login){ toast('Nom et identifiant obligatoires.','error'); return; }
+  if(!id){ corps.mot_de_passe=val('cpMdp'); const e=politiqueMotDePasse(corps.mot_de_passe); if(e){ toast(e,'error'); return; } }
+  const btn=document.getElementById('cpBtn'); btn.disabled=true;
+  const r=await appelFonctionServeur('gestion-utilisateurs',{action:id?'modifier':'creer',user_id:id||undefined,...corps},true);
+  btn.disabled=false;
+  if(!r.ok){ toast(r.indisponible?"Fonction serveur « gestion-utilisateurs » indisponible (déploiement Supabase).":r.message,'error'); return; }
+  closeModal();
+  if(!id) openModal(`<div class="text-center"><div class="text-4xl mb-2">✅</div><h3 class="font-bold text-lg">Compte créé</h3>
+    <p class="text-sm text-gray-600 mt-2">Identifiant : <b class="font-mono">${escapeHtml(corps.login)}</b><br>Mot de passe provisoire : <b class="font-mono">${escapeHtml(corps.mot_de_passe)}</b></p>
+    <p class="text-xs text-gray-500 mt-2">Notez-les maintenant : le mot de passe ne sera plus affiché. Il devra être changé à la première connexion.</p>
+    <button class="btn btn-primary mt-4" onclick="closeModal()">J'ai noté</button></div>`);
+  else toast('Compte mis à jour.');
+  await rbacCharger(true); rbacRenderTab();
+}
+function ouvrirReinitMdpModal(id){
+  const p=(window._comptesCache||[]).find(x=>x.id===id)||{};
+  openModal(`
+    <h3 class="font-bold text-lg mb-1">🔑 Réinitialiser le mot de passe</h3>
+    <p class="text-sm text-gray-500 mb-4">${escapeHtml(p.nom_complet||'')} (${escapeHtml(p.login||'')}) devra le changer à sa prochaine connexion. Un compte bloqué après trop de tentatives est aussi débloqué.</p>
+    <div class="flex gap-2">${fieldWrap('🔑',`<input id="rmMdp" value="${genererMotDePasseProvisoire()}" autocomplete="off">`)}<button type="button" class="btn btn-outline text-xs" onclick="document.getElementById('rmMdp').value=genererMotDePasseProvisoire()">🎲</button></div>
+    <div class="text-xs text-gray-400 mt-1 mb-4">${POLITIQUE_MDP_TEXTE}.</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="reinitialiserMotDePasse('${id}')">Réinitialiser</button></div>`);
+}
+async function reinitialiserMotDePasse(id){
+  const mdp=val('rmMdp'); const e=politiqueMotDePasse(mdp); if(e){ toast(e,'error'); return; }
+  const r=await appelFonctionServeur('gestion-utilisateurs',{action:'reinitialiser_mdp',user_id:id,mot_de_passe:mdp},true);
+  if(!r.ok){ toast(r.message,'error'); return; }
+  closeModal();
+  openModal(`<div class="text-center"><div class="text-4xl mb-2">🔑</div><h3 class="font-bold text-lg">Mot de passe réinitialisé</h3>
+    <p class="text-sm text-gray-600 mt-2">Nouveau mot de passe provisoire : <b class="font-mono">${escapeHtml(mdp)}</b></p>
+    <button class="btn btn-primary mt-4" onclick="closeModal()">J'ai noté</button></div>`);
+  rbacRenderTab();
+}
+async function basculerCompteActif(id,rendreActif){
+  if(!rendreActif && !confirm('Désactiver ce compte ? La personne ne pourra plus se connecter et perd immédiatement l\'accès aux données.')) return;
+  const r=await appelFonctionServeur('gestion-utilisateurs',{action:'definir_actif',user_id:id,actif:rendreActif},true);
+  if(!r.ok){ toast(r.message,'error'); return; }
+  toast(rendreActif?'Compte réactivé.':'Compte désactivé.'); rbacRenderTab();
+}
+
+/* ---------- Onglet Sécurité : session, déconnexion forcée, journal des connexions ---------- */
+async function rbacRenderSecuriteTab(host){
+  const p=window.APP_PARAMS||await loadAppParams();
+  const {data:logs,error}=await sb.from('logs_connexion').select('*').order('created_at',{ascending:false}).limit(400);
+  window._logsConnexion=logs||[];
+  const huitH=Date.now()-8*3600e3, postes={};
+  (logs||[]).filter(l=>l.succes&&new Date(l.created_at).getTime()>huitH&&/Connexion/.test(l.detail||'')).forEach(l=>{
+    const k=l.login_saisi+'|'+libelleAppareil(l.user_agent); if(!postes[k]) postes[k]=l; });
+  host.innerHTML=`
+    <div class="grid lg:grid-cols-2 gap-4 mb-4">
+      <div class="card p-4">
+        <h3 class="font-bold text-sm mb-3">⏱️ Session</h3>
+        <div class="field mb-2"><label>Déconnexion automatique après inactivité (minutes, 0 = jamais)</label>${fieldWrap('⏱️',`<input id="secInact" type="number" min="0" max="720" value="${+(p.session_inactivite_min??30)}">`)}</div>
+        <button class="btn btn-outline text-xs" onclick="enregistrerParamSession()">Enregistrer</button>
+        <div class="border-t mt-4 pt-3">
+          <div class="text-sm mb-2">Après un incident (poste perdu, départ d'un employé…), forcez la reconnexion de tout le monde :</div>
+          <button class="btn text-xs" style="background:#dc2626;color:#fff" onclick="forcerDeconnexionGenerale()">🔒 Déconnecter tous les autres postes</button>
+          ${p.deconnexion_forcee_le?`<div class="text-xs text-gray-400 mt-1">Dernière fois : ${new Date(p.deconnexion_forcee_le).toLocaleString('fr-FR')}</div>`:''}
+        </div>
+      </div>
+      <div class="card p-4">
+        <h3 class="font-bold text-sm mb-1">💻 Postes connectés récemment (8 h)</h3>
+        <div class="text-xs text-gray-400 mb-2">Estimation à partir des connexions réussies.</div>
+        <table><tbody>${Object.values(postes).map(l=>`<tr><td class="font-semibold">${escapeHtml(l.login_saisi)}</td><td class="text-xs">${escapeHtml(libelleAppareil(l.user_agent))}</td><td class="text-xs text-gray-500 text-right">${new Date(l.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</td></tr>`).join('')||'<tr><td class="text-gray-400">Aucune connexion récente.</td></tr>'}</tbody></table>
+      </div>
+    </div>
+    <div class="card p-4">
+      <div class="flex flex-wrap justify-between items-center gap-2 mb-2">
+        <h3 class="font-bold text-sm">📜 Journal des connexions</h3>
+        <select id="secFiltre" onchange="filtrerJournalConnexions()" style="width:auto"><option value="">Toutes les tentatives</option><option value="echec">Échecs uniquement</option><option value="succes">Réussites uniquement</option></select>
+      </div>
+      ${error?`<div class="text-red-600 text-sm">${escapeHtml(error.message)}</div>`:''}
+      <div class="overflow-x-auto"><table><thead><tr><th>Date</th><th>Identifiant</th><th>Résultat</th><th>Détail</th><th>Appareil</th><th>IP</th></tr></thead><tbody id="secJournal"></tbody></table></div>
+    </div>`;
+  filtrerJournalConnexions();
+}
+function libelleAppareil(ua){
+  ua=ua||''; const os=/Android/i.test(ua)?'Android':/iPhone|iPad/i.test(ua)?'iPhone/iPad':/Windows/i.test(ua)?'Windows':/Mac OS/i.test(ua)?'Mac':/Linux/i.test(ua)?'Linux':'?';
+  const nav=/Edg\//.test(ua)?'Edge':/Chrome\//.test(ua)?'Chrome':/Firefox\//.test(ua)?'Firefox':/Safari\//.test(ua)?'Safari':'Navigateur';
+  return nav+' · '+os;
+}
+function filtrerJournalConnexions(){
+  const f=document.getElementById('secFiltre')?.value||'', host=document.getElementById('secJournal'); if(!host) return;
+  const l=(window._logsConnexion||[]).filter(x=>!f||(f==='echec'?!x.succes:x.succes));
+  host.innerHTML=l.map(x=>`<tr><td class="text-xs whitespace-nowrap">${new Date(x.created_at).toLocaleString('fr-FR')}</td><td class="font-mono text-sm">${escapeHtml(x.login_saisi)}</td>
+    <td>${x.succes?'<span class="text-emerald-700 text-xs font-semibold">✔ Réussie</span>':'<span class="text-red-600 text-xs font-semibold">✘ Échec</span>'}</td>
+    <td class="text-xs">${escapeHtml(x.detail||'')}</td><td class="text-xs">${escapeHtml(libelleAppareil(x.user_agent))}</td><td class="text-xs font-mono">${escapeHtml(x.ip||'')}</td></tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 p-3 text-center">Aucune tentative enregistrée.</td></tr>';
+}
+async function enregistrerParamSession(){
+  const v=Math.max(0,Math.min(720,parseInt(val('secInact'),10)||0));
+  const {error}=await sb.from('parametres').update({session_inactivite_min:v}).eq('id',window.APP_PARAMS.id);
   if(error){ toast(error.message,'error'); return; }
-  toast('Invitation enregistrée. Communiquez à cette personne comment créer son compte.'); closeModal();
-  rbacRenderTab();
+  await loadAppParams(); toast(v?`Déconnexion après ${v} min d'inactivité.`:'Déconnexion automatique désactivée.');
 }
-async function rbacAnnulerInvitation(id){
-  await sb.from('invitations').delete().eq('id',id);
-  toast('Invitation annulée.');
-  rbacRenderTab();
-}
+
 /* ---------- Onglet Rôles & Accès ---------- */
 async function rbacRenderRolesTab(host){
   const roles=window._rbac.roles||[];
