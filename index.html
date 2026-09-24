@@ -14362,6 +14362,7 @@ function renderLogin(msg){
       const {data,error}=await sb.rpc('portail_lookup',{p_code:code,p_telephone:tel});
       if(error) throw error;
       if(data.disabled){ renderLogin('Le portail est momentanément indisponible.'); return; }
+      if(data.limite){ renderLogin('Trop de tentatives — merci de réessayer dans quelques minutes.'); return; }
       if(!data.found){ renderLogin('Aucun dossier trouvé pour ces informations.'); return; }
       renderDossier(data);
     }catch(err){ renderLogin(err.message||'Erreur de connexion.'); }
