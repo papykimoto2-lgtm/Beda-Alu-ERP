@@ -1639,6 +1639,53 @@ async function updateProjetEtape(id,etape){
   if(error){ toast(error.message,'error'); return; }
   toast('Étape mise à jour.'); refreshProjetsBadges();
 }
+/* ---------- Rattachement à un chantier (client → chantier) : caisse, stock ---------- */
+async function chargerChantiersRef(force){
+  if(window._chantiersRef && !force) return window._chantiersRef;
+  const [{data:clients},{data:projets}]=await Promise.all([
+    sb.from('clients').select('id,nom,prenoms').order('nom'),
+    sb.from('projets').select('id,code,libelle,client_id,etape').order('created_at',{ascending:false})
+  ]);
+  window._chantiersRef={clients:clients||[],projets:projets||[]};
+  return window._chantiersRef;
+}
+function chantierNomClient(clientId){ const c=(window._chantiersRef?.clients||[]).find(x=>x.id===clientId); return c?[c.nom,c.prenoms].filter(Boolean).join(' '):''; }
+function chantierLabel(projetId,avecClient=true){
+  if(!projetId) return '';
+  const p=(window._chantiersRef?.projets||[]).find(x=>x.id===projetId); if(!p) return 'Chantier';
+  const cl=avecClient?chantierNomClient(p.client_id):'';
+  return `${p.code?p.code+' — ':''}${p.libelle}${cl?' ('+cl+')':''}`;
+}
+function chantierBadgeHtml(projetId){
+  return projetId?`<div class="text-[11px] text-violet-700 mt-0.5" title="Chantier rattaché">🏗️ ${escapeHtml(chantierLabel(projetId))}</div>`:'';
+}
+function chantierOptionsHtml(clientId,projetId){
+  if(!clientId) return `<option value="">— Choisissez d'abord le client —</option>`;
+  const liste=(window._chantiersRef?.projets||[]).filter(p=>p.client_id===clientId);
+  if(!liste.length) return `<option value="">Aucun chantier pour ce client</option>`;
+  return `<option value="">— Aucun chantier —</option>`+liste.map(p=>`<option value="${p.id}" ${p.id===projetId?'selected':''}>${escapeHtml((p.code?p.code+' — ':'')+p.libelle)}${p.etape==='termine'?' (terminé)':p.etape==='annule'?' (annulé)':''}</option>`).join('');
+}
+// Deux champs : client (recherche) puis un de ses chantiers. `prefixe` identifie les champs (<prefixe>Client, <prefixe>Projet).
+function chantierPickerHtml(prefixe,projetId,opts={}){
+  const R=window._chantiersRef||{clients:[],projets:[]};
+  const pj=R.projets.find(p=>p.id===projetId);
+  const clientId=pj?.client_id||'';
+  const items=R.clients.filter(c=>R.projets.some(p=>p.client_id===c.id)).map(c=>({id:c.id,label:[c.nom,c.prenoms].filter(Boolean).join(' ')}));
+  const cls=opts.cls||'';
+  return `<div class="field ${cls}"><label>Client du chantier (facultatif)</label>${fieldWrap('👤',smartSelect(prefixe+'Client',items,clientId,{placeholder:'Rechercher un client…',onChange:`chantierMajListe('${prefixe}')`}))}</div>
+    <div class="field ${cls}"><label>Chantier rattaché</label>${fieldWrap('🏗️',`<select id="${prefixe}Projet">${chantierOptionsHtml(clientId,projetId)}</select>`)}</div>`;
+}
+function chantierMajListe(prefixe){
+  const clientId=document.getElementById(prefixe+'Client')?.value||'';
+  const sel=document.getElementById(prefixe+'Projet'); if(!sel) return;
+  sel.innerHTML=chantierOptionsHtml(clientId,'');
+  const liste=(window._chantiersRef?.projets||[]).filter(p=>p.client_id===clientId&&!['termine','annule'].includes(p.etape));
+  if(liste.length===1) sel.value=liste[0].id;   // un seul chantier en cours : présélectionné
+}
+function chantierValeur(prefixe){
+  const clientId=document.getElementById(prefixe+'Client')?.value||'';
+  return clientId?(document.getElementById(prefixe+'Projet')?.value||null):null;
+}
 function clientItems(){
   return (window._clientsCache||[]).map(c=>({id:c.id,label:[c.nom,c.prenoms].filter(Boolean).join(' ')}));
 }
@@ -1669,7 +1716,9 @@ async function renderProjetForm(el){
         <div class="field sm:col-span-3"><label>Description</label>${fieldWrap('📝',`<textarea id="pjDescription" rows="3">${escapeHtml(p.description||'')}</textarea>`)}</div>
         <div class="sm:col-span-3 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
       </form>
-    </div>`;
+    </div>
+    ${p.id?`<div id="suiviChantier" class="page-card max-w-4xl mt-4"><div class="text-sm text-gray-400">Chargement du suivi du chantier…</div></div>`:''}`;
+  if(p.id) renderSuiviChantier(p.id);
   document.getElementById('projetForm').onsubmit=async (e)=>{
     e.preventDefault();
     const rec={libelle:val('pjLibelle'),client_id:val('pjClient'),categorie:val('pjCategorie'),date_debut:val('pjDateDebut')||null,date_fin:val('pjDateFin')||null,pays:val('pjPays'),commune:val('pjCommune'),quartier:val('pjQuartier'),source:val('pjSource'),responsable:val('pjResponsable'),description:val('pjDescription'),latitude:val('pjLat')?+val('pjLat'):null,longitude:val('pjLng')?+val('pjLng'):null};
@@ -1681,6 +1730,44 @@ async function renderProjetForm(el){
     if(error){ toast(error.message,'error'); return; }
     toast('Projet enregistré.'); window._editId=null; showPage('projets');
   };
+}
+
+/* Suivi du chantier : bons de caisse et mouvements de stock rattachés au projet */
+async function renderSuiviChantier(projetId){
+  const host=document.getElementById('suiviChantier'); if(!host) return;
+  const [{data:caisse,error:e1},{data:stock,error:e2}]=await Promise.all([
+    sb.from('caisse_mouvements').select('*, caisses(nom)').eq('projet_id',projetId).order('date_mouvement',{ascending:false}),
+    sb.from('mouvements_stock').select('*, composants(nom,unite)').eq('projet_id',projetId).order('created_at',{ascending:false})
+  ]);
+  if(e1||e2){ host.innerHTML=`<div class="text-sm text-gray-400">Suivi indisponible : ${escapeHtml((e1||e2).message)}</div>`; return; }
+  const cm=caisse||[], ms=stock||[];
+  const depenses=cm.filter(m=>m.type==='sortie').reduce((t,m)=>t+(+m.montant||0),0);
+  const recettes=cm.filter(m=>m.type==='entree').reduce((t,m)=>t+(+m.montant||0),0);
+  const coutLigne=m=>-(+m.quantite||0)*(+m.cmup_apres||0);   // sortie = coût positif, retour = coût négatif
+  const materiaux=ms.reduce((t,m)=>t+coutLigne(m),0);
+  host.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+      <h2>📊 Suivi du chantier — caisse & matériaux</h2>
+      <button class="btn btn-outline" onclick="openMouvementModal('sortie',null,null,'${projetId}')">📦 Sortie de stock pour ce chantier</button>
+    </div>
+    <div class="grid sm:grid-cols-4 gap-3 mb-4">
+      <div class="card p-3"><div class="text-xs text-gray-400">Dépenses de caisse</div><div class="text-lg font-black text-red-600">${money(depenses)}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Encaissements (caisse)</div><div class="text-lg font-black text-emerald-600">${money(recettes)}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Matériaux sortis (au CMUP)</div><div class="text-lg font-black">${money(materiaux)}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Coût direct suivi</div><div class="text-lg font-black">${money(depenses+materiaux)}</div></div>
+    </div>
+    <h3 class="font-semibold text-sm mb-1">💵 Mouvements de caisse (${cm.length})</h3>
+    <div class="overflow-x-auto mb-4"><table><thead><tr><th>Date</th><th>Caisse</th><th>N°</th><th>Motif</th><th class="text-right">Montant</th></tr></thead><tbody>
+      ${cm.map(m=>`<tr><td>${fmtDate(m.date_mouvement)}</td><td>${escapeHtml(m.caisses?.nom||'—')}</td><td>${escapeHtml(m.numero||'—')}</td><td>${escapeHtml(m.motif||'')}${m.beneficiaire?' — '+escapeHtml(m.beneficiaire):''}</td>
+        <td class="text-right font-semibold ${m.type==='entree'?'text-emerald-600':'text-red-600'}">${m.type==='entree'?'+':'−'} ${money(m.montant)}</td></tr>`).join('')||'<tr><td colspan="5" class="text-gray-400 text-center p-3">Aucun bon de caisse rattaché. Rattachez-les depuis la caisse (bon d\'entrée / de sortie → « Chantier rattaché »).</td></tr>'}
+    </tbody></table></div>
+    <h3 class="font-semibold text-sm mb-1">📦 Mouvements de stock (${ms.length})</h3>
+    <div class="overflow-x-auto"><table><thead><tr><th>Date</th><th>Composant</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Coût</th><th>Motif / réf.</th></tr></thead><tbody>
+      ${ms.map(m=>{ const t=STOCK_TYPE_LABELS[m.type]||{icon:'',label:m.type,color:'#6b7280'}; return `<tr><td class="text-xs">${new Date(m.created_at).toLocaleDateString('fr-FR')}</td><td>${escapeHtml(m.composants?.nom||'—')}</td>
+        <td><span class="pill" style="color:${t.color};border-color:${t.color}">${t.icon} ${t.label}</span></td>
+        <td class="text-right">${(+m.quantite).toFixed(2)} ${escapeHtml(m.composants?.unite||'')}</td><td class="text-right">${money(coutLigne(m))}</td>
+        <td class="text-xs">${escapeHtml(m.motif||'')}${m.reference?' · '+escapeHtml(m.reference):''}</td></tr>`; }).join('')||'<tr><td colspan="6" class="text-gray-400 text-center p-3">Aucun mouvement de stock rattaché.</td></tr>'}
+    </tbody></table></div>`;
 }
 
 /* ============================== PRODUITS ============================== */
@@ -2140,7 +2227,7 @@ function renderStockChart(canvasId,type,data,extraOptions){
 }
 
 async function renderStockMouvements(el){
-  const [{data:composants},depots]=await Promise.all([sb.from('composants').select('id,nom').order('nom'),chargerDepots(true)]);
+  const [{data:composants},depots,ref]=await Promise.all([sb.from('composants').select('id,nom').order('nom'),chargerDepots(true),chargerChantiersRef(true)]);
   window._stockComposantsCache=composants||[];
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
@@ -2148,11 +2235,12 @@ async function renderStockMouvements(el){
         <select id="smFilterComposant" onchange="filterStockMouvements()" style="width:auto"><option value="">Tous les composants</option>${composants.map(c=>`<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('')}</select>
         <select id="smFilterDepot" onchange="filterStockMouvements()" style="width:auto"><option value="">Tous les dépôts</option>${depots.map(d=>`<option value="${d.id}">${escapeHtml(d.nom)}</option>`).join('')}</select>
         <select id="smFilterType" onchange="filterStockMouvements()" style="width:auto"><option value="">Tous types</option>${Object.entries(STOCK_TYPE_LABELS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select>
+        <select id="smFilterChantier" onchange="filterStockMouvements()" style="width:auto;max-width:280px"><option value="">Tous chantiers</option><option value="-">Sans chantier</option>${ref.projets.map(p=>`<option value="${p.id}">${escapeHtml(chantierLabel(p.id))}</option>`).join('')}</select>
       </div>
       <button class="btn btn-primary" onclick="openMouvementModal()">+ Nouveau mouvement</button>
     </div>
     <div class="card overflow-x-auto">
-      <table><thead><tr><th>Date</th><th>Composant</th><th>Dépôt</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Stock dépôt après</th><th class="text-right">Stock total après</th><th>Motif</th><th>Référence</th></tr></thead>
+      <table><thead><tr><th>Date</th><th>Composant</th><th>Dépôt</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Stock dépôt après</th><th class="text-right">Stock total après</th><th>Motif</th><th>Référence</th><th>Chantier</th></tr></thead>
       <tbody id="smTbody"></tbody></table>
     </div>`;
   const {data:mouvements}=await sb.from('mouvements_stock').select('*, composants(nom,unite)').order('created_at',{ascending:false}).limit(500);
@@ -2163,7 +2251,9 @@ function filterStockMouvements(){
   const compId=document.getElementById('smFilterComposant')?.value||'';
   const type=document.getElementById('smFilterType')?.value||'';
   const depot=document.getElementById('smFilterDepot')?.value||'';
-  const filtered=(window._stockMouvementsCache||[]).filter(m=>(!compId||m.composant_id===compId)&&(!type||m.type===type)&&(!depot||m.depot_id===depot));
+  const chantier=document.getElementById('smFilterChantier')?.value||'';
+  const filtered=(window._stockMouvementsCache||[]).filter(m=>(!compId||m.composant_id===compId)&&(!type||m.type===type)&&(!depot||m.depot_id===depot)
+    &&(!chantier||(chantier==='-'?!m.projet_id:m.projet_id===chantier)));
   const tbody=document.getElementById('smTbody'); if(!tbody) return;
   tbody.innerHTML=filtered.map(m=>{
     const t=STOCK_TYPE_LABELS[m.type];
@@ -2173,11 +2263,12 @@ function filterStockMouvements(){
     <td class="text-right" style="color:${m.quantite<0?'#dc2626':'#059669'}">${m.quantite>0?'+':''}${(+m.quantite).toFixed(2)} ${escapeHtml(m.composants?.unite||'')}</td>
     <td class="text-right">${m.stock_depot_apres!=null?(+m.stock_depot_apres).toFixed(2):'—'}</td>
     <td class="text-right text-gray-500">${(+m.stock_apres).toFixed(2)}</td>
-    <td>${escapeHtml(m.motif||'—')}</td><td>${escapeHtml(m.reference||'—')}</td></tr>`;
-  }).join('')||'<tr><td colspan="9" class="text-gray-400 p-4">Aucun mouvement.</td></tr>';
+    <td>${escapeHtml(m.motif||'—')}</td><td>${escapeHtml(m.reference||'—')}</td>
+    <td class="text-xs">${m.projet_id?`<span class="text-violet-700">🏗️ ${escapeHtml(chantierLabel(m.projet_id))}</span>`:'<span class="text-gray-300">—</span>'}</td></tr>`;
+  }).join('')||'<tr><td colspan="10" class="text-gray-400 p-4">Aucun mouvement.</td></tr>';
 }
-async function openMouvementModal(presetType,presetComposantId,presetDepotId){
-  await chargerDepots();
+async function openMouvementModal(presetType,presetComposantId,presetDepotId,presetProjetId){
+  await Promise.all([chargerDepots(),chargerChantiersRef()]);
   let composants=window._stockComposantsCache;
   if(!composants){ const {data}=await sb.from('composants').select('id,nom').order('nom'); composants=data||[]; }
   openModal(`
@@ -2190,7 +2281,9 @@ async function openMouvementModal(presetType,presetComposantId,presetDepotId){
       <div class="field"><label id="mvQtyLabel">Quantité</label>${fieldWrap('#️⃣',`<input id="mvQuantite" type="number" step="0.01" required>`)}</div>
       <div class="field sm:col-span-2" id="mvPrixField"><label>Prix unitaire d'achat (FCFA)</label>${fieldWrap('💰',`<input id="mvPrix" type="number" step="0.01" min="0">`)}</div>
       <div class="field sm:col-span-2"><label>Motif</label>${fieldWrap('📝',`<input id="mvMotif" placeholder="Ex : Achat fournisseur, casse, correction…">`)}</div>
-      <div class="field sm:col-span-2"><label>Référence (optionnel)</label>${fieldWrap('🔗',`<input id="mvRef" placeholder="N° BL, code projet…">`)}</div>
+      <div class="field sm:col-span-2"><label>Référence (optionnel)</label>${fieldWrap('🔗',`<input id="mvRef" placeholder="N° BL, bon de livraison…">`)}</div>
+      ${chantierPickerHtml('mv',presetProjetId||'')}
+      <div class="sm:col-span-2 text-xs text-gray-400 -mt-2">Ex. sortie de matériaux pour le chantier d'un client, retour de chantier, achat livré directement sur chantier.</div>
       <div class="sm:col-span-2 flex justify-end gap-2 pt-2">
         <button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button>
         <button type="submit" class="btn btn-primary px-8">Enregistrer</button>
@@ -2205,7 +2298,8 @@ async function openMouvementModal(presetType,presetComposantId,presetDepotId){
     const prix=val('mvPrix')?+val('mvPrix'):null;
     if(!composantId){ toast('Sélectionnez un composant.','error'); return; }
     if(!quantite && type!=='inventaire'){ toast('Quantité requise.','error'); return; }
-    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:val('mvRef')||null,p_prix_unitaire:prix,p_depot_id:val('mvDepot')||null});
+    const projetId=chantierValeur('mv');
+    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:val('mvRef')||null,p_prix_unitaire:prix,p_depot_id:val('mvDepot')||null,...(projetId?{p_projet_id:projetId}:{})});
     if(error){ toast(error.message,'error'); return; }
     if(type==='entree' && prix>0){
       const composantNom=(composants||[]).find(c=>c.id===composantId)?.nom;
@@ -2298,7 +2392,7 @@ async function validerInventaire(){
 
 /* ---------- Décharge de stock depuis une Fiche d'exécution terminée ---------- */
 async function proposerDechargeStock(ficheId){
-  const {data:fiche}=await sb.from('fiches_execution').select('id,code,devis_id').eq('id',ficheId).single();
+  const {data:fiche}=await sb.from('fiches_execution').select('id,code,devis_id,projet_id').eq('id',ficheId).single();
   if(!fiche) return;
   const {data:lignesFiche}=await sb.from('fiche_execution_lignes').select('devis_ligne_id,largeur_commande,hauteur_commande,largeur_mesuree,hauteur_mesuree').eq('fiche_id',ficheId);
   const devisLigneIds=(lignesFiche||[]).map(l=>l.devis_ligne_id).filter(Boolean);
@@ -2353,15 +2447,15 @@ async function proposerDechargeStock(ficheId){
     </tr>`).join('')}</tbody></table></div>
     <div class="flex justify-end gap-2">
       <button class="btn btn-outline" onclick="closeModal()">Ignorer</button>
-      <button class="btn btn-primary px-8" onclick='confirmerDechargeStock(${JSON.stringify(items.map(it=>({id:it.composant.id,qty:it.qty})))},"${escapeHtml(fiche.code)}")'>✔ Décharger le stock</button>
+      <button class="btn btn-primary px-8" onclick='confirmerDechargeStock(${JSON.stringify(items.map(it=>({id:it.composant.id,qty:it.qty})))},"${escapeHtml(fiche.code)}","${fiche.projet_id||''}")'>✔ Décharger le stock</button>
     </div>`);
   window._dechargeItems=items;
 }
-async function confirmerDechargeStock(items,ficheCode){
+async function confirmerDechargeStock(items,ficheCode,projetId){
   let n=0; const depotId=document.getElementById('dcDepot')?.value||null;
   for(let i=0;i<items.length;i++){
     if(!document.getElementById('dc_'+i)?.checked) continue;
-    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:items[i].id,p_type:'sortie',p_quantite:items[i].qty,p_motif:"Fiche d'exécution",p_reference:ficheCode,p_prix_unitaire:null,p_depot_id:depotId});
+    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:items[i].id,p_type:'sortie',p_quantite:items[i].qty,p_motif:"Fiche d'exécution",p_reference:ficheCode,p_prix_unitaire:null,p_depot_id:depotId,...(projetId?{p_projet_id:projetId}:{})});
     if(!error) n++;
   }
   toast(`Stock déchargé (${n} composant(s)).`);
@@ -5842,6 +5936,7 @@ async function comptaRenderBrouillardCaisse(host){
   const {data:mvtsBrut,error}=await q;
   if(error){ toast(error.message,'error'); return; }
   const mvts=(mvtsBrut||[]).filter(m=>m.caisse_sessions?.statut==='cloturee');
+  await chargerChantiersRef(true);
   const totalEntrees=mvts.filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
   const totalSorties=mvts.filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
   const aVentilerListe=mvts.filter(m=>m.statut==='a_ventiler');
@@ -5885,7 +5980,7 @@ async function comptaRenderBrouillardCaisse(host){
         <td>${escapeHtml(m.caisses?.nom||'—')}</td>
         <td>${escapeHtml(m.numero||'—')}</td>
         <td><span class="${m.type==='entree'?'text-emerald-600':'text-red-600'}">${m.type==='entree'?'▲ Entrée':'▼ Sortie'}</span></td>
-        <td>${escapeHtml(m.motif)}${m.beneficiaire?' — '+escapeHtml(m.beneficiaire):''}</td>
+        <td>${escapeHtml(m.motif)}${m.beneficiaire?' — '+escapeHtml(m.beneficiaire):''}${chantierBadgeHtml(m.projet_id)}</td>
         <td class="text-right font-semibold">${money(m.montant)}</td>
         <td>${m.statut==='ventile'?compteLabel(m.compte_ventile):`
           ${suggestion?`<div class="text-xs text-indigo-500 mb-1">💡 Suggestion : ${compteLabel(suggestion.compte_code)}</div>`:''}
@@ -6026,6 +6121,7 @@ async function renderCaisseDetail(el){
   const {data:session}=await sb.from('caisse_sessions').select('*').eq('caisse_id',caisseId).eq('statut','ouverte').maybeSingle();
   let mvts=[];
   if(session){ const {data}=await sb.from('caisse_mouvements').select('*').eq('session_id',session.id).order('created_at',{ascending:false}); mvts=data||[]; }
+  await chargerChantiersRef(true);
   const entrees=mvts.filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
   const sorties=mvts.filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
   const solde=session?(+session.fond_ouverture||0)+entrees-sorties:0;
@@ -6064,7 +6160,7 @@ async function renderCaisseDetail(el){
         <tbody>${mvts.map(m=>`<tr>
           <td>${fmtDate(m.date_mouvement)}</td><td>${escapeHtml(m.numero||'—')}</td>
           <td><span class="${m.type==='entree'?'text-emerald-600':'text-red-600'}">${m.type==='entree'?'▲ Entrée':'▼ Sortie'}</span></td>
-          <td>${escapeHtml(m.motif)}${m.beneficiaire?' — '+escapeHtml(m.beneficiaire):''}</td>
+          <td>${escapeHtml(m.motif)}${m.beneficiaire?' — '+escapeHtml(m.beneficiaire):''}${chantierBadgeHtml(m.projet_id)}</td>
           <td class="text-right font-semibold">${money(m.montant)}</td>
           <td>${m.statut==='ventile'?`<span class="badge bg-emerald-50 text-emerald-700">✔ Ventilé</span>`:'<span class="badge bg-amber-50 text-amber-700">À ventiler</span>'}</td>
           <td class="text-right whitespace-nowrap">${caisseActionsHtml(m,ecrValidees,ecrPaiements)}</td>
@@ -6100,8 +6196,9 @@ async function caisseConfirmerOuverture(caisseId){
   toast('Caisse ouverte.'); closeModal();
   window._editId=caisseId; showPage('caisse-detail');
 }
-function caisseOuvrirBonModal(type){
-  const {session}=window._caisseDetailCache;
+async function caisseOuvrirBonModal(type){
+  const {session,caisse}=window._caisseDetailCache;
+  await chargerChantiersRef();
   openModal(`
     <h3 class="font-bold text-lg mb-4">${type==='entree'?"+ Bon d'entrée":'− Bon de sortie'}</h3>
     <div class="grid sm:grid-cols-2 gap-3 mb-3">
@@ -6109,7 +6206,9 @@ function caisseOuvrirBonModal(type){
       <div class="field"><label>Montant (FCFA)</label>${fieldWrap('💵',`<input id="bonMontant" type="number" min="1">`)}</div>
     </div>
     <div class="field mb-3"><label>Motif</label>${fieldWrap('📝',`<input id="bonMotif" placeholder="ex: Achat quincaillerie chantier X">`)}</div>
-    <div class="field mb-4"><label>${type==='entree'?'Provenance':'Bénéficiaire'}</label>${fieldWrap('👤',`<input id="bonBeneficiaire">`)}</div>
+    <div class="field mb-3"><label>${type==='entree'?'Provenance':'Bénéficiaire'}</label>${fieldWrap('👤',`<input id="bonBeneficiaire">`)}</div>
+    <div class="grid sm:grid-cols-2 gap-3 mb-1">${chantierPickerHtml('bon',caisse?.projet_id||'')}</div>
+    <div class="text-xs text-gray-400 mb-4">Rattachez le bon au chantier d'un client pour suivre ses dépenses (fiche du projet) ; l'écriture de ventilation portera ce chantier.</div>
     <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseSauverBon('${type}','${session.id}')">Enregistrer</button></div>`);
 }
 async function caisseSauverBon(type,sessionId){
@@ -6125,7 +6224,8 @@ async function caisseSauverBon(type,sessionId){
   const {data:numsBons}=await sb.from('caisse_mouvements').select('numero').eq('caisse_id',caisse.id).or('numero.like.BE-%,numero.like.BS-%');
   const maxBon=(numsBons||[]).reduce((mx,r)=>{const n=parseInt(String(r.numero).split('-').pop(),10);return Number.isFinite(n)&&n>mx?n:mx;},0);
   const numero=`${type==='entree'?'BE':'BS'}-${String(Math.max(count||0,maxBon)+1).padStart(5,'0')}`;
-  const {error}=await sb.from('caisse_mouvements').insert({session_id:sessionId,caisse_id:caisse.id,numero,date_mouvement,type,montant,motif,beneficiaire:beneficiaire||null,statut:'a_ventiler',created_by:CURRENT_USER.id});
+  const projet_id=chantierValeur('bon');
+  const {error}=await sb.from('caisse_mouvements').insert({session_id:sessionId,caisse_id:caisse.id,numero,date_mouvement,type,montant,motif,beneficiaire:beneficiaire||null,statut:'a_ventiler',created_by:CURRENT_USER.id,...(projet_id?{projet_id}:{})});
   if(error){ toast(error.message,'error'); return; }
   toast('Bon enregistré.'); closeModal();
   showPage('caisse-detail');
@@ -6210,6 +6310,7 @@ async function caisseOuvrirModifierModal(mvtId){
   const {mvt,legs,ecrs}=ctl;
   const estTrf=!!mvt.transfert_id;
   const ventiles=legs.filter(l=>l.statut==='ventile'&&l.ecriture_id);
+  if(!estTrf) await chargerChantiersRef();
   openModal(`
     <h3 class="font-bold text-lg mb-1">✏️ Modifier ${escapeHtml(mvt.numero||'le mouvement')}</h3>
     <p class="text-xs text-gray-500 mb-4">${estTrf?'Transfert lié entre deux caisses : la date et le montant sont modifiés des deux côtés.':(mvt.type==='entree'?"Bon d'entrée":'Bon de sortie')+' — le type ne peut pas être changé (supprimez puis recréez le bon).'}</p>
@@ -6220,15 +6321,18 @@ async function caisseOuvrirModifierModal(mvtId){
     </div>
     ${estTrf?'':`
     <div class="field mb-3"><label>Motif</label>${fieldWrap('📝',`<input id="edMotif" value="${escapeHtml(mvt.motif||'')}">`)}</div>
-    <div class="field mb-4"><label>${mvt.type==='entree'?'Provenance':'Bénéficiaire'}</label>${fieldWrap('👤',`<input id="edBenef" value="${escapeHtml(mvt.beneficiaire||'')}">`)}</div>`}
+    <div class="field mb-3"><label>${mvt.type==='entree'?'Provenance':'Bénéficiaire'}</label>${fieldWrap('👤',`<input id="edBenef" value="${escapeHtml(mvt.beneficiaire||'')}">`)}</div>
+    <div class="grid sm:grid-cols-2 gap-3 mb-4">${chantierPickerHtml('ed',mvt.projet_id||'')}</div>`}
     <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseConfirmerModification('${mvt.id}')">Enregistrer</button></div>`);
 }
 async function caisseEcrireLeg(leg,v){
-  const {data,error}=await sb.from('caisse_mouvements').update({date_mouvement:v.date_mouvement,montant:v.montant,motif:v.motif,beneficiaire:v.beneficiaire}).eq('id',leg.id).select('id');
+  const maj={date_mouvement:v.date_mouvement,montant:v.montant,motif:v.motif,beneficiaire:v.beneficiaire};
+  if(v.projet_id!==undefined && v.projet_id!==(leg.projet_id||null)) maj.projet_id=v.projet_id;
+  const {data,error}=await sb.from('caisse_mouvements').update(maj).eq('id',leg.id).select('id');
   if(error) return error;
   if(!data||!data.length) return new Error('Modification refusée par la base (droits insuffisants ?).');
   if(leg.statut==='ventile'&&leg.ecriture_id){
-    const {error:e1}=await sb.from('compta_ecritures').update({date_ecriture:v.date_mouvement,libelle:v.motif}).eq('id',leg.ecriture_id);
+    const {error:e1}=await sb.from('compta_ecritures').update({date_ecriture:v.date_mouvement,libelle:v.motif,...('projet_id' in maj?{projet_id:maj.projet_id}:{})}).eq('id',leg.ecriture_id);
     if(e1) return e1;
     const {error:e2}=await sb.from('compta_lignes').update({montant:v.montant,libelle:v.motif}).eq('ecriture_id',leg.ecriture_id);
     if(e2) return e2;
@@ -6243,6 +6347,7 @@ async function caisseConfirmerModification(mvtId){
   const motifEl=document.getElementById('edMotif');
   const motif=motifEl?motifEl.value.trim():null;
   const benef=document.getElementById('edBenef')?document.getElementById('edBenef').value.trim():null;
+  const projetEd=document.getElementById('edProjet')?chantierValeur('ed'):undefined;
   if(!date){ toast('Date requise.','error'); return; }
   if(!montant||montant<=0){ toast('Montant invalide.','error'); return; }
   if(motifEl&&!motif){ toast('Motif requis.','error'); return; }
@@ -6264,15 +6369,15 @@ async function caisseConfirmerModification(mvtId){
     const faits=[];
     for(const l of legs){
       const estCourant=l.id===mvt.id;
-      const v={date_mouvement:date,montant,motif:(!mvt.transfert_id&&estCourant)?motif:l.motif,beneficiaire:(!mvt.transfert_id&&estCourant)?(benef||null):l.beneficiaire};
+      const v={date_mouvement:date,montant,motif:(!mvt.transfert_id&&estCourant)?motif:l.motif,beneficiaire:(!mvt.transfert_id&&estCourant)?(benef||null):l.beneficiaire,projet_id:(!mvt.transfert_id&&estCourant)?projetEd:undefined};
       const err=await caisseEcrireLeg(l,v);
       if(err){
-        for(const f of faits) await caisseEcrireLeg(f,{date_mouvement:f.date_mouvement,montant:f.montant,motif:f.motif,beneficiaire:f.beneficiaire});
+        for(const f of faits) await caisseEcrireLeg(f,{date_mouvement:f.date_mouvement,montant:f.montant,motif:f.motif,beneficiaire:f.beneficiaire,projet_id:f.projet_id||null});
         toast('Échec de la modification : '+err.message,'error'); return;
       }
       faits.push(l);
     }
-    await caisseAuditer('modification',legs,{avant:{date_mouvement:mvt.date_mouvement,montant:mvt.montant,motif:mvt.motif,beneficiaire:mvt.beneficiaire},apres:{date_mouvement:date,montant,motif:mvt.transfert_id?mvt.motif:motif,beneficiaire:mvt.transfert_id?mvt.beneficiaire:(benef||null)}});
+    await caisseAuditer('modification',legs,{avant:{date_mouvement:mvt.date_mouvement,montant:mvt.montant,motif:mvt.motif,beneficiaire:mvt.beneficiaire,projet_id:mvt.projet_id||null},apres:{date_mouvement:date,montant,motif:mvt.transfert_id?mvt.motif:motif,beneficiaire:mvt.transfert_id?mvt.beneficiaire:(benef||null),projet_id:mvt.transfert_id?(mvt.projet_id||null):(projetEd??null)}});
     toast(mvt.transfert_id?'Transfert modifié des deux côtés.':'Mouvement modifié.'); closeModal();
     showPage('caisse-detail');
   } finally { window._caisseBusy=false; }
@@ -6358,7 +6463,7 @@ async function caisseExecuterVentilation(mvt,compte,memoriser){
   const lignes=mvt.type==='entree'
     ?[{compte_code:caisseCompte,sens:'D',montant:mvt.montant,libelle:mvt.motif},{compte_code:compte,sens:'C',montant:mvt.montant,libelle:mvt.motif}]
     :[{compte_code:compte,sens:'D',montant:mvt.montant,libelle:mvt.motif},{compte_code:caisseCompte,sens:'C',montant:mvt.montant,libelle:mvt.motif}];
-  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:mvt.date_mouvement,journal_code:'CA',piece:mvt.numero,libelle:mvt.motif,source:'auto',source_type:'caisse_mouvement',source_id:mvt.id,created_by:CURRENT_USER.id}).select().single();
+  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:mvt.date_mouvement,journal_code:'CA',piece:mvt.numero,libelle:mvt.motif,source:'auto',source_type:'caisse_mouvement',source_id:mvt.id,projet_id:mvt.projet_id||null,created_by:CURRENT_USER.id}).select().single();
   if(error) return {ok:false,message:error.message};
   await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
   await sb.from('caisse_mouvements').update({statut:'ventile',compte_ventile:compte,ecriture_id:ecr.id}).eq('id',mvt.id);

@@ -86,3 +86,9 @@ L'application continue de fonctionner quand internet est coupé :
 - **Sécurité** : hors ligne, l'inactivité **verrouille** la session (déverrouillage par le mot de passe, vérifié sur une empreinte PBKDF2 gardée sur l'appareil) au lieu de déconnecter. Les données gardées sont effacées à la déconnexion ; les saisies non envoyées sont conservées.
 - **Nécessitent une connexion** : se connecter, codes PIN et ouverture de caisse, transferts de stock, gestion des comptes, certification FNE.
 - Migration : `sql/hors_ligne.sql` (la vente au comptoir accepte l'identifiant et le code générés sur l'appareil).
+
+## Chantiers : caisse et stock rattachés au chantier d'un client
+- **Caisse** : chaque bon d'entrée / de sortie peut être rattaché à un chantier — choisir le **client**, puis **un de ses chantiers** (présélectionné s'il n'en a qu'un en cours ; une caisse de chantier propose son chantier par défaut). Modifiable ensuite (✏️). La ventilation comptable du bon crée une écriture rattachée au même chantier.
+- **Stock** : un mouvement (sortie de matériaux, retour, achat livré sur chantier…) se rattache de la même façon ; colonne et filtre « Chantier » dans Stock → Mouvements. Les sorties faites depuis une fiche d'exécution sont rattachées automatiquement au chantier de la fiche.
+- **Fiche du projet** : section « Suivi du chantier » — dépenses et encaissements de caisse, matériaux sortis (valorisés au CMUP), coût direct suivi, et bouton « Sortie de stock pour ce chantier ».
+- Migration : `sql/chantiers_caisse_stock.sql` (colonnes `projet_id`, reprise des caisses de chantier et des sorties de fiches d'exécution existantes).
