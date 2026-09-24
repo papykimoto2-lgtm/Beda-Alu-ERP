@@ -219,6 +219,12 @@ window.SB_CFG = {
       <div class="sidebar-children" data-children="factures-g">
         <button class="nav-child" data-page="factures">→ Liste des factures</button>
       </div>
+      <button class="nav-parent" data-toggle="comptoir-g">🏠 <span>Vente au comptoir</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="comptoir-g">
+        <button class="nav-child" data-page="comptoir">→ 🛒 Nouvelle vente</button>
+        <button class="nav-child" data-page="comptoir-ventes">→ Historique des ventes</button>
+        <button class="nav-child" data-page="comptoir-rapport">→ Rapport périodique (PDV & caisse)</button>
+      </div>
 
       <div class="sidebar-group-title">Chantier</div>
       <button class="nav-parent" data-toggle="fiches-g">🏠 <span>Fiches d'exécution</span><span class="chev">▸</span></button>
@@ -250,6 +256,9 @@ window.SB_CFG = {
         <button class="nav-child" data-page="stock-mouvements">→ Mouvements</button>
         <button class="nav-child" data-page="stock-alertes">→ Alertes <span class="nav-badge nav-badge-red" id="badgeStockAlertes">0</span></button>
         <button class="nav-child" data-page="stock-inventaire">→ Inventaire</button>
+        <button class="nav-child" data-page="stock-par-depot">→ Stock par dépôt</button>
+        <button class="nav-child" data-page="stock-transferts">→ Transferts <span class="nav-badge nav-badge-amber hidden" id="badgeTransferts">0</span></button>
+        <button class="nav-child" data-page="stock-depots">→ Dépôts & points de vente</button>
       </div>
 
       <div class="sidebar-group-title">Finance</div>
@@ -398,6 +407,7 @@ async function enterApp(){
   refreshDevisBadges();
   refreshProjetsBadges();
   refreshStockAlertesBadge();
+  refreshTransfertsBadge();
   loadAppParams();
   await rbacCharger();
   rbacAppliquerSidebar();
@@ -409,9 +419,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'Rapport périodique — Point de vente & caisse',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g'};
 /* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
 const ALL_MODULES=[
   {code:'Clients',label:'Clients',groupe:'Clients'},
@@ -420,6 +430,7 @@ const ALL_MODULES=[
   {code:'Projets',label:'Projets / Chantiers',groupe:'Chantier'},
   {code:'Devis',label:'Devis',groupe:'Commercial'},
   {code:'Factures',label:'Factures',groupe:'Commercial'},
+  {code:'Comptoir',label:'Vente au comptoir',groupe:'Commercial'},
   {code:'FichesExecution',label:"Fiches d'exécution",groupe:'Chantier'},
   {code:'Produits',label:'Produits',groupe:'Produits'},
   {code:'Composants',label:'Composants & consommables',groupe:'Produits'},
@@ -430,7 +441,7 @@ const ALL_MODULES=[
   {code:'Utilisateurs',label:'Utilisateurs & Rôles',groupe:'Réglages'},
   {code:'Parametres',label:'Paramètres',groupe:'Réglages'}
 ];
-const GROUP_TO_MODULE={'clients-g':'Clients','prospects-g':'Prospects','fournisseurs-g':'Fournisseurs','projets-g':'Projets','devis-g':'Devis','factures-g':'Factures','fiches-g':'FichesExecution','produits-g':'Produits','composants-g':'Composants','stock-g':'Stock','simulateur-g':'Stock','comptabilite-g':'Comptabilite','caisse-g':'Caisse','realisations-g':'Realisations'};
+const GROUP_TO_MODULE={'clients-g':'Clients','prospects-g':'Prospects','fournisseurs-g':'Fournisseurs','projets-g':'Projets','devis-g':'Devis','factures-g':'Factures','fiches-g':'FichesExecution','produits-g':'Produits','composants-g':'Composants','stock-g':'Stock','simulateur-g':'Stock','comptabilite-g':'Comptabilite','caisse-g':'Caisse','comptoir-g':'Comptoir','realisations-g':'Realisations'};
 const PAGE_TO_MODULE={...Object.fromEntries(Object.entries(PAGE_TO_GROUP).map(([p,g])=>[p,GROUP_TO_MODULE[g]])),parametres:'Parametres'};
 window._rbac=window._rbac||{roles:[],permissions:[],monProfil:null,loaded:false,provisionne:true};
 async function rbacCharger(force){
@@ -1568,7 +1579,8 @@ function filterComposantsCatalogue(){
                 <span class="produit-pct" style="--fc:${c.type==='Consommable'?'#d97706':'#2563eb'}">${escapeHtml(c.type)}</span>
               </div>
               <div class="pname">${escapeHtml(c.nom)}${c.code?' <span title="Utilisé par le Configurateur ('+escapeHtml(c.code)+')">🧩</span>':''}${(+c.stock_actuel||0)<(+c.stock_min||0)?' <span title="Sous le seuil minimum">🔴</span>':''}</div>
-              <div class="punite">${COMPOSANT_STANDINGS[c.standing||'standard']?.icon||''} ${COMPOSANT_STANDINGS[c.standing||'standard']?.label||''} · ${escapeHtml(c.unite)} · ${money(c.prix_unitaire)} · Stock : ${(+c.stock_actuel||0).toFixed(1)}</div>
+              <div class="punite">${COMPOSANT_STANDINGS[c.standing||'standard']?.icon||''} ${COMPOSANT_STANDINGS[c.standing||'standard']?.label||''} · ${escapeHtml(c.unite)} · Stock : ${(+c.stock_actuel||0).toFixed(1)}</div>
+              <div class="punite">🛒 Achat : ${money(c.prix_unitaire)} · 💰 Vente : ${c.prix_vente!=null?money(c.prix_vente):'—'}${c.prix_vente!=null?' · Marge : '+composantMargeHtml(c):''}</div>
               <div class="pactions">
                 <div class="dropdown">
                   <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
@@ -1582,8 +1594,8 @@ function filterComposantsCatalogue(){
             </div>`).join('')}
         </div>` : `
         <div class="card overflow-x-auto">
-          <table><thead><tr><th>Désignation</th><th>Type</th><th>Standing</th><th>Unité</th><th class="text-right">Prix unitaire</th><th></th></tr></thead>
-          <tbody>${groups[f].map(c=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(c.nom)}${c.code?' 🧩':''}</td><td>${escapeHtml(c.type)}</td><td>${COMPOSANT_STANDINGS[c.standing||'standard']?.icon||''} ${COMPOSANT_STANDINGS[c.standing||'standard']?.label||''}</td><td>${escapeHtml(c.unite)}</td><td class="text-right">${money(c.prix_unitaire)}</td>
+          <table><thead><tr><th>Désignation</th><th>Type</th><th>Standing</th><th>Unité</th><th class="text-right">Prix d'achat</th><th class="text-right">Prix de vente</th><th class="text-right">Marge</th><th></th></tr></thead>
+          <tbody>${groups[f].map(c=>`<tr style="transition:background .12s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''"><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${fc};margin-right:8px"></span>${escapeHtml(c.nom)}${c.code?' 🧩':''}</td><td>${escapeHtml(c.type)}</td><td>${COMPOSANT_STANDINGS[c.standing||'standard']?.icon||''} ${COMPOSANT_STANDINGS[c.standing||'standard']?.label||''}</td><td>${escapeHtml(c.unite)}</td><td class="text-right">${money(c.prix_unitaire)}</td><td class="text-right">${c.prix_vente!=null?money(c.prix_vente):'<span class="text-gray-400">—</span>'}</td><td class="text-right">${composantMargeHtml(c)}</td>
           <td class="text-right whitespace-nowrap">
             <div class="dropdown">
               <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
@@ -1628,7 +1640,13 @@ async function renderComposantForm(el){
         <div class="field"><label>Famille</label>${fieldWrap('🏷️',`<select id="coFamille">${COMPOSANT_FAMILLES.map(f=>`<option value="${f}" ${c.famille===f?'selected':''}>${f}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Unité</label>${fieldWrap('📐',`<select id="coUnite">${['unite','ml','m2','kg','litre','boite','cartouche'].map(u=>`<option value="${u}" ${c.unite===u?'selected':''}>${u}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Standing</label>${fieldWrap('⭐',`<select id="coStanding">${Object.entries(COMPOSANT_STANDINGS).map(([k,v])=>`<option value="${k}" ${(c.standing||'standard')===k?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select>`)}</div>
-        <div class="field"><label>Prix unitaire (FCFA)</label>${fieldWrap('💰',`<input id="coPrix" type="number" min="0" step="0.1" value="${c.prix_unitaire??0}">`)}</div>
+        <div class="sm:col-span-2 border-t pt-3 mt-1">
+          <div class="text-xs font-bold text-gray-500 uppercase mb-2">💱 Achat / Vente</div>
+        </div>
+        <div class="field"><label>Prix d'achat unitaire (FCFA)</label>${fieldWrap('🛒',`<input id="coPrix" type="number" min="0" step="0.1" value="${c.prix_unitaire??0}" oninput="updateComposantMarge()">`)}</div>
+        <div class="field"><label>Prix de vente unitaire (FCFA)</label>${fieldWrap('💰',`<input id="coPrixVente" type="number" min="0" step="0.1" value="${c.prix_vente??''}" placeholder="Non vendu seul" oninput="updateComposantMarge()">`)}</div>
+        <div class="field"><label>Coefficient de vente (optionnel)</label>${fieldWrap('✖️',`<input id="coCoef" type="number" min="0" step="0.01" placeholder="Ex : 1.35" oninput="applyComposantCoef()">`)}</div>
+        <div class="field"><label>Marge unitaire</label><div id="coMarge" class="text-sm font-semibold px-3 py-2.5 rounded-lg bg-gray-50 border">—</div></div>
         ${c.code?`<div class="field sm:col-span-2"><label>Code technique (Configurateur)</label>${fieldWrap('🧩',`<input value="${escapeHtml(c.code)}" readonly style="background:#f9fafb;color:#6b7280">`)}</div>
         <div class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 sm:col-span-2">🧩 Ce composant alimente le calcul du BOM dans le Configurateur pour le standing <b>${COMPOSANT_STANDINGS[c.standing||'standard']?.label}</b> (code <b>${escapeHtml(c.code)}</b>). Pour créer une variante Économique ou Premium de ce même poste, utilisez « ⧉ Dupliquer » depuis le catalogue.</div>`:''}
         <div class="field sm:col-span-2"><label>Référence fournisseur (optionnel)</label>${fieldWrap('🏷️',`<input id="coRef" value="${escapeHtml(c.reference||'')}">`)}</div>
@@ -1637,16 +1655,24 @@ async function renderComposantForm(el){
         </div>
         ${c.id?`<div class="field"><label>Stock actuel</label>${fieldWrap('📦',`<input value="${(+c.stock_actuel||0).toFixed(2)} ${escapeHtml(c.unite)}" readonly style="background:#f9fafb;color:#6b7280;font-weight:700">`)}</div>
         <div class="field"><label>CMUP (coût moyen pondéré)</label>${fieldWrap('💰',`<input value="${money(c.cmup||0)}" readonly style="background:#f9fafb;color:#6b7280">`)}</div>
-        <div class="sm:col-span-2 text-xs text-gray-400">Le stock ne se modifie pas ici — passez par Stock → Mouvements (entrée/sortie/ajustement) ou Inventaire.</div>`:''}
+        <div class="sm:col-span-2 text-xs text-gray-600" id="coRepartition"></div>
+        <div class="sm:col-span-2 text-xs text-gray-400">Le stock ne se modifie pas ici — passez par Stock → Mouvements (entrée/sortie/ajustement), Inventaire ou Transferts.</div>`:''}
         <div class="field"><label>Stock minimum (seuil rupture)</label>${fieldWrap('⚠️',`<input id="coStockMin" type="number" min="0" step="0.1" value="${c.stock_min??0}">`)}</div>
         <div class="field"><label>Stock maximum (seuil surstock)</label>${fieldWrap('📈',`<input id="coStockMax" type="number" min="0" step="0.1" value="${c.stock_max??''}" placeholder="Optionnel">`)}</div>
         <div class="field sm:col-span-2"><label>Emplacement</label>${fieldWrap('📍',`<input id="coEmplacement" placeholder="Ex : Atelier A - Rayon 3" value="${escapeHtml(c.emplacement||'')}">`)}</div>
         <div class="sm:col-span-2 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
       </form>
     </div>`;
+  updateComposantMarge();
+  if(c.id){
+    Promise.all([chargerDepots(),sb.from('stocks_depot').select('depot_id,quantite').eq('composant_id',c.id).neq('quantite',0)]).then(([,{data}])=>{
+      const host=document.getElementById('coRepartition'); if(!host) return;
+      host.innerHTML=(data||[]).length?'🏭 Répartition : '+data.map(s=>`${escapeHtml(depotNom(s.depot_id))} <b>${fmtQte(s.quantite)}</b>`).join(' · '):'';
+    });
+  }
   document.getElementById('composantForm').onsubmit=async (e)=>{
     e.preventDefault();
-    const rec={nom:val('coNom'),type:val('coType'),famille:val('coFamille'),unite:val('coUnite'),standing:val('coStanding'),prix_unitaire:+val('coPrix')||0,reference:val('coRef')||null,stock_min:+val('coStockMin')||0,stock_max:val('coStockMax')?+val('coStockMax'):null,emplacement:val('coEmplacement')||null};
+    const rec={nom:val('coNom'),type:val('coType'),famille:val('coFamille'),unite:val('coUnite'),standing:val('coStanding'),prix_unitaire:+val('coPrix')||0,prix_vente:val('coPrixVente')!==''?+val('coPrixVente'):null,reference:val('coRef')||null,stock_min:+val('coStockMin')||0,stock_max:val('coStockMax')?+val('coStockMax'):null,emplacement:val('coEmplacement')||null};
     const id=val('coId');
     let error;
     if(id){ ({error}=await sb.from('composants').update(rec).eq('id',id)); }
@@ -1656,8 +1682,31 @@ async function renderComposantForm(el){
   };
 }
 
+function composantMarge(achat,vente){
+  if(vente==null||vente==='') return null;
+  const a=+achat||0, v=+vente||0, m=v-a;
+  return {montant:m,taux:v?m/v*100:null,coef:a?v/a:null};
+}
+function composantMargeHtml(c){
+  const m=composantMarge(c.prix_unitaire,c.prix_vente);
+  if(!m) return '<span class="text-gray-400">—</span>';
+  return `<span style="color:${m.montant<0?'#dc2626':'#059669'}">${money(m.montant)}${m.taux!=null?' ('+m.taux.toFixed(1)+' %)':''}</span>`;
+}
+function updateComposantMarge(){
+  const el=document.getElementById('coMarge'); if(!el) return;
+  const m=composantMarge(val('coPrix'),val('coPrixVente'));
+  if(!m){ el.innerHTML='<span class="text-gray-400">Renseignez un prix de vente</span>'; return; }
+  el.innerHTML=`<span style="color:${m.montant<0?'#dc2626':'#059669'}">${money(m.montant)}${m.taux!=null?' · taux de marge '+m.taux.toFixed(1)+' %':''}${m.coef!=null?' · coef. '+m.coef.toFixed(2):''}</span>`;
+}
+function applyComposantCoef(){
+  const coef=+val('coCoef'), achat=+val('coPrix')||0;
+  if(!coef) return;
+  document.getElementById('coPrixVente').value=Math.round(achat*coef*100)/100;
+  updateComposantMarge();
+}
+
 /* ============================== STOCK ============================== */
-const STOCK_TYPE_LABELS={entree:{label:'Entrée',color:'#059669',icon:'⬇️'},sortie:{label:'Sortie',color:'#dc2626',icon:'⬆️'},ajustement:{label:'Ajustement',color:'#7c3aed',icon:'⚖️'},inventaire:{label:'Inventaire',color:'#2563eb',icon:'🧮'}};
+const STOCK_TYPE_LABELS={entree:{label:'Entrée',color:'#059669',icon:'⬇️'},sortie:{label:'Sortie',color:'#dc2626',icon:'⬆️'},ajustement:{label:'Ajustement',color:'#7c3aed',icon:'⚖️'},inventaire:{label:'Inventaire',color:'#2563eb',icon:'🧮'},transfert:{label:'Transfert',color:'#0891b2',icon:'⇄'}};
 async function refreshStockAlertesBadge(){
   const {data}=await sb.from('composants').select('stock_actuel,stock_min,stock_max');
   const n=(data||[]).filter(c=>(+c.stock_actuel||0)<(+c.stock_min||0)||(c.stock_max!=null&&(+c.stock_actuel||0)>(+c.stock_max))).length;
@@ -1745,18 +1794,19 @@ function renderStockChart(canvasId,type,data,extraOptions){
 }
 
 async function renderStockMouvements(el){
-  const {data:composants}=await sb.from('composants').select('id,nom').order('nom');
+  const [{data:composants},depots]=await Promise.all([sb.from('composants').select('id,nom').order('nom'),chargerDepots(true)]);
   window._stockComposantsCache=composants||[];
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
       <div class="flex flex-wrap gap-2">
-        <select id="smFilterComposant" onchange="filterStockMouvements()"><option value="">Tous les composants</option>${composants.map(c=>`<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('')}</select>
-        <select id="smFilterType" onchange="filterStockMouvements()"><option value="">Tous types</option>${Object.entries(STOCK_TYPE_LABELS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select>
+        <select id="smFilterComposant" onchange="filterStockMouvements()" style="width:auto"><option value="">Tous les composants</option>${composants.map(c=>`<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('')}</select>
+        <select id="smFilterDepot" onchange="filterStockMouvements()" style="width:auto"><option value="">Tous les dépôts</option>${depots.map(d=>`<option value="${d.id}">${escapeHtml(d.nom)}</option>`).join('')}</select>
+        <select id="smFilterType" onchange="filterStockMouvements()" style="width:auto"><option value="">Tous types</option>${Object.entries(STOCK_TYPE_LABELS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select>
       </div>
       <button class="btn btn-primary" onclick="openMouvementModal()">+ Nouveau mouvement</button>
     </div>
     <div class="card overflow-x-auto">
-      <table><thead><tr><th>Date</th><th>Composant</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Stock après</th><th>Motif</th><th>Référence</th></tr></thead>
+      <table><thead><tr><th>Date</th><th>Composant</th><th>Dépôt</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Stock dépôt après</th><th class="text-right">Stock total après</th><th>Motif</th><th>Référence</th></tr></thead>
       <tbody id="smTbody"></tbody></table>
     </div>`;
   const {data:mouvements}=await sb.from('mouvements_stock').select('*, composants(nom,unite)').order('created_at',{ascending:false}).limit(500);
@@ -1766,18 +1816,22 @@ async function renderStockMouvements(el){
 function filterStockMouvements(){
   const compId=document.getElementById('smFilterComposant')?.value||'';
   const type=document.getElementById('smFilterType')?.value||'';
-  const filtered=(window._stockMouvementsCache||[]).filter(m=>(!compId||m.composant_id===compId)&&(!type||m.type===type));
+  const depot=document.getElementById('smFilterDepot')?.value||'';
+  const filtered=(window._stockMouvementsCache||[]).filter(m=>(!compId||m.composant_id===compId)&&(!type||m.type===type)&&(!depot||m.depot_id===depot));
   const tbody=document.getElementById('smTbody'); if(!tbody) return;
   tbody.innerHTML=filtered.map(m=>{
     const t=STOCK_TYPE_LABELS[m.type];
     return `<tr><td class="text-xs">${new Date(m.created_at).toLocaleString('fr-FR')}</td><td>${escapeHtml(m.composants?.nom||'—')}</td>
+    <td class="text-xs whitespace-nowrap">${depotNom(m.depot_id)}</td>
     <td><span class="pill" style="color:${t.color};border-color:${t.color}">${t.icon} ${t.label}</span></td>
     <td class="text-right" style="color:${m.quantite<0?'#dc2626':'#059669'}">${m.quantite>0?'+':''}${(+m.quantite).toFixed(2)} ${escapeHtml(m.composants?.unite||'')}</td>
-    <td class="text-right">${(+m.stock_apres).toFixed(2)}</td>
+    <td class="text-right">${m.stock_depot_apres!=null?(+m.stock_depot_apres).toFixed(2):'—'}</td>
+    <td class="text-right text-gray-500">${(+m.stock_apres).toFixed(2)}</td>
     <td>${escapeHtml(m.motif||'—')}</td><td>${escapeHtml(m.reference||'—')}</td></tr>`;
-  }).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun mouvement.</td></tr>';
+  }).join('')||'<tr><td colspan="9" class="text-gray-400 p-4">Aucun mouvement.</td></tr>';
 }
-async function openMouvementModal(presetType,presetComposantId){
+async function openMouvementModal(presetType,presetComposantId,presetDepotId){
+  await chargerDepots();
   let composants=window._stockComposantsCache;
   if(!composants){ const {data}=await sb.from('composants').select('id,nom').order('nom'); composants=data||[]; }
   openModal(`
@@ -1785,7 +1839,8 @@ async function openMouvementModal(presetType,presetComposantId){
     <div class="divider"></div>
     <form id="mouvementForm" class="grid sm:grid-cols-2 gap-4">
       <div class="field sm:col-span-2"><label>Composant</label>${fieldWrap('🔩',smartSelect('mvComposant',composants.map(c=>({id:c.id,label:c.nom})),presetComposantId,{placeholder:'Rechercher un composant…'}))}</div>
-      <div class="field"><label>Type</label>${fieldWrap('🗂️',`<select id="mvType" onchange="updateMouvementFormFields()">${Object.entries(STOCK_TYPE_LABELS).map(([k,v])=>`<option value="${k}" ${k===presetType?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select>`)}</div>
+      <div class="field sm:col-span-2"><label>Dépôt</label>${fieldWrap('🏭',`<select id="mvDepot">${depotOptionsHtml(presetDepotId||window._stockDepotFocus||depotPrincipalId())}</select>`)}</div>
+      <div class="field"><label>Type</label>${fieldWrap('🗂️',`<select id="mvType" onchange="updateMouvementFormFields()">${Object.entries(STOCK_TYPE_LABELS).filter(([k])=>k!=='transfert').map(([k,v])=>`<option value="${k}" ${k===presetType?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select>`)}</div>
       <div class="field"><label id="mvQtyLabel">Quantité</label>${fieldWrap('#️⃣',`<input id="mvQuantite" type="number" step="0.01" required>`)}</div>
       <div class="field sm:col-span-2" id="mvPrixField"><label>Prix unitaire d'achat (FCFA)</label>${fieldWrap('💰',`<input id="mvPrix" type="number" step="0.01" min="0">`)}</div>
       <div class="field sm:col-span-2"><label>Motif</label>${fieldWrap('📝',`<input id="mvMotif" placeholder="Ex : Achat fournisseur, casse, correction…">`)}</div>
@@ -1804,7 +1859,7 @@ async function openMouvementModal(presetType,presetComposantId){
     const prix=val('mvPrix')?+val('mvPrix'):null;
     if(!composantId){ toast('Sélectionnez un composant.','error'); return; }
     if(!quantite && type!=='inventaire'){ toast('Quantité requise.','error'); return; }
-    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:val('mvRef')||null,p_prix_unitaire:prix});
+    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:val('mvRef')||null,p_prix_unitaire:prix,p_depot_id:val('mvDepot')||null});
     if(error){ toast(error.message,'error'); return; }
     if(type==='entree' && prix>0){
       const composantNom=(composants||[]).find(c=>c.id===composantId)?.nom;
@@ -1821,7 +1876,7 @@ function currentPageKey(){
 function updateMouvementFormFields(){
   const type=val('mvType');
   document.getElementById('mvPrixField').style.display=type==='entree'?'':'none';
-  document.getElementById('mvQtyLabel').textContent=type==='inventaire'?'Quantité comptée (valeur totale)':type==='ajustement'?'Écart (+/-)':'Quantité';
+  document.getElementById('mvQtyLabel').textContent=type==='inventaire'?'Quantité comptée dans ce dépôt':type==='ajustement'?'Écart (+/-)':'Quantité';
 }
 
 async function renderStockAlertes(el){
@@ -1847,10 +1902,21 @@ async function renderStockAlertes(el){
 }
 
 async function renderStockInventaire(el){
-  const {data}=await sb.from('composants').select('*').order('famille,nom');
-  window._inventaireCache=data||[];
+  const depots=await chargerDepots(true);
+  if(!window._inventaireDepot||!depots.some(d=>d.id===window._inventaireDepot)) window._inventaireDepot=depotPrincipalId();
+  const [{data:composants},{data:stocks}]=await Promise.all([
+    sb.from('composants').select('*').order('famille,nom'),
+    sb.from('stocks_depot').select('composant_id,quantite').eq('depot_id',window._inventaireDepot)
+  ]);
+  const qDepot=Object.fromEntries((stocks||[]).map(s=>[s.composant_id,+s.quantite||0]));
+  // stock_actuel est remplacé ici par le stock DU DÉPÔT inventorié
+  const data=(composants||[]).map(c=>({...c,stock_actuel:qDepot[c.id]||0}));
+  window._inventaireCache=data;
   el.innerHTML=`
-    <div class="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-3 py-2 mb-4">🧮 Saisissez la quantité réellement comptée pour chaque composant. Seuls les écarts génèrent un mouvement d'inventaire — le reste n'est pas touché.</div>
+    <div class="flex flex-wrap items-end gap-3 mb-3">
+      <div class="field"><label>Dépôt inventorié</label>${fieldWrap('🏭',`<select onchange="window._inventaireDepot=this.value;showPage('stock-inventaire')">${depotOptionsHtml(window._inventaireDepot)}</select>`)}</div>
+    </div>
+    <div class="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-3 py-2 mb-4">🧮 Saisissez la quantité réellement comptée dans <b>${escapeHtml(depotNom(window._inventaireDepot))}</b>. Seuls les écarts génèrent un mouvement d'inventaire — le reste n'est pas touché.</div>
     <div class="card overflow-x-auto">
       <table><thead><tr><th>Composant</th><th>Famille</th><th class="text-right">Stock système</th><th class="text-right">Quantité comptée</th><th class="text-right">Écart</th></tr></thead>
       <tbody>${data.map(c=>`<tr data-comp="${c.id}">
@@ -1877,7 +1943,7 @@ async function validerInventaire(){
   if(!confirm(`${aTraiter.length} écart(s) détecté(s). Enregistrer l'inventaire ?`)) return;
   for(const c of aTraiter){
     const compte=+document.getElementById('inv_'+c.id).value;
-    await sb.rpc('stock_mouvement',{p_composant_id:c.id,p_type:'inventaire',p_quantite:compte,p_motif:'Inventaire physique',p_reference:null,p_prix_unitaire:null});
+    await sb.rpc('stock_mouvement',{p_composant_id:c.id,p_type:'inventaire',p_quantite:compte,p_motif:'Inventaire physique',p_reference:null,p_prix_unitaire:null,p_depot_id:window._inventaireDepot});
   }
   toast(`Inventaire enregistré : ${aTraiter.length} écart(s).`);
   refreshStockAlertesBadge();
@@ -1926,11 +1992,13 @@ async function proposerDechargeStock(ficheId){
   });
   const items=Object.values(besoins).filter(b=>b.qty>0);
   if(!items.length) return;
+  await chargerDepots();
 
   openModal(`
     <h2 class="text-lg font-bold mb-1">📦 Décharger le stock — Fiche ${escapeHtml(fiche.code)}</h2>
     <div class="divider"></div>
     <p class="text-xs text-gray-500 mb-3">${nbMesures===nbTotal?'📏 Calculé à partir des <b>mesures réelles</b> relevées sur chantier.':`⚠️ ${nbTotal-nbMesures} ligne(s) sans mesure réelle — calculé sur les dimensions du devis pour ces lignes.`} Décochez ce qui ne doit pas être décompté.</p>
+    <div class="field mb-3"><label>Dépôt de sortie</label>${fieldWrap('🏭',`<select id="dcDepot">${depotOptionsHtml(depotPrincipalId())}</select>`)}</div>
     <div class="overflow-x-auto mb-4"><table><thead><tr><th></th><th>Composant</th><th class="text-right">Quantité à sortir</th></tr></thead>
     <tbody>${items.map((it,i)=>`<tr>
       <td><input type="checkbox" checked id="dc_${i}"></td>
@@ -1944,10 +2012,10 @@ async function proposerDechargeStock(ficheId){
   window._dechargeItems=items;
 }
 async function confirmerDechargeStock(items,ficheCode){
-  let n=0;
+  let n=0; const depotId=document.getElementById('dcDepot')?.value||null;
   for(let i=0;i<items.length;i++){
     if(!document.getElementById('dc_'+i)?.checked) continue;
-    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:items[i].id,p_type:'sortie',p_quantite:items[i].qty,p_motif:"Fiche d'exécution",p_reference:ficheCode,p_prix_unitaire:null});
+    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:items[i].id,p_type:'sortie',p_quantite:items[i].qty,p_motif:"Fiche d'exécution",p_reference:ficheCode,p_prix_unitaire:null,p_depot_id:depotId});
     if(!error) n++;
   }
   toast(`Stock déchargé (${n} composant(s)).`);
@@ -3766,12 +3834,14 @@ async function deleteDevisCategory(id){
 let devisEditorState=null;
 async function renderDevisEditorPage(el){
   const devisId=window._editId;
-  const [clientsRes, projetsRes, produitsRes, catRes] = await Promise.all([
+  const [clientsRes, projetsRes, produitsRes, catRes, composantsRes] = await Promise.all([
     sb.from('clients').select('id,nom,prenoms').order('nom'),
     sb.from('projets').select('id,libelle,client_id').order('created_at',{ascending:false}),
     sb.from('produits').select('*').order('nom'),
-    sb.from('devis_categories').select('nom').order('nom')
+    sb.from('devis_categories').select('nom').order('nom'),
+    sb.from('composants').select('id,nom,unite,standing,prix_unitaire,prix_vente').order('nom')
   ]);
+  window._devisComposantsCache=composantsRes.data||[];
   window._clientsCache=clientsRes.data||[];
   window._projetsCache=projetsRes.data||[];
   window._produitsCache=produitsRes.data||[];
@@ -3809,7 +3879,10 @@ function renderDevisEditorBody(){
     <div class="page-card">
       <div class="flex justify-between items-center mb-3">
         <h3 class="font-bold text-sm">Lignes du devis</h3>
-        <button type="button" class="btn btn-outline text-xs" onclick="addLigne()">+ Ajouter une ligne</button>
+        <div class="flex gap-2">
+          <button type="button" class="btn btn-outline text-xs" onclick="addLigneComposant()">🔩 + Vendre un composant</button>
+          <button type="button" class="btn btn-outline text-xs" onclick="addLigne()">+ Ajouter une ligne</button>
+        </div>
       </div>
       <div class="overflow-x-auto mb-3"><table id="lignesTable"><thead><tr><th>Pièce</th><th>Produit / Titre</th><th>L (cm)</th><th>H (cm)</th><th>Qté</th><th>Remise %</th><th>Prix</th><th class="text-right">Total</th><th></th></tr></thead>
       <tbody>${lignes.map((l,i)=>ligneRowHtml(l,i)).join('')}</tbody></table></div>
@@ -3829,7 +3902,8 @@ function ligneRowHtml(l,i){
   return `<tr data-idx="${i}">
     <td><input value="${escapeHtml(l.piece||'')}" placeholder="Ex: Salon" oninput="updateLigne(${i},'piece',this.value)" style="min-width:100px"></td>
     <td>
-      <div style="min-width:150px">${smartSelect('dvLigneProduit'+i,(window._produitsCache||[]).map(p=>({id:p.id,label:p.nom})),l.produit_id,{placeholder:'— Produit / titre libre —',onChange:`onProduitSelect(${i},this.value)`})}</div>
+      ${l.composant_id||l._composant?`<div style="min-width:150px">${smartSelect('dvLigneComposant'+i,(window._devisComposantsCache||[]).map(c=>({id:c.id,label:'🔩 '+c.nom+(c.prix_vente!=null?' — '+money(c.prix_vente)+'/'+c.unite:'')})),l.composant_id,{placeholder:'— Composant du catalogue —',onChange:`onComposantLigneSelect(${i},this.value)`})}</div>${ligneComposantMargeHtml(l)}`
+      :`<div style="min-width:150px">${smartSelect('dvLigneProduit'+i,(window._produitsCache||[]).map(p=>({id:p.id,label:p.nom})),l.produit_id,{placeholder:'— Produit / titre libre —',onChange:`onProduitSelect(${i},this.value)`})}</div>`}
       <input value="${escapeHtml(l.titre||'')}" placeholder="Titre / détail" oninput="updateLigne(${i},'titre',this.value)" class="mt-1" style="min-width:150px">
     </td>
     <td><input type="number" step="0.1" value="${l.largeur||0}" oninput="updateLigne(${i},'largeur',+this.value)" style="width:70px"></td>
@@ -3843,6 +3917,26 @@ function ligneRowHtml(l,i){
 }
 function ligneTotal(l){ return (+l.quantite||0) * (+l.prix_unitaire||0) * (1-(+l.remise_pct||0)/100); }
 function addLigne(){ devisEditorState.lignes.push({piece:'',titre:'',largeur:0,hauteur:0,quantite:1,remise_pct:0,prix_unitaire:0,cout_materiel_pct:60,ordre:devisEditorState.lignes.length}); renderDevisEditorBody(); }
+function addLigneComposant(){ devisEditorState.lignes.push({piece:'',titre:'',largeur:0,hauteur:0,quantite:1,remise_pct:0,prix_unitaire:0,cout_materiel_pct:100,composant_id:null,_composant:true,ordre:devisEditorState.lignes.length}); renderDevisEditorBody(); }
+function onComposantLigneSelect(i,composantId){
+  const c=(window._devisComposantsCache||[]).find(x=>x.id===composantId);
+  const l=devisEditorState.lignes[i];
+  l.composant_id=composantId||null; l.produit_id=null;
+  if(c){
+    l.titre=c.nom;
+    l.prix_unitaire=+(c.prix_vente??c.prix_unitaire)||0;
+    // Le « % coût matériel » d'une ligne composant = prix d'achat / prix de vente, pour l'estimation financière du devis.
+    l.cout_materiel_pct=l.prix_unitaire?Math.round((+c.prix_unitaire||0)/l.prix_unitaire*10000)/100:100;
+    if(c.prix_vente==null) toast("Ce composant n'a pas de prix de vente — prix d'achat repris, ajustez-le.",'error');
+  }
+  renderDevisEditorBody();
+}
+function ligneComposantMargeHtml(l){
+  const c=(window._devisComposantsCache||[]).find(x=>x.id===l.composant_id);
+  if(!c) return '';
+  const pu=(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100), m=pu-(+c.prix_unitaire||0);
+  return `<div class="text-xs mt-1 text-gray-500">🛒 Achat ${money(c.prix_unitaire)} · marge/u <span style="color:${m<0?'#dc2626':'#059669'};font-weight:600">${money(m)}</span></div>`;
+}
 function removeLigne(i){ devisEditorState.lignes.splice(i,1); renderDevisEditorBody(); }
 function updateLigne(i,field,value){
   devisEditorState.lignes[i][field]=value;
@@ -3867,7 +3961,7 @@ async function saveDevis(){
   if(error){ toast(error.message,'error'); return; }
   await sb.from('devis_lignes').delete().eq('devis_id',devisId);
   if(lignes.length){
-    const rows=lignes.map((l,i)=>({devis_id:devisId,piece:l.piece||'Non renseigné',produit_id:l.produit_id||null,titre:l.titre||'Sans titre',largeur:+l.largeur||0,hauteur:+l.hauteur||0,quantite:+l.quantite||1,remise_pct:+l.remise_pct||0,prix_unitaire:+l.prix_unitaire||0,total:ligneTotal(l),cout_materiel_pct:+l.cout_materiel_pct||60,ordre:i}));
+    const rows=lignes.map((l,i)=>({devis_id:devisId,piece:l.piece||'Non renseigné',produit_id:l.produit_id||null,composant_id:l.composant_id||null,titre:l.titre||'Sans titre',largeur:+l.largeur||0,hauteur:+l.hauteur||0,quantite:+l.quantite||1,remise_pct:+l.remise_pct||0,prix_unitaire:+l.prix_unitaire||0,total:ligneTotal(l),cout_materiel_pct:+l.cout_materiel_pct||60,ordre:i}));
     const {error:e2}=await sb.from('devis_lignes').insert(rows);
     if(e2){ toast(e2.message,'error'); return; }
   }
@@ -4622,7 +4716,7 @@ function printEstimation(){
 }
 
 /* ============================== PARAMÉTRAGE : SOCIÉTÉ / LOGO / SUPABASE / SYNCHRO / SAUVEGARDE ============================== */
-const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','paiements','roles','role_permissions','invitations'];
+const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','depots','stocks_depot','transferts_stock','transferts_stock_lignes','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','points_vente','paiements','ventes_comptoir','ventes_comptoir_lignes','roles','role_permissions','invitations'];
 async function loadAppParams(){
   let {data}=await sb.from('parametres').select('*').limit(1).maybeSingle();
   if(!data){ const res=await sb.from('parametres').insert({}).select().single(); data=res.data; }
@@ -4704,6 +4798,8 @@ async function renderParametres(el){
           <div class="field sm:col-span-2"><label>Clé API (Bearer)</label>${fieldWrap('🔑',`<input id="fneApiKey" type="password" placeholder="Fournie par la DGI" value="${escapeHtml(p.fne_api_key||'')}">`)}</div>
           <div class="field"><label>Point de vente</label>${fieldWrap('🏬',`<input id="fnePointVente" value="${escapeHtml(p.fne_point_vente||'1')}">`)}</div>
           <div class="field"><label>Établissement</label>${fieldWrap('🏢',`<input id="fneEtablissement" value="${escapeHtml(p.fne_etablissement||'Principal')}">`)}</div>
+          <div class="field sm:col-span-2"><label>Code TVA FNE appliqué aux articles</label>${fieldWrap('🧮',`<select id="fneTaxe">${Object.entries(FNE_TAXES).map(([k,t])=>`<option value="${k}" ${(p.fne_taxe_defaut||'TVA')===k?'selected':''}>${k} — ${t.label}</option>`).join('')}</select>`)}</div>
+          <div class="sm:col-span-2 text-xs text-gray-500 -mt-2">Les prix du comptoir sont TTC ; ils sont convertis en HT avec ce taux pour la DGI. Gardez-le cohérent avec le « Taux de TVA » de l'onglet Entreprise (utilisé en comptabilité).</div>
           <div class="sm:col-span-2 flex items-center gap-2">
             <input type="checkbox" id="fneActif" ${p.fne_actif?'checked':''} style="width:16px;height:16px">
             <label style="font-size:12px;color:#374151" for="fneActif">Certification DGI active (sinon référence provisoire locale)</label>
@@ -4812,7 +4908,7 @@ async function renderParametres(el){
   };
   document.getElementById('fneForm').onsubmit=async(e)=>{
     e.preventDefault();
-    const rec={fne_environnement:val('fneEnvironnement'),fne_url_test:val('fneUrlTest'),fne_url_prod:val('fneUrlProd'),fne_api_key:val('fneApiKey'),fne_point_vente:val('fnePointVente'),fne_etablissement:val('fneEtablissement'),fne_actif:document.getElementById('fneActif').checked};
+    const rec={fne_environnement:val('fneEnvironnement'),fne_url_test:val('fneUrlTest'),fne_url_prod:val('fneUrlProd'),fne_api_key:val('fneApiKey'),fne_point_vente:val('fnePointVente'),fne_etablissement:val('fneEtablissement'),fne_taxe_defaut:val('fneTaxe'),fne_actif:document.getElementById('fneActif').checked};
     const {error}=await sb.from('parametres').update(rec).eq('id',p.id);
     if(error){ toast(error.message,'error'); return; }
     toast('Paramètres FNE enregistrés.'); await loadAppParams();
@@ -6222,6 +6318,1331 @@ async function comptabiliserAchatMouvementStock(composantNom,quantite,prixUnitai
   return ecr;
 }
 
+/* ============================== DÉPÔTS, POINTS DE VENTE & TRANSFERTS ==============================
+   Stock par dépôt (table stocks_depot) ; composants.stock_actuel = total tous dépôts.
+   Chaque point de vente est affilié à un dépôt (source du stock vendu) et à une caisse.
+   Transfert en 2 temps : expédition (sortie du dépôt source → en transit) puis réception (entrée au dépôt destination).
+   Voir sql/depots_points_vente_transferts.sql. */
+const DEPOT_TYPES={depot:{label:'Dépôt',icon:'🏭'},magasin:{label:'Magasin',icon:'🏪'},atelier:{label:'Atelier',icon:'🛠️'},chantier:{label:'Chantier',icon:'🏗️'}};
+const TRANSFERT_STATUTS={brouillon:{label:'Brouillon',color:'#6b7280',icon:'📝'},en_transit:{label:'En transit',color:'#d97706',icon:'🚚'},recu:{label:'Reçu',color:'#059669',icon:'✅'},annule:{label:'Annulé',color:'#dc2626',icon:'✕'}};
+async function chargerDepots(force){
+  if(window._depotsCache && !force) return window._depotsCache;
+  const {data}=await sb.from('depots').select('*').order('est_principal',{ascending:false}).order('nom');
+  window._depotsCache=data||[];
+  return window._depotsCache;
+}
+function depotPrincipalId(){ return (window._depotsCache||[]).find(d=>d.est_principal)?.id||''; }
+function depotNom(id){ const d=(window._depotsCache||[]).find(x=>x.id===id); return d?(DEPOT_TYPES[d.type]?.icon||'🏭')+' '+d.nom:'—'; }
+function depotOptionsHtml(selected,opts={}){
+  return (window._depotsCache||[]).filter(d=>d.actif||d.id===selected).filter(d=>!opts.exclure||d.id!==opts.exclure)
+    .map(d=>`<option value="${d.id}" ${d.id===selected?'selected':''}>${DEPOT_TYPES[d.type]?.icon||'🏭'} ${escapeHtml(d.nom)}${d.est_principal?' (principal)':''}</option>`).join('');
+}
+function fmtQte(n){ n=+n||0; return n.toLocaleString('fr-FR',{maximumFractionDigits:2}); }
+function prochainCode(prefixe,codes){
+  const max=Math.max(0,...(codes||[]).map(c=>parseInt(String(c||'').replace(prefixe+'-',''),10)||0));
+  return prefixe+'-'+String(max+1).padStart(2,'0');
+}
+
+/* ---------- Dépôts & points de vente ---------- */
+async function renderStockDepots(el){
+  const [depots,{data:pdvs},{data:stocks},{data:caisses},{data:transit}]=await Promise.all([
+    chargerDepots(true),
+    sb.from('points_vente').select('*, depots(nom), caisses(nom)').order('code'),
+    sb.from('stocks_depot').select('depot_id,quantite,composants(cmup)'),
+    sb.from('caisses').select('id,nom').eq('actif',true).order('created_at'),
+    sb.from('transferts_stock').select('depot_destination_id').eq('statut','en_transit')
+  ]);
+  window._pdvCache=pdvs||[]; window._caissesCache=caisses||[];
+  const stat={};
+  (stocks||[]).forEach(s=>{ const x=stat[s.depot_id]=stat[s.depot_id]||{articles:0,valeur:0}; if(+s.quantite>0){ x.articles++; x.valeur+=(+s.quantite)*(+s.composants?.cmup||0); } });
+  const valeurTotale=Object.values(stat).reduce((s,x)=>s+x.valeur,0);
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <p class="text-sm text-gray-500 max-w-2xl">Chaque dépôt a son propre stock. Chaque point de vente est affilié à un dépôt : c'est de là que sort la marchandise vendue au comptoir.</p>
+      <div class="flex gap-2">
+        <button class="btn btn-outline" onclick="showPage('stock-transferts')">⇄ Transferts</button>
+        <button class="btn btn-outline" onclick="openDepotModal()">+ Dépôt</button>
+        <button class="btn btn-primary" onclick="openPointVenteModal()">+ Point de vente</button>
+      </div>
+    </div>
+    <h3 class="text-sm font-bold uppercase text-gray-500 mb-2">🏭 Dépôts (${depots.length}) · valeur totale ${money(valeurTotale)}</h3>
+    <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
+      ${depots.map(d=>{
+        const s=stat[d.id]||{articles:0,valeur:0};
+        const nbPdv=(pdvs||[]).filter(p=>p.depot_id===d.id).length;
+        const nbTransit=(transit||[]).filter(t=>t.depot_destination_id===d.id).length;
+        return `<div class="card p-4" style="${d.actif?'':'opacity:.55'}">
+          <div class="flex justify-between items-start gap-2">
+            <div>
+              <div class="font-bold">${DEPOT_TYPES[d.type]?.icon||'🏭'} ${escapeHtml(d.nom)}</div>
+              <div class="text-xs text-gray-400">${escapeHtml(d.code)} · ${DEPOT_TYPES[d.type]?.label||d.type}${d.commune?' · '+escapeHtml(d.commune):''}</div>
+            </div>
+            <div class="flex gap-1 flex-wrap justify-end">
+              ${d.est_principal?'<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">⭐ Principal</span>':''}
+              ${d.actif?'':'<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">Inactif</span>'}
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-2 mt-3 text-center">
+            <div class="bg-gray-50 rounded-lg py-2"><div class="text-[11px] text-gray-500">Articles</div><div class="font-bold">${s.articles}</div></div>
+            <div class="bg-gray-50 rounded-lg py-2"><div class="text-[11px] text-gray-500">Valeur</div><div class="font-bold text-sm">${money(s.valeur)}</div></div>
+            <div class="bg-gray-50 rounded-lg py-2"><div class="text-[11px] text-gray-500">Pts de vente</div><div class="font-bold">${nbPdv}</div></div>
+          </div>
+          ${nbTransit?`<div class="text-xs text-amber-700 mt-2">🚚 ${nbTransit} transfert(s) en route vers ce dépôt</div>`:''}
+          ${d.responsable||d.telephone?`<div class="text-xs text-gray-500 mt-2">👤 ${escapeHtml([d.responsable,d.telephone].filter(Boolean).join(' · '))}</div>`:''}
+          <div class="flex flex-wrap gap-3 mt-3 text-xs font-semibold">
+            <button class="text-violet-700" onclick="window._stockDepotFocus='${d.id}';showPage('stock-par-depot')">📦 Voir le stock</button>
+            <button class="text-gray-600" onclick="openDepotModal('${d.id}')">✏️ Modifier</button>
+            ${!d.est_principal&&d.actif?`<button class="text-amber-700" onclick="definirDepotPrincipal('${d.id}')">⭐ Principal</button>`:''}
+            ${!d.est_principal?`<button class="${d.actif?'text-red-600':'text-emerald-600'}" onclick="basculerDepotActif('${d.id}')">${d.actif?'⏸ Désactiver':'▶ Réactiver'}</button>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <h3 class="text-sm font-bold uppercase text-gray-500 mb-2">🏪 Points de vente (${(pdvs||[]).length})</h3>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Code</th><th>Point de vente</th><th>Dépôt affilié</th><th>Caisse</th><th>Responsable</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${(pdvs||[]).map(p=>`<tr style="${p.actif?'':'opacity:.55'}">
+        <td class="font-semibold">${escapeHtml(p.code)}</td>
+        <td>${escapeHtml(p.nom)}${p.adresse?`<div class="text-xs text-gray-400">${escapeHtml(p.adresse)}</div>`:''}</td>
+        <td>${depotNom(p.depot_id)}</td>
+        <td>${p.caisses?'💰 '+escapeHtml(p.caisses.nom):'<span class="text-gray-400">—</span>'}</td>
+        <td class="text-xs">${escapeHtml([p.responsable,p.telephone].filter(Boolean).join(' · ')||'—')}</td>
+        <td>${p.actif?'<span class="text-xs font-semibold text-emerald-600">Actif</span>':'<span class="text-xs font-semibold text-gray-500">Inactif</span>'}</td>
+        <td class="text-right whitespace-nowrap text-xs font-semibold">
+          <button class="text-violet-700 mr-2" onclick="window._pos.pointVenteId='${p.id}';showPage('comptoir')">🛒 Vendre</button>
+          <button class="text-gray-600" onclick="openPointVenteModal('${p.id}')">✏️ Modifier</button>
+        </td></tr>`).join('')||'<tr><td colspan="7" class="text-center text-gray-400 p-4">Aucun point de vente.</td></tr>'}</tbody></table>
+    </div>`;
+}
+function openDepotModal(id){
+  const d=(window._depotsCache||[]).find(x=>x.id===id)||{type:'depot',actif:true,code:prochainCode('DEP',(window._depotsCache||[]).map(x=>x.code))};
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">🏭 ${d.id?'Modifier le dépôt':'Nouveau dépôt'}</h2>
+    <div class="divider"></div>
+    <form id="depotForm" class="grid sm:grid-cols-2 gap-4">
+      <div class="field"><label>Code</label>${fieldWrap('#',`<input id="dpCode" required value="${escapeHtml(d.code||'')}">`)}</div>
+      <div class="field"><label>Type</label>${fieldWrap('🗂️',`<select id="dpType">${Object.entries(DEPOT_TYPES).map(([k,v])=>`<option value="${k}" ${d.type===k?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select>`)}</div>
+      <div class="field sm:col-span-2"><label>Nom</label>${fieldWrap('🏭',`<input id="dpNom" required value="${escapeHtml(d.nom||'')}" placeholder="Ex : Magasin Yopougon">`)}</div>
+      <div class="field"><label>Commune / Ville</label>${fieldWrap('🏙️',`<input id="dpCommune" value="${escapeHtml(d.commune||'')}">`)}</div>
+      <div class="field"><label>Adresse</label>${fieldWrap('📍',`<input id="dpAdresse" value="${escapeHtml(d.adresse||'')}">`)}</div>
+      <div class="field"><label>Responsable</label>${fieldWrap('👤',`<input id="dpResponsable" value="${escapeHtml(d.responsable||'')}">`)}</div>
+      <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input id="dpTel" value="${escapeHtml(d.telephone||'')}">`)}</div>
+      <div class="sm:col-span-2 flex justify-end gap-2 pt-2">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button>
+        <button type="submit" class="btn btn-primary px-8">Enregistrer</button>
+      </div>
+    </form>`);
+  document.getElementById('depotForm').onsubmit=async(e)=>{
+    e.preventDefault();
+    if(!exigerDroit('Stock',d.id?'modifier':'creer','un dépôt')) return;
+    const rec={code:val('dpCode'),nom:val('dpNom'),type:val('dpType'),commune:val('dpCommune')||null,adresse:val('dpAdresse')||null,responsable:val('dpResponsable')||null,telephone:val('dpTel')||null};
+    const {error}=d.id?await sb.from('depots').update(rec).eq('id',d.id):await sb.from('depots').insert(rec);
+    if(error){ toast(error.message.includes('duplicate')?'Ce code est déjà utilisé.':error.message,'error'); return; }
+    toast('Dépôt enregistré.'); closeModal(); await chargerDepots(true); showPage('stock-depots');
+  };
+}
+async function definirDepotPrincipal(id){
+  if(!exigerDroit('Stock','modifier','le dépôt principal')) return;
+  if(!confirm("Définir ce dépôt comme principal ?\nLes mouvements sans dépôt précisé (décharges de fiches, anciens écrans) s'y imputeront.")) return;
+  const ancien=depotPrincipalId();
+  if(ancien){ const {error}=await sb.from('depots').update({est_principal:false}).eq('id',ancien); if(error){ toast(error.message,'error'); return; } }
+  const {error}=await sb.from('depots').update({est_principal:true}).eq('id',id);
+  if(error){ toast(error.message,'error'); if(ancien) await sb.from('depots').update({est_principal:true}).eq('id',ancien); return; }
+  toast('Dépôt principal mis à jour.'); await chargerDepots(true); showPage('stock-depots');
+}
+async function basculerDepotActif(id){
+  const d=(window._depotsCache||[]).find(x=>x.id===id); if(!d) return;
+  if(!exigerDroit('Stock','modifier','un dépôt')) return;
+  if(d.actif){
+    const [{data:st},{data:pdv},{data:tr}]=await Promise.all([
+      sb.from('stocks_depot').select('quantite').eq('depot_id',id).neq('quantite',0),
+      sb.from('points_vente').select('nom').eq('depot_id',id).eq('actif',true),
+      sb.from('transferts_stock').select('code').eq('statut','en_transit').or(`depot_source_id.eq.${id},depot_destination_id.eq.${id}`)
+    ]);
+    if((st||[]).length){ toast(`Ce dépôt contient encore ${(st||[]).length} article(s) : transférez ou inventoriez-les à zéro avant de le désactiver.`,'error'); return; }
+    if((pdv||[]).length){ toast(`Points de vente encore affiliés : ${(pdv||[]).map(p=>p.nom).join(', ')}. Réaffiliez-les d'abord.`,'error'); return; }
+    if((tr||[]).length){ toast(`Transferts en transit : ${(tr||[]).map(t=>t.code).join(', ')}.`,'error'); return; }
+  }
+  const {error}=await sb.from('depots').update({actif:!d.actif}).eq('id',id);
+  if(error){ toast(error.message,'error'); return; }
+  toast(d.actif?'Dépôt désactivé.':'Dépôt réactivé.'); await chargerDepots(true); showPage('stock-depots');
+}
+function openPointVenteModal(id){
+  const p=(window._pdvCache||[]).find(x=>x.id===id)||{actif:true,depot_id:depotPrincipalId(),code:prochainCode('PDV',(window._pdvCache||[]).map(x=>x.code))};
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">🏪 ${p.id?'Modifier le point de vente':'Nouveau point de vente'}</h2>
+    <div class="divider"></div>
+    <form id="pdvForm" class="grid sm:grid-cols-2 gap-4">
+      <div class="field"><label>Code</label>${fieldWrap('#',`<input id="pvCode" required value="${escapeHtml(p.code||'')}">`)}</div>
+      <div class="field"><label>Nom</label>${fieldWrap('🏪',`<input id="pvNom" required value="${escapeHtml(p.nom||'')}" placeholder="Ex : Comptoir Cocody">`)}</div>
+      <div class="field"><label>Dépôt affilié (source du stock)</label>${fieldWrap('🏭',`<select id="pvDepot" required>${depotOptionsHtml(p.depot_id)}</select>`)}</div>
+      <div class="field"><label>Caisse d'encaissement</label>${fieldWrap('💰',`<select id="pvCaisse"><option value="">— Aucune —</option>${(window._caissesCache||[]).map(c=>`<option value="${c.id}" ${c.id===p.caisse_id?'selected':''}>${escapeHtml(c.nom)}</option>`).join('')}</select>`)}</div>
+      <div class="field sm:col-span-2"><label>Adresse</label>${fieldWrap('📍',`<input id="pvAdresse" value="${escapeHtml(p.adresse||'')}">`)}</div>
+      <div class="field"><label>Responsable</label>${fieldWrap('👤',`<input id="pvResponsable" value="${escapeHtml(p.responsable||'')}">`)}</div>
+      <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input id="pvTel" value="${escapeHtml(p.telephone||'')}">`)}</div>
+      <label class="sm:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" id="pvActif" ${p.actif?'checked':''} style="width:auto"> Point de vente actif</label>
+      <div class="sm:col-span-2 flex justify-end gap-2 pt-2">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button>
+        <button type="submit" class="btn btn-primary px-8">Enregistrer</button>
+      </div>
+    </form>`);
+  document.getElementById('pdvForm').onsubmit=async(e)=>{
+    e.preventDefault();
+    if(!exigerDroit('Stock',p.id?'modifier':'creer','un point de vente')) return;
+    const rec={code:val('pvCode'),nom:val('pvNom'),depot_id:val('pvDepot'),caisse_id:val('pvCaisse')||null,adresse:val('pvAdresse')||null,responsable:val('pvResponsable')||null,telephone:val('pvTel')||null,actif:document.getElementById('pvActif').checked};
+    if(!rec.depot_id){ toast('Choisissez le dépôt affilié.','error'); return; }
+    const {error}=p.id?await sb.from('points_vente').update(rec).eq('id',p.id):await sb.from('points_vente').insert(rec);
+    if(error){ toast(error.message.includes('duplicate')?'Ce code est déjà utilisé.':error.message,'error'); return; }
+    toast('Point de vente enregistré.'); closeModal(); showPage('stock-depots');
+  };
+}
+
+/* ---------- Stock par dépôt (matrice composants × dépôts) ---------- */
+window._stockDepotFocus=window._stockDepotFocus||'';
+async function renderStockParDepot(el){
+  const [depots,{data:composants},{data:stocks}]=await Promise.all([
+    chargerDepots(true),
+    sb.from('composants').select('id,nom,famille,unite,cmup,stock_actuel,stock_min').order('famille').order('nom'),
+    sb.from('stocks_depot').select('depot_id,composant_id,quantite')
+  ]);
+  const map={}; (stocks||[]).forEach(s=>{ map[s.composant_id+'|'+s.depot_id]=+s.quantite||0; });
+  window._spdData={depots,composants:composants||[],map};
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-end gap-2 mb-4">
+      <div class="flex flex-wrap gap-2 items-end">
+        <div class="field"><label>Dépôt</label>${fieldWrap('🏭',`<select id="spdDepot" onchange="window._stockDepotFocus=this.value;filtrerStockParDepot()"><option value="">Tous les dépôts</option>${depots.map(d=>`<option value="${d.id}" ${d.id===window._stockDepotFocus?'selected':''}>${DEPOT_TYPES[d.type]?.icon||'🏭'} ${escapeHtml(d.nom)}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Recherche</label>${fieldWrap('🔎',`<input id="spdQ" placeholder="Composant…" oninput="filtrerStockParDepot()">`)}</div>
+        <label class="flex items-center gap-2 text-sm pb-2"><input type="checkbox" id="spdZero" checked onchange="filtrerStockParDepot()" style="width:auto"> Masquer les articles à zéro</label>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-outline" onclick="showPage('stock-depots')">🏭 Dépôts</button>
+        <button class="btn btn-primary" onclick="window._editId=null;showPage('stock-transfert-edit')">⇄ Nouveau transfert</button>
+      </div>
+    </div>
+    <div class="card overflow-x-auto" id="spdTable"></div>`;
+  filtrerStockParDepot();
+}
+function filtrerStockParDepot(){
+  const {depots,composants,map}=window._spdData||{}; const host=document.getElementById('spdTable'); if(!host) return;
+  const focus=window._stockDepotFocus, q=(document.getElementById('spdQ')?.value||'').trim().toLowerCase(), sansZero=document.getElementById('spdZero')?.checked;
+  const cols=focus?depots.filter(d=>d.id===focus):depots.filter(d=>d.actif||composants.some(c=>map[c.id+'|'+d.id]));
+  const qte=(c,d)=>map[c.id+'|'+d.id]||0;
+  const rows=composants.filter(c=>(!q||c.nom.toLowerCase().includes(q))&&(!sansZero||cols.some(d=>qte(c,d)!==0)));
+  const cell=n=>`<td class="text-right" style="color:${n<0?'#dc2626':n===0?'#d1d5db':'#111827'};font-weight:${n?600:400}">${fmtQte(n)}</td>`;
+  const valeurCol=d=>rows.reduce((s,c)=>s+Math.max(0,qte(c,d))*(+c.cmup||0),0);
+  host.innerHTML=`<table><thead><tr><th>Composant</th><th>Unité</th>${cols.map(d=>`<th class="text-right">${DEPOT_TYPES[d.type]?.icon||'🏭'} ${escapeHtml(d.nom)}</th>`).join('')}${focus?'':'<th class="text-right">Total</th>'}<th class="text-right">Valeur</th></tr></thead>
+    <tbody>${rows.map(c=>{
+      const tot=cols.reduce((s,d)=>s+qte(c,d),0);
+      return `<tr><td>${escapeHtml(c.nom)}<div class="text-xs text-gray-400">${escapeHtml(c.famille||'')}</div></td><td class="text-xs">${escapeHtml(c.unite||'')}</td>${cols.map(d=>cell(qte(c,d))).join('')}${focus?'':cell(tot)}<td class="text-right text-xs">${money(Math.max(0,tot)*(+c.cmup||0))}</td></tr>`;
+    }).join('')||`<tr><td colspan="${cols.length+4}" class="text-center text-gray-400 p-6">Aucun article.</td></tr>`}</tbody>
+    <tfoot><tr class="font-bold"><td colspan="2">Valeur (CMUP)</td>${cols.map(d=>`<td class="text-right">${money(valeurCol(d))}</td>`).join('')}${focus?'':`<td></td>`}<td class="text-right">${money(cols.reduce((s,d)=>s+valeurCol(d),0))}</td></tr></tfoot></table>`;
+}
+
+/* ---------- Transferts dépôt → dépôt ---------- */
+window._transfertsFiltre=window._transfertsFiltre||'';
+async function renderStockTransferts(el){
+  await chargerDepots();
+  let q=sb.from('transferts_stock').select('*, transferts_stock_lignes(quantite_envoyee,quantite_recue,cmup)').order('created_at',{ascending:false}).limit(300);
+  if(window._transfertsFiltre) q=q.eq('statut',window._transfertsFiltre);
+  const {data:trs,error}=await q;
+  if(error){ el.innerHTML=`<div class="card text-red-600 p-4">${escapeHtml(error.message)}</div>`; return; }
+  const {data:enTransit}=await sb.from('transferts_stock').select('id, transferts_stock_lignes(quantite_envoyee,cmup)').eq('statut','en_transit');
+  const valTransit=(enTransit||[]).reduce((s,t)=>s+(t.transferts_stock_lignes||[]).reduce((a,l)=>a+(+l.quantite_envoyee||0)*(+l.cmup||0),0),0);
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div class="flex flex-wrap gap-2">
+        <button class="fam-chip ${!window._transfertsFiltre?'active':''}" onclick="window._transfertsFiltre='';showPage('stock-transferts')">Tous</button>
+        ${Object.entries(TRANSFERT_STATUTS).map(([k,s])=>`<button class="fam-chip ${window._transfertsFiltre===k?'active':''}" style="--fc:${s.color}" onclick="window._transfertsFiltre='${k}';showPage('stock-transferts')">${s.icon} ${s.label}</button>`).join('')}
+      </div>
+      <button class="btn btn-primary" onclick="window._editId=null;showPage('stock-transfert-edit')">⇄ Nouveau transfert</button>
+    </div>
+    ${(enTransit||[]).length?`<div class="text-sm bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 mb-4">🚚 <b>${enTransit.length}</b> transfert(s) en transit — marchandise sortie du dépôt source, pas encore réceptionnée : <b>${money(valTransit)}</b> (au CMUP).</div>`:''}
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>N°</th><th>Créé le</th><th>Départ</th><th></th><th>Arrivée</th><th class="text-right">Lignes</th><th class="text-right">Valeur</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${(trs||[]).map(t=>{
+        const lignes=t.transferts_stock_lignes||[], st=TRANSFERT_STATUTS[t.statut];
+        const valeur=lignes.reduce((s,l)=>s+(+l.quantite_envoyee||0)*(+l.cmup||0),0);
+        const ecart=t.statut==='recu'&&lignes.some(l=>+l.quantite_recue!==+l.quantite_envoyee);
+        return `<tr>
+          <td class="font-semibold whitespace-nowrap">${escapeHtml(t.code||'')}</td>
+          <td class="text-xs whitespace-nowrap">${new Date(t.created_at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'})}</td>
+          <td>${depotNom(t.depot_source_id)}</td><td class="text-gray-400">→</td><td>${depotNom(t.depot_destination_id)}</td>
+          <td class="text-right">${lignes.length}</td>
+          <td class="text-right text-xs">${t.statut==='brouillon'?'—':money(valeur)}</td>
+          <td><span class="pill" style="color:${st.color};border-color:${st.color}">${st.icon} ${st.label}</span>${ecart?' <span class="text-xs text-red-600" title="Quantité reçue différente de la quantité envoyée">⚠ écart</span>':''}</td>
+          <td class="text-right whitespace-nowrap text-xs font-semibold">
+            <button class="text-gray-600 mr-2" onclick="imprimerBonTransfert('${t.id}')">🖨 Bon</button>
+            ${t.statut==='brouillon'?`<button class="text-violet-700 mr-2" onclick="window._editId='${t.id}';showPage('stock-transfert-edit')">✏️ Modifier</button><button class="text-amber-700 mr-2" onclick="expedierTransfert('${t.id}')">🚚 Expédier</button>`:''}
+            ${t.statut==='en_transit'?`<button class="text-emerald-700 mr-2" onclick="openReceptionTransfert('${t.id}')">📥 Réceptionner</button>`:''}
+            ${['brouillon','en_transit'].includes(t.statut)?`<button class="text-red-600" onclick="annulerTransfert('${t.id}','${t.statut}')">✕ Annuler</button>`:''}
+          </td></tr>`;
+      }).join('')||'<tr><td colspan="9" class="text-center text-gray-400 p-6">Aucun transfert.</td></tr>'}</tbody></table>
+    </div>`;
+}
+async function renderTransfertEdit(el){
+  const [depots,{data:composants},{data:stocks}]=await Promise.all([
+    chargerDepots(true),
+    sb.from('composants').select('id,nom,unite,cmup').order('nom'),
+    sb.from('stocks_depot').select('depot_id,composant_id,quantite')
+  ]);
+  const map={}; (stocks||[]).forEach(s=>{ map[s.composant_id+'|'+s.depot_id]=+s.quantite||0; });
+  let t={depot_source_id:window._stockDepotFocus||depotPrincipalId(),depot_destination_id:'',motif:''}, lignes=[];
+  if(window._editId){
+    const [{data:tt},{data:ll}]=await Promise.all([
+      sb.from('transferts_stock').select('*').eq('id',window._editId).single(),
+      sb.from('transferts_stock_lignes').select('*').eq('transfert_id',window._editId).order('ordre')
+    ]);
+    if(tt?.statut!=='brouillon'){ toast('Seul un transfert en brouillon est modifiable.','error'); showPage('stock-transferts'); return; }
+    t=tt; lignes=(ll||[]).map(l=>({composant_id:l.composant_id,quantite:+l.quantite_envoyee}));
+  }
+  if(!t.depot_destination_id) t.depot_destination_id=(depots.find(d=>d.actif&&d.id!==t.depot_source_id)||{}).id||'';
+  if(!lignes.length) lignes=[{composant_id:'',quantite:1}];
+  window._trEdit={t,lignes,composants:composants||[],map,el};
+  renderTransfertEditBody();
+}
+function renderTransfertEditBody(){
+  const {t,lignes,composants,map,el}=window._trEdit;
+  const dispo=id=>map[id+'|'+t.depot_source_id]||0;
+  const items=composants.map(c=>({id:c.id,label:`${c.nom} — dispo ${fmtQte(dispo(c.id))} ${c.unite||''}`}));
+  el.innerHTML=`
+    <div class="page-card max-w-4xl">
+      <h2>⇄ ${t.id?'Modifier le transfert '+escapeHtml(t.code):'Nouveau transfert de stock'}</h2>
+      <div class="divider"></div>
+      <div class="grid sm:grid-cols-[1fr_auto_1fr] gap-3 items-end mb-4">
+        <div class="field"><label>Dépôt de départ</label>${fieldWrap('📤',`<select onchange="window._trEdit.t.depot_source_id=this.value;renderTransfertEditBody()">${depotOptionsHtml(t.depot_source_id)}</select>`)}</div>
+        <button type="button" class="btn btn-outline mb-0.5" title="Inverser" onclick="const x=window._trEdit.t;[x.depot_source_id,x.depot_destination_id]=[x.depot_destination_id,x.depot_source_id];renderTransfertEditBody()">⇄</button>
+        <div class="field"><label>Dépôt d'arrivée</label>${fieldWrap('📥',`<select onchange="window._trEdit.t.depot_destination_id=this.value;renderTransfertEditBody()"><option value="">— Choisir —</option>${depotOptionsHtml(t.depot_destination_id,{exclure:t.depot_source_id})}</select>`)}</div>
+        <div class="field sm:col-span-3"><label>Motif / commentaire</label>${fieldWrap('📝',`<input value="${escapeHtml(t.motif||'')}" oninput="window._trEdit.t.motif=this.value" placeholder="Ex : Réassort magasin Cocody">`)}</div>
+      </div>
+      <div class="overflow-x-auto mb-3"><table><thead><tr><th>Article</th><th class="text-right">Disponible au départ</th><th class="text-right">Quantité à transférer</th><th></th></tr></thead>
+      <tbody>${lignes.map((l,i)=>{
+        const c=composants.find(x=>x.id===l.composant_id), d=l.composant_id?dispo(l.composant_id):null, trop=d!=null&&(+l.quantite>d);
+        return `<tr>
+          <td style="min-width:260px">${smartSelect('trComp'+i,items,l.composant_id,{placeholder:'Rechercher un article…',onChange:`window._trEdit.lignes[${i}].composant_id=this.value;renderTransfertEditBody()`})}</td>
+          <td class="text-right" style="color:${d!=null&&d<=0?'#dc2626':'#374151'}">${d==null?'—':fmtQte(d)+' '+escapeHtml(c?.unite||'')}</td>
+          <td class="text-right"><input type="number" min="0" step="0.01" value="${l.quantite}" oninput="window._trEdit.lignes[${i}].quantite=+this.value;this.style.borderColor=(+this.value>${d??'Infinity'})?'#dc2626':''" style="width:110px;text-align:right;${trop?'border-color:#dc2626':''}"></td>
+          <td class="text-right"><button type="button" class="text-red-500 text-xs font-semibold" onclick="window._trEdit.lignes.splice(${i},1);renderTransfertEditBody()">✕</button></td>
+        </tr>`;
+      }).join('')}</tbody></table></div>
+      <button type="button" class="btn btn-outline text-xs mb-5" onclick="window._trEdit.lignes.push({composant_id:'',quantite:1});renderTransfertEditBody()">+ Ajouter un article</button>
+      <label class="flex items-center gap-2 text-sm mb-4"><input type="checkbox" id="trRecepImmediate" style="width:auto"> Réception immédiate (dépôts sur le même site : le transfert passe directement à « Reçu »)</label>
+      <div class="flex flex-wrap justify-end gap-2">
+        <button class="btn btn-outline" onclick="showPage('stock-transferts')">Annuler</button>
+        <button class="btn btn-outline" onclick="enregistrerTransfert(false)">💾 Enregistrer en brouillon</button>
+        <button class="btn btn-primary px-6" onclick="enregistrerTransfert(true)">🚚 Enregistrer et expédier</button>
+      </div>
+    </div>`;
+}
+async function enregistrerTransfert(expedier){
+  if(!exigerDroit('Stock','creer','un transfert de stock')) return;
+  const {t,lignes}=window._trEdit;
+  const valides=lignes.filter(l=>l.composant_id&&+l.quantite>0);
+  if(!t.depot_source_id||!t.depot_destination_id){ toast('Choisissez les dépôts de départ et d\'arrivée.','error'); return; }
+  if(t.depot_source_id===t.depot_destination_id){ toast('Les dépôts de départ et d\'arrivée doivent être différents.','error'); return; }
+  if(!valides.length){ toast('Ajoutez au moins un article avec une quantité.','error'); return; }
+  const ids=valides.map(l=>l.composant_id); if(new Set(ids).size!==ids.length){ toast('Un même article apparaît deux fois : regroupez les quantités.','error'); return; }
+  if(expedier){
+    const {map}=window._trEdit;
+    const manque=valides.filter(l=>+l.quantite>(map[l.composant_id+'|'+t.depot_source_id]||0));
+    if(manque.length){ toast(`Stock insuffisant au dépôt de départ pour : ${manque.map(l=>(window._trEdit.composants.find(c=>c.id===l.composant_id)||{}).nom).join(', ')}.`,'error'); return; }
+  }
+  const immediate=document.getElementById('trRecepImmediate')?.checked;
+  const header={depot_source_id:t.depot_source_id,depot_destination_id:t.depot_destination_id,motif:t.motif||null};
+  let id=t.id, error;
+  if(id){ ({error}=await sb.from('transferts_stock').update(header).eq('id',id)); }
+  else { const r=await sb.from('transferts_stock').insert({...header,created_by:CURRENT_USER.id}).select().single(); error=r.error; id=r.data?.id; }
+  if(error){ toast(error.message,'error'); return; }
+  await sb.from('transferts_stock_lignes').delete().eq('transfert_id',id);
+  const {error:e2}=await sb.from('transferts_stock_lignes').insert(valides.map((l,i)=>({transfert_id:id,composant_id:l.composant_id,quantite_envoyee:+l.quantite,ordre:i})));
+  if(e2){ toast(e2.message,'error'); return; }
+  window._editId=null;
+  if(!expedier){ toast('Transfert enregistré en brouillon.'); showPage('stock-transferts'); return; }
+  const {data:tr,error:e3}=await sb.rpc('transfert_expedier',{p_transfert_id:id,p_par:CURRENT_USER.email});
+  if(e3){ toast(e3.message+' — le transfert reste en brouillon.','error'); showPage('stock-transferts'); return; }
+  if(immediate){
+    const {error:e4}=await sb.rpc('transfert_receptionner',{p_transfert_id:id,p_lignes:[],p_notes:'Réception immédiate',p_par:CURRENT_USER.email});
+    if(e4){ toast(e4.message,'error'); showPage('stock-transferts'); return; }
+    toast(`Transfert ${tr.code} effectué.`);
+  } else toast(`Transfert ${tr.code} expédié — en attente de réception.`);
+  refreshTransfertsBadge(); showPage('stock-transferts');
+}
+async function expedierTransfert(id){
+  if(!exigerDroit('Stock','modifier','un transfert de stock')) return;
+  if(!confirm('Expédier ce transfert ? Les quantités sortent du dépôt de départ.')) return;
+  const {data,error}=await sb.rpc('transfert_expedier',{p_transfert_id:id,p_par:CURRENT_USER.email});
+  if(error){ toast(error.message,'error'); return; }
+  toast(`Transfert ${data.code} expédié.`); refreshTransfertsBadge(); showPage('stock-transferts');
+}
+async function openReceptionTransfert(id){
+  const [{data:t},{data:lignes}]=await Promise.all([
+    sb.from('transferts_stock').select('*').eq('id',id).single(),
+    sb.from('transferts_stock_lignes').select('*, composants(nom,unite)').eq('transfert_id',id).order('ordre')
+  ]);
+  if(!t) return;
+  window._recepLignes=lignes||[];
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">📥 Réception — ${escapeHtml(t.code)}</h2>
+    <p class="text-sm text-gray-500">${depotNom(t.depot_source_id)} → <b>${depotNom(t.depot_destination_id)}</b></p>
+    <div class="divider"></div>
+    <p class="text-xs text-gray-500 mb-2">Saisissez la quantité réellement reçue. Un écart (casse, manquant) est tracé sur le transfert et ne rentre pas en stock.</p>
+    <div class="overflow-x-auto mb-3"><table><thead><tr><th>Article</th><th class="text-right">Envoyé</th><th class="text-right">Reçu</th><th class="text-right">Écart</th></tr></thead>
+    <tbody>${(lignes||[]).map((l,i)=>`<tr>
+      <td>${escapeHtml(l.composants?.nom||'—')}</td>
+      <td class="text-right">${fmtQte(l.quantite_envoyee)} ${escapeHtml(l.composants?.unite||'')}</td>
+      <td class="text-right"><input type="number" min="0" step="0.01" id="rc_${i}" value="${l.quantite_envoyee}" style="width:100px;text-align:right" oninput="const e=+this.value-${+l.quantite_envoyee};const c=document.getElementById('rcE_${i}');c.textContent=e?(e>0?'+':'')+e.toLocaleString('fr-FR'):'—';c.style.color=e<0?'#dc2626':e>0?'#d97706':'#9ca3af'"></td>
+      <td class="text-right font-semibold" id="rcE_${i}" style="color:#9ca3af">—</td></tr>`).join('')}</tbody></table></div>
+    <div class="field mb-4"><label>Observations</label>${fieldWrap('📝',`<input id="rcNotes" placeholder="Ex : 1 cartouche percée">`)}</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="confirmerReceptionTransfert('${id}')">✔ Valider la réception</button></div>`);
+}
+async function confirmerReceptionTransfert(id){
+  if(!exigerDroit('Stock','modifier','un transfert de stock')) return;
+  const lignes=(window._recepLignes||[]).map((l,i)=>({id:l.id,quantite_recue:+document.getElementById('rc_'+i).value||0}));
+  if(lignes.some((l,i)=>l.quantite_recue>+window._recepLignes[i].quantite_envoyee) && !confirm('Une quantité reçue dépasse la quantité envoyée. Continuer ?')) return;
+  const {data,error}=await sb.rpc('transfert_receptionner',{p_transfert_id:id,p_lignes:lignes,p_notes:val('rcNotes')||null,p_par:CURRENT_USER.email});
+  if(error){ toast(error.message,'error'); return; }
+  closeModal(); toast(`Transfert ${data.code} réceptionné.`); refreshTransfertsBadge(); showPage('stock-transferts');
+}
+async function annulerTransfert(id,statut){
+  if(!exigerDroit('Stock',statut==='brouillon'?'modifier':'supprimer','un transfert en transit')) return;
+  if(!confirm(statut==='en_transit'?'Annuler ce transfert en transit ?\nLa marchandise est remise en stock au dépôt de départ.':'Annuler ce brouillon de transfert ?')) return;
+  const {data,error}=await sb.rpc('transfert_annuler',{p_transfert_id:id,p_par:CURRENT_USER.email});
+  if(error){ toast(error.message,'error'); return; }
+  toast(`Transfert ${data.code} annulé.`); refreshTransfertsBadge(); showPage('stock-transferts');
+}
+async function refreshTransfertsBadge(){
+  const {count}=await sb.from('transferts_stock').select('id',{count:'exact',head:true}).eq('statut','en_transit');
+  const el=document.getElementById('badgeTransferts'); if(el){ el.textContent=count||0; el.classList.toggle('hidden',!count); }
+}
+async function imprimerBonTransfert(id){
+  const win=window.open('','_blank','width=800,height=1000'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  await chargerDepots();
+  const [{data:t},{data:lignes}]=await Promise.all([
+    sb.from('transferts_stock').select('*').eq('id',id).single(),
+    sb.from('transferts_stock_lignes').select('*, composants(nom,unite,reference)').eq('transfert_id',id).order('ordre')
+  ]);
+  if(!t){ win.close(); return; }
+  if(!window.APP_PARAMS) await loadAppParams();
+  const dep=idD=>(window._depotsCache||[]).find(d=>d.id===idD)||{};
+  const bloc=(titre,d)=>`<div style="flex:1;border:1px solid #d1d5db;border-radius:8px;padding:10px"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700">${titre}</div><div style="font-weight:700;font-size:14px;margin-top:2px">${escapeHtml(d.nom||'—')}</div><div style="font-size:11.5px;color:#4b5563">${escapeHtml([d.code,d.adresse,d.commune].filter(Boolean).join(' · '))}</div>${d.responsable?`<div style="font-size:11.5px;color:#4b5563">Resp. : ${escapeHtml(d.responsable)}${d.telephone?' · '+escapeHtml(d.telephone):''}</div>`:''}</div>`;
+  const recu=t.statut==='recu';
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bon de transfert ${escapeHtml(t.code)}</title>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:34px;color:#111827;font-size:13px}table{width:100%;border-collapse:collapse;margin-top:14px}
+    th,td{border:1px solid #d1d5db;padding:7px 9px}th{background:#f1f5f9;text-align:left;font-size:12px}.r{text-align:right}.sig{flex:1;border-top:1px solid #111827;padding-top:6px;font-size:11.5px;text-align:center;margin-top:60px}
+    @media print{body{padding:0}.noprint{display:none}}</style></head><body>
+    <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+    ${printCompanyHeaderHtml()}
+    <h1 style="font-size:19px;margin:0">BON DE TRANSFERT — ${escapeHtml(t.code)}</h1>
+    <div style="color:#6b7280;font-size:12px;margin:2px 0 14px">Statut : ${TRANSFERT_STATUTS[t.statut]?.label||t.statut}${t.date_expedition?' · Expédié le '+new Date(t.date_expedition).toLocaleString('fr-FR'):''}${t.date_reception?' · Reçu le '+new Date(t.date_reception).toLocaleString('fr-FR'):''}</div>
+    <div style="display:flex;gap:12px">${bloc('Dépôt de départ',dep(t.depot_source_id))}${bloc("Dépôt d'arrivée",dep(t.depot_destination_id))}</div>
+    ${t.motif?`<div style="margin-top:10px"><b>Motif :</b> ${escapeHtml(t.motif)}</div>`:''}
+    <table><thead><tr><th>#</th><th>Article</th><th>Réf.</th><th class="r">Qté envoyée</th><th class="r">Qté reçue</th><th class="r">Écart</th></tr></thead>
+    <tbody>${(lignes||[]).map((l,i)=>{ const e=recu?(+l.quantite_recue)-(+l.quantite_envoyee):null; return `<tr><td>${i+1}</td><td>${escapeHtml(l.composants?.nom||'—')}</td><td>${escapeHtml(l.composants?.reference||'')}</td><td class="r">${fmtQte(l.quantite_envoyee)} ${escapeHtml(l.composants?.unite||'')}</td><td class="r">${recu?fmtQte(l.quantite_recue):''}</td><td class="r" style="color:${e<0?'#dc2626':'inherit'}">${recu&&e?fmtQte(e):''}</td></tr>`; }).join('')}</tbody></table>
+    ${t.notes_reception?`<div style="margin-top:10px"><b>Observations à la réception :</b> ${escapeHtml(t.notes_reception)}</div>`:''}
+    <div style="display:flex;gap:30px"><div class="sig">Expéditeur${t.expedie_par?'<br>'+escapeHtml(t.expedie_par):''}</div><div class="sig">Transporteur</div><div class="sig">Réceptionnaire${t.recu_par?'<br>'+escapeHtml(t.recu_par):''}</div></div>
+    <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+  win.document.close(); win.focus();
+}
+
+/* ============================== VENTE AU COMPTOIR ==============================
+   Caisse enregistreuse pour la revente directe des composants & consommables.
+   Validation : RPC vente_comptoir_valider (en-tête + lignes + sorties de stock, une transaction — voir sql/vente_comptoir.sql),
+   puis écriture comptable (trésorerie / ventes / TVA) et, en espèces, mouvement dans la séance de caisse ouverte. */
+const COMPTOIR_MODES={espece:{label:'Espèces',icon:'💵',journal:'CA'},mobile_money:{label:'Mobile Money',icon:'📱',journal:'MM'},banque:{label:'Carte / Virement',icon:'💳',journal:'BQ'},cheque:{label:'Chèque',icon:'🧾',journal:'BQ'}};
+window._pos=window._pos||{pointVenteId:'',panier:[],clientId:'',clientNom:'',clientTel:'',remise:0,mode:'espece',caisseId:'',recu:'',refPaiement:'',famille:''};
+function posPrixVente(c){ return c.prix_vente!=null?+c.prix_vente:(+c.prix_unitaire||0); }
+function posStockDe(id){ return (window._posStock||{})[id]||0; }
+function posChangerPointVente(id){
+  const pos=window._pos, pdv=(window._posPdvs||[]).find(p=>p.id===id); if(!pdv) return;
+  pos.pointVenteId=id; if(pdv.caisse_id) pos.caisseId=pdv.caisse_id;
+  try{ localStorage.setItem('beda_pos_pdv',id); }catch(e){}
+  showPage('comptoir');
+}
+async function renderComptoir(el){
+  const {data:pdvs}=await sb.from('points_vente').select('*, depots(nom,type)').eq('actif',true).order('code');
+  window._posPdvs=pdvs||[];
+  const pos0=window._pos;
+  if(!pos0.pointVenteId){ try{ pos0.pointVenteId=localStorage.getItem('beda_pos_pdv')||''; }catch(e){} }
+  if(!window._posPdvs.some(p=>p.id===pos0.pointVenteId)){ pos0.pointVenteId=(window._posPdvs[0]||{}).id||''; pos0.caisseId=(window._posPdvs[0]||{}).caisse_id||pos0.caisseId; }
+  const pdv=window._posPdvs.find(p=>p.id===pos0.pointVenteId);
+  if(!pdv){ el.innerHTML=`<div class="card p-8 text-center"><div class="text-4xl mb-2">🏪</div><p class="mb-4">Aucun point de vente actif. Créez-en un et affiliez-le à un dépôt.</p><button class="btn btn-primary" onclick="showPage('stock-depots')">Dépôts & points de vente</button></div>`; return; }
+  const {data:stocksPdv}=await sb.from('stocks_depot').select('composant_id,quantite').eq('depot_id',pdv.depot_id);
+  window._posStock=Object.fromEntries((stocksPdv||[]).map(s=>[s.composant_id,+s.quantite||0]));
+  const [{data:composants,error},{data:clients},{data:caisses},{data:sessions}]=await Promise.all([
+    sb.from('composants').select('id,nom,code,type,famille,unite,standing,prix_unitaire,prix_vente,stock_actuel,reference').order('nom'),
+    sb.from('clients').select('id,nom,prenoms,telephone').order('nom'),
+    sb.from('caisses').select('id,nom,compte_code').eq('actif',true).order('created_at'),
+    sb.from('caisse_sessions').select('id,caisse_id').eq('statut','ouverte')
+  ]);
+  if(error){ el.innerHTML=`<div class="card text-red-600">${escapeHtml(error.message)}</div>`; return; }
+  window._posComposants=composants||[];
+  window._clientsCache=clients||[];
+  window._posCaisses=(caisses||[]).map(c=>({...c,sessionId:(sessions||[]).find(s=>s.caisse_id===c.id)?.id||null}));
+  const pos=window._pos;
+  if(!pos.caisseId){ const ouverte=window._posCaisses.find(c=>c.sessionId); pos.caisseId=(ouverte||window._posCaisses[0]||{}).id||''; }
+  pos.panier.forEach(l=>{ l.stock=posStockDe(l.composant_id); });
+  const familles=COMPOSANT_FAMILLES.filter(f=>window._posComposants.some(c=>(c.famille||'Autre')===f));
+  const sansPrix=window._posComposants.filter(c=>c.prix_vente==null).length;
+  el.innerHTML=`
+    <div class="grid lg:grid-cols-5 gap-4 items-start">
+      <div class="lg:col-span-3">
+        <div class="card p-4 mb-3">
+          <div class="flex flex-wrap gap-2 items-center mb-3 pb-3 border-b border-gray-200">
+            <div class="min-w-[220px]">${fieldWrap('🏪',`<select onchange="posChangerPointVente(this.value)">${window._posPdvs.map(p=>`<option value="${p.id}" ${p.id===pdv.id?'selected':''}>${escapeHtml(p.nom)}</option>`).join('')}</select>`)}</div>
+            <div class="text-xs text-gray-500">Dépôt affilié : <b>${escapeHtml((DEPOT_TYPES[pdv.depots?.type]?.icon||'🏭')+' '+(pdv.depots?.nom||''))}</b></div>
+          </div>
+          <div class="flex flex-wrap gap-2 items-center mb-3">
+            <div class="flex-1 min-w-[200px]">${fieldWrap('🔎',`<input id="posQ" placeholder="Rechercher un article (nom, référence)…" oninput="posRenderCatalogue()" onkeydown="if(event.key==='Enter'){posAjouterPremier();event.preventDefault();}" autofocus>`)}</div>
+            <button class="btn btn-outline text-xs" onclick="showPage('comptoir-ventes')">📜 Ventes du jour</button>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button class="fam-chip ${!pos.famille?'active':''}" onclick="posSetFamille('')">🗂️ Tous</button>
+            ${familles.map(f=>`<button class="fam-chip ${pos.famille===f?'active':''}" style="--fc:${COMPOSANT_FAM_COLORS[f]||'#6d28d9'}" onclick="posSetFamille('${f}')">${COMPOSANT_FAM_ICONS[f]||'📦'} ${escapeHtml(f)}</button>`).join('')}
+          </div>
+          ${sansPrix?`<div class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-3">⚠️ ${sansPrix} article(s) sans prix de vente : leur prix d'achat est proposé par défaut. Renseignez le prix de vente dans Composants → Catalogue.</div>`:''}
+        </div>
+        <div id="posCatalogue" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2"></div>
+      </div>
+      <div class="lg:col-span-2 lg:sticky lg:top-20">
+        <div class="card p-4" id="posPanier"></div>
+      </div>
+    </div>`;
+  posRenderCatalogue();
+  posRenderPanier();
+}
+function posSetFamille(f){ window._pos.famille=f; showPage('comptoir'); }
+function posFiltrer(){
+  const q=(document.getElementById('posQ')?.value||'').trim().toLowerCase();
+  const fam=window._pos.famille;
+  return (window._posComposants||[]).filter(c=>(!fam||(c.famille||'Autre')===fam)&&(!q||c.nom.toLowerCase().includes(q)||(c.reference||'').toLowerCase().includes(q)||(c.code||'').toLowerCase().includes(q)));
+}
+function posRenderCatalogue(){
+  const host=document.getElementById('posCatalogue'); if(!host) return;
+  const items=posFiltrer();
+  if(!items.length){ host.innerHTML='<div class="card text-center text-gray-400 p-8 col-span-full">Aucun article.</div>'; return; }
+  host.innerHTML=items.slice(0,120).map(c=>{
+    const fc=COMPOSANT_FAM_COLORS[c.famille]||'#6b7280', stock=posStockDe(c.id);
+    return `<button type="button" onclick="posAjouter('${c.id}')" class="text-left bg-white border rounded-xl p-3 hover:shadow-md transition" style="border-left:4px solid ${fc}">
+      <div class="text-sm font-semibold leading-tight line-clamp-2">${COMPOSANT_FAM_ICONS[c.famille]||'📦'} ${escapeHtml(c.nom)}</div>
+      <div class="mt-1 text-base font-bold" style="color:${c.prix_vente!=null?'#111827':'#b45309'}">${money(posPrixVente(c))}<span class="text-xs font-normal text-gray-500"> /${escapeHtml(c.unite||'u')}</span></div>
+      <div class="text-xs mt-0.5" style="color:${stock<=0?'#dc2626':'#6b7280'}">Stock : ${stock.toFixed(stock%1?2:0)}${c.prix_vente==null?' · <span style="color:#b45309">sans prix de vente</span>':''}</div>
+    </button>`;
+  }).join('');
+}
+function posAjouterPremier(){ const c=posFiltrer()[0]; if(c){ posAjouter(c.id); const q=document.getElementById('posQ'); if(q){ q.value=''; posRenderCatalogue(); } } }
+function posAjouter(id){
+  const c=(window._posComposants||[]).find(x=>x.id===id); if(!c) return;
+  const pan=window._pos.panier, ex=pan.find(l=>l.composant_id===id);
+  if(ex) ex.quantite=(+ex.quantite||0)+1;
+  else pan.push({composant_id:c.id,designation:c.nom,unite:c.unite,quantite:1,prix_unitaire:posPrixVente(c),prix_achat:+c.prix_unitaire||0,remise_pct:0,stock:posStockDe(c.id)});
+  posRenderPanier();
+}
+function posLigneTotal(l){ return Math.round((+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100)); }
+function posTotaux(){
+  const pos=window._pos;
+  const sousTotal=pos.panier.reduce((s,l)=>s+posLigneTotal(l),0);
+  const remise=Math.min(+pos.remise||0,sousTotal);
+  const total=sousTotal-remise;
+  const cout=Math.round(pos.panier.reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_achat||0),0));
+  const recu=pos.recu===''?null:+pos.recu;
+  return {sousTotal,remise,total,cout,marge:total-cout,recu,monnaie:recu!=null?recu-total:null};
+}
+function posMaj(i,champ,valeur){
+  const l=window._pos.panier[i]; if(!l) return;
+  l[champ]=valeur;
+  if(champ==='quantite' && !(+valeur>0)){ window._pos.panier.splice(i,1); posRenderPanier(); return; }
+  const cell=document.getElementById('posLT'+i); if(cell) cell.textContent=money(posLigneTotal(l));
+  posRenderTotaux();
+}
+function posQte(i,delta){ const l=window._pos.panier[i]; if(!l) return; const q=Math.round(((+l.quantite||0)+delta)*100)/100; if(q<=0) window._pos.panier.splice(i,1); else l.quantite=q; posRenderPanier(); }
+function posRetirer(i){ window._pos.panier.splice(i,1); posRenderPanier(); }
+function posVider(){ if(window._pos.panier.length && !confirm('Vider le panier ?')) return; Object.assign(window._pos,{panier:[],clientId:'',clientNom:'',clientTel:'',remise:0,recu:'',refPaiement:''}); posRenderPanier(); }
+function posSetClient(id){
+  const pos=window._pos; pos.clientId=id||'';
+  const c=(window._clientsCache||[]).find(x=>x.id===id);
+  if(c){ pos.clientNom=[c.nom,c.prenoms].filter(Boolean).join(' '); pos.clientTel=c.telephone||''; }
+  posRenderPanier();
+}
+function posRenderPanier(){
+  const host=document.getElementById('posPanier'); if(!host) return;
+  const pos=window._pos;
+  const caisses=window._posCaisses||[];
+  host.innerHTML=`
+    <div class="flex justify-between items-center mb-3">
+      <h3 class="font-bold">🛒 Panier <span class="text-gray-400 font-normal text-sm">(${pos.panier.length})</span></h3>
+      ${pos.panier.length?`<button class="text-xs text-red-500 font-semibold" onclick="posVider()">Vider</button>`:''}
+    </div>
+    ${pos.panier.length?`<div class="divide-y mb-3 max-h-[42vh] overflow-y-auto">${pos.panier.map((l,i)=>`
+      <div class="py-2">
+        <div class="flex justify-between gap-2">
+          <div class="text-sm font-semibold leading-tight">${escapeHtml(l.designation)}${(+l.quantite)>(+l.stock)?` <span class="text-xs text-red-600" title="Stock disponible : ${(+l.stock).toFixed(2)}">⚠ stock ${(+l.stock).toFixed(l.stock%1?2:0)}</span>`:''}</div>
+          <button class="text-red-400 text-xs" onclick="posRetirer(${i})" title="Retirer">✕</button>
+        </div>
+        <div class="flex items-center gap-1.5 mt-1 text-sm">
+          <div class="flex items-center border rounded-lg overflow-hidden shrink-0">
+            <button type="button" class="px-2 py-1 bg-gray-50" onclick="posQte(${i},-1)">−</button>
+            <input type="number" min="0" step="0.01" value="${l.quantite}" onchange="posMaj(${i},'quantite',+this.value)" title="Quantité" style="width:48px;min-width:0;padding:4px 2px;border:0;border-radius:0;text-align:center">
+            <button type="button" class="px-2 py-1 bg-gray-50" onclick="posQte(${i},1)">+</button>
+          </div>
+          <span class="text-xs text-gray-400">×</span>
+          <input type="number" min="0" step="1" value="${l.prix_unitaire}" oninput="posMaj(${i},'prix_unitaire',+this.value)" title="Prix de vente unitaire" style="width:82px;min-width:0;padding:4px 6px">
+          <input type="number" min="0" max="100" step="1" value="${l.remise_pct||0}" oninput="posMaj(${i},'remise_pct',+this.value)" title="Remise %" style="width:46px;min-width:0;padding:4px 4px">
+          <span class="text-xs text-gray-400">%</span>
+          <span class="ml-auto font-semibold whitespace-nowrap" id="posLT${i}">${money(posLigneTotal(l))}</span>
+        </div>
+      </div>`).join('')}</div>`:'<div class="text-center text-gray-400 text-sm py-8 border border-dashed rounded-lg mb-3">Cliquez sur un article pour l\'ajouter.<br><span class="text-xs">Astuce : tapez un nom puis Entrée.</span></div>'}
+    <div class="grid grid-cols-2 gap-2 mb-2">
+      <div class="field col-span-2"><label>Client (optionnel)</label>${fieldWrap('👤',smartSelect('posClient',clientItems(),pos.clientId,{placeholder:'Client comptoir (passage)',onChange:'posSetClient(this.value)'}))}</div>
+      ${pos.clientId?'':`<div class="field"><label>Nom (passage)</label>${fieldWrap('✍️',`<input value="${escapeHtml(pos.clientNom)}" oninput="window._pos.clientNom=this.value" placeholder="Facultatif">`)}</div>
+      <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input value="${escapeHtml(pos.clientTel)}" oninput="window._pos.clientTel=this.value" placeholder="Facultatif">`)}</div>`}
+    </div>
+    <div class="grid grid-cols-4 gap-1 mb-2">${Object.entries(COMPTOIR_MODES).map(([k,m])=>`<button type="button" onclick="window._pos.mode='${k}';posRenderPanier()" class="border rounded-lg py-2 text-xs font-semibold ${pos.mode===k?'bg-violet-600 text-white border-violet-600':'bg-white'}">${m.icon}<br>${m.label}</button>`).join('')}</div>
+    <div class="grid grid-cols-2 gap-2 mb-2">
+      ${pos.mode==='espece'?`<div class="field"><label>Caisse</label>${fieldWrap('💰',`<select onchange="window._pos.caisseId=this.value;posRenderTotaux()">${caisses.map(c=>`<option value="${c.id}" ${c.id===pos.caisseId?'selected':''}>${escapeHtml(c.nom)}${c.sessionId?'':' (fermée)'}</option>`).join('')||'<option value="">Aucune caisse</option>'}</select>`)}</div>
+      <div class="field"><label>Montant reçu</label>${fieldWrap('💵',`<input type="number" min="0" step="1" value="${pos.recu}" oninput="window._pos.recu=this.value;posRenderTotaux()" placeholder="Montant exact">`)}</div>`
+      :`<div class="field col-span-2"><label>Référence du paiement</label>${fieldWrap('#',`<input value="${escapeHtml(pos.refPaiement)}" oninput="window._pos.refPaiement=this.value" placeholder="N° transaction, chèque…">`)}</div>`}
+      <div class="field col-span-2"><label>Remise globale (FCFA)</label>${fieldWrap('➖',`<input type="number" min="0" step="1" value="${pos.remise||0}" oninput="window._pos.remise=+this.value||0;posRenderTotaux()">`)}</div>
+    </div>
+    <div id="posTotaux"></div>`;
+  posRenderTotaux();
+}
+function posRenderTotaux(){
+  const host=document.getElementById('posTotaux'); if(!host) return;
+  const pos=window._pos, t=posTotaux();
+  const caisse=(window._posCaisses||[]).find(c=>c.id===pos.caisseId);
+  const alerteCaisse=pos.mode==='espece'&&(!caisse||!caisse.sessionId);
+  host.innerHTML=`
+    <div class="border-t pt-2 text-sm space-y-1">
+      <div class="flex justify-between"><span class="text-gray-500">Sous-total</span><span>${money(t.sousTotal)}</span></div>
+      ${t.remise?`<div class="flex justify-between"><span class="text-gray-500">Remise</span><span>− ${money(t.remise)}</span></div>`:''}
+      <div class="flex justify-between text-xl font-extrabold pt-1"><span>TOTAL</span><span>${money(t.total)}</span></div>
+      <div class="flex justify-between text-xs"><span class="text-gray-400">Marge estimée</span><span style="color:${t.marge<0?'#dc2626':'#059669'}">${money(t.marge)}${t.total?' ('+(t.marge/t.total*100).toFixed(1)+' %)':''}</span></div>
+      ${pos.mode==='espece'&&t.monnaie!=null?`<div class="flex justify-between font-bold" style="color:${t.monnaie<0?'#dc2626':'#059669'}"><span>${t.monnaie<0?'Manque':'Monnaie à rendre'}</span><span>${money(Math.abs(t.monnaie))}</span></div>`:''}
+    </div>
+    ${alerteCaisse?`<div class="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mt-2">🔒 Aucune séance ouverte sur cette caisse. <a class="underline font-semibold" href="#" onclick="showPage('caisse');return false">Ouvrir la caisse</a> pour encaisser en espèces.</div>`:''}
+    <button class="btn btn-primary w-full py-3 mt-3 text-base" ${!pos.panier.length||alerteCaisse?'disabled style="opacity:.5;cursor:not-allowed"':''} onclick="posEncaisser()">✔ Encaisser ${money(t.total)}</button>`;
+}
+async function posEncaisser(){
+  if(!exigerDroit('Comptoir','creer','une vente au comptoir')) return;
+  const pos=window._pos, t=posTotaux();
+  if(!pos.panier.length){ toast('Le panier est vide.','error'); return; }
+  if(pos.panier.some(l=>!(+l.quantite>0))){ toast('Quantité invalide dans le panier.','error'); return; }
+  const caisse=(window._posCaisses||[]).find(c=>c.id===pos.caisseId);
+  if(pos.mode==='espece'){
+    if(!caisse||!caisse.sessionId){ toast("La caisse choisie n'a pas de séance ouverte.",'error'); return; }
+    if(t.recu!=null && t.monnaie<0){ toast('Montant reçu insuffisant.','error'); return; }
+  }
+  const ruptures=pos.panier.filter(l=>(+l.quantite)>(+l.stock));
+  if(ruptures.length && !confirm(`Stock insuffisant dans le dépôt de ce point de vente pour : ${ruptures.map(l=>l.designation).join(', ')}.\nLe stock du dépôt deviendra négatif (pensez à un transfert). Continuer la vente ?`)) return;
+  const pdv=(window._posPdvs||[]).find(p=>p.id===pos.pointVenteId);
+  if(!pdv){ toast('Choisissez le point de vente.','error'); return; }
+  const perte=pos.panier.filter(l=>(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100)<(+l.prix_achat||0));
+  if(perte.length && !confirm(`Vente à perte (sous le prix d'achat) pour : ${perte.map(l=>l.designation).join(', ')}.\nContinuer ?`)) return;
+  await comptaChargerReferentiel();
+  const today=new Date().toISOString().slice(0,10);
+  const vente={date_vente:today,client_id:pos.clientId||null,client_nom:pos.clientNom||null,client_telephone:pos.clientTel||null,
+    sous_total:t.sousTotal,remise:t.remise,total:t.total,cout_total:t.cout,mode_paiement:pos.mode,
+    montant_recu:pos.mode==='espece'?(t.recu??t.total):t.total,monnaie_rendue:pos.mode==='espece'?Math.max(0,t.monnaie??0):0,
+    reference_paiement:pos.refPaiement||null,caisse_id:pos.mode==='espece'?pos.caisseId:null,vendeur:CURRENT_USER.email,point_vente_id:pdv.id,depot_id:pdv.depot_id};
+  const lignes=pos.panier.map(l=>({composant_id:l.composant_id,designation:l.designation,unite:l.unite,quantite:+l.quantite,prix_unitaire:+l.prix_unitaire||0,prix_achat:+l.prix_achat||0,remise_pct:+l.remise_pct||0,total:posLigneTotal(l)}));
+  const {data:v,error}=await sb.rpc('vente_comptoir_valider',{p_vente:vente,p_lignes:lignes});
+  if(error){ toast(error.message,'error'); return; }
+  const ecr=await comptabiliserVenteComptoir(v,caisse);
+  if(ecr) await sb.from('ventes_comptoir').update({ecriture_id:ecr.id}).eq('id',v.id);
+  if(pos.mode==='espece' && caisse?.sessionId){
+    const {error:eC}=await sb.from('caisse_mouvements').insert({session_id:caisse.sessionId,caisse_id:caisse.id,numero:v.code,date_mouvement:today,type:'entree',montant:v.total,motif:'Vente au comptoir '+v.code,beneficiaire:v.client_nom||null,statut:ecr?'ventile':'a_ventiler',compte_ventile:ecr?requireCompteDefaut('ventes'):null,ecriture_id:ecr?.id||null,created_by:CURRENT_USER.id});
+    if(eC) toast('Vente enregistrée, mais mouvement de caisse non créé : '+eC.message,'error');
+  }
+  Object.assign(pos,{panier:[],clientId:'',clientNom:'',clientTel:'',remise:0,recu:'',refPaiement:''});
+  await showPage('comptoir');
+  openDocumentsVente(v.id,v.code,v.total,v.monnaie_rendue);
+}
+/* Écriture de vente au comptant : D trésorerie (caisse / banque) — C ventes HT — C TVA collectée */
+async function comptabiliserVenteComptoir(v,caisse){
+  try{
+    const date=v.date_vente;
+    if(exerciceEstClos(date)){ toast('Vente non comptabilisée : exercice clôturé.','error'); return null; }
+    const p=window.APP_PARAMS||await loadAppParams()||{};
+    const tvaPct=+p.tva_pct||0, ttc=+v.total||0;
+    if(ttc<=0) return null;
+    const ht=tvaPct>0?Math.round(ttc/(1+tvaPct/100)):ttc, tva=ttc-ht;
+    const compteTreso=v.mode_paiement==='espece'?(caisse?.compte_code||requireCompteDefaut('caisse')):requireCompteDefaut('banque');
+    const annee=new Date(date).getFullYear();
+    const ref=await genererRefEcriture(annee);
+    const libelle=`Vente au comptoir ${v.code}${v.client_nom?' — '+v.client_nom:''}`;
+    const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:date,journal_code:COMPTOIR_MODES[v.mode_paiement]?.journal||'CA',piece:v.code,libelle,source:'auto',source_type:'vente_comptoir',source_id:v.id,created_by:CURRENT_USER.id}).select().single();
+    if(error){ toast('Vente non comptabilisée : '+error.message,'error'); return null; }
+    const lignes=[{compte_code:compteTreso,sens:'D',montant:ttc,libelle},{compte_code:requireCompteDefaut('ventes'),sens:'C',montant:ht,libelle}];
+    if(tva>0) lignes.push({compte_code:requireCompteDefaut('tva_collectee'),sens:'C',montant:tva,libelle:'TVA — '+v.code});
+    await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
+    return ecr;
+  }catch(e){ toast('Vente non comptabilisée : '+e.message,'error'); return null; }
+}
+
+/* ---------- Rapport périodique point de vente & caisse ----------
+   Ventes (CA, marge, modes de paiement, articles, vendeurs, documents émis) + caisse(s) des points de vente
+   (séances, entrées/sorties, écarts de clôture, rapprochement ventes espèces ↔ encaissements en caisse). */
+function isoLocal(d){ return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+const RAPPORT_PERIODES={jour:"Aujourd'hui",hier:'Hier',semaine:'Cette semaine',semaine_prec:'Semaine dernière',mois:'Ce mois',mois_prec:'Mois dernier',perso:'Personnalisée'};
+function rapportBornes(code){
+  const t=new Date(); t.setHours(0,0,0,0);
+  const lundi=new Date(t); lundi.setDate(t.getDate()-((t.getDay()+6)%7));
+  switch(code){
+    case 'hier': { const h=new Date(t); h.setDate(t.getDate()-1); return [h,h]; }
+    case 'semaine': return [lundi,t];
+    case 'semaine_prec': { const a=new Date(lundi); a.setDate(lundi.getDate()-7); const b=new Date(lundi); b.setDate(lundi.getDate()-1); return [a,b]; }
+    case 'mois': return [new Date(t.getFullYear(),t.getMonth(),1),t];
+    case 'mois_prec': return [new Date(t.getFullYear(),t.getMonth()-1,1),new Date(t.getFullYear(),t.getMonth(),0)];
+    default: return [t,t];
+  }
+}
+window._rapPdv=window._rapPdv||(()=>{ const [a,b]=rapportBornes('jour'); return {periode:'jour',debut:isoLocal(a),fin:isoLocal(b),pdv:''}; })();
+function rapportChoisirPeriode(code){
+  const r=window._rapPdv; r.periode=code;
+  if(code!=='perso'){ const [a,b]=rapportBornes(code); r.debut=isoLocal(a); r.fin=isoLocal(b); }
+  showPage('comptoir-rapport');
+}
+async function chargerRapportPdv(){
+  const f=window._rapPdv;
+  if(!window.APP_PARAMS) await loadAppParams();
+  const {data:pdvs}=await sb.from('points_vente').select('*, depots(nom), caisses(nom,compte_code)').order('code');
+  let q=sb.from('ventes_comptoir').select('*, points_vente(nom), ventes_comptoir_lignes(composant_id,designation,unite,quantite,prix_unitaire,total,prix_achat)').gte('date_vente',f.debut).lte('date_vente',f.fin).order('created_at');
+  if(f.pdv) q=q.eq('point_vente_id',f.pdv);
+  const {data:ventes,error}=await q;
+  if(error) throw error;
+  const pdvSel=(pdvs||[]).find(p=>p.id===f.pdv);
+  const caisseIds=[...new Set((f.pdv?[pdvSel?.caisse_id]:(pdvs||[]).map(p=>p.caisse_id)).filter(Boolean))];
+  let sessions=[],mvts=[],caisses=[];
+  if(caisseIds.length){
+    const [rS,rM,rC]=await Promise.all([
+      sb.from('caisse_sessions').select('*').in('caisse_id',caisseIds).gte('date_session',f.debut).lte('date_session',f.fin).order('date_session'),
+      sb.from('caisse_mouvements').select('id,session_id,caisse_id,numero,date_mouvement,type,montant,motif').in('caisse_id',caisseIds).gte('date_mouvement',f.debut).lte('date_mouvement',f.fin),
+      sb.from('caisses').select('id,nom,compte_code').in('id',caisseIds)
+    ]);
+    sessions=rS.data||[]; mvts=rM.data||[]; caisses=rC.data||[];
+  }
+  return calculerRapportPdv({f,pdvs:pdvs||[],pdvSel,ventes:ventes||[],sessions,mvts,caisses});
+}
+function calculerRapportPdv(src){
+  const {ventes,sessions,mvts,caisses}=src;
+  const valides=ventes.filter(v=>v.statut==='validee'), annulees=ventes.filter(v=>v.statut==='annulee');
+  const somme=(arr,fn)=>arr.reduce((s,x)=>s+(+fn(x)||0),0);
+  const ca=somme(valides,v=>v.total), cout=somme(valides,v=>v.cout_total);
+  const fisc=valides.map(v=>venteTotauxFiscaux(v));
+  const k={nb:valides.length,ca,ht:somme(fisc,t=>t.ht),tva:somme(fisc,t=>t.tva),
+    // remises accordées : remise globale + remises de ligne (prix × qté − total de ligne)
+    remises:somme(valides,v=>(+v.remise||0)+somme(v.ventes_comptoir_lignes||[],l=>(+l.quantite||0)*(+l.prix_unitaire||0)-(+l.total||0))),
+    cout,marge:ca-cout,panier:valides.length?ca/valides.length:0,articles:somme(valides,v=>somme(v.ventes_comptoir_lignes||[],l=>l.quantite)),
+    nbAnnul:annulees.length,montantAnnul:somme(annulees,v=>v.total)};
+  const modes={}; valides.forEach(v=>{ const m=modes[v.mode_paiement]=modes[v.mode_paiement]||{nb:0,montant:0}; m.nb++; m.montant+=+v.total||0; });
+  const jours={}; for(let d=new Date(src.f.debut+'T00:00:00'); isoLocal(d)<=src.f.fin; d.setDate(d.getDate()+1)) jours[isoLocal(d)]={nb:0,ca:0,marge:0};
+  valides.forEach(v=>{ const j=jours[v.date_vente]||(jours[v.date_vente]={nb:0,ca:0,marge:0}); j.nb++; j.ca+=+v.total||0; j.marge+=(+v.total||0)-(+v.cout_total||0); });
+  const parPdv={}; valides.forEach(v=>{ const c=v.point_vente_id||'—'; const x=parPdv[c]=parPdv[c]||{nom:v.points_vente?.nom||'—',nb:0,ca:0,marge:0}; x.nb++; x.ca+=+v.total||0; x.marge+=(+v.total||0)-(+v.cout_total||0); });
+  const parVendeur={}; valides.forEach(v=>{ const c=v.vendeur||'—'; const x=parVendeur[c]=parVendeur[c]||{nb:0,ca:0}; x.nb++; x.ca+=+v.total||0; });
+  const articles={};
+  valides.forEach(v=>(v.ventes_comptoir_lignes||[]).forEach(l=>{
+    const c=l.composant_id||l.designation; const a=articles[c]=articles[c]||{designation:l.designation,unite:l.unite,qte:0,ca:0,cout:0};
+    a.qte+=+l.quantite||0; a.cout+=(+l.quantite||0)*(+l.prix_achat||0);
+    // part de la remise globale répartie au prorata des lignes
+    const part=(+v.sous_total||0)>0?(+l.total||0)/(+v.sous_total):0;
+    a.ca+=(+l.total||0)-part*(+v.remise||0);
+  }));
+  const docs={recus:0,simples:0,fne:0,fneProv:0,fneErr:0,avoirs:0};
+  ventes.forEach(v=>{
+    if(v.fne_statut==='certifiee') docs.fne++; else if(v.fne_statut==='provisoire') docs.fneProv++; else if(v.fne_statut==='erreur') docs.fneErr++;
+    else if(v.facture_imprimee_le) docs.simples++; else if(v.statut==='validee') docs.recus++;
+    if(v.fne_avoir_reference) docs.avoirs++;
+  });
+  // Caisse(s)
+  const caissesRap=caisses.map(c=>{
+    const ss=sessions.filter(s=>s.caisse_id===c.id).map(s=>{
+      const m=mvts.filter(x=>x.session_id===s.id);
+      const entrees=somme(m.filter(x=>x.type==='entree'),x=>x.montant), sorties=somme(m.filter(x=>x.type==='sortie'),x=>x.montant);
+      return {...s,entrees,sorties,theorique:s.statut==='cloturee'&&s.fond_cloture_theorique!=null?+s.fond_cloture_theorique:(+s.fond_ouverture||0)+entrees-sorties};
+    });
+    const m=mvts.filter(x=>x.caisse_id===c.id);
+    const estVente=x=>/^VC-\d{4}-\d+$/.test(x.numero||''), estRembours=x=>/^VC-\d{4}-\d+-AN$/.test(x.numero||'');
+    const ventesEsp=somme(valides.filter(v=>v.mode_paiement==='espece'&&v.caisse_id===c.id),v=>v.total);
+    const encVentes=somme(m.filter(x=>x.type==='entree'&&estVente(x)),x=>x.montant), rembours=somme(m.filter(x=>x.type==='sortie'&&estRembours(x)),x=>x.montant);
+    return {caisse:c,sessions:ss,
+      autresEntrees:somme(m.filter(x=>x.type==='entree'&&!estVente(x)),x=>x.montant),
+      autresSorties:somme(m.filter(x=>x.type==='sortie'&&!estRembours(x)),x=>x.montant),
+      // une vente annulée compte une entrée et un remboursement (-AN) : le net doit égaler les ventes espèces validées
+      ventesEsp,encVentes,rembours,ecartRappro:(encVentes-rembours)-ventesEsp,
+      ecartsCloture:somme(ss.filter(s=>s.statut==='cloturee'),s=>s.ecart),ouvertes:ss.filter(s=>s.statut==='ouverte').length};
+  });
+  return {...src,k,modes,jours,parPdv,parVendeur,articles:Object.values(articles).sort((a,b)=>b.ca-a.ca),docs,caissesRap};
+}
+function rapportTitre(r){
+  const f=r.f, per=f.debut===f.fin?new Date(f.debut+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):`du ${new Date(f.debut+'T00:00:00').toLocaleDateString('fr-FR')} au ${new Date(f.fin+'T00:00:00').toLocaleDateString('fr-FR')}`;
+  return {pdv:r.pdvSel?r.pdvSel.nom:'Tous les points de vente',periode:per};
+}
+/* Sections HTML autonomes (styles en ligne) : partagées par l'écran et l'impression */
+function rapportSectionsHtml(r,opts={}){
+  const {k,modes,jours,parPdv,parVendeur,articles,docs,caissesRap}=r;
+  const pct=(a,b)=>b?(a/b*100).toFixed(1)+' %':'—';
+  const kpi=(l,v,s,c)=>`<div class="rp-kpi"><div class="rp-kl">${l}</div><div class="rp-kv" style="${c?'color:'+c:''}">${v}</div>${s?`<div class="rp-ks">${s}</div>`:''}</div>`;
+  const h=(t)=>`<h3 class="rp-h">${t}</h3>`;
+  const barre=(part)=>`<div class="rp-bar"><div style="width:${Math.max(0,Math.min(100,part*100)).toFixed(1)}%"></div></div>`;
+  const listeJours=Object.entries(jours);
+  const sections=[];
+  sections.push(`<div class="rp-kpis">
+    ${kpi("Chiffre d'affaires TTC",money(k.ca),`${k.nb} vente(s) · HT ${money(k.ht)} · TVA ${money(k.tva)}`)}
+    ${kpi('Marge brute',money(k.marge),pct(k.marge,k.ca)+' du CA',k.marge<0?'#dc2626':'#047857')}
+    ${kpi('Panier moyen',money(k.panier),`${fmtQte(k.articles)} article(s) vendus · remises ${money(k.remises)}`)}
+    ${kpi('Annulations',String(k.nbAnnul),k.nbAnnul?money(k.montantAnnul)+' annulés':'aucune',k.nbAnnul?'#b45309':'')}
+  </div>`);
+  if(opts.graphique) sections.push(opts.graphique);
+  sections.push(`<div class="rp-grid">
+    <div>${h('💳 Encaissements par mode de paiement')}
+      <table><thead><tr><th>Mode</th><th class="rp-r">Ventes</th><th class="rp-r">Montant</th><th style="width:30%">Part</th></tr></thead><tbody>
+      ${Object.entries(COMPTOIR_MODES).map(([c,m])=>{ const x=modes[c]||{nb:0,montant:0}; return `<tr><td>${m.icon} ${m.label}</td><td class="rp-r">${x.nb}</td><td class="rp-r">${money(x.montant)}</td><td>${barre(k.ca?x.montant/k.ca:0)}</td></tr>`; }).join('')}
+      <tr class="rp-tot"><td>Total</td><td class="rp-r">${k.nb}</td><td class="rp-r">${money(k.ca)}</td><td></td></tr></tbody></table>
+    </div>
+    <div>${h('🧾 Documents émis')}
+      <table><tbody>
+        <tr><td>Reçus de caisse seuls</td><td class="rp-r">${docs.recus}</td></tr>
+        <tr><td>Factures simples</td><td class="rp-r">${docs.simples}</td></tr>
+        <tr><td>Factures normalisées FNE certifiées</td><td class="rp-r"><b>${docs.fne}</b></td></tr>
+        ${docs.fneProv?`<tr><td style="color:#b45309">FNE provisoires (à certifier)</td><td class="rp-r" style="color:#b45309"><b>${docs.fneProv}</b></td></tr>`:''}
+        ${docs.fneErr?`<tr><td style="color:#dc2626">FNE refusées par la DGI</td><td class="rp-r" style="color:#dc2626"><b>${docs.fneErr}</b></td></tr>`:''}
+        ${docs.avoirs?`<tr><td>Factures d'avoir FNE</td><td class="rp-r">${docs.avoirs}</td></tr>`:''}
+      </tbody></table>
+    </div>
+  </div>`);
+  if(!r.f.pdv && Object.keys(parPdv).length) sections.push(`<div>${h('🏪 Par point de vente')}
+    <table><thead><tr><th>Point de vente</th><th class="rp-r">Ventes</th><th class="rp-r">CA TTC</th><th class="rp-r">Part</th><th class="rp-r">Marge</th><th class="rp-r">Panier moyen</th></tr></thead><tbody>
+    ${Object.values(parPdv).sort((a,b)=>b.ca-a.ca).map(x=>`<tr><td>${escapeHtml(x.nom)}</td><td class="rp-r">${x.nb}</td><td class="rp-r">${money(x.ca)}</td><td class="rp-r">${pct(x.ca,k.ca)}</td><td class="rp-r">${money(x.marge)} <span class="rp-m">(${pct(x.marge,x.ca)})</span></td><td class="rp-r">${money(x.ca/x.nb)}</td></tr>`).join('')}</tbody></table></div>`);
+  if(listeJours.length>1) sections.push(`<div>${h('📅 Détail par jour')}
+    <table><thead><tr><th>Jour</th><th class="rp-r">Ventes</th><th class="rp-r">CA TTC</th><th class="rp-r">Marge</th></tr></thead><tbody>
+    ${listeJours.map(([d,x])=>`<tr style="${x.nb?'':'color:#9ca3af'}"><td>${new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit'})}</td><td class="rp-r">${x.nb}</td><td class="rp-r">${money(x.ca)}</td><td class="rp-r">${money(x.marge)}</td></tr>`).join('')}</tbody></table></div>`);
+  sections.push(`<div class="rp-grid">
+    <div>${h('🏆 Articles les plus vendus')}
+      <table><thead><tr><th>Article</th><th class="rp-r">Qté</th><th class="rp-r">CA TTC</th><th class="rp-r">Marge</th></tr></thead><tbody>
+      ${articles.slice(0,opts.tousArticles?500:12).map(a=>`<tr><td>${escapeHtml(a.designation)}</td><td class="rp-r">${fmtQte(a.qte)} <span class="rp-m">${escapeHtml(a.unite||'')}</span></td><td class="rp-r">${money(a.ca)}</td><td class="rp-r" style="color:${a.ca-a.cout<0?'#dc2626':'inherit'}">${money(a.ca-a.cout)}</td></tr>`).join('')||'<tr><td colspan="4" class="rp-vide">Aucune vente.</td></tr>'}
+      </tbody></table>${!opts.tousArticles&&articles.length>12?`<div class="rp-m" style="margin-top:4px">+ ${articles.length-12} autre(s) article(s) — voir l'export CSV ou l'impression.</div>`:''}
+    </div>
+    <div>${h('👤 Par vendeur')}
+      <table><thead><tr><th>Vendeur</th><th class="rp-r">Ventes</th><th class="rp-r">CA TTC</th></tr></thead><tbody>
+      ${Object.entries(parVendeur).sort((a,b)=>b[1].ca-a[1].ca).map(([n,x])=>`<tr><td>${escapeHtml(n)}</td><td class="rp-r">${x.nb}</td><td class="rp-r">${money(x.ca)}</td></tr>`).join('')||'<tr><td colspan="3" class="rp-vide">—</td></tr>'}
+      </tbody></table>
+    </div>
+  </div>`);
+  // Caisse
+  if(!caissesRap.length) sections.push(`<div>${h('💰 Caisse')}<div class="rp-vide">${r.f.pdv?"Aucune caisse n'est rattachée à ce point de vente.":"Aucune caisse n'est rattachée aux points de vente."}</div></div>`);
+  caissesRap.forEach(c=>{
+    sections.push(`<div>${h('💰 Caisse — '+escapeHtml(c.caisse.nom))}
+      <div class="rp-kpis">
+        ${kpi('Ventes comptoir en espèces',money(c.ventesEsp))}
+        ${kpi('Encaissées en caisse (net des remboursements)',money(c.encVentes-c.rembours),Math.abs(c.ecartRappro)>=1?`<b style="color:#dc2626">⚠ Écart ventes ↔ caisse : ${money(c.ecartRappro)}</b>`:'✔ Rapprochement OK')}
+        ${kpi('Autres entrées / sorties',`+${money(c.autresEntrees)} / −${money(c.autresSorties)}`,'Bons de caisse, transferts, autres encaissements')}
+        ${kpi('Écarts de clôture',money(c.ecartsCloture),c.ouvertes?`${c.ouvertes} séance(s) encore ouverte(s)`:'',Math.abs(c.ecartsCloture)>=1?(c.ecartsCloture<0?'#dc2626':'#b45309'):'')}
+      </div>
+      <table><thead><tr><th>Séance</th><th>Statut</th><th class="rp-r">Fond d'ouverture</th><th class="rp-r">Entrées</th><th class="rp-r">Sorties</th><th class="rp-r">Solde théorique</th><th class="rp-r">Compté</th><th class="rp-r">Écart</th></tr></thead><tbody>
+      ${c.sessions.map(s=>`<tr><td>${new Date(s.date_session+'T00:00:00').toLocaleDateString('fr-FR')}<div class="rp-m">${escapeHtml([s.ouverte_par,s.cloturee_par&&s.cloturee_par!==s.ouverte_par?'→ '+s.cloturee_par:''].filter(Boolean).join(' '))}</div></td>
+        <td>${s.statut==='cloturee'?'Clôturée':'<b style="color:#b45309">Ouverte</b>'}</td><td class="rp-r">${money(s.fond_ouverture)}</td><td class="rp-r">${money(s.entrees)}</td><td class="rp-r">${money(s.sorties)}</td><td class="rp-r">${money(s.theorique)}</td>
+        <td class="rp-r">${s.statut==='cloturee'?money(s.fond_cloture_reel):'—'}</td><td class="rp-r" style="color:${Math.abs(+s.ecart||0)>=1?(+s.ecart<0?'#dc2626':'#b45309'):'inherit'};font-weight:${Math.abs(+s.ecart||0)>=1?700:400}">${s.statut==='cloturee'?money(s.ecart):'—'}</td></tr>`).join('')||'<tr><td colspan="8" class="rp-vide">Aucune séance sur la période.</td></tr>'}
+      </tbody></table></div>`);
+  });
+  return sections.join('');
+}
+const RAPPORT_CSS=`.rp-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:0 0 14px}
+  .rp-kpi{border:1px solid #e5e7eb;border-radius:12px;padding:10px 12px;background:#fff}.rp-kl{font-size:11.5px;color:#6b7280}.rp-kv{font-size:19px;font-weight:800;margin-top:2px;color:#111827}.rp-ks{font-size:11px;color:#6b7280;margin-top:2px}
+  .rp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px}
+  .rp-h{font-size:13px;font-weight:800;margin:16px 0 6px;color:#111827}.rp-r{text-align:right;white-space:nowrap}.rp-m{font-size:11px;color:#6b7280}.rp-vide{color:#9ca3af;padding:8px 0}
+  .rp-tot td{font-weight:800;border-top:2px solid #111827}.rp-bar{height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden}.rp-bar div{height:100%;background:#6d28d9;border-radius:4px}`;
+async function renderComptoirRapport(el){
+  const f=window._rapPdv;
+  let r;
+  try{ r=await chargerRapportPdv(); }catch(e){ el.innerHTML=`<div class="card p-4 text-red-600">${escapeHtml(e.message||String(e))}</div>`; return; }
+  window._rapportPdvData=r;
+  const t=rapportTitre(r);
+  el.innerHTML=`<style>${RAPPORT_CSS}</style>
+    <div class="card p-4 mb-4">
+      <div class="flex flex-wrap gap-2 mb-3">${Object.entries(RAPPORT_PERIODES).map(([c,l])=>`<button class="fam-chip ${f.periode===c?'active':''}" onclick="rapportChoisirPeriode('${c}')">${l}</button>`).join('')}</div>
+      <div class="flex flex-wrap gap-2 items-end">
+        <div class="field"><label>Point de vente</label>${fieldWrap('🏪',`<select id="rpPdv" onchange="window._rapPdv.pdv=this.value;showPage('comptoir-rapport')"><option value="">Tous les points de vente</option>${r.pdvs.map(p=>`<option value="${p.id}" ${p.id===f.pdv?'selected':''}>${escapeHtml(p.nom)}${p.caisses?' — '+escapeHtml(p.caisses.nom):''}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Du</label>${fieldWrap('📅',`<input type="date" id="rpDebut" value="${f.debut}">`)}</div>
+        <div class="field"><label>Au</label>${fieldWrap('📅',`<input type="date" id="rpFin" value="${f.fin}">`)}</div>
+        <button class="btn btn-outline" onclick="const d=val('rpDebut'),e=val('rpFin');if(!d||!e||d>e){toast('Période invalide.','error');return;}Object.assign(window._rapPdv,{periode:'perso',debut:d,fin:e});showPage('comptoir-rapport')">Appliquer</button>
+        <div class="flex gap-2 ml-auto">
+          <button class="btn btn-outline" onclick="exporterRapportPdvCsv()">⬇ Export CSV</button>
+          <button class="btn btn-primary" onclick="imprimerRapportPdv()">🖨 Imprimer le rapport</button>
+        </div>
+      </div>
+    </div>
+    <div class="mb-3"><div class="text-lg font-extrabold">${escapeHtml(t.pdv)}</div><div class="text-sm text-gray-500">${escapeHtml(t.periode)}</div></div>
+    ${rapportSectionsHtml(r,{graphique:Object.keys(r.jours).length>1?`<div class="card p-4 mb-2"><div class="rp-h" style="margin-top:0">Chiffre d'affaires TTC par jour</div><div style="height:220px"><canvas id="rpChart" role="img" aria-label="Chiffre d'affaires TTC par jour"></canvas></div></div>`:''})}`;
+  const jours=Object.entries(r.jours);
+  if(jours.length>1 && window.Chart){
+    window._stockCharts=window._stockCharts||{};
+    renderStockChart('rpChart','bar',{labels:jours.map(([d])=>new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})),
+      datasets:[{label:'CA TTC',data:jours.map(([,x])=>Math.round(x.ca)),backgroundColor:'#6d28d9',hoverBackgroundColor:'#5b21b6',borderRadius:{topLeft:4,topRight:4},maxBarThickness:36}]},
+      {plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>`${money(c.raw)} · ${jours[c.dataIndex][1].nb} vente(s)`}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:{color:'#f1f5f9'},ticks:{callback:v=>new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}});
+  }
+}
+function imprimerRapportPdv(){
+  const r=window._rapportPdvData; if(!r) return;
+  const win=window.open('','_blank','width=1000,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const t=rapportTitre(r);
+  const canvas=document.getElementById('rpChart');
+  const img=canvas?`<div class="rp-h">Chiffre d'affaires TTC par jour</div><img src="${canvas.toDataURL('image/png')}" style="width:100%;max-height:230px;object-fit:contain">`:'';
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rapport ${escapeHtml(t.pdv)} — ${escapeHtml(t.periode)}</title>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:28px;color:#111827;font-size:12px}
+    table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #e5e7eb;padding:5px 6px;text-align:left}th{background:#f8fafc;font-size:10.5px;text-transform:uppercase;color:#475569}
+    ${RAPPORT_CSS}.rp-kpi{break-inside:avoid}table,.rp-grid>div{break-inside:avoid}
+    @media print{body{padding:0}.noprint{display:none}}</style></head><body>
+    <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+    ${printCompanyHeaderHtml()}
+    <h1 style="font-size:18px;margin:0">RAPPORT DE POINT DE VENTE ET DE CAISSE</h1>
+    <div style="font-size:14px;font-weight:700;margin-top:4px">${escapeHtml(t.pdv)}</div>
+    <div style="color:#6b7280;margin-bottom:14px">Période : ${escapeHtml(t.periode)} · édité le ${new Date().toLocaleString('fr-FR')} par ${escapeHtml(CURRENT_USER?.email||'')}</div>
+    ${rapportSectionsHtml(r,{graphique:img,tousArticles:true})}
+    <div style="display:flex;gap:40px;margin-top:40px"><div style="flex:1;border-top:1px solid #111827;padding-top:6px;text-align:center">Caissier(ère)</div><div style="flex:1;border-top:1px solid #111827;padding-top:6px;text-align:center">Responsable du point de vente</div></div>
+    <script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`);
+  win.document.close(); win.focus();
+}
+function exporterRapportPdvCsv(){
+  const r=window._rapportPdvData; if(!r) return;
+  const esc=x=>{ const s=String(x??''); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const n=x=>String(Math.round((+x||0)*100)/100).replace('.',',');
+  const lignes=[['N° vente','Date','Heure','Point de vente','Vendeur','Client','Mode de paiement','Sous-total','Remise','Total TTC','Coût','Marge','Statut','Document','Réf. FNE']];
+  r.ventes.forEach(v=>{
+    const d=new Date(v.created_at);
+    lignes.push([v.code,v.date_vente,d.toLocaleTimeString('fr-FR'),v.points_vente?.nom||'',v.vendeur||'',v.fne_client_nom||v.client_nom||'',COMPTOIR_MODES[v.mode_paiement]?.label||v.mode_paiement,n(v.sous_total),n(v.remise),n(v.total),n(v.cout_total),n((+v.total||0)-(+v.cout_total||0)),v.statut==='annulee'?'Annulée':'Validée',
+      v.fne_statut==='certifiee'?'FNE':v.fne_statut==='provisoire'?'FNE provisoire':v.fne_statut==='erreur'?'FNE refusée':v.facture_imprimee_le?'Facture simple':'Reçu',v.fne_reference||'']);
+  });
+  lignes.push([]); lignes.push(['Article','Quantité','Unité','CA TTC','Coût','Marge']);
+  r.articles.forEach(a=>lignes.push([a.designation,n(a.qte),a.unite||'',n(a.ca),n(a.cout),n(a.ca-a.cout)]));
+  const csv='﻿'+lignes.map(l=>l.map(esc).join(';')).join('\r\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  const a=document.createElement('a'); a.href=url; a.download=`rapport-pdv-${(r.pdvSel?.code||'tous')}-${r.f.debut}_${r.f.fin}.csv`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+/* ---------- Historique des ventes au comptoir ---------- */
+window._comptoirFiltre=window._comptoirFiltre||{debut:new Date().toISOString().slice(0,10),fin:new Date().toISOString().slice(0,10),statut:'',pdv:''};
+async function renderComptoirVentes(el){
+  const f=window._comptoirFiltre;
+  let q=sb.from('ventes_comptoir').select('*, clients(nom,prenoms), caisses(nom), points_vente(nom), ventes_comptoir_lignes(quantite)').gte('date_vente',f.debut).lte('date_vente',f.fin).order('created_at',{ascending:false});
+  if(f.statut) q=q.eq('statut',f.statut);
+  if(f.pdv) q=q.eq('point_vente_id',f.pdv);
+  const {data:pdvs}=await sb.from('points_vente').select('id,nom').order('code');
+  const {data:ventes,error}=await q;
+  if(error){ el.innerHTML=`<div class="card text-red-600">${escapeHtml(error.message)}</div>`; return; }
+  const valides=(ventes||[]).filter(v=>v.statut==='validee');
+  const ca=valides.reduce((s,v)=>s+(+v.total||0),0), cout=valides.reduce((s,v)=>s+(+v.cout_total||0),0);
+  const parMode={}; valides.forEach(v=>{ parMode[v.mode_paiement]=(parMode[v.mode_paiement]||0)+(+v.total||0); });
+  const kpi=(label,valeur,sub,color)=>`<div class="card p-4"><div class="text-xs text-gray-500">${label}</div><div class="text-xl font-extrabold mt-1" style="color:${color||'#111827'}">${valeur}</div>${sub?`<div class="text-xs text-gray-400 mt-0.5">${sub}</div>`:''}</div>`;
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-end gap-3 mb-4">
+      <div class="flex flex-wrap gap-2 items-end">
+        <div class="field"><label>Du</label>${fieldWrap('📅',`<input type="date" id="vcDebut" value="${f.debut}">`)}</div>
+        <div class="field"><label>Au</label>${fieldWrap('📅',`<input type="date" id="vcFin" value="${f.fin}">`)}</div>
+        <div class="field"><label>Statut</label>${fieldWrap('🏷️',`<select id="vcStatut"><option value="">Tous</option><option value="validee" ${f.statut==='validee'?'selected':''}>Validées</option><option value="annulee" ${f.statut==='annulee'?'selected':''}>Annulées</option></select>`)}</div>
+        <div class="field"><label>Point de vente</label>${fieldWrap('🏪',`<select id="vcPdv"><option value="">Tous</option>${(pdvs||[]).map(p=>`<option value="${p.id}" ${f.pdv===p.id?'selected':''}>${escapeHtml(p.nom)}</option>`).join('')}</select>`)}</div>
+        <button class="btn btn-outline" onclick="window._comptoirFiltre={debut:val('vcDebut'),fin:val('vcFin'),statut:val('vcStatut'),pdv:val('vcPdv')};showPage('comptoir-ventes')">Filtrer</button>
+      </div>
+      <div class="flex gap-2"><button class="btn btn-outline" onclick="Object.assign(window._rapPdv,{periode:'perso',debut:window._comptoirFiltre.debut,fin:window._comptoirFiltre.fin,pdv:window._comptoirFiltre.pdv||''});showPage('comptoir-rapport')">📊 Rapport</button><button class="btn btn-primary" onclick="showPage('comptoir')">🛒 Nouvelle vente</button></div>
+    </div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+      ${kpi("Chiffre d'affaires",money(ca),valides.length+' vente(s)')}
+      ${kpi('Marge brute',money(ca-cout),ca?((ca-cout)/ca*100).toFixed(1)+' % du CA':'',(ca-cout)<0?'#dc2626':'#059669')}
+      ${kpi('Panier moyen',money(valides.length?ca/valides.length:0))}
+      ${kpi('Encaissements',Object.entries(parMode).map(([m,s])=>`<div class="text-sm font-semibold">${COMPTOIR_MODES[m]?.icon||''} ${money(s)}</div>`).join('')||'—')}
+    </div>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>N°</th><th>Date</th><th>Point de vente</th><th>Client</th><th class="text-right">Articles</th><th>Paiement</th><th class="text-right">Total</th><th class="text-right">Marge</th><th>Statut</th><th>Facture</th><th></th></tr></thead>
+      <tbody>${(ventes||[]).map(v=>{
+        const client=v.clients?[v.clients.nom,v.clients.prenoms].filter(Boolean).join(' '):(v.client_nom||'Client comptoir');
+        const nb=(v.ventes_comptoir_lignes||[]).reduce((s,l)=>s+(+l.quantite||0),0);
+        const marge=(+v.total||0)-(+v.cout_total||0);
+        return `<tr style="${v.statut==='annulee'?'opacity:.55':''}">
+          <td class="font-semibold whitespace-nowrap">${escapeHtml(v.code||'')}</td>
+          <td class="text-xs whitespace-nowrap">${new Date(v.created_at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'})}</td>
+          <td class="text-xs">${escapeHtml(v.points_vente?.nom||'—')}</td>
+          <td>${escapeHtml(client)}</td>
+          <td class="text-right">${nb}</td>
+          <td class="whitespace-nowrap">${COMPTOIR_MODES[v.mode_paiement]?.icon||''} ${COMPTOIR_MODES[v.mode_paiement]?.label||escapeHtml(v.mode_paiement)}${v.caisses?`<div class="text-xs text-gray-400">${escapeHtml(v.caisses.nom)}</div>`:''}</td>
+          <td class="text-right font-semibold">${money(v.total)}</td>
+          <td class="text-right" style="color:${marge<0?'#dc2626':'#059669'}">${money(marge)}</td>
+          <td>${v.statut==='annulee'?`<span class="text-xs font-semibold text-red-600" title="${escapeHtml(v.motif_annulation||'')}">Annulée</span>`:'<span class="text-xs font-semibold text-emerald-600">Validée</span>'}</td>
+          <td class="text-xs whitespace-nowrap">${v.fne_statut==='certifiee'?`<span class="font-semibold text-emerald-700" title="Facture normalisée certifiée DGI">🏛️ ${escapeHtml(v.fne_reference)}</span>${v.fne_avoir_reference?`<div class="text-red-600">Avoir ${escapeHtml(v.fne_avoir_reference)}</div>`:''}`
+            :v.fne_statut==='provisoire'?'<span class="font-semibold text-amber-700">FNE provisoire</span>'
+            :v.fne_statut==='erreur'?`<span class="font-semibold text-red-600" title="${escapeHtml(v.fne_erreur||'')}">FNE refusée</span>`
+            :v.facture_imprimee_le?'<span class="text-gray-600">Facture simple</span>':'<span class="text-gray-400">Reçu</span>'}</td>
+          <td class="text-right whitespace-nowrap">
+            <button class="text-xs font-semibold text-violet-700 mr-2" onclick="openDocumentsVente('${v.id}')">🖨 Documents</button>
+            ${v.statut==='validee'&&v.fne_statut!=='certifiee'?`<button class="text-xs font-semibold text-amber-700 mr-2" onclick="openFneModal('${v.id}')">🏛️ ${v.fne_statut?'Certifier':'FNE'}</button>`:''}
+            ${v.statut==='validee'?`<button class="text-xs font-semibold text-red-600" onclick="annulerVenteComptoir('${v.id}')">✕ Annuler</button>`:''}
+          </td></tr>`;
+      }).join('')||'<tr><td colspan="11" class="text-center text-gray-400 p-6">Aucune vente sur la période.</td></tr>'}</tbody></table>
+    </div>`;
+}
+async function annulerVenteComptoir(id){
+  if(!exigerDroit('Comptoir','supprimer','une vente au comptoir')) return;
+  const {data:avant}=await sb.from('ventes_comptoir').select('fne_statut,fne_reference').eq('id',id).single();
+  const motif=prompt((avant?.fne_statut==='certifiee'?`Cette vente a une facture FNE certifiée (${avant.fne_reference}) : une facture d'avoir FNE sera émise auprès de la DGI.\n\n`:'')+"Motif de l'annulation (obligatoire) :");
+  if(motif===null) return;
+  if(!motif.trim()){ toast("Le motif d'annulation est obligatoire.",'error'); return; }
+  const {data:v,error}=await sb.rpc('vente_comptoir_annuler',{p_vente_id:id,p_motif:motif.trim(),p_par:CURRENT_USER.email});
+  if(error){ toast(error.message,'error'); return; }
+  const today=new Date().toISOString().slice(0,10);
+  let ecrAnnul=null;
+  if(v.ecriture_id){
+    await comptaChargerReferentiel();
+    const {data:e}=await sb.from('compta_ecritures').select('*, compta_lignes(*)').eq('id',v.ecriture_id).maybeSingle();
+    if(e && !exerciceEstClos(today)){
+      const annee=new Date().getFullYear();
+      const ref=await genererRefEcriture(annee);
+      const {data:newE,error:eE}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:today,journal_code:e.journal_code,piece:e.piece,libelle:'Annulation — '+e.libelle,source:'auto',source_type:'vente_comptoir',source_id:v.id,contre_passation_de:e.id,created_by:CURRENT_USER.id}).select().single();
+      if(!eE){ ecrAnnul=newE; await sb.from('compta_lignes').insert((e.compta_lignes||[]).map(l=>({ecriture_id:newE.id,compte_code:l.compte_code,sens:l.sens==='D'?'C':'D',montant:l.montant,libelle:l.libelle}))); }
+    }
+    if(!ecrAnnul) toast("Vente annulée, mais l'écriture comptable n'a pas pu être contre-passée — faites-le depuis la Comptabilité.",'error');
+  }
+  if(v.mode_paiement==='espece' && v.caisse_id){
+    const {data:s}=await sb.from('caisse_sessions').select('id').eq('caisse_id',v.caisse_id).eq('statut','ouverte').maybeSingle();
+    if(s){ await sb.from('caisse_mouvements').insert({session_id:s.id,caisse_id:v.caisse_id,numero:v.code+'-AN',date_mouvement:today,type:'sortie',montant:v.total,motif:'Remboursement — annulation vente '+v.code,beneficiaire:v.client_nom||null,statut:ecrAnnul?'ventile':'a_ventiler',compte_ventile:ecrAnnul?requireCompteDefaut('ventes'):null,ecriture_id:ecrAnnul?.id||null,created_by:CURRENT_USER.id}); }
+    else toast("Aucune séance ouverte sur la caisse : enregistrez le remboursement manuellement.",'error');
+  }
+  if(v.fne_statut==='certifiee'){
+    const av=await fneEmettreAvoir(v);
+    if(av.ok) toast(`Facture d'avoir FNE émise : ${av.reference}`);
+    else toast(`Vente annulée, mais l'avoir FNE n'a pas pu être émis (${av.message}). Émettez-le depuis votre espace FNE.`,'error');
+  }
+  toast(`Vente ${v.code} annulée — articles remis en stock.`);
+  showPage('comptoir-ventes');
+}
+/* ---------- Documents de la vente au comptoir : reçu de caisse, facture simple, facture normalisée FNE ----------
+   FNE : certification via l'Edge Function `fne-proxy` (supabase/functions/fne-proxy), qui relaie vers
+   $url/external/invoices/sign (vente) et $url/external/invoices/{id}/refund (avoir) — procédure DGI mai 2025.
+   Les prix du comptoir sont TTC ; la FNE attend des prix unitaires HT : HT = TTC / (1 + taux du code TVA FNE). */
+const FNE_PAIEMENT={espece:'cash',mobile_money:'mobile-money',banque:'card',cheque:'check'};
+const FNE_TEMPLATES={B2C:'Particulier (B2C)',B2B:'Entreprise avec NCC (B2B)',B2G:'Administration publique (B2G)'};
+const FNE_TAXES={TVA:{taux:18,label:'TVA normale 18 %'},TVAB:{taux:9,label:'TVA réduite 9 %'},TVAC:{taux:0,label:'Exonération conventionnelle 0 %'},TVAD:{taux:0,label:'Exonération légale 0 % (TEE / RME)'}};
+async function fneAppel(action,extra){
+  try{
+    const {data,error}=await sb.functions.invoke('fne-proxy',{body:{action,...(extra||{})}});
+    if(error){
+      let detail=null; try{ detail=await error.context?.json(); }catch(e){}
+      return detail||{ok:false,message:error.message};
+    }
+    return data||{ok:false,message:'Réponse vide'};
+  }catch(e){ return {ok:false,message:e.message}; }
+}
+function fneMessageErreur(r){
+  const d=r?.data;
+  const msg=(d&&typeof d==='object')?(d.message||d.error):(typeof d==='string'?d.slice(0,200):null);
+  return [r?.status?('HTTP '+r.status):'',Array.isArray(msg)?msg.join(', '):(msg||r?.message||'Erreur inconnue')].filter(Boolean).join(' — ');
+}
+function fneTaxeCode(){ return (window.APP_PARAMS||{}).fne_taxe_defaut||'TVA'; }
+function fnePayloadVente(v,lignes,info){
+  const p=window.APP_PARAMS||{}, code=fneTaxeCode(), taux=FNE_TAXES[code]?.taux||0;
+  const ht=x=>Math.round((+x||0)/(1+taux/100)*100)/100;
+  return {
+    invoiceType:'sale',
+    paymentMethod:FNE_PAIEMENT[v.mode_paiement]||'cash',
+    template:info.template,
+    isRne:false,
+    clientNcc:info.template==='B2C'?'':(info.ncc||''),
+    clientCompanyName:info.nom,
+    clientPhone:info.telephone,
+    clientEmail:info.email||'',
+    clientSellerName:v.vendeur||'',
+    pointOfSale:p.fne_point_vente||'1',
+    establishment:p.fne_etablissement||'Principal',
+    commercialMessage:'',
+    footer:'Merci de votre confiance',
+    foreignCurrency:'',
+    foreignCurrencyRate:0,
+    items:(lignes||[]).map(l=>({taxes:[code],customTaxes:[],reference:l.code_article||'',description:l.designation,quantity:+l.quantite,amount:ht(l.prix_unitaire),discount:+l.remise_pct||0,measurementUnit:l.unite||''})),
+    customTaxes:[],
+    discount:(+v.sous_total>0&&+v.remise>0)?Math.round((+v.remise)/(+v.sous_total)*10000)/100:0
+  };
+}
+async function chargerVenteDoc(id){
+  const [{data:v},{data:lignes}]=await Promise.all([
+    sb.from('ventes_comptoir').select('*, clients(nom,prenoms,telephone,email,ncc,rccm,adresse,commune,regime_fiscal), caisses(nom), points_vente(nom,adresse,telephone)').eq('id',id).single(),
+    sb.from('ventes_comptoir_lignes').select('*, composants(reference)').eq('vente_id',id).order('ordre')
+  ]);
+  if(!window.APP_PARAMS) await loadAppParams();
+  (lignes||[]).forEach(l=>{ l.code_article=l.composants?.reference||''; });
+  return {v,lignes:lignes||[]};
+}
+function venteDestinataire(v){
+  const c=v.clients;
+  return {
+    nom:v.fne_client_nom||(c?[c.nom,c.prenoms].filter(Boolean).join(' '):v.client_nom)||'',
+    ncc:v.fne_client_ncc||v.client_ncc||c?.ncc||'',
+    telephone:v.fne_client_telephone||v.client_telephone||c?.telephone||'',
+    email:v.fne_client_email||c?.email||'',
+    adresse:v.client_adresse||[c?.adresse,c?.commune].filter(Boolean).join(', ')||'',
+    rccm:c?.rccm||''
+  };
+}
+
+/* Choix du document après une vente (ou depuis l'historique) */
+function openDocumentsVente(id,code,total,monnaie){
+  openModal(`
+    <div class="text-center">
+      ${code?`<div class="text-4xl mb-2">✅</div><h3 class="font-bold text-lg">Vente ${escapeHtml(code)} enregistrée</h3>
+      <div class="text-2xl font-extrabold my-2">${money(total)}</div>
+      ${+monnaie?`<div class="text-emerald-700 font-semibold mb-2">Monnaie à rendre : ${money(monnaie)}</div>`:''}`:'<h3 class="font-bold text-lg mb-2">Documents de la vente</h3>'}
+      <p class="text-sm text-gray-500 mb-4">Quel document remettre au client ?</p>
+      <div class="grid sm:grid-cols-3 gap-2 text-left">
+        <button class="border rounded-xl p-3 hover:shadow-md bg-white" onclick="closeModal();imprimerTicketComptoir('${id}')"><div class="text-2xl">🧾</div><div class="font-bold text-sm mt-1">Reçu de caisse</div><div class="text-xs text-gray-500">Ticket 80 mm</div></button>
+        <button class="border rounded-xl p-3 hover:shadow-md bg-white" onclick="openFactureSimpleModal('${id}')"><div class="text-2xl">📄</div><div class="font-bold text-sm mt-1">Facture simple</div><div class="text-xs text-gray-500">A4, au nom du client</div></button>
+        <button class="border rounded-xl p-3 hover:shadow-md bg-white" style="border-color:#f59e0b" onclick="openFneModal('${id}')"><div class="text-2xl">🏛️</div><div class="font-bold text-sm mt-1">Facture normalisée FNE</div><div class="text-xs text-gray-500">Certifiée DGI, QR code</div></button>
+      </div>
+      <button class="btn btn-outline mt-4" onclick="closeModal()">${code?'Nouvelle vente':'Fermer'}</button>
+    </div>`);
+}
+
+/* Facture simple : saisie / confirmation du destinataire, puis impression A4 */
+async function openFactureSimpleModal(id){
+  const {v}=await chargerVenteDoc(id); if(!v) return;
+  const d=venteDestinataire(v);
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">📄 Facture simple — ${escapeHtml(v.code)}</h2>
+    <p class="text-xs text-gray-500">Facture commerciale non certifiée. Si le client exige une facture fiscale, utilisez la facture normalisée FNE.</p>
+    <div class="divider"></div>
+    <div class="grid sm:grid-cols-2 gap-3">
+      <div class="field sm:col-span-2"><label>Client / raison sociale</label>${fieldWrap('👤',`<input id="fsNom" value="${escapeHtml(d.nom)}" placeholder="Client comptoir">`)}</div>
+      <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input id="fsTel" value="${escapeHtml(d.telephone)}">`)}</div>
+      <div class="field"><label>NCC (optionnel)</label>${fieldWrap('🧾',`<input id="fsNcc" value="${escapeHtml(d.ncc)}">`)}</div>
+      <div class="field sm:col-span-2"><label>Adresse (optionnel)</label>${fieldWrap('📍',`<input id="fsAdresse" value="${escapeHtml(d.adresse)}">`)}</div>
+    </div>
+    <div class="flex justify-end gap-2 mt-4"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="confirmerFactureSimple('${id}')">🖨 Imprimer la facture</button></div>`);
+}
+async function confirmerFactureSimple(id){
+  const win=window.open('','_blank','width=900,height=1100'); // ouvert dans le clic (anti pop-up)
+  if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const rec={client_nom:val('fsNom')||null,client_telephone:val('fsTel')||null,client_ncc:val('fsNcc')||null,client_adresse:val('fsAdresse')||null,facture_imprimee_le:new Date().toISOString()};
+  closeModal();
+  await sb.from('ventes_comptoir').update(rec).eq('id',id);
+  imprimerFactureComptoir(id,win);
+}
+
+/* Facture normalisée FNE : informations exigées par la DGI puis certification */
+async function openFneModal(id){
+  const {v}=await chargerVenteDoc(id); if(!v) return;
+  if(v.fne_statut==='certifiee'){ openFneResultat(v); return; }
+  if(v.statut==='annulee'){ toast('Vente annulée : pas de facture FNE.','error'); return; }
+  const d=venteDestinataire(v), p=window.APP_PARAMS||{};
+  const template=v.fne_template||(v.clients?.regime_fiscal==='administration'?'B2G':(d.ncc?'B2B':'B2C'));
+  const actif=p.fne_actif&&p.fne_api_key&&(p.fne_environnement==='production'?p.fne_url_prod:p.fne_url_test);
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">🏛️ Facture normalisée FNE — ${escapeHtml(v.code)}</h2>
+    <p class="text-sm text-gray-500">${money(v.total)} · ${COMPTOIR_MODES[v.mode_paiement]?.label||''} · TVA FNE : <b>${escapeHtml(FNE_TAXES[fneTaxeCode()]?.label||fneTaxeCode())}</b></p>
+    ${!actif?`<div class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 mt-2">⚠️ Certification DGI non configurée ou désactivée (Paramètres → FNE). La facture sera marquée <b>PROVISOIRE — non valable fiscalement</b> ; vous pourrez la certifier plus tard depuis l'historique.</div>`
+      :`<div class="text-xs text-gray-500 mt-1">Environnement : <b>${p.fne_environnement==='production'?'Production':'Test DGI'}</b></div>`}
+    ${v.fne_statut==='erreur'?`<div class="text-xs bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 mt-2">Dernière tentative refusée : ${escapeHtml(v.fne_erreur||'')}</div>`:''}
+    <div class="divider"></div>
+    <div class="grid sm:grid-cols-2 gap-3">
+      <div class="field sm:col-span-2"><label>Type de client</label>${fieldWrap('🗂️',`<select id="fneTpl" onchange="document.getElementById('fneNccWrap').style.display=this.value==='B2C'?'none':''">${Object.entries(FNE_TEMPLATES).map(([k,l])=>`<option value="${k}" ${k===template?'selected':''}>${l}</option>`).join('')}</select>`)}</div>
+      <div class="field sm:col-span-2"><label>Nom du client / raison sociale *</label>${fieldWrap('👤',`<input id="fneNom" value="${escapeHtml(d.nom)}">`)}</div>
+      <div class="field sm:col-span-2" id="fneNccWrap" style="${template==='B2C'?'display:none':''}"><label>NCC du client * (obligatoire en B2B)</label>${fieldWrap('🧾',`<input id="fneNcc" value="${escapeHtml(d.ncc)}" placeholder="Ex : 9502363N">`)}</div>
+      <div class="field"><label>Téléphone *</label>${fieldWrap('📞',`<input id="fneTel" value="${escapeHtml(d.telephone)}">`)}</div>
+      <div class="field"><label>E-mail</label>${fieldWrap('✉️',`<input id="fneEmail" type="email" value="${escapeHtml(d.email)}" placeholder="Demandé par la DGI">`)}</div>
+    </div>
+    <div class="flex justify-end gap-2 mt-4"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" id="fneBtn" onclick="certifierVenteFne('${id}')">${actif?'🏛️ Certifier auprès de la DGI':'Enregistrer en provisoire'}</button></div>`);
+}
+async function certifierVenteFne(id){
+  if(!exigerDroit('Comptoir','creer','une facture FNE')) return;
+  const info={template:val('fneTpl'),nom:val('fneNom'),ncc:val('fneNcc').toUpperCase(),telephone:val('fneTel').replace(/\s+/g,''),email:val('fneEmail')};
+  if(!info.nom){ toast('Le nom du client est obligatoire.','error'); return; }
+  if(!info.telephone){ toast('Le téléphone du client est obligatoire (exigé par la DGI).','error'); return; }
+  if(info.template!=='B2C' && !info.ncc){ toast('Le NCC du client est obligatoire pour une facture B2B / B2G.','error'); return; }
+  if(info.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(info.email)){ toast('E-mail invalide.','error'); return; }
+  const btn=document.getElementById('fneBtn'); if(btn){ btn.disabled=true; btn.textContent='Certification en cours…'; }
+  const {v,lignes}=await chargerVenteDoc(id);
+  if(v.fne_statut==='certifiee'){ openFneResultat(v); return; }
+  const base={fne_template:info.template,fne_client_nom:info.nom,fne_client_ncc:info.ncc||null,fne_client_telephone:info.telephone,fne_client_email:info.email||null};
+  const payload=fnePayloadVente(v,lignes,info);
+  const r=await fneAppel('sign',{payload});
+  let maj;
+  if(r.ok && r.data?.reference){
+    maj={...base,fne_statut:'certifiee',fne_reference:r.data.reference,fne_token:r.data.token||null,fne_invoice_id:r.data.invoice?.id||null,fne_certifiee_le:new Date().toISOString(),fne_reponse:r.data,fne_erreur:null};
+    if(r.data.warning) toast(`Attention : stock de stickers FNE bas (${r.data.balance_sticker??'?'} restants).`,'error');
+  } else if(r.inactif){
+    maj={...base,fne_statut:'provisoire',fne_reference:v.fne_reference||('PROV-'+v.code),fne_erreur:r.message||null};
+  } else {
+    maj={...base,fne_statut:'erreur',fne_erreur:fneMessageErreur(r),fne_reponse:r.data&&typeof r.data==='object'?r.data:null};
+  }
+  const {error}=await sb.from('ventes_comptoir').update(maj).eq('id',id);
+  if(error){ toast(error.message,'error'); }
+  if(maj.fne_statut==='erreur'){
+    toast('Certification refusée : '+maj.fne_erreur,'error');
+    if(btn){ btn.disabled=false; btn.textContent='🏛️ Réessayer'; }
+    return;
+  }
+  toast(maj.fne_statut==='certifiee'?`Facture FNE certifiée : ${maj.fne_reference}`:'Facture enregistrée en provisoire (non certifiée).', maj.fne_statut==='certifiee'?undefined:'error');
+  openFneResultat({...v,...maj});
+  if(document.getElementById('vcDebut')) showPage('comptoir-ventes');
+}
+function openFneResultat(v){
+  const ok=v.fne_statut==='certifiee';
+  openModal(`
+    <div class="text-center">
+      <div class="text-4xl mb-2">${ok?'🏛️':'⚠️'}</div>
+      <h3 class="font-bold text-lg">${ok?'Facture normalisée certifiée':'Facture FNE provisoire'}</h3>
+      <div class="text-xl font-extrabold my-2 font-mono">${escapeHtml(v.fne_reference||'')}</div>
+      ${ok?'':'<p class="text-sm text-amber-700">Non valable fiscalement tant qu\'elle n\'est pas certifiée par la DGI.</p>'}
+      <div class="flex flex-wrap justify-center gap-2 mt-4">
+        <button class="btn btn-outline" onclick="closeModal()">Fermer</button>
+        <button class="btn btn-outline" onclick="closeModal();imprimerTicketComptoir('${v.id}')">🧾 Format ticket</button>
+        <button class="btn btn-primary" onclick="closeModal();imprimerFactureComptoir('${v.id}')">📄 Facture A4</button>
+      </div>
+    </div>`);
+}
+/* Avoir FNE (annulation d'une vente certifiée) : toutes les lignes pour leur quantité totale */
+async function fneEmettreAvoir(v){
+  const items=(v.fne_reponse?.invoice?.items||[]).map(it=>({id:it.id,quantity:+it.quantity}));
+  if(!v.fne_invoice_id||!items.length) return {ok:false,message:"Identifiants FNE de la facture d'origine introuvables"};
+  const r=await fneAppel('refund',{invoice_id:v.fne_invoice_id,payload:{items}});
+  if(r.ok && r.data?.reference){
+    await sb.from('ventes_comptoir').update({fne_avoir_reference:r.data.reference,fne_avoir_token:r.data.token||null}).eq('id',v.id);
+    return {ok:true,reference:r.data.reference};
+  }
+  return {ok:false,message:fneMessageErreur(r)};
+}
+
+/* ---------- Impressions ---------- */
+function montantEnLettres(n){
+  n=Math.round(Math.abs(+n||0));
+  const u=['zéro','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf'];
+  const d=['','','vingt','trente','quarante','cinquante','soixante','soixante','quatre-vingt','quatre-vingt'];
+  const moinsDeCent=x=>{
+    if(x<20) return u[x];
+    const dz=Math.floor(x/10), un=x%10;
+    if(dz===7||dz===9) return d[dz]+(dz===7&&un===1?'-et-':'-')+u[10+un];
+    if(dz===8) return un?d[8]+'-'+u[un]:'quatre-vingts';
+    return d[dz]+(un===1?'-et-un':un?'-'+u[un]:'');
+  };
+  const moinsDeMille=x=>{
+    const c=Math.floor(x/100), r=x%100;
+    const tc=c===0?'':(c===1?'cent':u[c]+'-cent'+(r===0?'s':''));
+    return [tc,r?moinsDeCent(r):''].filter(Boolean).join('-');
+  };
+  if(n===0) return 'zéro';
+  const parts=[];
+  const mds=Math.floor(n/1e9), mns=Math.floor(n%1e9/1e6), mls=Math.floor(n%1e6/1000), rs=n%1000;
+  if(mds) parts.push(moinsDeMille(mds)+'-milliard'+(mds>1?'s':''));
+  if(mns) parts.push(moinsDeMille(mns)+'-million'+(mns>1?'s':''));
+  if(mls) parts.push(mls===1?'mille':moinsDeMille(mls).replace(/(cent|vingt)s$/,'$1')+'-mille');
+  if(rs) parts.push(moinsDeMille(rs));
+  return parts.join('-');
+}
+function fneQrHtml(token,taille){
+  // Simple emplacement : le QR est dessiné par fneQrScriptFin(), placé en fin de document pour que
+  // le chargement de la librairie ne bloque jamais l'affichage du reste de la facture.
+  return token?`<div data-qr="${escapeHtml(token)}" data-size="${taille}" style="display:inline-block;min-width:${taille}px;min-height:${taille}px"></div>`:'';
+}
+function fneQrScriptFin(){
+  return `<script>function dessinerQr(){ document.querySelectorAll('[data-qr]').forEach(function(el){ try{ new QRCode(el,{text:el.getAttribute('data-qr'),width:+el.getAttribute('data-size'),height:+el.getAttribute('data-size'),correctLevel:QRCode.CorrectLevel.M}); }catch(e){ el.textContent='QR indisponible'; } }); }<\/script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" onload="dessinerQr()" onerror="document.querySelectorAll('[data-qr]').forEach(function(el){el.textContent='QR indisponible (hors ligne)';})"><\/script>`;
+}
+function venteTotauxFiscaux(v){
+  const code=fneTaxeCode(), taux=v.fne_statut?(FNE_TAXES[code]?.taux||0):(+(window.APP_PARAMS||{}).tva_pct||0);
+  const ttc=+v.total||0, ht=taux>0?Math.round(ttc/(1+taux/100)):ttc;
+  return {taux,ht,tva:ttc-ht,ttc};
+}
+async function imprimerTicketComptoir(id,winExistante){
+  const win=winExistante||window.open('','_blank','width=420,height=760'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const {v,lignes}=await chargerVenteDoc(id);
+  if(!v){ win.close(); return; }
+  const p=window.APP_PARAMS||{};
+  const t=venteTotauxFiscaux(v), d=venteDestinataire(v);
+  const fne=v.fne_statut==='certifiee', prov=v.fne_statut==='provisoire';
+  const m=n=>new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fne?'FNE '+escapeHtml(v.fne_reference):'Reçu '+escapeHtml(v.code)}</title>
+    <style>*{box-sizing:border-box}body{font-family:'Courier New',monospace;font-size:12px;width:76mm;margin:0 auto;padding:8px;color:#000}
+    .c{text-align:center}.r{text-align:right}hr{border:0;border-top:1px dashed #000;margin:6px 0}table{width:100%;border-collapse:collapse}td{padding:1px 0;vertical-align:top}
+    .tot td{font-size:15px;font-weight:bold}.noprint{margin-bottom:8px;text-align:center}.titre{font-weight:bold;font-size:13px;border:1px solid #000;padding:3px;margin:4px 0}
+    @media print{.noprint{display:none}@page{size:80mm auto;margin:0}}</style></head><body>
+    <div class="noprint"><button onclick="window.print()">🖨 Imprimer</button></div>
+    ${p.logo_base64?`<div class="c"><img src="${p.logo_base64}" style="max-width:50mm;max-height:22mm"></div>`:''}
+    <div class="c" style="font-weight:bold;font-size:14px">${escapeHtml(p.raison_sociale||'BEDA ALU')}</div>
+    ${[p.adresse,p.telephone,p.ncc?'NCC '+p.ncc:'',p.rccm?'RCCM '+p.rccm:'',p.regime_fiscal?'Régime : '+p.regime_fiscal:''].filter(Boolean).map(x=>`<div class="c">${escapeHtml(x)}</div>`).join('')}
+    ${v.points_vente?`<div class="c">${escapeHtml([v.points_vente.nom,v.points_vente.adresse,v.points_vente.telephone].filter(Boolean).join(' · '))}</div>`:''}
+    <div class="c titre">${fne?'FACTURE NORMALISÉE ÉLECTRONIQUE':prov?'FACTURE FNE PROVISOIRE':'REÇU DE CAISSE'}${v.statut==='annulee'?' — ANNULÉ':''}</div>
+    ${fne?`<div>N° FNE : <b>${escapeHtml(v.fne_reference)}</b></div>`:''}
+    ${prov?'<div class="c" style="font-weight:bold">NON CERTIFIÉE — SANS VALEUR FISCALE</div>':''}
+    <div>${fne||prov?'Réf. vente':'N°'} : ${escapeHtml(v.code)}</div><div>Date : ${new Date(v.created_at).toLocaleString('fr-FR')}</div>
+    ${d.nom?`<div>Client : ${escapeHtml(d.nom)}</div>`:''}${(fne||prov)&&v.fne_client_ncc?`<div>NCC client : ${escapeHtml(v.fne_client_ncc)}</div>`:''}
+    ${v.vendeur?`<div>Vendeur : ${escapeHtml(v.vendeur)}</div>`:''}
+    <hr><table>${lignes.map(l=>`<tr><td colspan="2">${escapeHtml(l.designation)}</td></tr>
+      <tr><td>&nbsp;&nbsp;${+l.quantite} ${escapeHtml(l.unite||'')} × ${m(l.prix_unitaire)}${+l.remise_pct?' −'+(+l.remise_pct)+'%':''}</td><td class="r">${m(l.total)}</td></tr>`).join('')}</table>
+    <hr><table>
+      <tr><td>Sous-total</td><td class="r">${m(v.sous_total)}</td></tr>
+      ${+v.remise?`<tr><td>Remise</td><td class="r">-${m(v.remise)}</td></tr>`:''}
+      ${t.taux>0||fne?`<tr><td>Total HT</td><td class="r">${m(t.ht)}</td></tr><tr><td>TVA ${t.taux}%</td><td class="r">${m(t.tva)}</td></tr>`:''}
+      <tr class="tot"><td>TOTAL TTC FCFA</td><td class="r">${m(v.total)}</td></tr>
+      <tr><td>${COMPTOIR_MODES[v.mode_paiement]?.label||escapeHtml(v.mode_paiement)}</td><td class="r">${m(v.montant_recu??v.total)}</td></tr>
+      ${+v.monnaie_rendue?`<tr><td>Monnaie rendue</td><td class="r">${m(v.monnaie_rendue)}</td></tr>`:''}
+      ${v.reference_paiement?`<tr><td>Réf.</td><td class="r">${escapeHtml(v.reference_paiement)}</td></tr>`:''}
+    </table>
+    ${fne?`<hr><div class="c">${fneQrHtml(v.fne_token,130)}</div><div class="c" style="font-size:10px">Facture certifiée par la DGI.<br>Scannez le QR code pour vérifier son authenticité.</div>`:''}
+    ${v.statut==='annulee'?`<hr><div class="c">Annulée le ${new Date(v.annulee_le).toLocaleString('fr-FR')}<br>${escapeHtml(v.motif_annulation||'')}${v.fne_avoir_reference?'<br>Avoir FNE : '+escapeHtml(v.fne_avoir_reference):''}</div>`:''}
+    <hr><div class="c">Merci de votre visite !</div><div class="c" style="font-size:10px">Marchandises vendues ni reprises ni échangées sans ce document.</div>
+    ${fne?fneQrScriptFin():''}
+    <script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body></html>`);
+  win.document.close(); win.focus();
+}
+async function imprimerFactureComptoir(id,winExistante){
+  const win=winExistante||window.open('','_blank','width=900,height=1100'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const {v,lignes}=await chargerVenteDoc(id);
+  if(!v){ win.close(); return; }
+  const t=venteTotauxFiscaux(v), d=venteDestinataire(v);
+  const fne=v.fne_statut==='certifiee', prov=v.fne_statut==='provisoire';
+  const titre=fne?'FACTURE NORMALISÉE ÉLECTRONIQUE (FNE)':prov?'FACTURE FNE PROVISOIRE':'FACTURE';
+  const numero=fne||prov?v.fne_reference:v.code;
+  const bloc=(label,val)=>val?`<div><span style="color:#6b7280">${label} :</span> ${escapeHtml(val)}</div>`:'';
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(titre)} ${escapeHtml(numero||'')}</title>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:34px;color:#111827;font-size:12.5px}
+    table{width:100%;border-collapse:collapse;margin-top:14px}th,td{border:1px solid #d1d5db;padding:7px 9px}th{background:#f1f5f9;text-align:left;font-size:11.5px}.r{text-align:right}
+    .box{border:1px solid #d1d5db;border-radius:8px;padding:10px 12px;line-height:1.6}.tot td{border:0;padding:3px 9px}.tot tr:last-child td{font-size:15px;font-weight:800;border-top:2px solid #111827}
+    .filigrane{position:fixed;top:40%;left:0;right:0;text-align:center;font-size:70px;color:rgba(220,38,38,.12);transform:rotate(-25deg);font-weight:900;pointer-events:none}
+    @media print{body{padding:0}.noprint{display:none}}</style></head><body>
+    ${prov?'<div class="filigrane">NON CERTIFIÉE</div>':''}${v.statut==='annulee'?'<div class="filigrane">ANNULÉE</div>':''}
+    <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+    ${printCompanyHeaderHtml()}
+    <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
+      <div>
+        <h1 style="font-size:18px;margin:0">${escapeHtml(titre)}</h1>
+        <div style="font-size:14px;font-weight:700;margin-top:4px">N° ${escapeHtml(numero||'')}</div>
+        <div style="color:#6b7280;margin-top:2px">Date : ${new Date(fne&&v.fne_certifiee_le?v.fne_certifiee_le:v.created_at).toLocaleString('fr-FR')}${fne||prov?' · Réf. vente '+escapeHtml(v.code):''}</div>
+        ${v.points_vente?`<div style="color:#6b7280">Point de vente : ${escapeHtml(v.points_vente.nom)}</div>`:''}
+        ${prov?'<div style="color:#dc2626;font-weight:700;margin-top:4px">Document provisoire non certifié par la DGI — sans valeur fiscale.</div>':''}
+      </div>
+      <div class="box" style="min-width:260px">
+        <div style="font-size:10.5px;color:#6b7280;text-transform:uppercase;font-weight:700">Facturé à</div>
+        <div style="font-weight:700;font-size:13.5px">${escapeHtml(d.nom||'Client comptoir')}</div>
+        ${bloc('NCC',d.ncc)}${bloc('RCCM',d.rccm)}${bloc('Tél.',d.telephone)}${bloc('E-mail',d.email)}${bloc('Adresse',d.adresse)}
+        ${fne||prov?bloc('Type',FNE_TEMPLATES[v.fne_template]||v.fne_template):''}
+      </div>
+    </div>
+    <table><thead><tr><th>#</th><th>Désignation</th><th>Réf.</th><th class="r">Qté</th><th class="r">P.U. TTC</th><th class="r">Remise</th><th class="r">Montant TTC</th></tr></thead>
+    <tbody>${lignes.map((l,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(l.designation)}</td><td>${escapeHtml(l.code_article||'')}</td><td class="r">${fmtQte(l.quantite)} ${escapeHtml(l.unite||'')}</td><td class="r">${money(l.prix_unitaire)}</td><td class="r">${+l.remise_pct?(+l.remise_pct)+' %':''}</td><td class="r">${money(l.total)}</td></tr>`).join('')}</tbody></table>
+    <div style="display:flex;justify-content:space-between;gap:20px;margin-top:14px;align-items:flex-start">
+      <div style="flex:1">
+        <div><b>Arrêtée la présente facture à la somme de :</b><br><i>${escapeHtml(montantEnLettres(v.total))} francs CFA</i></div>
+        <div style="margin-top:8px">Règlement : <b>${COMPTOIR_MODES[v.mode_paiement]?.label||escapeHtml(v.mode_paiement)}</b>${v.reference_paiement?' — réf. '+escapeHtml(v.reference_paiement):''} · <span style="color:#059669;font-weight:700">${v.statut==='annulee'?'':'PAYÉE'}</span></div>
+        ${fne?`<div style="display:flex;gap:12px;align-items:center;margin-top:14px">${fneQrHtml(v.fne_token,110)}<div style="font-size:11px;color:#374151">Facture certifiée par la Direction Générale des Impôts.<br>Scannez le QR code pour vérifier son authenticité.<br><span style="color:#6b7280;word-break:break-all">${escapeHtml(v.fne_token||'')}</span></div></div>`:''}
+        ${v.statut==='annulee'?`<div style="margin-top:10px;color:#dc2626">Annulée le ${new Date(v.annulee_le).toLocaleString('fr-FR')} — ${escapeHtml(v.motif_annulation||'')}${v.fne_avoir_reference?' — Facture d\'avoir FNE : '+escapeHtml(v.fne_avoir_reference):''}</div>`:''}
+      </div>
+      <table class="tot" style="width:300px;margin-top:0">
+        <tr><td>Sous-total TTC</td><td class="r">${money(v.sous_total)}</td></tr>
+        ${+v.remise?`<tr><td>Remise</td><td class="r">− ${money(v.remise)}</td></tr>`:''}
+        <tr><td>Total HT</td><td class="r">${money(t.ht)}</td></tr>
+        <tr><td>TVA ${t.taux} %</td><td class="r">${money(t.tva)}</td></tr>
+        <tr><td>TOTAL TTC</td><td class="r">${money(t.ttc)}</td></tr>
+      </table>
+    </div>
+    ${fne?fneQrScriptFin():printFooterQrHtml('FACTURE',numero,v.total)}
+    <script>window.onload=()=>setTimeout(()=>window.print(),700)<\/script></body></html>`);
+  win.document.close(); win.focus();
+}
+
 /* ============================== UTILISATEURS, RÔLES & ACCÈS (sous-onglet de Paramétrage) ============================== */
 window._rbacUI=window._rbacUI||{tab:'utilisateurs'};
 function moduleLabel(code){ const m=ALL_MODULES.find(x=>x.code===code); return m?m.label:code; }
@@ -6857,19 +8278,14 @@ async function genererPortailClient(){
   }
 }
 async function fneTesterConnexion(){
+  // Passe par le relais serveur fne-proxy : il utilise les paramètres ENREGISTRÉS (enregistrez avant de tester).
   const el=document.getElementById('fneTestResult');
-  el.textContent='Test en cours…'; el.className='text-sm mt-3 text-gray-500';
-  const p=window.APP_PARAMS||{};
-  const url=(val('fneEnvironnement')==='production'?val('fneUrlProd'):val('fneUrlTest'))||p.fne_url_test;
-  const key=val('fneApiKey')||p.fne_api_key;
-  if(!url||!key){ el.textContent='⚠️ Renseignez URL et clé API avant de tester.'; el.className='text-sm mt-3 text-amber-600'; return; }
-  try{
-    const res=await fetch(url,{method:'GET',headers:{'Authorization':'Bearer '+key}});
-    el.textContent=`✅ Réponse reçue (HTTP ${res.status}).`; el.className='text-sm mt-3 text-emerald-600';
-  }catch(err){
-    el.textContent='❌ Appel navigateur bloqué (CORS/mixed-content) — normal en direct : prévoir un relais Supabase Edge Function pour la production.';
-    el.className='text-sm mt-3 text-red-600';
-  }
+  el.textContent='Test en cours (via le relais serveur, paramètres enregistrés)…'; el.className='text-sm mt-3 text-gray-500';
+  const r=await fneAppel('ping');
+  if(r.inactif){ el.textContent='⚠️ '+r.message+' — cochez « Certification DGI active », renseignez URL et clé, enregistrez puis testez.'; el.className='text-sm mt-3 text-amber-600'; return; }
+  if(r.status===401){ el.textContent='❌ Clé API refusée par la DGI (401). Vérifiez la clé dans votre espace FNE → Paramétrage.'; el.className='text-sm mt-3 text-red-600'; return; }
+  if(r.status===400||r.ok){ el.textContent=`✅ Connexion à l'API FNE (${r.environnement==='production'?'production':'test'}) établie et clé acceptée (requête de test vide refusée comme prévu : ${fneMessageErreur(r)}).`; el.className='text-sm mt-3 text-emerald-600'; return; }
+  el.textContent='❌ '+fneMessageErreur(r); el.className='text-sm mt-3 text-red-600';
 }
 function switchParamTab(tab){
   document.querySelectorAll('.param-tab-btn').forEach(b=>{ const on=b.dataset.paramtab===tab; b.classList.toggle('bg-indigo-600',on); b.classList.toggle('text-white',on); });
@@ -6952,7 +8368,7 @@ async function importerSauvegarde(e){
     for(const table of BACKUP_TABLES){
       const rows=backup.tables?.[table];
       if(!rows || !rows.length) continue;
-      const {error}=await sb.from(table).upsert(rows,{onConflict:'id'});
+      const {error}=await sb.from(table).upsert(rows,{onConflict:table==='stocks_depot'?'depot_id,composant_id':'id'});
       if(error) throw new Error(table+' : '+error.message);
     }
     resEl.textContent='✅ Import terminé.'; resEl.className='text-sm mt-3 text-emerald-600';
