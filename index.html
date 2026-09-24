@@ -247,7 +247,8 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
       <div class="sidebar-children" data-children="comptoir-g">
         <button class="nav-child" data-page="comptoir">→ 🛒 Nouvelle vente</button>
         <button class="nav-child" data-page="comptoir-ventes">→ Historique des ventes</button>
-        <button class="nav-child" data-page="comptoir-rapport">→ Rapport périodique (PDV & caisse)</button>
+        <button class="nav-child" data-page="comptoir-z">→ Ticket Z (clôture PDV)</button>
+        <button class="nav-child" data-page="comptoir-rapport">→ État périodique (PDV & caisse)</button>
       </div>
 
       <div class="sidebar-group-title">Chantier</div>
@@ -293,6 +294,7 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
       <button class="nav-parent" data-toggle="caisse-g">🏠 <span>Caisse</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="caisse-g">
         <button class="nav-child" data-page="caisse">→ Tableau de bord</button>
+        <button class="nav-child" data-page="caisse-brouillard">→ Brouillard de caisse</button>
         <button class="nav-child" data-page="caisse-validations">→ Validations (DG) <span class="badge-validations dash-tab-badge hidden">0</span></button>
         <button class="nav-child" data-page="caisse-affectations">→ Affectations & codes PIN</button>
       </div>
@@ -776,9 +778,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'Rapport périodique — Point de vente & caisse',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,'caisse-validations':renderCaisseValidations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g','caisse-validations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'État périodique — Point de vente & caisse','comptoir-z':'Ticket Z — Clôture du point de vente','caisse-brouillard':'Brouillard de caisse',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,'caisse-validations':renderCaisseValidations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,'comptoir-z':renderComptoirZ,'caisse-brouillard':renderCaisseBrouillard,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g','caisse-validations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g','comptoir-z':'comptoir-g','caisse-brouillard':'caisse-g'};
 /* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
 const ALL_MODULES=[
   {code:'Clients',label:'Clients',groupe:'Clients'},
@@ -1258,7 +1260,7 @@ function dashActions(){
   if(dashPeut('Comptabilite') && k.aVentiler.length){ const m=k.aVentiler.reduce((s,x)=>s+(+x.montant||0),0); push({
     aid:'vent_'+k.auj, prio:60+Math.min(25,Math.round(k.aVentiler.length/10)), urgent:k.aVentiler.length>100, icone:'📒', montant:m,
     titre:`Ventiler ${k.aVentiler.length} mouvement(s) de caisse`, detail:`${money(m)} encaissés ou décaissés encore absents de la comptabilité.`,
-    boutons:[{lib:'📒 Ventiler',fn:`window._compta.cycleView='brouillard_caisse';showPage('comptabilite')`}]}); }
+    boutons:[{lib:'📒 Ventiler',fn:`window._compta.cycleView='ventilation_caisse';showPage('comptabilite')`}]}); }
   // R5 — Chantiers en retard
   if(dashPeut('Projets')) k.retard.sort((a,b)=>a.date_fin.localeCompare(b.date_fin)).slice(0,5).forEach(p=>{ const c=k.cli[p.client_id]||{}; const j=dashJours(p.date_fin); push({
     aid:'ret_'+p.id, prio:70+Math.min(20,Math.floor(j/7)), urgent:j>30, icone:'🏗️', titre:`Chantier en retard : ${p.libelle}`,
@@ -6933,7 +6935,7 @@ function printEstimation(){
 }
 
 /* ============================== PARAMÉTRAGE : SOCIÉTÉ / LOGO / SUPABASE / SYNCHRO / SAUVEGARDE ============================== */
-const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','depots','stocks_depot','transferts_stock','transferts_stock_lignes','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','points_vente','caisse_affectations','point_vente_affectations','paiements','ventes_comptoir','ventes_comptoir_lignes','roles','role_permissions','invitations','caisse_demandes'];
+const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','depots','stocks_depot','transferts_stock','transferts_stock_lignes','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','points_vente','caisse_affectations','point_vente_affectations','paiements','ventes_comptoir','ventes_comptoir_lignes','roles','role_permissions','invitations','caisse_demandes','tickets_z'];
 async function loadAppParams(){
   let {data}=await sb.from('parametres').select('*').limit(1).maybeSingle();
   if(!data){ const res=await sb.from('parametres').insert({}).select().single(); data=res.data; }
@@ -7664,7 +7666,7 @@ async function comptaCloturerExercice(){
 const COMPTA_CYCLE=[
   {icon:'①',label:'OUVERTURE',items:[{v:'plan_comptable',label:'Plan comptable'},{v:'bilan_ouverture',label:"Bilan d'ouverture",action:"comptaOuvrirBilanOuverture()"}]},
   {icon:'②',label:'SAISIE',items:[{v:'journal',label:'Journal'}]},
-  {icon:'③',label:'CONTRÔLE',items:[{v:'grand_livre',label:'Grand livre'},{v:'balance',label:'Balance'},{v:'brouillard_caisse',label:'Brouillards caisse'}]},
+  {icon:'③',label:'CONTRÔLE',items:[{v:'grand_livre',label:'Grand livre'},{v:'balance',label:'Balance'},{v:'ventilation_caisse',label:'Ventilation caisse'}]},
   {icon:'④',label:'VISA',items:[{v:'validation',label:'Validation'}]},
   {icon:'⑤',label:'ÉTATS',items:[{v:'bilan',label:'Bilan'},{v:'resultat',label:'Compte de résultat'}]},
   {icon:'⑥',label:'CLÔTURE',items:[{v:'cloture',label:'Clôture'}]}
@@ -7695,13 +7697,13 @@ async function comptaRenderCycleView(){
   const host=document.getElementById('comptaCycleContent');
   if(!host) return;
   host.innerHTML='<div class="text-sm text-gray-400 p-8 text-center">Chargement…</div>';
-  const renderers={journal:comptaRenderJournal,grand_livre:comptaRenderGrandLivre,balance:comptaRenderBalance,brouillard_caisse:comptaRenderBrouillardCaisse,validation:comptaRenderValidation,bilan:comptaRenderBilan,resultat:comptaRenderCompteResultat,cloture:comptaRenderCloture,plan_comptable:comptaRenderPlanComptable};
+  const renderers={journal:comptaRenderJournal,grand_livre:comptaRenderGrandLivre,balance:comptaRenderBalance,ventilation_caisse:comptaRenderVentilationCaisse,brouillard_caisse:comptaRenderVentilationCaisse,validation:comptaRenderValidation,bilan:comptaRenderBilan,resultat:comptaRenderCompteResultat,cloture:comptaRenderCloture,plan_comptable:comptaRenderPlanComptable};
   const fn=renderers[window._compta.cycleView]||comptaRenderJournal;
   await fn(host);
 }
 
-/* ---------- Brouillard de caisse (mouvements toutes séances, ventilation hors contexte) ---------- */
-async function comptaRenderBrouillardCaisse(host){
+/* ---------- Ventilation des mouvements de caisse (imputation comptable ; le brouillard de caisse est dans le module Caisse) ---------- */
+async function comptaRenderVentilationCaisse(host){
   window._compta.brouillard=window._compta.brouillard||{caisseId:'',debut:new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10),fin:new Date().toISOString().slice(0,10),statut:'',memoriser:true};
   const f=window._compta.brouillard;
   await comptaChargerReferentiel();
@@ -7721,8 +7723,8 @@ async function comptaRenderBrouillardCaisse(host){
   const aVentilerListe=mvts.filter(m=>m.statut==='a_ventiler');
   host.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-1">
-      <div><h3 class="font-bold">🧾 Ventilation comptable des mouvements de caisse</h3>
-      <p class="text-xs text-gray-500">Seuls les mouvements des séances <b>clôturées</b> apparaissent ici (les séances encore ouvertes se ventilent depuis leur page « Détail caisse »).</p></div>
+      <div><h3 class="font-bold">📒 Ventilation des mouvements de caisse</h3>
+      <p class="text-xs text-gray-500">Imputation comptable : chaque mouvement reçoit son compte de contrepartie et génère son écriture. Seuls les mouvements des séances <b>clôturées</b> apparaissent ici (les séances ouvertes se ventilent depuis « Détail caisse »). Le journal chronologique de la caisse est le <a class="text-indigo-600 underline cursor-pointer" onclick="window._brouillard.caisseId=window._compta.brouillard.caisseId||'';showPage('caisse-brouillard')">brouillard de caisse</a>.</p></div>
       <div class="flex flex-wrap gap-2 items-center">
         <select onchange="window._compta.brouillard.caisseId=this.value;comptaRenderCycleView()">
           <option value="">Toutes les caisses</option>
@@ -7783,8 +7785,8 @@ function caisseChangerMois(delta){
   window._caisse.moisRef=new Date(d.getFullYear(),d.getMonth()+delta,1);
   showPage('caisse');
 }
-function caisseOuvrirBrouillard(caisseId){
-  window._compta.cycleView='brouillard_caisse';
+function caisseOuvrirVentilation(caisseId){
+  window._compta.cycleView='ventilation_caisse';
   if(caisseId){
     window._compta.brouillard=window._compta.brouillard||{debut:new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10),fin:new Date().toISOString().slice(0,10),statut:'',memoriser:true};
     window._compta.brouillard.caisseId=caisseId;
@@ -7821,9 +7823,10 @@ async function renderCaisse(el){
 
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
-      <div><h2>💰 Caisse</h2><p class="text-xs text-gray-500">Ouverture/clôture · Bons d'entrée & de sortie · Brouillard journalier · Transferts.</p></div>
+      <div><h2>💰 Caisse</h2><p class="text-xs text-gray-500">Ouverture/clôture · Bons d'entrée & de sortie · Transferts · Brouillard de caisse · Ventilation comptable.</p></div>
       <div class="flex gap-2">
-        <button class="btn btn-outline" onclick="caisseOuvrirBrouillard()">🧾 Brouillard de caisse${aVentiler.length?` (${aVentiler.length})`:''}</button>
+        <button class="btn btn-outline" onclick="showPage('caisse-brouillard')">📖 Brouillard de caisse</button>
+        <button class="btn btn-outline" onclick="caisseOuvrirVentilation()">📒 Ventilation${aVentiler.length?` (${aVentiler.length})`:''}</button>
         <button class="btn btn-outline" onclick="openMonPinModal()" title="Changer mon code PIN de caisse">🔑 Mon code PIN</button>
         ${estGestionnaireCaisse()?`<button class="btn btn-outline" onclick="showPage('caisse-affectations')">👥 Affectations</button>
         <button class="btn btn-primary" onclick="caisseOuvrirNouvelleCaisseModal()">+ Nouvelle caisse</button>`:''}
@@ -7839,7 +7842,7 @@ async function renderCaisse(el){
         <div class="card p-3" style="border-left:3px solid #4AC47A"><div class="text-xs text-gray-400">ENCAISSEMENTS</div><div class="text-lg font-black mt-1 text-emerald-600">${money(encaissements)}</div><div class="text-xs text-gray-400">${(mvtsPeriode||[]).filter(m=>m.type==='entree').length} bon(s)</div></div>
         <div class="card p-3" style="border-left:3px solid #E05252"><div class="text-xs text-gray-400">DÉCAISSEMENTS</div><div class="text-lg font-black mt-1 text-red-600">${money(decaissements)}</div><div class="text-xs text-gray-400">${(mvtsPeriode||[]).filter(m=>m.type==='sortie').length} bon(s)</div></div>
         <div class="card p-3"><div class="text-xs text-gray-400">FLUX NET</div><div class="text-lg font-black mt-1 ${encaissements-decaissements>=0?'text-emerald-600':'text-red-600'}">${money(encaissements-decaissements)}</div><div class="text-xs text-gray-400">Entrées − sorties</div></div>
-        <div class="card p-3 cursor-pointer hover:shadow-md" title="Ouvrir le Brouillard de caisse" onclick="caisseOuvrirBrouillard()"><div class="text-xs text-gray-400">À VENTILER</div><div class="text-lg font-black mt-1 ${aVentiler.length?'text-red-600':''}">${aVentiler.length} mvt</div><div class="text-xs text-gray-400">${money(aVentilerMontant)}</div></div>
+        <div class="card p-3 cursor-pointer hover:shadow-md" title="Ventiler les mouvements (Comptabilité)" onclick="caisseOuvrirVentilation()"><div class="text-xs text-gray-400">À VENTILER</div><div class="text-lg font-black mt-1 ${aVentiler.length?'text-red-600':''}">${aVentiler.length} mvt</div><div class="text-xs text-gray-400">${money(aVentilerMontant)}</div></div>
         <div class="card p-3"><div class="text-xs text-gray-400">ÉCART CLÔTURE</div><div class="text-lg font-black mt-1 ${ecartCumule<0?'text-red-600':ecartCumule>0?'text-emerald-600':''}">${money(ecartCumule)}</div><div class="text-xs text-gray-400">Cumul période</div></div>
       </div>
       <div class="font-bold text-sm mb-2">Détail par caisse (${caisses.length} caisse(s))</div>
@@ -7864,7 +7867,7 @@ function caisseCardHtml(c,soldeInfo,mvtsPeriode){
       <div>Entrées <b class="text-emerald-600">${money(entrees)}</b></div>
       <div>Sorties <b class="text-red-600">${money(sorties)}</b></div>
       <div>Flux net <b class="${entrees-sorties>=0?'text-emerald-600':'text-red-600'}">${money(entrees-sorties)}</b></div>
-      <div>À ventiler <b class="${aVentiler.length?'text-red-600 cursor-pointer underline':''}" ${aVentiler.length?`onclick="caisseOuvrirBrouillard('${c.id}')" title="Ouvrir le Brouillard de caisse pour cette caisse"`:''}>${aVentiler.length}</b></div>
+      <div>À ventiler <b class="${aVentiler.length?'text-red-600 cursor-pointer underline':''}" ${aVentiler.length?`onclick="caisseOuvrirVentilation('${c.id}')" title="Ventiler les mouvements de cette caisse (Comptabilité)"`:''}>${aVentiler.length}</b></div>
     </div>
     <button class="btn btn-outline btn-sm w-full" onclick="window._editId='${c.id}';showPage('caisse-detail')">Ouvrir →</button>
   </div>`;
@@ -9467,8 +9470,7 @@ function rapportChoisirPeriode(code){
   if(code!=='perso'){ const [a,b]=rapportBornes(code); r.debut=isoLocal(a); r.fin=isoLocal(b); }
   showPage('comptoir-rapport');
 }
-async function chargerRapportPdv(){
-  const f=window._rapPdv;
+async function chargerRapportPdv(f=window._rapPdv){
   if(!window.APP_PARAMS) await loadAppParams();
   const {data:pdvs}=await sb.from('points_vente').select('*, depots(nom), caisses(nom,compte_code)').order('code');
   let q=sb.from('ventes_comptoir').select('*, points_vente(nom), ventes_comptoir_lignes(composant_id,designation,unite,quantite,prix_unitaire,total,prix_achat)').gte('date_vente',f.debut).lte('date_vente',f.fin).order('created_at');
@@ -9631,6 +9633,7 @@ async function renderComptoirRapport(el){
         <div class="field"><label>Au</label>${fieldWrap('📅',`<input type="date" id="rpFin" value="${f.fin}">`)}</div>
         <button class="btn btn-outline" onclick="const d=val('rpDebut'),e=val('rpFin');if(!d||!e||d>e){toast('Période invalide.','error');return;}Object.assign(window._rapPdv,{periode:'perso',debut:d,fin:e});showPage('comptoir-rapport')">Appliquer</button>
         <div class="flex gap-2 ml-auto">
+          <button class="btn btn-outline" onclick="Object.assign(window._ticketZ,{pdv:window._rapPdv.pdv||window._ticketZ.pdv,type:window._rapPdv.debut===window._rapPdv.fin?'journalier':'periodique',date:window._rapPdv.fin,debut:window._rapPdv.debut,fin:window._rapPdv.fin});showPage('comptoir-z')">🧾 Ticket Z</button>
           <button class="btn btn-outline" onclick="exporterRapportPdvCsv()">⬇ Export CSV</button>
           <button class="btn btn-primary" onclick="imprimerRapportPdv()">🖨 Imprimer le rapport</button>
         </div>
@@ -9659,7 +9662,7 @@ function imprimerRapportPdv(){
     @media print{body{padding:0}.noprint{display:none}}</style></head><body>
     <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
     ${printCompanyHeaderHtml()}
-    <h1 style="font-size:18px;margin:0">RAPPORT DE POINT DE VENTE ET DE CAISSE</h1>
+    <h1 style="font-size:18px;margin:0">ÉTAT PÉRIODIQUE — POINT DE VENTE ET CAISSE</h1>
     <div style="font-size:14px;font-weight:700;margin-top:4px">${escapeHtml(t.pdv)}</div>
     <div style="color:#6b7280;margin-bottom:14px">Période : ${escapeHtml(t.periode)} · édité le ${new Date().toLocaleString('fr-FR')} par ${escapeHtml(CURRENT_USER?.email||'')}</div>
     ${rapportSectionsHtml(r,{graphique:img,tousArticles:true})}
@@ -9683,6 +9686,356 @@ function exporterRapportPdvCsv(){
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
   const a=document.createElement('a'); a.href=url; a.download=`rapport-pdv-${(r.pdvSel?.code||'tous')}-${r.f.debut}_${r.f.fin}.csv`;
   document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+/* ============================== BROUILLARD DE CAISSE ≠ VENTILATION ≠ TICKET Z ==============================
+   • Brouillard de caisse (Caisse) : journal chronologique d'UNE caisse — report du fond, chaque pièce (heure, n°,
+     libellé, entrée, sortie, solde progressif), totaux, solde théorique, comptage et écart par séance. C'est le
+     document du caissier, visé par le contrôle ; il ne dit rien des comptes.
+   • Ventilation des mouvements (Comptabilité) : imputation de chaque mouvement de caisse sur un compte de
+     contrepartie et génération de l'écriture. Le brouillard indique seulement si la pièce est déjà comptabilisée.
+   • Ticket Z (Vente au comptoir) : relevé NUMÉROTÉ et définitif des ventes d'un point de vente pour une journée
+     (Z journalier) ou une période (Z périodique), avec le grand total perpétuel ; la lecture X est la même
+     édition sans numéro ni clôture. L'état périodique détaillé reste le rapport « État périodique ». */
+function aujIso(){ return isoLocal(new Date()); }
+const DISTINCTION_CAISSE_HTML=(actif)=>`<div class="grid sm:grid-cols-3 gap-2 mb-4 text-xs">
+  ${[['brouillard','📖 Brouillard de caisse','Journal chronologique de la caisse : pièces, solde progressif, comptage et écart par séance.',"showPage('caisse-brouillard')"],
+     ['ventilation','📒 Ventilation des mouvements','Comptabilité : affecter chaque mouvement à un compte et générer l’écriture.',"caisseOuvrirVentilation(window._brouillard?.caisseId||'')"],
+     ['z','🧾 Ticket Z / état périodique','Point de vente : relevé numéroté et définitif des ventes du jour ou de la période.',"showPage('comptoir-z')"]]
+    .map(([k,t,d,go])=>`<button class="text-left border rounded-xl p-3 ${k===actif?'border-indigo-500 bg-indigo-50':'bg-white hover:border-indigo-300'}" ${k===actif?'disabled':`onclick="${go}"`}><div class="font-bold text-sm">${t}</div><div class="text-gray-500 mt-0.5">${d}</div></button>`).join('')}
+</div>`;
+
+/* ---------- Brouillard de caisse ---------- */
+window._brouillard=window._brouillard||{caisseId:'',debut:isoLocal(new Date()),fin:isoLocal(new Date()),grouper:true};
+const estPieceVente=n=>/^VCH?-\d{4}-[A-Z0-9]+$/.test(n||''), estPieceRembours=n=>/^VCH?-\d{4}-[A-Z0-9]+-AN$/.test(n||'');
+async function chargerBrouillard(){
+  const f=window._brouillard;
+  const [{data:caisses},{data:pdvs}]=await Promise.all([
+    sb.from('caisses').select('id,nom,compte_code,responsable,projets(libelle)').eq('actif',true).order('created_at'),
+    sb.from('points_vente').select('id,code,nom,caisse_id').order('code')]);
+  const dispo=(caisses||[]).filter(c=>peutUtiliserCaisse(c.id));
+  if(!dispo.some(c=>c.id===f.caisseId)) f.caisseId=dispo[0]?.id||'';
+  const caisse=dispo.find(c=>c.id===f.caisseId);
+  if(!caisse) return {dispo,caisse:null};
+  const [{data:sessions,error:e1},{data:prec}]=await Promise.all([
+    sb.from('caisse_sessions').select('*').eq('caisse_id',caisse.id).gte('date_session',f.debut).lte('date_session',f.fin).order('date_session').order('ouverte_le'),
+    sb.from('caisse_sessions').select('id,date_session,statut,fond_cloture_reel').eq('caisse_id',caisse.id).lt('date_session',f.debut).order('date_session',{ascending:false}).order('ouverte_le',{ascending:false}).limit(1)]);
+  if(e1) throw e1;
+  const ids=(sessions||[]).map(s=>s.id);
+  let mvts=[];
+  if(ids.length){ const {data,error}=await sb.from('caisse_mouvements').select('id,session_id,numero,date_mouvement,type,montant,motif,beneficiaire,piece_ref,statut,projet_id,transfert_id,created_at').in('session_id',ids).order('created_at'); if(error) throw error; mvts=data||[]; }
+  await chargerChantiersRef();
+  return calculerBrouillard({f,dispo,caisse,sessions:sessions||[],mvts,precedente:(prec||[])[0]||null,pdvs:(pdvs||[]).filter(p=>p.caisse_id===caisse.id)});
+}
+function calculerBrouillard(src){
+  const {sessions,mvts,f}=src;
+  const heure=d=>d?new Date(d).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'';
+  const seances=sessions.map((s,i)=>{
+    const m=mvts.filter(x=>x.session_id===s.id);
+    const fond=+s.fond_ouverture||0; let solde=fond; const lignes=[];
+    const ventes=m.filter(x=>estPieceVente(x.numero)), remb=m.filter(x=>estPieceRembours(x.numero));
+    const derV=ventes[ventes.length-1], derR=remb[remb.length-1];
+    m.forEach(x=>{
+      if(f.grouper && (estPieceVente(x.numero)||estPieceRembours(x.numero))){
+        const grp=estPieceVente(x.numero)?ventes:remb;
+        if(x!==(estPieceVente(x.numero)?derV:derR)) return;
+        const tot=grp.reduce((a,y)=>a+(+y.montant||0),0), ent=x.type==='entree';
+        solde+=ent?tot:-tot;
+        lignes.push({heure:heure(grp[0].created_at)===heure(x.created_at)?heure(x.created_at):`${heure(grp[0].created_at)}–${heure(x.created_at)}`,numero:grp.length>1?`${grp[0].numero} → ${x.numero}`:x.numero,
+          libelle:ent?`Ventes au comptoir en espèces — ${grp.length} ticket(s)`:`Remboursements de ventes annulées — ${grp.length}`,groupe:grp.length,
+          entree:ent?tot:0,sortie:ent?0:tot,solde,compta:grp.every(y=>y.statut==='ventile')?'ok':grp.some(y=>y.statut==='ventile')?'partiel':'non'});
+        return;
+      }
+      const mt=+x.montant||0; solde+=x.type==='entree'?mt:-mt;
+      lignes.push({heure:heure(x.created_at),numero:x.numero||'—',libelle:x.motif+(x.beneficiaire?' — '+x.beneficiaire:'')+(x.piece_ref?` (pièce ${x.piece_ref})`:''),
+        projet_id:x.projet_id,transfert:!!x.transfert_id,entree:x.type==='entree'?mt:0,sortie:x.type==='sortie'?mt:0,solde,compta:x.statut==='ventile'?'ok':'non'});
+    });
+    const entrees=m.filter(x=>x.type==='entree').reduce((a,x)=>a+(+x.montant||0),0), sorties=m.filter(x=>x.type==='sortie').reduce((a,x)=>a+(+x.montant||0),0);
+    const theorique=s.statut==='cloturee'&&s.fond_cloture_theorique!=null?+s.fond_cloture_theorique:fond+entrees-sorties;
+    // Report : le fond d'ouverture doit égaler le comptage de la séance précédente
+    const prev=i?sessions[i-1]:src.precedente;
+    const ecartReport=prev&&prev.statut==='cloturee'&&prev.fond_cloture_reel!=null?fond-(+prev.fond_cloture_reel):null;
+    return {s,fond,lignes,entrees,sorties,theorique,compte:s.statut==='cloturee'?+s.fond_cloture_reel:null,ecart:s.statut==='cloturee'?+s.ecart||0:null,
+      nbPieces:m.length,aVentiler:m.filter(x=>x.statut==='a_ventiler').length,ecartReport:ecartReport!=null&&Math.abs(ecartReport)>=1?ecartReport:null,prevDate:prev?.date_session};
+  });
+  const t={entrees:seances.reduce((a,x)=>a+x.entrees,0),sorties:seances.reduce((a,x)=>a+x.sorties,0),ecarts:seances.reduce((a,x)=>a+(x.ecart||0),0),
+    pieces:seances.reduce((a,x)=>a+x.nbPieces,0),aVentiler:seances.reduce((a,x)=>a+x.aVentiler,0),ouvertes:seances.filter(x=>x.s.statut==='ouverte').length};
+  t.fondInitial=seances[0]?.fond??0; t.soldeFinal=seances.length?(seances[seances.length-1].compte??seances[seances.length-1].theorique):0;
+  return {...src,seances,t};
+}
+const BROUILLARD_CSS=`.br-t{width:100%;border-collapse:collapse;font-size:12.5px}.br-t th{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#475569;background:#f8fafc;text-align:left;padding:6px 8px;border-bottom:1px solid #e2e8f0}
+  .br-t td{padding:5px 8px;border-bottom:1px solid #eef2f7;vertical-align:top}.br-r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.br-m{color:#64748b;font-size:11px}
+  .br-rep td{background:#f8fafc;font-style:italic}.br-tot td{font-weight:800;border-top:2px solid #0f172a;background:#fff}.br-e{color:#047857}.br-s{color:#b91c1c}
+  .br-h{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;align-items:baseline;margin:14px 0 6px}.br-h b{font-size:14px}
+  .br-ok{color:#047857;font-size:11px;white-space:nowrap}.br-ko{color:#b45309;font-size:11px;white-space:nowrap}.br-alerte{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:6px 10px;font-size:12px;margin:4px 0}`;
+function brouillardSectionsHtml(b,opts={}){
+  const m=n=>new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
+  if(!b.seances.length) return `<div class="br-m" style="padding:16px 0">Aucune séance de caisse sur la période.</div>`;
+  return b.seances.map(x=>{
+    const s=x.s, clo=s.statut==='cloturee';
+    return `<div style="break-inside:avoid">
+      <div class="br-h"><b>Séance du ${new Date(s.date_session+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</b>
+        <span class="br-m">Ouverte par ${escapeHtml(s.ouverte_par||'—')} à ${s.ouverte_le?new Date(s.ouverte_le).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'—'}${clo?` · clôturée par ${escapeHtml(s.cloturee_par||'—')} à ${s.cloturee_le?new Date(s.cloturee_le).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'—'}`:' · <b style="color:#b45309">séance ouverte</b>'}</span></div>
+      ${x.ecartReport!=null?`<div class="br-alerte">⚠ Report : le fond d'ouverture diffère de ${m(x.ecartReport)} FCFA des espèces comptées à la clôture du ${new Date(x.prevDate+'T00:00:00').toLocaleDateString('fr-FR')} (versement en banque ou prélèvement non enregistré en caisse ?).</div>`:''}
+      <div style="overflow-x:auto"><table class="br-t"><thead><tr><th>Heure</th><th>N° pièce</th><th>Libellé</th><th class="br-r">Entrée</th><th class="br-r">Sortie</th><th class="br-r">Solde</th>${opts.compta!==false?'<th>Compta</th>':''}</tr></thead><tbody>
+        <tr class="br-rep"><td></td><td></td><td>Fond de caisse à l'ouverture (report)</td><td class="br-r"></td><td class="br-r"></td><td class="br-r">${m(x.fond)}</td>${opts.compta!==false?'<td></td>':''}</tr>
+        ${x.lignes.map(l=>`<tr><td class="br-m" style="white-space:nowrap">${escapeHtml(l.heure)}</td><td style="white-space:nowrap;font-family:monospace;font-size:11.5px">${escapeHtml(l.numero)}</td>
+          <td>${escapeHtml(l.libelle)}${l.transfert?' <span class="br-m">⇄ transfert</span>':''}${l.projet_id&&!opts.impression?chantierBadgeHtml(l.projet_id):l.projet_id?` <span class="br-m">· ${escapeHtml(chantierLabel(l.projet_id))}</span>`:''}</td>
+          <td class="br-r br-e">${l.entree?m(l.entree):''}</td><td class="br-r br-s">${l.sortie?m(l.sortie):''}</td><td class="br-r">${m(l.solde)}</td>
+          ${opts.compta!==false?`<td>${l.compta==='ok'?'<span class="br-ok">✔ ventilé</span>':l.compta==='partiel'?'<span class="br-ko">◐ en partie</span>':'<span class="br-ko">à ventiler</span>'}</td>`:''}</tr>`).join('')||`<tr><td colspan="7" class="br-m">Aucune pièce sur cette séance.</td></tr>`}
+        <tr class="br-tot"><td></td><td></td><td>Totaux de la séance · ${x.nbPieces} pièce(s)</td><td class="br-r br-e">${m(x.entrees)}</td><td class="br-r br-s">${m(x.sorties)}</td><td class="br-r">${m(x.theorique)}</td>${opts.compta!==false?'<td></td>':''}</tr>
+      </tbody></table></div>
+      <table class="br-t" style="width:auto;min-width:320px;margin:6px 0 0 auto"><tbody>
+        <tr><td>Solde théorique (fond + entrées − sorties)</td><td class="br-r"><b>${m(x.theorique)}</b></td></tr>
+        <tr><td>Espèces comptées à la clôture</td><td class="br-r">${clo?m(x.compte):'—'}</td></tr>
+        <tr><td>Écart de caisse</td><td class="br-r" style="font-weight:800;color:${clo&&Math.abs(x.ecart)>=1?(x.ecart<0?'#b91c1c':'#b45309'):'inherit'}">${clo?(x.ecart>0?'+':'')+m(x.ecart):'séance ouverte'}</td></tr>
+      </tbody></table></div>`;
+  }).join('');
+}
+async function renderCaisseBrouillard(el){
+  await chargerAffectations();
+  const f=window._brouillard;
+  let b; try{ b=await chargerBrouillard(); }catch(e){ el.innerHTML=`<div class="card p-4 text-red-600">${escapeHtml(e.message||String(e))}</div>`; return; }
+  window._brouillardData=b;
+  if(!b.caisse){ el.innerHTML=DISTINCTION_CAISSE_HTML('brouillard')+`<div class="card p-8 text-center text-gray-500">Aucune caisse accessible.</div>`; return; }
+  const per=(a,z)=>{ f.debut=a; f.fin=z; showPage('caisse-brouillard'); };
+  window._brPer=per;
+  const t=aujIso(), d=new Date(); const hier=isoLocal(new Date(d.getFullYear(),d.getMonth(),d.getDate()-1)), deb=isoLocal(new Date(d.getFullYear(),d.getMonth(),1));
+  el.innerHTML=`<style>${BROUILLARD_CSS}</style>${DISTINCTION_CAISSE_HTML('brouillard')}
+    <div class="page-card mb-4">
+      <div class="flex flex-wrap justify-between items-start gap-3 mb-3">
+        <div><h2>📖 Brouillard de caisse</h2><p class="text-xs text-gray-500">Journal chronologique des pièces de la caisse, avec solde progressif, comptage et écart de chaque séance.</p></div>
+        <div class="flex flex-wrap gap-2">
+          ${b.t.aVentiler?`<button class="btn btn-outline" onclick="caisseOuvrirVentilation('${b.caisse.id}')">📒 Ventiler (${b.t.aVentiler})</button>`:''}
+          ${b.pdvs.length?`<button class="btn btn-outline" onclick="window._ticketZ.pdv='${b.pdvs[0].id}';showPage('comptoir-z')">🧾 Ticket Z</button>`:''}
+          <button class="btn btn-outline" onclick="exporterBrouillardCsv()">⬇ CSV</button>
+          <button class="btn btn-primary" onclick="imprimerBrouillard()">🖨 Imprimer</button>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2 items-end">
+        <div class="field"><label>Caisse</label>${fieldWrap('💰',`<select onchange="window._brouillard.caisseId=this.value;showPage('caisse-brouillard')">${b.dispo.map(c=>`<option value="${c.id}" ${c.id===b.caisse.id?'selected':''}>${escapeHtml(c.nom)}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Du</label>${fieldWrap('📅',`<input type="date" id="brDebut" value="${f.debut}">`)}</div>
+        <div class="field"><label>Au</label>${fieldWrap('📅',`<input type="date" id="brFin" value="${f.fin}">`)}</div>
+        <button class="btn btn-outline" onclick="const a=val('brDebut'),z=val('brFin');if(!a||!z||a>z){toast('Période invalide.','error');return;}window._brPer(a,z)">Appliquer</button>
+        <div class="flex gap-1.5 flex-wrap">
+          <button class="fam-chip ${f.debut===t&&f.fin===t?'active':''}" onclick="window._brPer('${t}','${t}')">Aujourd'hui</button>
+          <button class="fam-chip ${f.debut===hier&&f.fin===hier?'active':''}" onclick="window._brPer('${hier}','${hier}')">Hier</button>
+          <button class="fam-chip ${f.debut===deb&&f.fin===t?'active':''}" onclick="window._brPer('${deb}','${t}')">Ce mois</button>
+        </div>
+        <label class="flex items-center gap-2 text-xs text-gray-600 ml-auto"><input type="checkbox" ${f.grouper?'checked':''} onchange="window._brouillard.grouper=this.checked;showPage('caisse-brouillard')" style="width:15px;height:15px"> Regrouper les ventes au comptoir (détail dans le ticket Z)</label>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+      <div class="card p-3"><div class="text-xs text-gray-400">Fond initial</div><div class="text-lg font-black mt-1">${money(b.t.fondInitial)}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Entrées</div><div class="text-lg font-black mt-1 text-emerald-600">${money(b.t.entrees)}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Sorties</div><div class="text-lg font-black mt-1 text-red-600">${money(b.t.sorties)}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Solde final</div><div class="text-lg font-black mt-1">${money(b.t.soldeFinal)}</div><div class="text-xs text-gray-400">${b.t.ouvertes?'théorique (séance ouverte)':'compté'}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Écarts de caisse</div><div class="text-lg font-black mt-1 ${Math.abs(b.t.ecarts)>=1?(b.t.ecarts<0?'text-red-600':'text-amber-600'):''}">${money(b.t.ecarts)}</div><div class="text-xs text-gray-400">${b.seances.length} séance(s) · ${b.t.pieces} pièce(s)</div></div>
+    </div>
+    <div class="page-card">${brouillardSectionsHtml(b)}</div>`;
+}
+function imprimerBrouillard(){
+  const b=window._brouillardData; if(!b?.caisse) return;
+  const win=window.open('','_blank','width=1000,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const f=b.f, per=f.debut===f.fin?new Date(f.debut+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):`du ${new Date(f.debut+'T00:00:00').toLocaleDateString('fr-FR')} au ${new Date(f.fin+'T00:00:00').toLocaleDateString('fr-FR')}`;
+  const m=n=>new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Brouillard de caisse — ${escapeHtml(b.caisse.nom)}</title>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:26px;color:#0f172a;font-size:12px}${BROUILLARD_CSS}.br-h{margin-top:18px}
+    @media print{body{padding:0}.noprint{display:none}}</style></head><body>
+    <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+    ${printCompanyHeaderHtml()}
+    <h1 style="font-size:18px;margin:0">BROUILLARD DE CAISSE</h1>
+    <div style="font-size:14px;font-weight:700;margin-top:4px">${escapeHtml(b.caisse.nom)}${b.caisse.responsable?' — responsable : '+escapeHtml(b.caisse.responsable):''}</div>
+    <div style="color:#64748b;margin-bottom:6px">Période : ${escapeHtml(per)} · compte ${escapeHtml(b.caisse.compte_code||'')} · édité le ${new Date().toLocaleString('fr-FR')} par ${escapeHtml(CURRENT_USER?.email||'')}</div>
+    <table class="br-t" style="width:auto;min-width:420px"><tbody>
+      <tr><td>Fond initial</td><td class="br-r">${m(b.t.fondInitial)}</td><td>Total entrées</td><td class="br-r br-e">${m(b.t.entrees)}</td></tr>
+      <tr><td>Solde final</td><td class="br-r"><b>${m(b.t.soldeFinal)}</b></td><td>Total sorties</td><td class="br-r br-s">${m(b.t.sorties)}</td></tr>
+      <tr><td>Séances</td><td class="br-r">${b.seances.length}</td><td>Écarts de caisse</td><td class="br-r"><b>${m(b.t.ecarts)}</b></td></tr></tbody></table>
+    ${brouillardSectionsHtml(b,{impression:true})}
+    <div style="display:flex;gap:30px;margin-top:40px">${['Le caissier (la caissière)','Le contrôleur','Visa du DG'].map(x=>`<div style="flex:1;border-top:1px solid #0f172a;padding-top:6px;text-align:center">${x}</div>`).join('')}</div>
+    <script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`);
+  win.document.close(); win.focus();
+}
+function exporterBrouillardCsv(){
+  const b=window._brouillardData; if(!b?.caisse) return;
+  const esc=x=>{ const s=String(x??''); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const n=x=>String(Math.round((+x||0)*100)/100).replace('.',',');
+  const L=[['Caisse','Séance','Heure','N° pièce','Libellé','Chantier','Entrée','Sortie','Solde','Comptabilisé']];
+  b.seances.forEach(x=>{
+    L.push([b.caisse.nom,x.s.date_session,'','',"Fond de caisse à l'ouverture",'','','',n(x.fond),'']);
+    x.lignes.forEach(l=>L.push([b.caisse.nom,x.s.date_session,l.heure,l.numero,l.libelle,l.projet_id?chantierLabel(l.projet_id):'',l.entree?n(l.entree):'',l.sortie?n(l.sortie):'',n(l.solde),l.compta==='ok'?'Oui':l.compta==='partiel'?'En partie':'Non']));
+    L.push([b.caisse.nom,x.s.date_session,'','','Totaux / solde théorique','',n(x.entrees),n(x.sorties),n(x.theorique),'']);
+    if(x.compte!=null) L.push([b.caisse.nom,x.s.date_session,'','','Compté à la clôture (écart '+n(x.ecart)+')','','','',n(x.compte),'']);
+  });
+  const url=URL.createObjectURL(new Blob(['﻿'+L.map(l=>l.map(esc).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
+  const a=document.createElement('a'); a.href=url; a.download=`brouillard-caisse-${b.f.debut}_${b.f.fin}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+/* ---------- Ticket Z / lecture X des points de vente ---------- */
+window._ticketZ=window._ticketZ||{pdv:'',type:'journalier',date:isoLocal(new Date()),debut:isoLocal(new Date(new Date().getFullYear(),new Date().getMonth(),1)),fin:isoLocal(new Date())};
+function ticketZNumero(z,pdv){ return `${z.type==='periodique'?'ZP':'Z'}-${pdv?.code||'PDV'}-${String(z.numero).padStart(5,'0')}`; }
+/* Instantané conservé dans tickets_z.totaux : la réimpression reproduit exactement le Z émis */
+function snapshotZ(r){
+  const v=r.ventes.filter(x=>x.statut==='validee').sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
+  const c=r.caissesRap[0];
+  const ss=c?c.sessions:[];
+  const clo=ss.filter(s=>s.statut==='cloturee');
+  return {k:{nb:r.k.nb,ca:r.k.ca,ht:r.k.ht,tva:r.k.tva,remises:r.k.remises,nbAnnul:r.k.nbAnnul,montantAnnul:r.k.montantAnnul,articles:r.k.articles,marge:r.k.marge},
+    modes:r.modes,docs:r.docs,premier:v[0]?.code||null,dernier:v[v.length-1]?.code||null,
+    articles:r.articles.slice(0,8).map(a=>({d:a.designation,q:a.qte,u:a.unite,ca:a.ca})),
+    vendeurs:Object.entries(r.parVendeur).map(([n,x])=>({n,nb:x.nb,ca:x.ca})),
+    caisse:c?{nom:c.caisse.nom,seances:ss.length,ouvertes:c.ouvertes,fond:ss.reduce((a,s)=>a+(+s.fond_ouverture||0),0),ventesEsp:c.ventesEsp,encVentes:c.encVentes,rembours:c.rembours,
+      autresE:c.autresEntrees,autresS:c.autresSorties,theorique:ss.reduce((a,s)=>a+(+s.theorique||0),0),compte:clo.length?clo.reduce((a,s)=>a+(+s.fond_cloture_reel||0),0):null,ecart:c.ecartsCloture,ecartRappro:c.ecartRappro}:null};
+}
+function ticketZHtml(z,meta){
+  const p=window.APP_PARAMS||{}, m=n=>new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
+  const per=meta.debut===meta.fin?new Date(meta.debut+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):`du ${new Date(meta.debut+'T00:00:00').toLocaleDateString('fr-FR')} au ${new Date(meta.fin+'T00:00:00').toLocaleDateString('fr-FR')}`;
+  const L=(a,b,bold)=>`<tr${bold?' class="tz-b"':''}><td>${a}</td><td class="tz-r">${b}</td></tr>`;
+  const k=z.k, c=z.caisse, d=z.docs||{};
+  return `<div class="tz">
+    ${p.raison_sociale?`<div class="tz-c" style="font-weight:bold;font-size:14px">${escapeHtml(p.raison_sociale)}</div>`:''}
+    ${[p.adresse,p.telephone,p.ncc?'NCC '+p.ncc:''].filter(Boolean).map(x=>`<div class="tz-c">${escapeHtml(x)}</div>`).join('')}
+    <div class="tz-c">${escapeHtml(meta.pdv?.nom||'')}${c?' · '+escapeHtml(c.nom):''}</div>
+    <div class="tz-c tz-titre">${meta.x?'LECTURE X — NON CLÔTURANTE':meta.type==='periodique'?'TICKET Z PÉRIODIQUE':'TICKET Z — CLÔTURE JOURNALIÈRE'}</div>
+    ${meta.numero?`<div class="tz-c" style="font-size:15px;font-weight:bold">N° ${escapeHtml(meta.numero)}</div>`:''}
+    ${meta.duplicata?`<div class="tz-c" style="font-weight:bold">*** DUPLICATA ${meta.duplicata} ***</div>`:''}
+    <div>Période : ${escapeHtml(per)}</div>
+    ${meta.emisLe?`<div>Émis le ${new Date(meta.emisLe).toLocaleString('fr-FR')}${meta.emisPar?' par '+escapeHtml(meta.emisPar):''}</div>`:''}
+    <div>Édité le ${new Date().toLocaleString('fr-FR')}</div>
+    ${z.premier?`<div>Tickets : ${escapeHtml(z.premier)}${z.dernier&&z.dernier!==z.premier?' → '+escapeHtml(z.dernier):''}</div>`:''}
+    <hr><div class="tz-s">VENTES</div><table>
+      ${L('Nombre de ventes',k.nb)}${L('Articles vendus',m(k.articles))}
+      ${L('Ventes brutes',m(k.ca+k.remises))}${k.remises?L('Remises accordées','-'+m(k.remises)):''}
+      ${L('TOTAL TTC',m(k.ca),true)}${k.tva?L('dont HT',m(k.ht))+L('dont TVA',m(k.tva)):''}
+      ${L('Panier moyen',k.nb?m(k.ca/k.nb):'0')}
+      ${L('Annulations',`${k.nbAnnul} / ${m(k.montantAnnul)}`)}</table>
+    <hr><div class="tz-s">RÈGLEMENTS</div><table>
+      ${Object.entries(COMPTOIR_MODES).map(([cd,mo])=>{ const x=(z.modes||{})[cd]; return x?L(`${mo.label} (${x.nb})`,m(x.montant)):''; }).join('')||L('Aucun règlement','0')}
+      ${L('TOTAL ENCAISSÉ',m(k.ca),true)}</table>
+    <hr><div class="tz-s">DOCUMENTS</div><table>
+      ${L('Reçus de caisse',d.recus||0)}${L('Factures simples',d.simples||0)}${L('Factures FNE certifiées',d.fne||0)}${d.fneProv?L('FNE provisoires',d.fneProv):''}${d.avoirs?L('Avoirs FNE',d.avoirs):''}</table>
+    ${c?`<hr><div class="tz-s">CAISSE ESPÈCES</div><table>
+      ${L("Fond d'ouverture",m(c.fond))}${L('+ Ventes en espèces',m(c.encVentes))}${c.rembours?L('− Remboursements',m(c.rembours)):''}
+      ${L('+ Autres entrées',m(c.autresE))}${L('− Autres sorties',m(c.autresS))}${L('= Solde théorique',m(c.theorique),true)}
+      ${c.compte!=null&&!c.ouvertes?L('Espèces comptées',m(c.compte))+L('Écart',(c.ecart>0?'+':'')+m(c.ecart),true):L('Comptage',c.seances?'séance ouverte':'aucune séance')}
+      ${Math.abs(c.ecartRappro||0)>=1?L('⚠ Écart ventes ↔ caisse',m(c.ecartRappro)):''}</table>`:''}
+    ${(z.articles||[]).length?`<hr><div class="tz-s">ARTICLES LES PLUS VENDUS</div><table>${z.articles.map(a=>L(`${escapeHtml(a.d)} × ${fmtQte(a.q)}`,m(a.ca))).join('')}</table>`:''}
+    ${(z.vendeurs||[]).length>1?`<hr><div class="tz-s">PAR VENDEUR</div><table>${z.vendeurs.map(v=>L(`${escapeHtml(v.n)} (${v.nb})`,m(v.ca))).join('')}</table>`:''}
+    ${meta.gt!=null?`<hr><table>${L('GRAND TOTAL PERPÉTUEL',m(meta.gt),true)}</table>`:''}
+    ${meta.x?`<hr><div class="tz-c">Lecture intermédiaire : ne clôture pas la journée.</div>`:''}
+    <hr><div style="display:flex;justify-content:space-between;margin-top:18px"><span>Caissier</span><span>Responsable</span></div><div style="height:28px"></div>
+  </div>`;
+}
+const TICKETZ_CSS=`.tz{font-family:'Courier New',monospace;font-size:12px;width:76mm;max-width:100%;margin:0 auto;color:#000;background:#fff;padding:10px}
+  .tz table{width:100%;border-collapse:collapse}.tz td{padding:1px 0;vertical-align:top}.tz-r{text-align:right;white-space:nowrap;padding-left:6px}.tz-c{text-align:center}
+  .tz hr{border:0;border-top:1px dashed #000;margin:6px 0}.tz-b td{font-weight:bold;font-size:13px}.tz-s{font-weight:bold;text-align:center;letter-spacing:.08em}
+  .tz-titre{font-weight:bold;font-size:13px;border:1px solid #000;padding:3px;margin:5px 0}`;
+function imprimerTicketZ(html,titre){
+  const win=window.open('','_blank','width=420,height=820'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(titre)}</title><style>*{box-sizing:border-box}body{margin:0}${TICKETZ_CSS}
+    .noprint{text-align:center;margin:8px}@media print{.noprint{display:none}@page{size:80mm auto;margin:0}}</style></head><body>
+    <div class="noprint"><button onclick="window.print()">🖨 Imprimer</button></div>${html}<script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`);
+  win.document.close(); win.focus();
+}
+async function renderComptoirZ(el){
+  await chargerAffectations();
+  if(!window.APP_PARAMS) await loadAppParams();
+  const f=window._ticketZ;
+  const {data:pdvsTous}=await sb.from('points_vente').select('id,code,nom,caisse_id,caisses(nom)').eq('actif',true).order('code');
+  const pdvs=(pdvsTous||[]).filter(p=>peutUtiliserPdv(p.id));
+  if(!pdvs.some(p=>p.id===f.pdv)) f.pdv=monPdvParDefaut()&&pdvs.some(p=>p.id===monPdvParDefaut())?monPdvParDefaut():pdvs[0]?.id||'';
+  const pdv=pdvs.find(p=>p.id===f.pdv);
+  if(!pdv){ el.innerHTML=DISTINCTION_CAISSE_HTML('z')+'<div class="card p-8 text-center text-gray-500">Aucun point de vente accessible.</div>'; return; }
+  const debut=f.type==='journalier'?f.date:f.debut, fin=f.type==='journalier'?f.date:f.fin;
+  let r; try{ r=await chargerRapportPdv({periode:'perso',debut,fin,pdv:pdv.id}); }catch(e){ el.innerHTML=`<div class="card p-4 text-red-600">${escapeHtml(e.message||String(e))}</div>`; return; }
+  const [{data:existant},{data:histo}]=await Promise.all([
+    sb.from('tickets_z').select('*').eq('point_vente_id',pdv.id).eq('type',f.type).eq('date_debut',debut).eq('date_fin',fin).maybeSingle(),
+    sb.from('tickets_z').select('*').eq('point_vente_id',pdv.id).order('created_at',{ascending:false}).limit(60)]);
+  const snap=snapshotZ(r);
+  window._zCourant={pdv,debut,fin,type:f.type,snap,existant,histo:histo||[]};
+  const derniers=(histo||[]).filter(z=>z.type===f.type);
+  const prochain=(derniers.reduce((a,z)=>Math.max(a,z.numero),0))+1;
+  const ouvertes=snap.caisse?.ouvertes||0;
+  const modifie=existant&&(existant.nb_ventes!==snap.k.nb||Math.abs(+existant.total_ttc-snap.k.ca)>=1);
+  const futur=fin>aujIso();
+  const html=existant?ticketZHtml(existant.totaux&&existant.totaux.k?existant.totaux:snap,{type:existant.type,pdv,debut,fin,numero:ticketZNumero(existant,pdv),emisLe:existant.created_at,emisPar:existant.edite_par,gt:+existant.grand_total})
+    :ticketZHtml(snap,{x:true,type:f.type,pdv,debut,fin});
+  el.innerHTML=`<style>${TICKETZ_CSS}</style>${DISTINCTION_CAISSE_HTML('z')}
+    <div class="page-card mb-4">
+      <div class="flex flex-wrap justify-between items-start gap-3 mb-3">
+        <div><h2>🧾 Ticket Z du point de vente</h2><p class="text-xs text-gray-500">Le ticket Z clôture la journée (ou la période) : il est numéroté, enregistré et ne se modifie plus ; une nouvelle édition est un duplicata. La lecture X montre les mêmes totaux sans clôturer.</p></div>
+        <button class="btn btn-outline" onclick="Object.assign(window._rapPdv,{periode:'perso',debut:'${debut}',fin:'${fin}',pdv:'${pdv.id}'});showPage('comptoir-rapport')">📊 État périodique détaillé</button>
+      </div>
+      <div class="flex flex-wrap gap-2 items-end">
+        <div class="field"><label>Point de vente</label>${fieldWrap('🏪',`<select onchange="window._ticketZ.pdv=this.value;showPage('comptoir-z')">${pdvs.map(p=>`<option value="${p.id}" ${p.id===pdv.id?'selected':''}>${escapeHtml(p.nom)}${p.caisses?' — '+escapeHtml(p.caisses.nom):''}</option>`).join('')}</select>`)}</div>
+        <div class="flex rounded-lg border overflow-hidden text-sm self-end">
+          ${[['journalier','Z journalier'],['periodique','Z périodique']].map(([k,l])=>`<button class="px-3 py-2 font-semibold ${f.type===k?'bg-indigo-600 text-white':''}" onclick="window._ticketZ.type='${k}';showPage('comptoir-z')">${l}</button>`).join('')}
+        </div>
+        ${f.type==='journalier'?`<div class="field"><label>Journée</label>${fieldWrap('📅',`<input type="date" value="${f.date}" max="${aujIso()}" onchange="window._ticketZ.date=this.value;showPage('comptoir-z')">`)}</div>`
+        :`<div class="field"><label>Du</label>${fieldWrap('📅',`<input type="date" id="tzDebut" value="${f.debut}">`)}</div><div class="field"><label>Au</label>${fieldWrap('📅',`<input type="date" id="tzFin" value="${f.fin}" max="${aujIso()}">`)}</div>
+          <button class="btn btn-outline" onclick="const a=val('tzDebut'),z=val('tzFin');if(!a||!z||a>z){toast('Période invalide.','error');return;}Object.assign(window._ticketZ,{debut:a,fin:z});showPage('comptoir-z')">Appliquer</button>
+          <button class="fam-chip" onclick="const d=new Date();Object.assign(window._ticketZ,{debut:isoLocal(new Date(d.getFullYear(),d.getMonth()-1,1)),fin:isoLocal(new Date(d.getFullYear(),d.getMonth(),0))});showPage('comptoir-z')">Mois dernier</button>`}
+      </div>
+    </div>
+    <div class="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4">
+      <div class="space-y-4">
+        <div class="page-card">
+          ${existant?`<div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm mb-3">🔒 Ticket <b>${escapeHtml(ticketZNumero(existant,pdv))}</b> émis le ${new Date(existant.created_at).toLocaleString('fr-FR')} par ${escapeHtml(existant.edite_par||'—')}${existant.nb_reimpressions?` · ${existant.nb_reimpressions} duplicata(s)`:''}.</div>
+            ${modifie?`<div class="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 mb-3">⚠ Les ventes ont changé depuis l'émission du Z (${existant.nb_ventes} vente(s) / ${money(existant.total_ttc)} au Z, ${snap.k.nb} / ${money(snap.k.ca)} aujourd'hui) : vente enregistrée ou annulée après la clôture.</div>`:''}
+            <div class="flex flex-wrap gap-2"><button class="btn btn-primary" onclick="ticketZReimprimer()">🖨 Réimprimer (duplicata)</button><button class="btn btn-outline" onclick="ticketZLectureX()">🖨 Lecture X actuelle</button></div>`
+          :`<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 text-sm">
+              <div class="card p-3"><div class="text-xs text-gray-400">Ventes</div><div class="text-lg font-black">${snap.k.nb}</div></div>
+              <div class="card p-3"><div class="text-xs text-gray-400">Total TTC</div><div class="text-lg font-black">${money(snap.k.ca)}</div></div>
+              <div class="card p-3"><div class="text-xs text-gray-400">Annulations</div><div class="text-lg font-black">${snap.k.nbAnnul}</div></div>
+              <div class="card p-3"><div class="text-xs text-gray-400">Prochain n°</div><div class="text-lg font-black">${escapeHtml(ticketZNumero({type:f.type,numero:prochain},pdv))}</div></div></div>
+            ${f.type==='journalier'&&ouvertes?`<div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 mb-3">⚠ La séance de caisse « ${escapeHtml(snap.caisse.nom)} » est encore ouverte : clôturez-la d'abord pour que le Z porte le comptage des espèces.</div>`:''}
+            ${futur?'<div class="text-sm text-red-600 mb-3">Impossible d’émettre un Z sur une date future.</div>':''}
+            <div class="flex flex-wrap gap-2"><button class="btn btn-outline" onclick="ticketZLectureX()">🖨 Lecture X (sans clôture)</button>
+              <button class="btn btn-primary" ${futur?'disabled':''} onclick="ticketZEmettre()">🔒 Émettre le ticket Z ${escapeHtml(ticketZNumero({type:f.type,numero:prochain},pdv))}</button></div>`}
+        </div>
+        <div class="page-card"><h3 class="font-bold mb-2">Historique des tickets Z — ${escapeHtml(pdv.nom)}</h3>
+          <div class="overflow-x-auto"><table><thead><tr><th>N°</th><th>Période</th><th class="text-right">Ventes</th><th class="text-right">Total TTC</th><th class="text-right">Grand total</th><th>Émis</th><th></th></tr></thead><tbody>
+          ${(histo||[]).map(z=>`<tr><td class="font-mono text-xs whitespace-nowrap">${escapeHtml(ticketZNumero(z,pdv))}</td><td class="whitespace-nowrap">${z.date_debut===z.date_fin?fmtDate(z.date_debut):fmtDate(z.date_debut)+' → '+fmtDate(z.date_fin)}</td>
+            <td class="text-right">${z.nb_ventes}</td><td class="text-right whitespace-nowrap">${money(z.total_ttc)}</td><td class="text-right text-gray-500 whitespace-nowrap">${money(z.grand_total)}</td>
+            <td class="text-xs text-gray-500">${new Date(z.created_at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'})}<br>${escapeHtml(z.edite_par||'')}${z.nb_reimpressions?` · ${z.nb_reimpressions} dup.`:''}</td>
+            <td><button class="text-xs text-indigo-600" onclick="ticketZOuvrir('${z.id}')">Voir</button></td></tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4 text-center">Aucun ticket Z émis pour ce point de vente.</td></tr>'}
+          </tbody></table></div></div>
+      </div>
+      <div><div class="text-xs text-gray-500 mb-1 text-center">${existant?'Ticket Z émis':'Aperçu — lecture X'}</div><div class="border rounded-xl bg-white shadow-sm">${html}</div></div>
+    </div>`;
+}
+function zMin(e){ return {k:{nb:e.nb_ventes,ca:+e.total_ttc,ht:0,tva:0,remises:0,nbAnnul:0,montantAnnul:0,articles:0},modes:{},docs:{}}; }
+function ticketZLectureX(){
+  const z=window._zCourant; if(!z) return;
+  imprimerTicketZ(ticketZHtml(z.snap,{x:true,type:z.type,pdv:z.pdv,debut:z.debut,fin:z.fin}),'Lecture X — '+z.pdv.nom);
+}
+async function ticketZEmettre(){
+  const z=window._zCourant; if(!z) return;
+  if(!navigator.onLine){ toast('📴 Connexion requise : le ticket Z est numéroté par le serveur.','error'); return; }
+  if(z.type==='journalier'&&z.snap.caisse?.ouvertes&&!confirm('La séance de caisse est encore ouverte : le Z sera émis sans le comptage des espèces. Continuer ?')) return;
+  if(!confirm(`Émettre le ticket Z ? Il sera numéroté et définitif (${z.snap.k.nb} vente(s), ${money(z.snap.k.ca)}).`)) return;
+  const {data,error}=await sb.rpc('ticket_z_emettre',{p_pdv:z.pdv.id,p_type:z.type,p_debut:z.debut,p_fin:z.fin,p_totaux:z.snap});
+  if(error){ toast(error.message,'error'); return; }
+  const t=Array.isArray(data)?data[0]:data;
+  toast(`Ticket Z ${ticketZNumero(t,z.pdv)} émis.`);
+  imprimerTicketZ(ticketZHtml(t.totaux?.k?t.totaux:z.snap,{type:t.type,pdv:z.pdv,debut:t.date_debut,fin:t.date_fin,numero:ticketZNumero(t,z.pdv),emisLe:t.created_at,emisPar:t.edite_par,gt:+t.grand_total}),'Ticket Z '+ticketZNumero(t,z.pdv));
+  showPage('comptoir-z');
+}
+async function ticketZReimprimer(id){
+  const z=window._zCourant; if(!z) return;
+  const e=id?z.histo.find(x=>x.id===id):z.existant; if(!e) return;
+  if(!navigator.onLine){ toast('📴 Connexion requise pour enregistrer le duplicata.','error'); return; }
+  const {data,error}=await sb.rpc('ticket_z_emettre',{p_pdv:e.point_vente_id,p_type:e.type,p_debut:e.date_debut,p_fin:e.date_fin,p_totaux:{}});
+  if(error){ toast(error.message,'error'); return; }
+  const t=Array.isArray(data)?data[0]:data;
+  imprimerTicketZ(ticketZHtml(t.totaux?.k?t.totaux:zMin(t),{type:t.type,pdv:z.pdv,debut:t.date_debut,fin:t.date_fin,numero:ticketZNumero(t,z.pdv),emisLe:t.created_at,emisPar:t.edite_par,gt:+t.grand_total,duplicata:t.nb_reimpressions}),'Duplicata Z '+ticketZNumero(t,z.pdv));
+  showPage('comptoir-z');
+}
+function ticketZOuvrir(id){
+  const z=window._zCourant; const e=z?.histo.find(x=>x.id===id); if(!e) return;
+  openModal(`<div class="flex justify-between items-center mb-3"><h3 class="font-bold">Ticket ${escapeHtml(ticketZNumero(e,z.pdv))}</h3><button class="btn btn-outline btn-sm" onclick="closeModal()">✕</button></div>
+    <style>${TICKETZ_CSS}</style><div class="border rounded-xl">${ticketZHtml(e.totaux?.k?e.totaux:zMin(e),{type:e.type,pdv:z.pdv,debut:e.date_debut,fin:e.date_fin,numero:ticketZNumero(e,z.pdv),emisLe:e.created_at,emisPar:e.edite_par,gt:+e.grand_total})}</div>
+    <div class="flex justify-end gap-2 mt-3"><button class="btn btn-primary" onclick="closeModal();ticketZReimprimer('${e.id}')">🖨 Réimprimer (duplicata)</button></div>`);
 }
 
 /* ---------- Historique des ventes au comptoir ---------- */
