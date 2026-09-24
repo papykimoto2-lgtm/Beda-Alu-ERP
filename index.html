@@ -905,6 +905,7 @@ async function validerDemande(id){
   if(error){ toast(error.message,'error'); return; }
   if(!data?.ok){ toast(data?.message||'Validation refusée.','error'); return; }
   toast(`✅ Demande ${d.numero} validée${data.numero&&data.numero!=='TRF'?' — bon '+data.numero:''}.`);
+  await comptaAutoCaisse({silencieux:true});
   apresDecisionValidation();
 }
 async function rejeterDemande(id){
@@ -2958,8 +2959,8 @@ async function openMouvementModal(presetType,presetComposantId,presetDepotId,pre
     const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:val('mvRef')||null,p_prix_unitaire:prix,p_depot_id:val('mvDepot')||null,...(projetId?{p_projet_id:projetId}:{})});
     if(error){ toast(error.message,'error'); return; }
     if(type==='entree' && prix>0){
-      const composantNom=(composants||[]).find(c=>c.id===composantId)?.nom;
-      await comptabiliserAchatMouvementStock(composantNom,quantite,prix,val('mvMotif'),val('mvRef'));
+      const composant=(composants||[]).find(c=>c.id===composantId);
+      await comptabiliserAchatMouvementStock(composant,quantite,prix,val('mvMotif'),val('mvRef'),projetId);
     }
     toast('Mouvement enregistré.'); closeModal(); refreshStockAlertesBadge();
     showPage(PAGE_RENDERERS[currentPageKey()]?currentPageKey():'stock-mouvements');
@@ -6483,8 +6484,9 @@ async function convertirEnFacture(devisId,type){
     const cert=await certifierFacturefne(d,client);
     rec.fne_reference=cert.reference; rec.fne_statut=cert.statut;
   }
-  const {error}=await sb.from('factures').insert(rec);
+  const {data:fac,error}=await sb.from('factures').insert(rec).select().single();
   if(error){ toast(error.message,'error'); return; }
+  await comptabiliserVenteFacture(fac.id);   // comptabilité automatique : D 4111 / C 702 + C 4431
   await sb.from('devis').update({statut:'accepte'}).eq('id',devisId);
   toast(label+' générée'+(type==='fne'?' ('+rec.fne_statut+').':'.')); showPage('devis');
 }
@@ -6547,8 +6549,11 @@ function renderFacturesBody(){
   }
 }
 async function updateFactureStatut(id,statut){
+  if(statut==='annulee' && !confirm("Annuler la facture ? L'écriture de vente sera contre-passée automatiquement (les encaissements déjà reçus restent à rembourser ou à réaffecter).")){ showPage('factures'); return; }
   const {error}=await sb.from('factures').update({statut}).eq('id',id);
   if(error){ toast(error.message,'error'); return; }
+  if(statut==='annulee'){ const n=await comptaContrePasserSource('facture',id,'Annulation facture'); toast(n?'Facture annulée — écriture de vente contre-passée.':'Facture annulée.'); return; }
+  if(statut!=='annulee') await comptabiliserVenteFacture(id);
   toast('Statut mis à jour.');
 }
 async function renderFactureDetail(el){
@@ -7104,9 +7109,9 @@ async function renderParametres(el){
       <div class="page-card max-w-3xl">
         <h2>📗 Comptes comptables par défaut</h2>
         <div class="divider"></div>
-        <p class="text-xs text-gray-500 mb-4">Comptes utilisés par la comptabilisation automatique (ventes, encaissements, achats de stock, écarts de caisse). Modifiables à tout moment sans casser les écritures déjà passées — elles gardent le compte qui était en vigueur au moment de leur génération.</p>
+        <p class="text-xs text-gray-500 mb-4">Comptes SYSCOHADA révisé utilisés par la comptabilisation automatique (ventes, encaissements, achats et stocks, caisse, écarts). Seuls les comptes imputables (sans sous-comptes) sont sélectionnables. Modifiables à tout moment sans casser les écritures déjà passées — elles gardent le compte qui était en vigueur au moment de leur génération.</p>
         <form id="comptaDefautForm" class="grid sm:grid-cols-2 gap-4">
-          ${COMPTES_DEFAUT_CLES.map(d=>`<div class="field"><label>${escapeHtml(d.label)}</label>${fieldWrap('📘',`<select id="cd_${d.cle}"><option value="">— Par défaut (${escapeHtml(d.fallback)}) —</option>${compteOptionsHtml(comptesDefaut[d.cle]||'')}</select>`)}</div>`).join('')}
+          ${[...new Set(COMPTES_DEFAUT_CLES.map(d=>d.groupe))].map(g=>`<div class="sm:col-span-2 text-xs font-bold uppercase tracking-wide text-gray-400 mt-2">${escapeHtml(g)}</div>`+COMPTES_DEFAUT_CLES.filter(d=>d.groupe===g).map(d=>`<div class="field"><label>${escapeHtml(d.label)}</label>${fieldWrap('📘',`<select id="cd_${d.cle}"><option value="">— Par défaut : ${escapeHtml(d.fallback)} ${escapeHtml(compteByCode(d.fallback)?.libelle||'')} —</option>${compteOptionsHtml(comptesDefaut[d.cle]||'')}</select>`)}</div>`).join('')).join('')}
           <div class="sm:col-span-2 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
         </form>
       </div>
@@ -7177,14 +7182,109 @@ async function comptaChargerReferentiel(force){
     sb.from('compta_journaux').select('*').order('code'),
     sb.from('compta_exercices').select('*').order('annee',{ascending:false})
   ]);
-  C.comptes=comptes||[]; C.journaux=journaux||[]; C.exercices=exercices||[];
+  C.comptes=comptes||[]; C.journaux=journaux||[]; C.exercices=exercices||[]; C._arbre=null;
   if(!C.exercices.find(e=>e.annee===C.annee)) C.annee=(C.exercices[0]&&C.exercices[0].annee)||new Date().getFullYear();
   return C;
 }
 function compteByCode(code){ return (window._compta.comptes||[]).find(c=>c.code===code); }
 function compteLabel(code){ const c=compteByCode(code); return c?`${c.code} — ${c.libelle}`:(code||'—'); }
-function compteOptionsHtml(selected){
-  return (window._compta.comptes||[]).map(c=>`<option value="${escapeHtml(c.code)}" ${c.code===selected?'selected':''}>${escapeHtml(c.code)} — ${escapeHtml(c.libelle)}</option>`).join('');
+/* ---------- SYSCOHADA révisé : classes, arborescence du plan comptable par préfixe (modèle Menko Immo) ----------
+   Le parent d'un compte est le plus long compte actif dont le code est un préfixe du sien (401 → 4011 → 40110001).
+   Un compte qui a des sous-comptes est un compte de REGROUPEMENT : il totalise ses sous-comptes et n'est pas
+   imputable (contrôle aussi fait en base par le déclencheur trg_compta_lignes_imputable). */
+const SYSCO_CLASSES={1:'Comptes de ressources durables',2:"Comptes d'actif immobilisé",3:'Comptes de stocks',4:'Comptes de tiers',5:'Comptes de trésorerie',
+  6:'Comptes de charges des activités ordinaires',7:'Comptes de produits des activités ordinaires',8:'Comptes des autres charges et des autres produits (HAO)',9:'Comptabilité analytique de gestion'};
+const NATURE_LABELS={actif:'Actif',passif:'Passif',charge:'Charge',produit:'Produit',autre:'Mixte (selon solde)'};
+function pcArbre(){
+  const C=window._compta, liste=C.comptes||[];
+  if(C._arbre && C._arbre.src===liste) return C._arbre;
+  const tri=[...liste].sort((a,b)=>a.code<b.code?-1:a.code>b.code?1:0);   // tri lexicographique strict : un code suit toujours son préfixe
+  const par={}, enfants={}, prof={}, pile=[];
+  tri.forEach(c=>{
+    while(pile.length && !c.code.startsWith(pile[pile.length-1].code)) pile.pop();
+    const p=pile[pile.length-1]||null;
+    par[c.code]=p?p.code:null; prof[c.code]=pile.length;
+    if(p) (enfants[p.code]=enfants[p.code]||[]).push(c.code);
+    pile.push(c);
+  });
+  return C._arbre={src:liste,tri,par,enfants,prof,index:Object.fromEntries(tri.map(c=>[c.code,c]))};
+}
+function compteParent(code){ return pcArbre().par[code]||null; }
+function compteEnfants(code){ return pcArbre().enfants[code]||[]; }
+function compteEstRegroupement(code){ return compteEnfants(code).length>0; }
+function compteLignee(code){ const A=pcArbre(), l=[]; let p=A.par[code]; while(p){ l.unshift(p); p=A.par[p]; } return l; }
+/* Parent le plus proche d'un code même absent du plan (pour une création) */
+function compteParentPourCode(code){ const A=pcArbre(); for(let n=code.length-1;n>=1;n--){ if(A.index[code.slice(0,n)]) return A.index[code.slice(0,n)]; } return null; }
+/* Liste déroulante arborescente : regroupements visibles mais non sélectionnables (sauf opts.groupes) */
+function compteOptionsHtml(selected,opts){
+  opts=opts||{};
+  const A=pcArbre(); let html='', classe=null;
+  A.tri.forEach(c=>{
+    if(String(c.code[0])!==classe){ if(classe!==null) html+='</optgroup>'; classe=String(c.code[0]); html+=`<optgroup label="Classe ${classe} — ${escapeHtml(SYSCO_CLASSES[classe]||'')}">`; }
+    const grp=(A.enfants[c.code]||[]).length>0;
+    if(opts.imputablesSeuls && grp) return;
+    const ind='  '.repeat(Math.min(6,A.prof[c.code]||0));
+    html+=`<option value="${escapeHtml(c.code)}" ${c.code===selected?'selected':''} ${grp&&!opts.groupes?'disabled':''}>${ind}${grp?'▸ ':''}${escapeHtml(c.code)} — ${escapeHtml(c.libelle)}</option>`;
+  });
+  if(classe!==null) html+='</optgroup>';
+  if(selected && !A.index[selected]) html=`<option value="${escapeHtml(selected)}" selected>${escapeHtml(selected)} — ⚠ hors plan ou désactivé</option>`+html;
+  return html;
+}
+/* Comptes par défaut de la comptabilisation automatique (Paramètres → Comptabilité) — codes SYSCOHADA révisé */
+const COMPTES_DEFAUT_CLES=[
+  {cle:'caisse',groupe:'Trésorerie',label:'Caisse (par défaut, si la caisse n’a pas de compte)',fallback:'571'},
+  {cle:'banque',groupe:'Trésorerie',label:'Banque — carte, virement',fallback:'521'},
+  {cle:'mobile_money',groupe:'Trésorerie',label:'Mobile Money (monnaie électronique)',fallback:'552'},
+  {cle:'cheques',groupe:'Trésorerie',label:'Chèques reçus',fallback:'521'},
+  {cle:'virement_interne',groupe:'Trésorerie',label:'Virements de fonds (transferts entre caisses)',fallback:'585'},
+  {cle:'clients',groupe:'Ventes',label:'Clients',fallback:'4111'},
+  {cle:'ventes',groupe:'Ventes',label:'Ventes d’ouvrages (factures de devis)',fallback:'702'},
+  {cle:'ventes_comptoir',groupe:'Ventes',label:'Ventes au comptoir (marchandises)',fallback:'701'},
+  {cle:'tva_collectee',groupe:'Ventes',label:'TVA facturée sur ventes',fallback:'4431'},
+  {cle:'fournisseurs',groupe:'Achats & stocks',label:'Fournisseurs',fallback:'4011'},
+  {cle:'achats',groupe:'Achats & stocks',label:'Achats de matières premières et fournitures liées',fallback:'602'},
+  {cle:'achats_consommables',groupe:'Achats & stocks',label:'Achats stockés de matières consommables',fallback:'6041'},
+  {cle:'stock_profiles',groupe:'Achats & stocks',label:'Stock — profilés, panneaux',fallback:'321'},
+  {cle:'stock_vitrage',groupe:'Achats & stocks',label:'Stock — vitrage',fallback:'322'},
+  {cle:'stock_fournitures',groupe:'Achats & stocks',label:'Stock — quincaillerie, joints, visserie, motorisation',fallback:'323'},
+  {cle:'stock_consommables',groupe:'Achats & stocks',label:'Stock — matières consommables',fallback:'331'},
+  {cle:'variation_matieres',groupe:'Achats & stocks',label:'Variation des stocks de matières premières',fallback:'6032'},
+  {cle:'variation_consommables',groupe:'Achats & stocks',label:'Variation des stocks d’autres approvisionnements',fallback:'6033'},
+  {cle:'excedent_caisse',groupe:'Écarts de caisse',label:'Excédent de caisse',fallback:'758'},
+  {cle:'manquant_caisse',groupe:'Écarts de caisse',label:'Manquant de caisse',fallback:'658'}
+];
+function requireCompteDefaut(cle){
+  const custom=(window.APP_PARAMS&&window.APP_PARAMS.comptes_defaut)||{};
+  if(custom[cle]) return custom[cle];
+  const def=COMPTES_DEFAUT_CLES.find(c=>c.cle===cle);
+  return def?def.fallback:null;
+}
+/* Compte de trésorerie selon le mode de règlement */
+function compteTresorerie(mode,caisse){
+  if(mode==='espece') return caisse?.compte_code||requireCompteDefaut('caisse');
+  if(mode==='mobile_money') return requireCompteDefaut('mobile_money');
+  if(mode==='cheque') return requireCompteDefaut('cheques');
+  return requireCompteDefaut('banque');
+}
+function journalTresorerie(mode){ return mode==='espece'?'CA':mode==='mobile_money'?'MM':'BQ'; }
+/* Famille de composant → comptes d'achat, de stock et de variation (inventaire intermittent SYSCOHADA) */
+function comptesStockComposant(c){
+  const f=String(c?.famille||'').toLowerCase(), cons=c?.type==='Consommable'||/consommable/.test(f);
+  if(cons) return {achat:requireCompteDefaut('achats_consommables'),stock:requireCompteDefaut('stock_consommables'),variation:requireCompteDefaut('variation_consommables')};
+  const stock=/vitr/.test(f)?requireCompteDefaut('stock_vitrage'):/profil|panneau|tôle|tole/.test(f)?requireCompteDefaut('stock_profiles'):requireCompteDefaut('stock_fournitures');
+  return {achat:requireCompteDefaut('achats'),stock,variation:requireCompteDefaut('variation_matieres')};
+}
+/* Création d'une écriture automatique (en-tête + lignes) ; retourne l'écriture ou null */
+async function comptaEcritureAuto(entete,lignes){
+  const date=entete.date_ecriture;
+  if(exerciceEstClos(date)) throw new Error(`exercice ${new Date(date).getFullYear()} clôturé`);
+  const annee=new Date(date).getFullYear();
+  const ref=await genererRefEcriture(annee);
+  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,source:'auto',created_by:CURRENT_USER?.id,...entete}).select().single();
+  if(error) throw error;
+  const {error:e2}=await sb.from('compta_lignes').insert(lignes.filter(l=>(+l.montant||0)>0).map(l=>({...l,ecriture_id:ecr.id})));
+  if(e2){ await sb.from('compta_ecritures').delete().eq('id',ecr.id); throw e2; }
+  return ecr;
 }
 function exerciceParAnnee(annee){ return (window._compta.exercices||[]).find(e=>e.annee===annee); }
 function exerciceActif(){ return exerciceParAnnee(window._compta.annee); }
@@ -7194,24 +7294,6 @@ function exerciceEstClos(dateStr){
   return !!(ex && ex.statut==='cloture');
 }
 /* ---------- Comptes par défaut de la comptabilisation automatique (Paramétrage → Comptabilité) ---------- */
-const COMPTES_DEFAUT_CLES=[
-  {cle:'caisse',label:'Trésorerie — Caisse (par défaut)',fallback:'571000'},
-  {cle:'banque',label:'Trésorerie — Banque / Mobile Money',fallback:'512000'},
-  {cle:'clients',label:'Clients',fallback:'411000'},
-  {cle:'ventes',label:'Ventes',fallback:'701000'},
-  {cle:'tva_collectee',label:'TVA facturée (collectée)',fallback:'443000'},
-  {cle:'fournisseurs',label:'Fournisseurs',fallback:'401000'},
-  {cle:'achats',label:'Achats de matières / fournitures',fallback:'601000'},
-  {cle:'virement_interne',label:'Virement interne (transferts entre caisses)',fallback:'585000'},
-  {cle:'excedent_caisse',label:'Excédent de caisse',fallback:'758000'},
-  {cle:'manquant_caisse',label:'Manquant de caisse',fallback:'658000'}
-];
-function requireCompteDefaut(cle){
-  const custom=(window.APP_PARAMS&&window.APP_PARAMS.comptes_defaut)||{};
-  if(custom[cle]) return custom[cle];
-  const def=COMPTES_DEFAUT_CLES.find(c=>c.cle===cle);
-  return def?def.fallback:null;
-}
 async function genererRefEcriture(annee){
   const {count}=await sb.from('compta_ecritures').select('id',{count:'exact',head:true}).eq('exercice_annee',annee);
   // Robuste après suppression : on ne repart jamais sous le plus grand numéro existant
@@ -7391,43 +7473,7 @@ async function comptaRenderJournal(host){
 }
 
 /* ---------- Grand livre ---------- */
-async function comptaRenderGrandLivre(host){
-  const compteSel=window._compta.grandLivreCompte||'';
-  const ecritures=await comptaChargerEcritures({});
-  const lignes=[];
-  ecritures.forEach(e=>(e.compta_lignes||[]).forEach(l=>{ if(!compteSel||l.compte_code===compteSel) lignes.push({...l,ref:e.ref,date:e.date_ecriture,journal:e.journal_code,ecrLibelle:e.libelle}); }));
-  lignes.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
-  let solde=0;
-  const rows=lignes.map(l=>{ solde+=(l.sens==='D'?(+l.montant||0):-(+l.montant||0)); return {...l,solde}; });
-  host.innerHTML=`
-    <div class="mb-3"><select onchange="window._compta.grandLivreCompte=this.value;comptaRenderCycleView()"><option value="">— Choisir un compte —</option>${compteOptionsHtml(compteSel)}</select></div>
-    ${compteSel?`<div class="card overflow-x-auto"><table><thead><tr><th>Date</th><th>Réf.</th><th>Journal</th><th>Libellé</th><th class="text-right">Débit</th><th class="text-right">Crédit</th><th class="text-right">Solde</th></tr></thead>
-    <tbody>${rows.map(r=>`<tr><td>${fmtDate(r.date)}</td><td>${escapeHtml(r.ref)}</td><td>${escapeHtml(r.journal)}</td><td>${escapeHtml(r.libelle||r.ecrLibelle)}</td><td class="text-right">${r.sens==='D'?money(r.montant):''}</td><td class="text-right">${r.sens==='C'?money(r.montant):''}</td><td class="text-right font-semibold">${money(r.solde)}</td></tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4 text-center">Aucun mouvement.</td></tr>'}</tbody></table></div>`
-    :'<div class="card text-center text-gray-400 p-8">Sélectionnez un compte pour afficher son grand livre.</div>'}`;
-}
-
 /* ---------- Balance générale ---------- */
-async function comptaCalculerBalance(){
-  const ecritures=await comptaChargerEcritures({});
-  const map={};
-  ecritures.forEach(e=>(e.compta_lignes||[]).forEach(l=>{
-    map[l.compte_code]=map[l.compte_code]||{debit:0,credit:0};
-    if(l.sens==='D') map[l.compte_code].debit+=+l.montant; else map[l.compte_code].credit+=+l.montant;
-  }));
-  return Object.entries(map).map(([code,v])=>({code,debit:v.debit,credit:v.credit,solde:v.debit-v.credit})).sort((a,b)=>a.code.localeCompare(b.code));
-}
-function comptaSoldePrefixes(balance,prefixes){
-  return balance.filter(b=>prefixes.some(p=>b.code.startsWith(p))).reduce((s,b)=>s+b.solde,0);
-}
-async function comptaRenderBalance(host){
-  const balance=await comptaCalculerBalance();
-  const totD=balance.reduce((s,b)=>s+b.debit,0), totC=balance.reduce((s,b)=>s+b.credit,0);
-  host.innerHTML=`<div class="card overflow-x-auto"><table><thead><tr><th>Compte</th><th>Libellé</th><th class="text-right">Débit</th><th class="text-right">Crédit</th><th class="text-right">Solde débiteur</th><th class="text-right">Solde créditeur</th></tr></thead>
-    <tbody>${balance.map(b=>`<tr><td class="font-semibold">${escapeHtml(b.code)}</td><td>${escapeHtml(compteByCode(b.code)?.libelle||'⚠️ Compte hors plan')}</td><td class="text-right">${money(b.debit)}</td><td class="text-right">${money(b.credit)}</td><td class="text-right">${b.solde>0?money(b.solde):''}</td><td class="text-right">${b.solde<0?money(-b.solde):''}</td></tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 p-4 text-center">Aucun mouvement.</td></tr>'}</tbody>
-    <tfoot><tr class="font-bold border-t-2"><td colspan="2">TOTAL</td><td class="text-right">${money(totD)}</td><td class="text-right">${money(totC)}</td><td colspan="2" class="text-right">${Math.abs(totD-totC)<1?'✔ Équilibrée':'✕ Écart '+money(Math.abs(totD-totC))}</td></tr></tfoot>
-    </table></div>`;
-}
-
 /* ---------- Validation / Visa ---------- */
 async function comptaRenderValidation(host){
   const ecritures=(await comptaChargerEcritures({})).filter(e=>!ecrEstValidee(e));
@@ -7447,25 +7493,11 @@ function comptaOuvrirBilanOuverture(){
 }
 
 /* ---------- Plan comptable ---------- */
-async function comptaRenderPlanComptable(host){
-  await comptaChargerReferentiel(true);
-  host.innerHTML=`
-    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
-      <div class="text-sm text-gray-500">${window._compta.comptes.length} compte(s) actif(s) — plan SYSCOHADA révisé (personnalisable)</div>
-      <div class="flex gap-2">
-        <button class="btn btn-outline btn-sm" onclick="comptaOuvrirImportModal()">📤 Importer / mettre à jour (CSV)</button>
-        <button class="btn btn-primary btn-sm" onclick="comptaOuvrirCompteModal('')">+ Compte</button>
-      </div>
-    </div>
-    <div class="card overflow-x-auto"><table><thead><tr><th>Code</th><th>Libellé</th><th>Classe</th><th>Nature</th><th></th></tr></thead>
-    <tbody>${window._compta.comptes.map(c=>`<tr><td class="font-semibold">${escapeHtml(c.code)}</td><td>${escapeHtml(c.libelle)}</td><td>${c.classe}</td><td>${escapeHtml(c.nature)}</td>
-      <td class="text-right whitespace-nowrap"><button class="text-xs text-indigo-600 mr-2" onclick="comptaOuvrirCompteModal('${c.code}')">✎</button><button class="text-xs text-red-500" onclick="comptaDesactiverCompte('${c.code}')">Désactiver</button></td></tr>`).join('')}</tbody></table></div>`;
-}
 /* ---------- Import / mise à jour du plan comptable par CSV (le client fournit le sien au déploiement) ---------- */
 function comptaOuvrirImportModal(){
   openModal(`
     <h3 class="font-bold text-lg mb-4">Importer / mettre à jour le plan comptable</h3>
-    <p class="text-sm text-gray-500 mb-3">Fichier CSV avec les colonnes <code>code,libelle,classe,nature</code> (nature : actif, passif, charge, produit, autre). Séparateur virgule ou point-virgule accepté, première ligne = en-têtes.</p>
+    <p class="text-sm text-gray-500 mb-3">Fichier CSV (export Sage, Excel…) avec au minimum les colonnes <code>code</code> (ou <i>Numéro</i>) et <code>libelle</code> (ou <i>Intitulé</i>) ; <code>classe</code> et <code>nature</code> sont facultatives : un sous-compte hérite de la nature de son compte parent. Séparateur virgule ou point-virgule, première ligne = en-têtes. Les comptes s'insèrent automatiquement dans l'arborescence SYSCOHADA (ex. 60420006 sous 6042).</p>
     <div class="field mb-3"><label>Fichier CSV</label>${fieldWrap('📄',`<input id="pcImportFile" type="file" accept=".csv,text/csv">`)}</div>
     <div class="field mb-4"><label>Stratégie</label>${fieldWrap('⚙️',`<select id="pcImportStrategie">
       <option value="fusion">Fusionner — met à jour les comptes existants et ajoute les nouveaux, garde le reste</option>
@@ -7473,13 +7505,19 @@ function comptaOuvrirImportModal(){
     </select>`)}</div>
     <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="comptaImporterPlanComptable()">Importer</button></div>`);
 }
+/* Nature d'un compte importé sans nature : celle du compte parent, sinon celle de sa classe */
+function natureParDefaut(code){
+  const p=compteParentPourCode(code); if(p) return p.nature;
+  return ({1:'passif',2:'actif',3:'actif',4:'autre',5:'actif',6:'charge',7:'produit',8:'autre',9:'autre'})[code[0]]||'autre';
+}
 function parseCSVPlanComptable(text){
   const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
   if(!lines.length) return [];
   const delim=lines[0].includes(';')?';':',';
   const header=lines[0].split(delim).map(h=>h.trim().toLowerCase().replace(/^"|"$/g,''));
-  const idx={code:header.indexOf('code'),libelle:header.indexOf('libelle'),classe:header.indexOf('classe'),nature:header.indexOf('nature')};
-  if(idx.code<0||idx.libelle<0) throw new Error('Colonnes "code" et "libelle" requises dans l\'en-tête.');
+  const col=(...noms)=>header.findIndex(h=>noms.includes(h.normalize('NFD').replace(/[\u0300-\u036f]/g,'')));
+  const idx={code:col('code','numero','compte','n° compte','no compte','numero de compte'),libelle:col('libelle','intitule','intitule du compte','designation'),classe:col('classe'),nature:col('nature')};
+  if(idx.code<0||idx.libelle<0) throw new Error('Colonnes « code » (ou Numéro) et « libelle » (ou Intitulé) requises dans l\'en-tête.');
   const natures=['actif','passif','charge','produit','autre'];
   return lines.slice(1).map(line=>{
     const cols=line.split(delim).map(c=>c.trim().replace(/^"|"$/g,''));
@@ -7490,7 +7528,7 @@ function parseCSVPlanComptable(text){
     return {
       code,libelle,
       classe:classeRaw>=1&&classeRaw<=9?classeRaw:(+code[0]||1),
-      nature:natures.includes(natureRaw)?natureRaw:'autre',
+      nature:natures.includes(natureRaw)?natureRaw:natureParDefaut(code),
       actif:true
     };
   }).filter(Boolean);
@@ -7516,17 +7554,119 @@ async function comptaImporterPlanComptable(){
   await comptaChargerReferentiel(true);
   comptaRenderCycleView();
 }
-function comptaOuvrirCompteModal(code){
+/* ---------- Plan comptable arborescent (classes → comptes principaux → divisionnaires → sous-comptes) ---------- */
+window._compta.pcOuverts=window._compta.pcOuverts||{};
+async function comptaMouvementsParCompte(){
+  const ecritures=await comptaChargerEcritures({});
+  const m={}; ecritures.forEach(e=>(e.compta_lignes||[]).forEach(l=>{ const x=m[l.compte_code]=m[l.compte_code]||{debit:0,credit:0,n:0}; x[l.sens==='D'?'debit':'credit']+=+l.montant||0; x.n++; }));
+  return m;
+}
+/* Cumul d'un compte et de tout son sous-arbre (par préfixe) */
+function pcCumul(mvt,code){ let d=0,c=0,n=0; for(const k in mvt){ if(k.startsWith(code)){ d+=mvt[k].debit; c+=mvt[k].credit; n+=mvt[k].n; } } return {debit:d,credit:c,n}; }
+async function comptaRenderPlanComptable(host){
+  await comptaChargerReferentiel(true);
+  const C=window._compta, A=pcArbre(), f=C.pcFiltre=C.pcFiltre||{q:'',classe:'',soldes:false};
+  const mvt=f.soldes?await comptaMouvementsParCompte():null;
+  const q=f.q.trim().toLowerCase(), recherche=!!(q||f.classe);
+  const {data:usages}=await sb.from('compta_lignes').select('compte_code');
+  const utilises=new Set((usages||[]).map(u=>u.compte_code));
+  const {data:caisses}=await sb.from('caisses').select('nom,compte_code');
+  // Audit : regroupements déjà mouvementés ou utilisés par un réglage (les écritures automatiques échoueraient)
+  const defauts=COMPTES_DEFAUT_CLES.map(d=>({lib:d.label,code:requireCompteDefaut(d.cle)}));
+  const alertes=[];
+  [...utilises].filter(c=>compteEstRegroupement(c)).forEach(c=>alertes.push(`Le compte <b>${escapeHtml(c)}</b> porte des écritures mais a désormais des sous-comptes : les soldes restent justes (cumul), mais les nouvelles écritures doivent viser un sous-compte.`));
+  defauts.filter(d=>d.code&&!A.index[d.code]).forEach(d=>alertes.push(`Compte par défaut « ${escapeHtml(d.lib)} » : <b>${escapeHtml(d.code)}</b> absent du plan.`));
+  defauts.filter(d=>d.code&&compteEstRegroupement(d.code)).forEach(d=>alertes.push(`Compte par défaut « ${escapeHtml(d.lib)} » : <b>${escapeHtml(d.code)}</b> est un regroupement — choisissez un sous-compte (Paramètres → Comptabilité).`));
+  (caisses||[]).filter(c=>compteEstRegroupement(c.compte_code)).forEach(c=>alertes.push(`Caisse « ${escapeHtml(c.nom)} » : son compte <b>${escapeHtml(c.compte_code)}</b> est un regroupement.`));
+  const match=c=>(!f.classe||String(c.code[0])===f.classe)&&(!q||c.code.includes(q)||c.libelle.toLowerCase().includes(q));
+  let visibles;
+  if(recherche){ const garder=new Set(); A.tri.filter(match).forEach(c=>{ garder.add(c.code); compteLignee(c.code).forEach(p=>garder.add(p)); }); visibles=A.tri.filter(c=>garder.has(c.code)); }
+  else visibles=A.tri.filter(c=>C.pcOuverts['cl'+c.code[0]] && compteLignee(c.code).every(p=>C.pcOuverts[p]));
+  const nbParClasse={}; A.tri.forEach(c=>{ nbParClasse[c.code[0]]=(nbParClasse[c.code[0]]||0)+1; });
+  const soldeHtml=(x,gras)=>{ if(!x||(!x.debit&&!x.credit)) return '<span class="text-gray-300">—</span>'; const s=x.debit-x.credit; return `<span class="${s>=0?'text-rose-700':'text-emerald-700'} ${gras?'font-bold':''}">${money(Math.abs(s))} ${s>=0?'D':'C'}</span>`; };
+  const ligne=c=>{
+    const grp=compteEstRegroupement(c.code), ouvert=recherche||!!C.pcOuverts[c.code], d=A.prof[c.code]||0;
+    return `<tr class="${grp?'bg-indigo-50/40':''} ${grp?'cursor-pointer':''}" ${grp&&!recherche?`onclick="comptaPcBasculer('${c.code}')"`:''}>
+      <td style="padding-left:${14+d*20}px;white-space:nowrap">${grp?`<span class="inline-block w-4">${ouvert?'📂':'📁'}</span>`:'<span class="inline-block w-4 text-gray-400">▪</span>'} <b class="${grp?'text-indigo-800':''}">${escapeHtml(c.code)}</b></td>
+      <td><span class="${grp?'font-semibold':''}">${escapeHtml(c.libelle)}</span>${grp?` <span class="text-[10px] bg-indigo-100 text-indigo-700 rounded-full px-1.5">${compteEnfants(c.code).length} sous-compte(s)</span>`:''}${!c.standard?' <span class="text-[10px] bg-emerald-50 text-emerald-700 rounded-full px-1.5">propre à l’entité</span>':''}${utilises.has(c.code)?' <span class="text-[10px] text-gray-400">· mouvementé</span>':''}</td>
+      <td class="text-xs text-gray-500 whitespace-nowrap">${NATURE_LABELS[c.nature]||c.nature}${grp?' · regroupement':' · imputable'}</td>
+      ${f.soldes?`<td class="text-right whitespace-nowrap">${soldeHtml(grp?pcCumul(mvt,c.code):mvt[c.code],grp)}</td>`:''}
+      <td class="text-right whitespace-nowrap" onclick="event.stopPropagation()">
+        <button class="text-xs text-indigo-600 mr-2" title="Ajouter un sous-compte" onclick="comptaOuvrirCompteModal('','${c.code}')">＋ sous-compte</button>
+        <button class="text-xs text-gray-600 mr-2" onclick="comptaOuvrirCompteModal('${c.code}')">✎</button>
+        ${!c.standard&&!grp&&!utilises.has(c.code)?`<button class="text-xs text-red-500" onclick="comptaSupprimerCompte('${c.code}')">🗑</button>`:`<button class="text-xs text-gray-400" onclick="comptaDesactiverCompte('${c.code}')" title="Désactiver">⦸</button>`}</td></tr>`;
+  };
+  let corps='';
+  for(let k=1;k<=9;k++){
+    const K=String(k); if(!nbParClasse[K]) continue;
+    const ouvertCl=recherche||C.pcOuverts['cl'+K];
+    const vis=visibles.filter(c=>c.code[0]===K);
+    if(recherche&&!vis.length) continue;
+    const cum=f.soldes?pcCumul(mvt,K):null;
+    corps+=`<tr class="bg-slate-800 text-white ${recherche?'':'cursor-pointer'}" ${recherche?'':`onclick="comptaPcBasculer('cl${K}')"`}><td style="padding-left:10px" class="whitespace-nowrap">${ouvertCl?'▾':'▸'} <b>Classe ${K}</b></td><td class="font-semibold">${escapeHtml(SYSCO_CLASSES[K]||'')}</td><td class="text-xs opacity-75">${nbParClasse[K]} compte(s)</td>${f.soldes?`<td class="text-right">${cum&&(cum.debit||cum.credit)?money(Math.abs(cum.debit-cum.credit))+(cum.debit>=cum.credit?' D':' C'):'—'}</td>`:''}<td></td></tr>`;
+    if(ouvertCl) corps+=vis.map(ligne).join('');
+  }
+  host.innerHTML=`
+    <div class="flex flex-wrap justify-between items-start gap-3 mb-3">
+      <div><h3 class="font-bold">📒 Plan comptable SYSCOHADA révisé</h3>
+        <p class="text-xs text-gray-500 max-w-2xl">${A.tri.length} comptes actifs en arborescence : classe → compte principal (2 chiffres) → divisionnaire (3) → sous-comptes. Un compte qui a des sous-comptes est un <b>regroupement</b> : il totalise ses sous-comptes et n’est plus imputable. Un sous-compte hérite de la classe et de la nature de son parent.</p></div>
+      <div class="flex flex-wrap gap-2">
+        <button class="btn btn-outline btn-sm" onclick="comptaPcToutDeplier(true)">Tout déplier</button>
+        <button class="btn btn-outline btn-sm" onclick="comptaPcToutDeplier(false)">Tout replier</button>
+        <button class="btn btn-outline btn-sm" onclick="comptaOuvrirImportModal()">📤 Importer (CSV / Sage)</button>
+        <button class="btn btn-primary btn-sm" onclick="comptaOuvrirCompteModal('')">+ Compte</button>
+      </div>
+    </div>
+    ${alertes.length?`<div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 mb-3"><b>🔎 Audit du plan comptable</b><ul class="mt-1 space-y-0.5 list-disc pl-5">${alertes.map(a=>`<li>${a}</li>`).join('')}</ul></div>`:''}
+    <div class="flex flex-wrap gap-2 items-center mb-3">
+      <div class="flex-1 min-w-[220px]">${fieldWrap('🔎',`<input id="pcQ" placeholder="Code ou libellé (ex. 4452, TVA, carburant)…" value="${escapeHtml(f.q)}" oninput="clearTimeout(window._pcT);window._pcT=setTimeout(()=>{window._compta.pcFiltre.q=this.value;comptaRenderCycleView().then(()=>{const i=document.getElementById('pcQ');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}})},250)">`)}</div>
+      <select onchange="window._compta.pcFiltre.classe=this.value;comptaRenderCycleView()"><option value="">Toutes les classes</option>${Object.entries(SYSCO_CLASSES).filter(([k])=>nbParClasse[k]).map(([k,l])=>`<option value="${k}" ${f.classe===k?'selected':''}>Classe ${k} — ${escapeHtml(l)}</option>`).join('')}</select>
+      <label class="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" ${f.soldes?'checked':''} onchange="window._compta.pcFiltre.soldes=this.checked;comptaRenderCycleView()" style="width:15px;height:15px"> Soldes cumulés ${window._compta.annee}</label>
+    </div>
+    <div class="card overflow-x-auto"><table><thead><tr><th>Code</th><th>Libellé</th><th>Nature</th>${f.soldes?'<th class="text-right">Solde</th>':''}<th></th></tr></thead>
+      <tbody>${corps||'<tr><td colspan="5" class="text-gray-400 p-4 text-center">Aucun compte ne correspond.</td></tr>'}</tbody></table></div>`;
+}
+function comptaPcBasculer(k){ const o=window._compta.pcOuverts; o[k]=!o[k]; comptaRenderCycleView(); }
+function comptaPcToutDeplier(v){ const o=window._compta.pcOuverts={}; if(v){ for(let k=1;k<=9;k++) o['cl'+k]=true; pcArbre().tri.forEach(c=>{ if(compteEstRegroupement(c.code)) o[c.code]=true; }); } comptaRenderCycleView(); }
+/* Code libre suivant pour un sous-compte : parent + suffixe (4011 → 40111… ; 571 → 5711) */
+function compteProchainSousCode(parent){
+  const enf=compteEnfants(parent).filter(c=>/^\d+$/.test(c));
+  const lg=enf.length?Math.max(...enf.map(c=>c.length)):parent.length+1;
+  for(let i=1;i<10**(lg-parent.length);i++){ const c=parent+String(i).padStart(lg-parent.length,'0'); if(!pcArbre().index[c]) return c; }
+  return parent+'1';
+}
+function comptaOuvrirCompteModal(code,parentCode){
   const c=code?compteByCode(code):null;
+  const init=c?c.code:(parentCode?compteProchainSousCode(parentCode):'');
   openModal(`
-    <h3 class="font-bold text-lg mb-4">${c?'Modifier le compte':'Nouveau compte'}</h3>
-    <div class="field mb-3"><label>Code</label>${fieldWrap('#',`<input id="cptCode" value="${escapeHtml(c?.code||'')}" ${c?'readonly':''} placeholder="ex: 411000">`)}</div>
-    <div class="field mb-3"><label>Libellé</label>${fieldWrap('📝',`<input id="cptLibelle" value="${escapeHtml(c?.libelle||'')}">`)}</div>
+    <h3 class="font-bold text-lg mb-1">${c?'Modifier le compte':parentCode?'Nouveau sous-compte':'Nouveau compte'}</h3>
+    <p class="text-xs text-gray-500 mb-4">Le code détermine la place dans l’arborescence SYSCOHADA : le compte est rattaché au plus long compte existant dont il prolonge le code.</p>
+    <div class="grid sm:grid-cols-[180px_1fr] gap-3 mb-2">
+      <div class="field"><label>Code</label>${fieldWrap('#',`<input id="cptCode" inputmode="numeric" value="${escapeHtml(init)}" ${c?'readonly':''} oninput="comptaCompteHeriter()" placeholder="ex. 60420006">`)}</div>
+      <div class="field"><label>Libellé</label>${fieldWrap('📝',`<input id="cptLibelle" value="${escapeHtml(c?.libelle||'')}" placeholder="Intitulé du compte">`)}</div>
+    </div>
+    <div id="cptParentHint" class="text-xs mb-3"></div>
     <div class="grid sm:grid-cols-2 gap-3 mb-4">
-      <div class="field"><label>Classe</label>${fieldWrap('#',`<select id="cptClasse">${[1,2,3,4,5,6,7,8,9].map(n=>`<option value="${n}" ${n===(c?.classe||1)?'selected':''}>${n}</option>`).join('')}</select>`)}</div>
-      <div class="field"><label>Nature</label>${fieldWrap('◐',`<select id="cptNature">${['actif','passif','charge','produit','autre'].map(n=>`<option value="${n}" ${c?.nature===n?'selected':''}>${n.charAt(0).toUpperCase()+n.slice(1)}</option>`).join('')}</select>`)}</div>
+      <div class="field"><label>Classe</label>${fieldWrap('#',`<select id="cptClasse">${[1,2,3,4,5,6,7,8,9].map(n=>`<option value="${n}" ${n===(c?.classe||+(init[0]||1))?'selected':''}>${n} — ${escapeHtml(SYSCO_CLASSES[n])}</option>`).join('')}</select>`)}</div>
+      <div class="field"><label>Nature</label>${fieldWrap('◐',`<select id="cptNature">${Object.entries(NATURE_LABELS).map(([k,l])=>`<option value="${k}" ${c?.nature===k?'selected':''}>${l}</option>`).join('')}</select>`)}</div>
     </div>
     <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="comptaSauverCompte('${c?.code||''}')">Enregistrer</button></div>`);
+  comptaCompteHeriter(!!c);
+}
+function comptaCompteHeriter(edition){
+  const code=(document.getElementById('cptCode')?.value||'').trim(), hint=document.getElementById('cptParentHint'); if(!hint) return;
+  if(!code){ hint.innerHTML=''; return; }
+  if(!/^[1-9]\d*$/.test(code)){ hint.innerHTML='<span class="text-red-600">Le code doit être numérique et commencer par le chiffre de la classe (1 à 9).</span>'; return; }
+  const p=compteParentPourCode(code);
+  if(!edition){ document.getElementById('cptClasse').value=code[0]; if(p) document.getElementById('cptNature').value=p.nature; }
+  if(!p){ hint.innerHTML=`<span class="text-gray-500">Compte de premier niveau de la classe ${code[0]}.</span>`; return; }
+  const lib=document.getElementById('cptLibelle'); if(lib&&!lib.value) lib.placeholder=p.libelle+' — détail…';
+  const devient=!edition&&!compteEstRegroupement(p.code);
+  hint.innerHTML=`<span class="text-indigo-700">↳ Sous-compte de <b>${escapeHtml(p.code)} — ${escapeHtml(p.libelle)}</b> (classe et nature héritées).</span>${devient?`<div class="text-amber-700 mt-1">⚠ ${escapeHtml(p.code)} deviendra un compte de regroupement : il ne sera plus imputable directement.${comptaCompteUsagesTexte(p.code)}</div>`:''}`;
+}
+function comptaCompteUsagesTexte(code){
+  const u=COMPTES_DEFAUT_CLES.filter(d=>requireCompteDefaut(d.cle)===code).map(d=>d.label);
+  return u.length?` Il sert de compte par défaut pour : ${u.map(escapeHtml).join(', ')} — pensez à le remplacer par le nouveau sous-compte dans Paramètres → Comptabilité.`:'';
 }
 async function comptaSauverCompte(codeOriginal){
   const code=document.getElementById('cptCode').value.trim();
@@ -7534,83 +7674,233 @@ async function comptaSauverCompte(codeOriginal){
   const classe=+document.getElementById('cptClasse').value;
   const nature=document.getElementById('cptNature').value;
   if(!code||!libelle){ toast('Code et libellé requis.','error'); return; }
+  if(!/^[1-9]\d*$/.test(code)){ toast('Le code doit être numérique (ex. 60420006).','error'); return; }
+  if(String(classe)!==code[0]){ toast(`Un compte de classe ${classe} doit commencer par ${classe}.`,'error'); return; }
+  if(!codeOriginal && compteByCode(code)){ toast(`Le compte ${code} existe déjà.`,'error'); return; }
+  if(!codeOriginal){
+    const {data:inactif}=await sb.from('compta_comptes').select('code').eq('code',code).maybeSingle();
+    if(inactif){ const {error}=await sb.from('compta_comptes').update({libelle,classe,nature,actif:true}).eq('code',code); if(error){ toast(error.message,'error'); return; } toast('Compte réactivé.'); closeModal(); await comptaChargerReferentiel(true); comptaRenderCycleView(); return; }
+  }
   const rec={code,libelle,classe,nature,actif:true};
-  const {error}=codeOriginal?await sb.from('compta_comptes').update(rec).eq('code',codeOriginal):await sb.from('compta_comptes').insert(rec);
+  const {error}=codeOriginal?await sb.from('compta_comptes').update({libelle,classe,nature}).eq('code',codeOriginal):await sb.from('compta_comptes').insert(rec);
   if(error){ toast(error.message,'error'); return; }
+  const p=compteParentPourCode(code); if(p){ window._compta.pcOuverts['cl'+code[0]]=true; compteLignee(p.code).concat(p.code).forEach(x=>window._compta.pcOuverts[x]=true); }
   toast('Compte enregistré.'); closeModal();
   await comptaChargerReferentiel(true);
   comptaRenderCycleView();
 }
 async function comptaDesactiverCompte(code){
-  if(!confirm(`Désactiver le compte ${code} ? Il restera visible dans l'historique mais ne sera plus proposé en saisie.`)) return;
-  await sb.from('compta_comptes').update({actif:false}).eq('code',code);
-  await comptaChargerReferentiel(true);
-  comptaRenderCycleView();
+  if(compteEnfants(code).length){ toast(`Le compte ${code} a des sous-comptes actifs : désactivez-les d’abord.`,'error'); return; }
+  if(COMPTES_DEFAUT_CLES.some(d=>requireCompteDefaut(d.cle)===code)){ toast(`Le compte ${code} est un compte par défaut de la comptabilisation automatique (Paramètres → Comptabilité).`,'error'); return; }
+  if(!confirm(`Désactiver le compte ${code} ? Il reste dans l'historique mais n'est plus proposé en saisie.`)) return;
+  const {error}=await sb.from('compta_comptes').update({actif:false}).eq('code',code);
+  if(error){ toast(error.message,'error'); return; }
+  await comptaChargerReferentiel(true); comptaRenderCycleView();
+}
+async function comptaSupprimerCompte(code){
+  if(!confirm(`Supprimer définitivement le compte ${code} ? (jamais mouvementé)`)) return;
+  const {error}=await sb.from('compta_comptes').delete().eq('code',code);
+  if(error){ toast('Suppression impossible ('+error.message+') — désactivez-le plutôt.','error'); return; }
+  await comptaChargerReferentiel(true); comptaRenderCycleView();
+}
+/* ---------- Grand livre (un compte, ou un regroupement avec tous ses sous-comptes) ---------- */
+async function comptaRenderGrandLivre(host){
+  const C=window._compta, compteSel=C.grandLivreCompte||'';
+  const inclure=C.glSous!==false;
+  const ecritures=compteSel?await comptaChargerEcritures({}):[];
+  const lignes=[];
+  ecritures.forEach(e=>(e.compta_lignes||[]).forEach(l=>{ if(l.compte_code===compteSel||(inclure&&l.compte_code.startsWith(compteSel))) lignes.push({...l,ref:e.ref,date:e.date_ecriture,journal:e.journal_code,piece:e.piece,ecrLibelle:e.libelle}); }));
+  lignes.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:String(a.ref).localeCompare(String(b.ref)));
+  let solde=0; const rows=lignes.map(l=>{ solde+=(l.sens==='D'?1:-1)*(+l.montant||0); return {...l,solde}; });
+  const totD=lignes.filter(l=>l.sens==='D').reduce((s,l)=>s+(+l.montant||0),0), totC=lignes.filter(l=>l.sens==='C').reduce((s,l)=>s+(+l.montant||0),0);
+  const grp=compteSel&&compteEstRegroupement(compteSel);
+  host.innerHTML=`
+    <div class="flex flex-wrap gap-2 items-center mb-3">
+      <select onchange="window._compta.grandLivreCompte=this.value;comptaRenderCycleView()" style="min-width:320px"><option value="">— Choisir un compte ou un regroupement —</option>${compteOptionsHtml(compteSel,{groupes:true})}</select>
+      <label class="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" ${inclure?'checked':''} onchange="window._compta.glSous=this.checked;comptaRenderCycleView()" style="width:15px;height:15px"> Inclure les sous-comptes${compteSel?` (${escapeHtml(compteSel)}…)`:''}</label>
+    </div>
+    ${compteSel?`<div class="text-sm mb-2"><b>${escapeHtml(compteLabel(compteSel))}</b>${grp?` <span class="text-xs text-indigo-700">· regroupement de ${compteEnfants(compteSel).length} sous-compte(s)</span>`:''}</div>
+    <div class="card overflow-x-auto"><table><thead><tr><th>Date</th><th>Réf.</th><th>Jnl</th>${inclure&&grp?'<th>Compte</th>':''}<th>Libellé</th><th class="text-right">Débit</th><th class="text-right">Crédit</th><th class="text-right">Solde</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${fmtDate(r.date)}</td><td class="whitespace-nowrap">${escapeHtml(r.ref)}</td><td>${escapeHtml(r.journal)}</td>${inclure&&grp?`<td class="whitespace-nowrap text-xs">${escapeHtml(r.compte_code)}</td>`:''}<td>${escapeHtml(r.libelle||r.ecrLibelle)}${r.piece?` <span class="text-xs text-gray-400">· ${escapeHtml(r.piece)}</span>`:''}</td><td class="text-right">${r.sens==='D'?money(r.montant):''}</td><td class="text-right">${r.sens==='C'?money(r.montant):''}</td><td class="text-right font-semibold">${money(Math.abs(r.solde))} ${r.solde>=0?'D':'C'}</td></tr>`).join('')||`<tr><td colspan="8" class="text-gray-400 p-4 text-center">Aucun mouvement sur ${window._compta.annee}.</td></tr>`}</tbody>
+    <tfoot><tr class="font-bold border-t-2"><td colspan="${inclure&&grp?5:4}">Totaux</td><td class="text-right">${money(totD)}</td><td class="text-right">${money(totC)}</td><td class="text-right">${money(Math.abs(totD-totC))} ${totD>=totC?'D':'C'}</td></tr></tfoot></table></div>`
+    :'<div class="card text-center text-gray-400 p-8">Sélectionnez un compte — ou un compte de regroupement (ex. 401, 57, 6) pour voir tous ses sous-comptes.</div>'}`;
 }
 
-/* ---------- Bilan & Compte de résultat (agrégation par préfixe de compte, comme ImmoSuite) ---------- */
-async function comptaRenderBilan(host){
-  const balance=await comptaCalculerBalance();
-  const g=(prefixes)=>comptaSoldePrefixes(balance,prefixes);
-  const immos=g(['2']);
-  const stocks=g(['3']);
-  const creances=g(['409000','411000','416000','418000','422000','445000','444900']);
-  const treso=g(['5']);
-  const totalActif=immos+stocks+creances+treso;
-
-  const capitaux=-g(['101000','106000','110000']);
-  const chargesTot=g(['60','61','62','63','64','65','66','67','68','89']);
-  const produitsTot=-g(['70','75','77']);
-  const resultat=produitsTot-chargesTot;
-  const dettesFin=-g(['162000','168000']);
-  const fournisseurs=-g(['401000','408000']);
-  const dettesFiscales=-g(['419000','421000','431000','441000','443000','444100','447000']);
-  const totalPassif=capitaux+resultat+dettesFin+fournisseurs+dettesFiscales;
-  const ligne=(label,val,bold)=>`<tr class="${bold?'font-bold border-t':''}"><td>${label}</td><td class="text-right">${money(val)}</td></tr>`;
+/* ---------- Balance générale arborescente (classe → compte principal → divisionnaire → comptes) ---------- */
+async function comptaCalculerBalance(){
+  const ecritures=await comptaChargerEcritures({});
+  const map={};
+  ecritures.forEach(e=>(e.compta_lignes||[]).forEach(l=>{
+    map[l.compte_code]=map[l.compte_code]||{debit:0,credit:0};
+    if(l.sens==='D') map[l.compte_code].debit+=+l.montant; else map[l.compte_code].credit+=+l.montant;
+  }));
+  return Object.entries(map).map(([code,v])=>({code,debit:v.debit,credit:v.credit,solde:v.debit-v.credit})).sort((a,b)=>a.code.localeCompare(b.code));
+}
+function comptaSoldePrefixes(balance,prefixes){ return balance.filter(b=>prefixes.some(p=>b.code.startsWith(p))).reduce((s,b)=>s+b.solde,0); }
+async function comptaRenderBalance(host){
+  const C=window._compta, niv=C.balNiveau||'detail';
+  const bal=await comptaCalculerBalance(), A=pcArbre();
+  const totD=bal.reduce((s,b)=>s+b.debit,0), totC=bal.reduce((s,b)=>s+b.credit,0);
+  // Nœuds à afficher : ancêtres des comptes mouvementés (selon le niveau)
+  const noeuds={};
+  const ajoute=(code,b)=>{ const n=noeuds[code]=noeuds[code]||{code,debit:0,credit:0}; n.debit+=b.debit; n.credit+=b.credit; };
+  bal.forEach(b=>{
+    ajoute('cl'+b.code[0],b);
+    const chaine=[...compteLignee(b.code),b.code];
+    chaine.forEach(code=>{ const l=code.length; if(niv==='2'&&l>2) return; if(niv==='3'&&l>3) return; ajoute(code,b); });
+  });
+  const ordre=Object.keys(noeuds).sort((a,b)=>{ const ka=a.startsWith('cl')?a.slice(2):a, kb=b.startsWith('cl')?b.slice(2):b; return ka<kb?-1:ka>kb?1:(a.startsWith('cl')?-1:1); });
+  const sd=n=>Math.max(0,n.debit-n.credit), sc=n=>Math.max(0,n.credit-n.debit);
+  const rows=ordre.map(k=>{ const n=noeuds[k];
+    if(k.startsWith('cl')){ const K=k.slice(2); return `<tr class="bg-slate-100 font-bold"><td colspan="2">Classe ${K} — ${escapeHtml(SYSCO_CLASSES[K]||'')}</td><td class="text-right">${money(n.debit)}</td><td class="text-right">${money(n.credit)}</td><td class="text-right">${sd(n)?money(sd(n)):''}</td><td class="text-right">${sc(n)?money(sc(n)):''}</td></tr>`; }
+    const c=A.index[k], grp=compteEstRegroupement(k)&&!(bal.some(b=>b.code===k)&&!bal.some(b=>b.code!==k&&b.code.startsWith(k)));
+    const d=(A.prof[k]||0);
+    return `<tr class="${grp?'font-semibold text-indigo-900':''}"><td style="padding-left:${10+d*16}px" class="whitespace-nowrap">${escapeHtml(k)}</td><td>${escapeHtml(c?.libelle||'⚠️ Compte hors plan')}</td><td class="text-right">${money(n.debit)}</td><td class="text-right">${money(n.credit)}</td><td class="text-right">${sd(n)?money(sd(n)):''}</td><td class="text-right">${sc(n)?money(sc(n)):''}</td></tr>`;
+  }).join('');
   host.innerHTML=`
-    <div class="grid md:grid-cols-2 gap-4">
-      <div class="card p-4"><h3 class="font-bold mb-2">ACTIF</h3><table class="w-full text-sm">
-        ${ligne('Immobilisations nettes (classe 2)',immos)}${ligne('Stocks (classe 3)',stocks)}${ligne('Créances & emplois assimilés',creances)}${ligne('Trésorerie — actif',treso)}${ligne('TOTAL ACTIF',totalActif,true)}
-      </table></div>
-      <div class="card p-4"><h3 class="font-bold mb-2">PASSIF</h3><table class="w-full text-sm">
-        ${ligne('Capitaux propres',capitaux)}${ligne("Résultat net de l'exercice",resultat)}${ligne('Dettes financières',dettesFin)}${ligne('Fournisseurs',fournisseurs)}${ligne('Dettes fiscales & sociales',dettesFiscales)}${ligne('TOTAL PASSIF',totalPassif,true)}
-      </table></div>
+    <div class="flex flex-wrap gap-2 items-center justify-between mb-3">
+      <div class="text-sm text-gray-500">Balance générale ${C.annee} — sous-totaux par classe, compte principal et divisionnaire.</div>
+      <div class="flex rounded-lg border overflow-hidden text-xs">${[['2','Comptes principaux'],['3','Divisionnaires'],['detail','Détail']].map(([v,l])=>`<button class="px-3 py-1.5 font-semibold ${niv===v?'bg-indigo-600 text-white':''}" onclick="window._compta.balNiveau='${v}';comptaRenderCycleView()">${l}</button>`).join('')}</div>
     </div>
-    <div class="mt-3 text-center text-sm font-semibold ${Math.abs(totalActif-totalPassif)<100?'text-emerald-600':'text-red-600'}">${Math.abs(totalActif-totalPassif)<100?'✔ Bilan équilibré':'✕ Écart de '+money(Math.abs(totalActif-totalPassif))}</div>`;
+    <div class="card overflow-x-auto"><table><thead><tr><th>Compte</th><th>Libellé</th><th class="text-right">Mouvements débit</th><th class="text-right">Mouvements crédit</th><th class="text-right">Solde débiteur</th><th class="text-right">Solde créditeur</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="6" class="text-gray-400 p-4 text-center">Aucun mouvement.</td></tr>'}</tbody>
+    <tfoot><tr class="font-bold border-t-2"><td colspan="2">TOTAL GÉNÉRAL</td><td class="text-right">${money(totD)}</td><td class="text-right">${money(totC)}</td><td colspan="2" class="text-right">${Math.abs(totD-totC)<1?'✔ Équilibrée':'✕ Écart '+money(Math.abs(totD-totC))}</td></tr></tfoot></table></div>`;
+}
+
+/* ---------- États financiers SYSCOHADA révisé (système normal) ---------- */
+function syscoCalculs(bal){
+  const P=(pfx,excl)=>bal.filter(b=>pfx.some(p=>b.code.startsWith(p))&&!(excl||[]).some(x=>b.code.startsWith(x)));
+  const S=(pfx,excl)=>P(pfx,excl).reduce((s,b)=>s+b.solde,0);                        // solde débiteur net (D − C)
+  const Dsum=(pfx,excl)=>P(pfx,excl).reduce((s,b)=>s+Math.max(0,b.solde),0);         // comptes à solde débiteur
+  const Csum=(pfx,excl)=>P(pfx,excl).reduce((s,b)=>s+Math.max(0,-b.solde),0);        // comptes à solde créditeur
+  // Compte de résultat (références SYSCOHADA : TA… produits, RA… charges, XA… soldes)
+  const R={};
+  R.TA=-S(['701']); R.RA=S(['601']); R.RB=S(['6031']);
+  R.XA=R.TA-R.RA-R.RB;
+  R.TB=-S(['702','703','704']); R.TC=-S(['705','706']); R.TD=-S(['707']);
+  R.XB=R.TA+R.TB+R.TC+R.TD;
+  R.TE=-S(['73']); R.TF=-S(['72']); R.TG=-S(['71']); R.TH=-S(['75']); R.TI=-S(['781']);
+  R.RC=S(['602']); R.RD=S(['6032']); R.RE=S(['604','605','608']); R.RF=S(['6033']); R.RG=S(['61']); R.RH=S(['62','63']); R.RI=S(['64']); R.RJ=S(['65']);
+  R.XC=R.XB+R.TE+R.TF+R.TG+R.TH+R.TI-R.RA-R.RB-R.RC-R.RD-R.RE-R.RF-R.RG-R.RH-R.RI-R.RJ;
+  R.RK=S(['66']); R.XD=R.XC-R.RK;
+  R.TJ=-S(['791','798','799']); R.RL=S(['681','691']); R.XE=R.XD+R.TJ-R.RL;
+  R.TK=-S(['77']); R.TL=-S(['797']); R.TM=-S(['787']); R.RM=S(['67']); R.RN=S(['697']);
+  R.XF=R.TK+R.TL+R.TM-R.RM-R.RN; R.XG=R.XE+R.XF;
+  R.TN=-S(['82']); R.TO=-S(['84','86','88']); R.RO=S(['81']); R.RP=S(['83','85']);
+  R.XH=R.TN+R.TO-R.RO-R.RP;
+  R.RQ=S(['87']); R.RS=S(['89']);
+  R.XI=-S(['6','7','8']);                         // résultat net = produits − charges de toutes les classes 6, 7, 8
+  R._ecart=R.XI-(R.XG+R.XH-R.RQ-R.RS);              // comptes non classés dans une rubrique (ex. compte propre hors nomenclature)
+  // Bilan : chaque compte des classes 1 à 5 est classé une seule fois ; tiers et trésorerie selon le sens de leur solde
+  const B={};
+  B.AD=S(['21','281','291']); B.AE=S(['22','23','24','282','283','284','292','293','294']); B.AF=S(['25','295']); B.AG=S(['26','27','296','297']);
+  B.AZ=B.AD+B.AE+B.AF+B.AG;
+  B.BA=Dsum(['48'])+S(['498']);
+  B.BB=S(['3']);
+  B.BH=Dsum(['40']); B.BI=Dsum(['41'])+S(['491']);
+  B.BJ=Dsum(['42','43','44','45','46','47'],['478','479'])+S(['490','492','493','494','495','496','497']);
+  B.BK=B.BA+B.BB+B.BH+B.BI+B.BJ;
+  B.BQ=Dsum(['50']); B.BR=Dsum(['51']); B.BS=Dsum(['52','53','54','55','56','57','58'])+S(['59'],['599']);
+  B.BT=B.BQ+B.BR+B.BS; B.BU=Dsum(['478','479']);
+  B.BZ=B.AZ+B.BK+B.BT+B.BU;
+  B.CA=-S(['10'],['105','106','109']); B.CB=-S(['109']); B.CD=-S(['105']); B.CE=-S(['106']); B.CF=-S(['11'],['118']); B.CG=-S(['118']);
+  B.CH=-S(['12']); B.CJ=-S(['13'])+R.XI; B.CL=-S(['14']); B.CM=-S(['15']);
+  B.CP=B.CA+B.CB+B.CD+B.CE+B.CF+B.CG+B.CH+B.CJ+B.CL+B.CM;
+  B.DA=-S(['16','18']); B.DB=-S(['17']); B.DC=-S(['19']); B.DD=B.DA+B.DB+B.DC;
+  B.DF=B.CP+B.DD;
+  B.DH=Csum(['48'])-S(['499']); B.DI=Csum(['41']); B.DJ=Csum(['40']);
+  B.DK=Csum(['42','43','44']); B.DM=Csum(['45','46','47'],['478','479']); B.DN=0;
+  B.DP=B.DH+B.DI+B.DJ+B.DK+B.DM+B.DN;
+  B.DQ=Csum(['564','565']); B.DR=Csum(['50','51','52','53','54','55','56','57','58'],['564','565'])-S(['599']);
+  B.DT=B.DQ+B.DR; B.DV=Csum(['478','479']);
+  B.DZ=B.DF+B.DP+B.DT+B.DV;
+  return {R,B};
+}
+function syscoTable(titre,lignes,V,couleur){
+  return `<div class="card p-0 overflow-hidden"><div class="px-4 py-2 font-bold text-white" style="background:${couleur}">${titre}</div><table class="w-full text-sm"><tbody>${lignes.map(([ref,lib,style])=>{
+    const v=V[ref]||0, tot=style==='t', sol=style==='s';
+    return `<tr class="${tot?'bg-slate-100 font-bold':sol?'bg-indigo-50 font-bold text-indigo-900':''}"><td class="text-xs text-gray-400 w-10 pl-3">${ref}</td><td class="${tot||sol?'':'pl-2'}">${lib}</td><td class="text-right pr-4 whitespace-nowrap ${v<0?'text-red-600':''}">${money(v)}</td></tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+const SYSCO_BILAN_ACTIF=[['AD','Immobilisations incorporelles'],['AE','Immobilisations corporelles'],['AF','Avances et acomptes versés sur immobilisations'],['AG','Immobilisations financières'],['AZ','TOTAL ACTIF IMMOBILISÉ','t'],
+  ['BA','Actif circulant HAO'],['BB','Stocks et encours'],['BH','Fournisseurs, avances versées'],['BI','Clients'],['BJ','Autres créances'],['BK','TOTAL ACTIF CIRCULANT','t'],
+  ['BQ','Titres de placement'],['BR','Valeurs à encaisser'],['BS','Banques, chèques postaux, caisse et assimilés'],['BT','TOTAL TRÉSORERIE-ACTIF','t'],['BU','Écart de conversion-Actif'],['BZ','TOTAL GÉNÉRAL','s']];
+const SYSCO_BILAN_PASSIF=[['CA','Capital'],['CB','Apporteurs capital non appelé (−)'],['CD','Primes liées au capital social'],['CE','Écarts de réévaluation'],['CF','Réserves indisponibles'],['CG','Réserves libres'],['CH','Report à nouveau (+ ou −)'],['CJ','Résultat net de l’exercice (bénéfice + ou perte −)'],['CL','Subventions d’investissement'],['CM','Provisions réglementées'],['CP','TOTAL CAPITAUX PROPRES ET RESSOURCES ASSIMILÉES','t'],
+  ['DA','Emprunts et dettes financières diverses'],['DB','Dettes de location-acquisition'],['DC','Provisions pour risques et charges'],['DD','TOTAL DETTES FINANCIÈRES ET RESSOURCES ASSIMILÉES','t'],['DF','TOTAL RESSOURCES STABLES','t'],
+  ['DH','Dettes circulantes HAO'],['DI','Clients, avances reçues'],['DJ','Fournisseurs d’exploitation'],['DK','Dettes fiscales et sociales'],['DM','Autres dettes'],['DP','TOTAL PASSIF CIRCULANT','t'],
+  ['DQ','Banques, crédits d’escompte'],['DR','Banques, établissements financiers et crédits de trésorerie'],['DT','TOTAL TRÉSORERIE-PASSIF','t'],['DV','Écart de conversion-Passif'],['DZ','TOTAL GÉNÉRAL','s']];
+const SYSCO_RESULTAT=[['TA','Ventes de marchandises (701)'],['RA','Achats de marchandises (601)'],['RB','Variation de stocks de marchandises (6031)'],['XA','MARGE COMMERCIALE','s'],
+  ['TB','Ventes de produits fabriqués (702 à 704)'],['TC','Travaux, services vendus (705, 706)'],['TD','Produits accessoires (707)'],['XB','CHIFFRE D’AFFAIRES','s'],
+  ['TE','Production stockée (ou déstockage) (73)'],['TF','Production immobilisée (72)'],['TG','Subventions d’exploitation (71)'],['TH','Autres produits (75)'],['TI','Transferts de charges d’exploitation (781)'],
+  ['RC','Achats de matières premières et fournitures liées (602)'],['RD','Variation de stocks de matières premières (6032)'],['RE','Autres achats (604, 605, 608)'],['RF','Variation de stocks d’autres approvisionnements (6033)'],['RG','Transports (61)'],['RH','Services extérieurs (62, 63)'],['RI','Impôts et taxes (64)'],['RJ','Autres charges (65)'],['XC','VALEUR AJOUTÉE','s'],
+  ['RK','Charges de personnel (66)'],['XD','EXCÉDENT BRUT D’EXPLOITATION','s'],['TJ','Reprises d’amortissements, provisions et dépréciations (791, 798, 799)'],['RL','Dotations aux amortissements, provisions et dépréciations (681, 691)'],['XE','RÉSULTAT D’EXPLOITATION','s'],
+  ['TK','Revenus financiers et assimilés (77)'],['TL','Reprises de provisions financières (797)'],['TM','Transferts de charges financières (787)'],['RM','Frais financiers et charges assimilées (67)'],['RN','Dotations aux provisions financières (697)'],['XF','RÉSULTAT FINANCIER','s'],
+  ['XG','RÉSULTAT DES ACTIVITÉS ORDINAIRES','s'],['TN','Produits des cessions d’immobilisations (82)'],['TO','Autres produits HAO (84, 86, 88)'],['RO','Valeurs comptables des cessions (81)'],['RP','Autres charges HAO (83, 85)'],['XH','RÉSULTAT HORS ACTIVITÉS ORDINAIRES','s'],
+  ['RQ','Participation des travailleurs (87)'],['RS','Impôts sur le résultat (89)'],['XI','RÉSULTAT NET','s']];
+async function comptaRenderBilan(host){
+  const bal=await comptaCalculerBalance(), {B}=syscoCalculs(bal);
+  const ecart=B.BZ-B.DZ;
+  window._syscoEtat={titre:'BILAN',html:()=>`<div class="grid md:grid-cols-2 gap-4">${syscoTable('ACTIF',SYSCO_BILAN_ACTIF,B,'#1e3a8a')}${syscoTable('PASSIF',SYSCO_BILAN_PASSIF,B,'#7c2d12')}</div>`};
+  host.innerHTML=`<div class="flex flex-wrap justify-between items-center gap-2 mb-3"><div><h3 class="font-bold">Bilan SYSCOHADA révisé — exercice ${window._compta.annee}</h3><p class="text-xs text-gray-500">Système normal. Les comptes de tiers et de trésorerie sont classés à l’actif ou au passif selon le sens de leur solde ; le résultat de l’exercice non clôturé est calculé à partir des classes 6, 7 et 8.</p></div><button class="btn btn-outline btn-sm" onclick="comptaImprimerEtat()">🖨 Imprimer</button></div>
+    ${window._syscoEtat.html()}
+    <div class="mt-3 text-center text-sm font-semibold ${Math.abs(ecart)<1?'text-emerald-600':'text-red-600'}">${Math.abs(ecart)<1?'✔ Bilan équilibré (Actif = Passif)':'✕ Écart actif − passif : '+money(ecart)+' — vérifiez les écritures non équilibrées ou les comptes hors plan'}</div>`;
 }
 async function comptaRenderCompteResultat(host){
-  const balance=await comptaCalculerBalance();
-  const g=(prefixes)=>comptaSoldePrefixes(balance,prefixes);
-  const achats=g(['60']),transports=g(['61']),servExtA=g(['62']),servExtB=g(['63']),impotsTaxes=g(['64']),autresCharges=g(['65']),chargesPersonnel=g(['66']),fraisFin=g(['67']),dotations=g(['68']),impotResultat=g(['89']);
-  const ventes=-g(['70']),autresProduits=-g(['75']),produitsFin=-g(['77']);
-  const ca=ventes+autresProduits;
-  const va=ca-achats-transports-servExtA-servExtB;
-  const ebe=va-chargesPersonnel-impotsTaxes;
-  const resExploit=ebe-dotations;
-  const resFin=produitsFin-fraisFin;
-  const resAvantImpot=resExploit+resFin;
-  const resNet=resAvantImpot-impotResultat;
-  const ligne=(label,val,bold)=>`<tr class="${bold?'font-bold border-t':''}"><td>${label}</td><td class="text-right">${money(val)}</td></tr>`;
-  host.innerHTML=`
-    <div class="grid md:grid-cols-2 gap-4">
-      <div class="card p-4"><h3 class="font-bold mb-2 text-red-700">CHARGES</h3><table class="w-full text-sm">
-        ${ligne('Achats consommés',achats)}${ligne('Transports',transports)}${ligne('Services extérieurs A',servExtA)}${ligne('Services extérieurs B',servExtB)}${ligne('Impôts et taxes',impotsTaxes)}${ligne('Autres charges',autresCharges)}${ligne('Charges de personnel',chargesPersonnel)}${ligne('Frais financiers',fraisFin)}${ligne('Dotations aux amortissements',dotations)}${ligne('Impôt sur le résultat',impotResultat)}
-      </table></div>
-      <div class="card p-4"><h3 class="font-bold mb-2 text-emerald-700">PRODUITS</h3><table class="w-full text-sm">${ligne('Ventes',ventes)}${ligne('Autres produits',autresProduits)}${ligne('Produits financiers',produitsFin)}</table></div>
-    </div>
-    <div class="card p-4 mt-4"><h3 class="font-bold mb-2">Soldes intermédiaires de gestion</h3><table class="w-full text-sm">
-      ${ligne("Chiffre d'affaires",ca)}${ligne('Valeur ajoutée',va)}${ligne("Excédent brut d'exploitation (EBE)",ebe)}${ligne("Résultat d'exploitation",resExploit)}${ligne('Résultat financier',resFin)}${ligne('Résultat avant impôt',resAvantImpot)}${ligne("RÉSULTAT NET DE L'EXERCICE",resNet,true)}
-    </table></div>`;
+  const bal=await comptaCalculerBalance(), {R}=syscoCalculs(bal);
+  window._syscoEtat={titre:'COMPTE DE RÉSULTAT',html:()=>syscoTable('COMPTE DE RÉSULTAT — en FCFA',SYSCO_RESULTAT,R,'#065f46')};
+  host.innerHTML=`<div class="flex flex-wrap justify-between items-center gap-2 mb-3"><div><h3 class="font-bold">Compte de résultat SYSCOHADA révisé — exercice ${window._compta.annee}</h3><p class="text-xs text-gray-500">Présentation en liste avec les soldes significatifs de gestion (marge commerciale, valeur ajoutée, EBE, résultats d’exploitation, financier, HAO et net).</p></div><button class="btn btn-outline btn-sm" onclick="comptaImprimerEtat()">🖨 Imprimer</button></div>
+    <div class="grid lg:grid-cols-[minmax(0,1fr)_300px] gap-4">${window._syscoEtat.html()}
+      <div class="space-y-2">${Math.abs(R._ecart)>=1?`<div class="card p-3 border-amber-300 bg-amber-50 text-xs text-amber-800">⚠ ${money(R._ecart)} proviennent de comptes 6/7/8 hors des rubriques SYSCOHADA (compte créé hors nomenclature) : ils sont inclus dans le résultat net.</div>`:''}${[['XB',"Chiffre d'affaires"],['XC','Valeur ajoutée'],['XD','EBE'],['XE',"Résultat d'exploitation"],['XI','Résultat net']].map(([k,l])=>`<div class="card p-3"><div class="text-xs text-gray-400">${l}</div><div class="text-lg font-black ${R[k]<0?'text-red-600':''}">${money(R[k])}</div></div>`).join('')}</div></div>`;
 }
-
-/* ---------- Clôture d'exercice (solde 6/7/89 → résultat, verrouille, génère les à-nouveaux) ---------- */
+function comptaImprimerEtat(){
+  const e=window._syscoEtat; if(!e) return;
+  const win=window.open('','_blank','width=1000,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const css=[...document.querySelectorAll('style')].map(s=>s.outerHTML).join('');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${e.titre} ${window._compta.annee}</title>${css}<style>body{font-family:Arial,sans-serif;padding:24px;font-size:12px}.card{border:1px solid #e5e7eb;border-radius:8px}td{padding:4px 6px;border-bottom:1px solid #f1f5f9}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media print{.noprint{display:none}}</style></head><body>
+    <div class="noprint" style="text-align:right"><button onclick="window.print()">🖨 Imprimer</button></div>${printCompanyHeaderHtml()}
+    <h1 style="font-size:17px;margin:0">${e.titre} — SYSCOHADA RÉVISÉ</h1><div style="color:#64748b;margin-bottom:12px">Exercice ${window._compta.annee} · montants en FCFA · édité le ${new Date().toLocaleString('fr-FR')}</div>${e.html()}
+    <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`);
+  win.document.close();
+}
+/* ---------- Clôture d'exercice : inventaire (variation des stocks) → soldes 6/7/8 → résultat 131/139 → à-nouveaux ---------- */
 async function comptaRenderCloture(host){
   const ex=exerciceActif();
-  host.innerHTML=`<div class="card p-4">
-    <h3 class="font-bold mb-2">Clôture de l'exercice ${ex?.annee||''}</h3>
-    <p class="text-sm text-gray-500 mb-4">${ex?.statut==='cloture'?'Cet exercice est clôturé : aucune nouvelle écriture ne peut y être saisie.':"Solde les comptes de charges et produits vers le résultat, verrouille l'exercice et génère les à-nouveaux sur l'exercice suivant."}</p>
-    ${ex?.statut==='cloture'?`<span class="badge bg-gray-100 text-gray-500">🔒 Clôturé le ${fmtDate(ex.cloture_le)} par ${escapeHtml(ex.cloture_par||'')}</span>`:`<button class="btn btn-primary" onclick="comptaCloturerExercice()">🔒 Clôturer l'exercice ${ex?.annee||''}</button>`}
-  </div>`;
+  const {data:varStock}=ex?await sb.from('compta_ecritures').select('id,ref,date_ecriture').eq('exercice_annee',ex.annee).eq('source_type','variation_stocks').limit(1):{data:[]};
+  host.innerHTML=`<div class="grid md:grid-cols-2 gap-4">
+    <div class="card p-4">
+      <h3 class="font-bold mb-1">① Inventaire — variation des stocks ${ex?.annee||''}</h3>
+      <p class="text-sm text-gray-500 mb-3">Méthode de l’inventaire intermittent (SYSCOHADA) : les achats sont passés en charges (602, 604) ; en fin d’exercice, le stock final valorisé au CMUP est constaté en classe 3 et l’écart avec le stock initial passe en variation de stocks (6032, 6033).</p>
+      ${varStock&&varStock.length?`<span class="badge bg-emerald-50 text-emerald-700">✔ Constatée — écriture ${escapeHtml(varStock[0].ref)}</span>`:ex?.statut==='cloture'?'':`<button class="btn btn-outline" onclick="comptaVariationStocks()">📦 Calculer et constater la variation des stocks</button>`}
+    </div>
+    <div class="card p-4">
+      <h3 class="font-bold mb-1">② Clôture de l'exercice ${ex?.annee||''}</h3>
+      <p class="text-sm text-gray-500 mb-3">${ex?.statut==='cloture'?'Cet exercice est clôturé : aucune nouvelle écriture ne peut y être saisie.':"Solde les comptes des classes 6, 7 et 8 vers le résultat (131 bénéfice / 139 perte), verrouille l'exercice et génère les à-nouveaux des classes 1 à 5 sur l'exercice suivant."}</p>
+      ${ex?.statut==='cloture'?`<span class="badge bg-gray-100 text-gray-500">🔒 Clôturé le ${fmtDate(ex.cloture_le)} par ${escapeHtml(ex.cloture_par||'')}</span>`:`<button class="btn btn-primary" onclick="comptaCloturerExercice()">🔒 Clôturer l'exercice ${ex?.annee||''}</button>`}
+    </div></div>`;
+}
+async function comptaVariationStocks(){
+  await comptaChargerReferentiel();
+  const ex=exerciceActif(); if(!ex||ex.statut==='cloture') return;
+  const {data:comps}=await sb.from('composants').select('nom,type,famille,stock_actuel,cmup,prix_unitaire');
+  const sf={}, variation={};
+  (comps||[]).forEach(c=>{ const v=Math.max(0,+c.stock_actuel||0)*(+c.cmup||+c.prix_unitaire||0); if(v<=0) return; const k=comptesStockComposant(c); sf[k.stock]=(sf[k.stock]||0)+v; variation[k.stock]=k.variation; });
+  const bal=await comptaCalculerBalance();
+  const comptes=new Set([...Object.keys(sf),...bal.filter(b=>/^3/.test(b.code)&&Math.abs(b.solde)>=1&&!compteEstRegroupement(b.code)).map(b=>b.code)]);
+  const lignes=[]; const detail=[];
+  comptes.forEach(code=>{
+    const si=bal.find(b=>b.code===code)?.solde||0, fin=Math.round(sf[code]||0), diff=fin-si;
+    const cv=variation[code]||(code.startsWith('33')?requireCompteDefaut('variation_consommables'):requireCompteDefaut('variation_matieres'));
+    detail.push({code,si,fin,diff});
+    if(Math.abs(diff)<1) return;
+    lignes.push(diff>0?{compte_code:code,sens:'D',montant:diff,libelle:'Stock final '+ex.annee}:{compte_code:code,sens:'C',montant:-diff,libelle:'Déstockage '+ex.annee});
+    lignes.push(diff>0?{compte_code:cv,sens:'C',montant:diff,libelle:'Variation des stocks'}:{compte_code:cv,sens:'D',montant:-diff,libelle:'Variation des stocks'});
+  });
+  if(!detail.length){ toast('Aucun stock valorisé ni compte de stock mouvementé.','error'); return; }
+  if(!confirm(`Variation des stocks au ${fmtDate(ex.date_fin)} :\n\n${detail.map(d=>`${d.code} — ${compteByCode(d.code)?.libelle||''}\n   stock initial ${money(d.si)} → stock final ${money(d.fin)} (variation ${money(d.diff)})`).join('\n')}\n\nPasser l'écriture d'inventaire ?`)) return;
+  if(!lignes.length){ toast('Stocks inchangés : aucune écriture nécessaire.'); return; }
+  try{ await comptaEcritureAuto({date_ecriture:ex.date_fin,journal_code:'INV',libelle:`Inventaire ${ex.annee} — variation des stocks`,source_type:'variation_stocks'},lignes); toast('Variation des stocks constatée.'); }
+  catch(e){ toast(e.message,'error'); }
+  comptaRenderCycleView();
 }
 async function comptaCloturerExercice(){
   await comptaChargerReferentiel();
@@ -7619,24 +7909,20 @@ async function comptaCloturerExercice(){
   if(ex.statut==='cloture'){ toast('Exercice déjà clôturé.','error'); return; }
   const balanceAvant=await comptaCalculerBalance();
   const lignesCloture=[];
-  balanceAvant.filter(b=>/^(6|7|89)/.test(b.code)).forEach(b=>{
+  balanceAvant.filter(b=>/^[678]/.test(b.code)).forEach(b=>{
     if(Math.abs(b.solde)<1) return;
-    if(b.solde>0) lignesCloture.push({compte_code:b.code,sens:'C',montant:b.solde,libelle:'Solde de clôture'});
-    else lignesCloture.push({compte_code:b.code,sens:'D',montant:-b.solde,libelle:'Solde de clôture'});
+    lignesCloture.push(b.solde>0?{compte_code:b.code,sens:'C',montant:b.solde,libelle:'Solde de clôture'}:{compte_code:b.code,sens:'D',montant:-b.solde,libelle:'Solde de clôture'});
   });
-  const totD=lignesCloture.reduce((s,l)=>s+(l.sens==='D'?l.montant:0),0);
-  const totC=lignesCloture.reduce((s,l)=>s+(l.sens==='C'?l.montant:0),0);
-  const ecart=totD-totC;
-  const resultat=ecart;
-  if(ecart>0) lignesCloture.push({compte_code:'120000',sens:'C',montant:ecart,libelle:'Résultat net — bénéfice'});
-  else if(ecart<0) lignesCloture.push({compte_code:'129000',sens:'D',montant:-ecart,libelle:'Résultat net — perte'});
-  if(!confirm(`Clôturer l'exercice ${ex.annee} ?\nRésultat net : ${money(resultat)} (${resultat>=0?'bénéfice':'perte'}).\nCette action verrouille toute nouvelle écriture sur ${ex.annee} et génère les à-nouveaux sur ${ex.annee+1}.`)) return;
-
+  const totD=lignesCloture.reduce((s,l)=>s+(l.sens==='D'?l.montant:0),0), totC=lignesCloture.reduce((s,l)=>s+(l.sens==='C'?l.montant:0),0);
+  const resultat=totD-totC;
+  if(resultat>0) lignesCloture.push({compte_code:'131',sens:'C',montant:resultat,libelle:'Résultat net — bénéfice'});
+  else if(resultat<0) lignesCloture.push({compte_code:'139',sens:'D',montant:-resultat,libelle:'Résultat net — perte'});
+  const {data:varStock}=await sb.from('compta_ecritures').select('id').eq('exercice_annee',ex.annee).eq('source_type','variation_stocks').limit(1);
+  if(!confirm(`Clôturer l'exercice ${ex.annee} ?\nRésultat net : ${money(resultat)} (${resultat>=0?'bénéfice → 131':'perte → 139'}).${varStock&&varStock.length?'':'\n⚠ La variation des stocks n’a pas été constatée (étape ①).'}\nCette action verrouille toute nouvelle écriture sur ${ex.annee} et génère les à-nouveaux sur ${ex.annee+1}.`)) return;
   const refCloture=await genererRefEcriture(ex.annee);
-  const {data:ecrCloture,error:errC}=await sb.from('compta_ecritures').insert({ref:refCloture,exercice_annee:ex.annee,date_ecriture:ex.date_fin,journal_code:'CLO',libelle:"Clôture de l'exercice "+ex.annee,source:'auto',valide_le:new Date().toISOString(),valide_par:CURRENT_USER.email,created_by:CURRENT_USER.id}).select().single();
+  const {data:ecrCloture,error:errC}=await sb.from('compta_ecritures').insert({ref:refCloture,exercice_annee:ex.annee,date_ecriture:ex.date_fin,journal_code:'CLO',libelle:"Clôture de l'exercice "+ex.annee,source:'auto',source_type:'cloture',valide_le:new Date().toISOString(),valide_par:CURRENT_USER.email,created_by:CURRENT_USER.id}).select().single();
   if(errC){ toast(errC.message,'error'); return; }
-  if(lignesCloture.length) await sb.from('compta_lignes').insert(lignesCloture.map(l=>({...l,ecriture_id:ecrCloture.id})));
-
+  if(lignesCloture.length){ const {error}=await sb.from('compta_lignes').insert(lignesCloture.map(l=>({...l,ecriture_id:ecrCloture.id}))); if(error){ await sb.from('compta_ecritures').delete().eq('id',ecrCloture.id); toast(error.message,'error'); return; } }
   const anneeSuivante=ex.annee+1;
   let exSuivant=exerciceParAnnee(anneeSuivante);
   if(!exSuivant){
@@ -7648,12 +7934,11 @@ async function comptaCloturerExercice(){
   const lignesAN=[];
   balanceApres.filter(b=>/^[12345]/.test(b.code)).forEach(b=>{
     if(Math.abs(b.solde)<1) return;
-    if(b.solde>0) lignesAN.push({compte_code:b.code,sens:'D',montant:b.solde,libelle:'À-nouveau'});
-    else lignesAN.push({compte_code:b.code,sens:'C',montant:-b.solde,libelle:'À-nouveau'});
+    lignesAN.push(b.solde>0?{compte_code:b.code,sens:'D',montant:b.solde,libelle:'À-nouveau'}:{compte_code:b.code,sens:'C',montant:-b.solde,libelle:'À-nouveau'});
   });
   if(lignesAN.length){
     const refAN=await genererRefEcriture(anneeSuivante);
-    const {data:ecrAN,error:errAN}=await sb.from('compta_ecritures').insert({ref:refAN,exercice_annee:anneeSuivante,date_ecriture:exSuivant.date_debut,journal_code:'AN',libelle:"À-nouveaux depuis clôture "+ex.annee,source:'auto',valide_le:new Date().toISOString(),valide_par:CURRENT_USER.email,created_by:CURRENT_USER.id}).select().single();
+    const {data:ecrAN,error:errAN}=await sb.from('compta_ecritures').insert({ref:refAN,exercice_annee:anneeSuivante,date_ecriture:exSuivant.date_debut,journal_code:'AN',libelle:"À-nouveaux depuis clôture "+ex.annee,source:'auto',source_type:'a_nouveaux',valide_le:new Date().toISOString(),valide_par:CURRENT_USER.email,created_by:CURRENT_USER.id}).select().single();
     if(!errAN) await sb.from('compta_lignes').insert(lignesAN.map(l=>({...l,ecriture_id:ecrAN.id})));
   }
   await sb.from('compta_exercices').update({statut:'cloture',cloture_le:new Date().toISOString(),cloture_par:CURRENT_USER.email}).eq('id',ex.id);
@@ -7662,10 +7947,84 @@ async function comptaCloturerExercice(){
   comptaRenderCycleView();
 }
 
+/* ---------- Comptabilisation automatique : caisse (bons avec compte choisi, transferts), rattrapage des pièces ---------- */
+let _comptaAutoCaisseEnCours=false;
+async function comptaAutoCaisse(opts){
+  opts=opts||{};
+  if(_comptaAutoCaisseEnCours || !navigator.onLine) return {ok:0,echec:0};
+  _comptaAutoCaisseEnCours=true;
+  let ok=0, echec=0; const erreurs=[];
+  try{
+    await comptaChargerReferentiel(); if(!window.APP_PARAMS) await loadAppParams();
+    const {data:mvts}=await sb.from('caisse_mouvements').select('*, caisses(compte_code,nom)').eq('statut','a_ventiler').or('compte_ventile.not.is.null,transfert_id.not.is.null').order('created_at').limit(300);
+    for(const m of mvts||[]){
+      const compte=m.compte_ventile||requireCompteDefaut('virement_interne');
+      const r=await caisseExecuterVentilation(m,compte,false);
+      if(r.ok) ok++; else if(!r.deja){ echec++; erreurs.push(`${m.numero||''} : ${r.message}`); }
+    }
+  }finally{ _comptaAutoCaisseEnCours=false; }
+  if(!opts.silencieux && (ok||echec)) toast(`⚡ ${ok} mouvement(s) de caisse comptabilisé(s)${echec?` · ${echec} en échec : ${erreurs.slice(0,2).join(' ; ')}`:''}.`,echec?'error':'success');
+  return {ok,echec,erreurs};
+}
+/* Contre-passation automatique d'une écriture générée (annulation d'une pièce) */
+async function comptaContrePasserSource(sourceType,sourceId,libelle){
+  const {data:ecrs}=await sb.from('compta_ecritures').select('*, compta_lignes(*)').eq('source_type',sourceType).eq('source_id',sourceId);
+  const aAnnuler=(ecrs||[]).filter(e=>!e.contre_passation_de && !(ecrs||[]).some(x=>x.contre_passation_de===e.id));
+  for(const e of aAnnuler){
+    const date=exerciceEstClos(e.date_ecriture)?new Date().toISOString().slice(0,10):e.date_ecriture;
+    await comptaEcritureAuto({date_ecriture:date,journal_code:e.journal_code,piece:e.piece,libelle:(libelle||'Annulation')+' — '+e.libelle,source_type:sourceType,source_id:sourceId,contre_passation_de:e.id},
+      (e.compta_lignes||[]).map(l=>({compte_code:l.compte_code,sens:l.sens==='D'?'C':'D',montant:+l.montant,libelle:l.libelle,tiers_type:l.tiers_type,tiers_id:l.tiers_id})));
+  }
+  return aAnnuler.length;
+}
+/* Tableau de bord des automatismes : pièces de gestion non encore comptabilisées */
+async function comptaChargerAutomatismes(){
+  const [{data:factures},{data:ecrF},{data:ventes},{data:mvts},{data:paiements}]=await Promise.all([
+    sb.from('factures').select('id,code,total,date_facture,statut'),
+    sb.from('compta_ecritures').select('source_id').eq('source_type','facture'),
+    sb.from('ventes_comptoir').select('id,code,total,date_vente,statut,ecriture_id,mode_paiement,caisse_id').eq('statut','validee').is('ecriture_id',null),
+    sb.from('caisse_mouvements').select('id,numero,montant,statut,compte_ventile,transfert_id').eq('statut','a_ventiler'),
+    sb.from('paiements').select('id,montant,ecriture_id').is('ecriture_id',null)]);
+  const faites=new Set((ecrF||[]).map(e=>e.source_id));
+  return {factures:(factures||[]).filter(f=>f.statut!=='annulee'&&!faites.has(f.id)),ventes:ventes||[],
+    caisseAuto:(mvts||[]).filter(m=>m.compte_ventile||m.transfert_id),caisseManuel:(mvts||[]).filter(m=>!m.compte_ventile&&!m.transfert_id),paiements:paiements||[]};
+}
+async function comptaRenderAutomatismes(host){
+  const a=await comptaChargerAutomatismes();
+  const somme=(l)=>l.reduce((s,x)=>s+(+x.total||+x.montant||0),0);
+  const carte=(icone,titre,desc,liste,btn)=>`<div class="card p-4 flex flex-col gap-2"><div class="flex justify-between items-start gap-2"><div><div class="font-bold">${icone} ${titre}</div><div class="text-xs text-gray-500">${desc}</div></div>
+    <span class="badge ${liste.length?'bg-amber-50 text-amber-700':'bg-emerald-50 text-emerald-700'}">${liste.length?liste.length+' en attente':'✔ à jour'}</span></div>
+    ${liste.length?`<div class="text-sm">${money(somme(liste))}</div>${btn}`:''}</div>`;
+  host.innerHTML=`<div class="mb-3"><h3 class="font-bold">⚡ Comptabilisation automatique</h3>
+    <p class="text-xs text-gray-500 max-w-3xl">Chaque opération de gestion génère son écriture SYSCOHADA au moment où elle a lieu : facture émise (4111 / 702 / 4431), encaissement (trésorerie / 4111), vente au comptoir (trésorerie / 701 / 4431), achat de stock (602 ou 6041 / 4011), bon de caisse avec compte d’imputation, transfert entre caisses (585), écart de clôture (658 / 758), inventaire (3x / 603x), clôture (131 / 139). Cet écran rattrape les pièces restées sans écriture (données antérieures, coupure réseau, exercice clos).</p></div>
+    <div class="grid md:grid-cols-2 gap-3">
+      ${carte('🧾','Factures émises non comptabilisées','Écriture de vente à la date de la facture.',a.factures,`<button class="btn btn-primary btn-sm self-start" onclick="comptaRattraperFactures()">Comptabiliser les ${a.factures.length} facture(s)</button>`)}
+      ${carte('🛒','Ventes au comptoir sans écriture','Ventes validées (hors ligne ou en erreur) à comptabiliser.',a.ventes,`<button class="btn btn-primary btn-sm self-start" onclick="comptaRattraperVentes()">Comptabiliser les ${a.ventes.length} vente(s)</button>`)}
+      ${carte('💰','Mouvements de caisse à imputation connue','Bons avec compte d’imputation choisi, transferts entre caisses (585).',a.caisseAuto,`<button class="btn btn-primary btn-sm self-start" onclick="comptaAutoCaisse().then(()=>comptaRenderCycleView())">Comptabiliser les ${a.caisseAuto.length} mouvement(s)</button>`)}
+      ${carte('📒','Mouvements de caisse à ventiler','Sans compte d’imputation : choisir le compte (ou appliquer les règles).',a.caisseManuel,`<button class="btn btn-outline btn-sm self-start" onclick="window._compta.cycleView='ventilation_caisse';comptaRenderCycleView()">Ouvrir la ventilation →</button>`)}
+    </div>`;
+}
+async function comptaRattraperFactures(){
+  const a=await comptaChargerAutomatismes(); let ok=0, ko=[];
+  for(const f of a.factures){ try{ const e=await comptabiliserVenteFacture(f.id,{silencieux:true}); if(e) ok++; }catch(err){ ko.push(f.code+' : '+err.message); } }
+  toast(`${ok} facture(s) comptabilisée(s)${ko.length?' · '+ko.length+' en échec ('+ko[0]+')':''}.`,ko.length?'error':'success'); comptaRenderCycleView();
+}
+async function comptaRattraperVentes(){
+  const a=await comptaChargerAutomatismes(); let ok=0, ko=0;
+  const caisses={}; const {data:cs}=await sb.from('caisses').select('*'); (cs||[]).forEach(c=>caisses[c.id]=c);
+  for(const v of a.ventes){
+    const ecr=await comptabiliserVenteComptoir(v,caisses[v.caisse_id]);
+    if(!ecr){ ko++; continue; }
+    await sb.from('ventes_comptoir').update({ecriture_id:ecr.id}).eq('id',v.id);
+    await sb.from('caisse_mouvements').update({statut:'ventile',compte_ventile:requireCompteDefaut('ventes_comptoir'),ecriture_id:ecr.id}).eq('numero',v.code).eq('statut','a_ventiler');
+    ok++;
+  }
+  toast(`${ok} vente(s) comptabilisée(s)${ko?' · '+ko+' en échec':''}.`,ko?'error':'success'); comptaRenderCycleView();
+}
 /* ---------- Tableau de bord Comptabilité (cycle Ouverture → Saisie → Contrôle → Visa → États → Clôture) ---------- */
 const COMPTA_CYCLE=[
   {icon:'①',label:'OUVERTURE',items:[{v:'plan_comptable',label:'Plan comptable'},{v:'bilan_ouverture',label:"Bilan d'ouverture",action:"comptaOuvrirBilanOuverture()"}]},
-  {icon:'②',label:'SAISIE',items:[{v:'journal',label:'Journal'}]},
+  {icon:'②',label:'SAISIE',items:[{v:'journal',label:'Journal'},{v:'automatismes',label:'⚡ Automatismes'}]},
   {icon:'③',label:'CONTRÔLE',items:[{v:'grand_livre',label:'Grand livre'},{v:'balance',label:'Balance'},{v:'ventilation_caisse',label:'Ventilation caisse'}]},
   {icon:'④',label:'VISA',items:[{v:'validation',label:'Validation'}]},
   {icon:'⑤',label:'ÉTATS',items:[{v:'bilan',label:'Bilan'},{v:'resultat',label:'Compte de résultat'}]},
@@ -7677,7 +8036,7 @@ async function renderComptabilite(el){
   el.innerHTML=`
     <div class="page-card mb-4">
       <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
-        <div><h2>📗 Comptabilité SYSCOHADA</h2><p class="text-xs text-gray-500">Cycle complet — ouverture, saisie, contrôle, visa, états, clôture.</p></div>
+        <div><h2>📗 Comptabilité SYSCOHADA révisé</h2><p class="text-xs text-gray-500">Plan comptable arborescent, comptabilisation automatique de toute l’activité, états financiers normalisés (système normal) — ouverture, saisie, contrôle, visa, états, clôture.</p></div>
         <div class="flex gap-2 items-center flex-wrap">
           <select onchange="window._compta.annee=+this.value;comptaRenderCycleView()">${window._compta.exercices.map(e=>`<option value="${e.annee}" ${e.annee===window._compta.annee?'selected':''}>${e.annee} ${e.statut==='cloture'?'🔒':''}</option>`).join('')}</select>
           <button class="btn btn-primary" onclick="openEcritureModal()">+ Écriture</button>
@@ -7697,7 +8056,7 @@ async function comptaRenderCycleView(){
   const host=document.getElementById('comptaCycleContent');
   if(!host) return;
   host.innerHTML='<div class="text-sm text-gray-400 p-8 text-center">Chargement…</div>';
-  const renderers={journal:comptaRenderJournal,grand_livre:comptaRenderGrandLivre,balance:comptaRenderBalance,ventilation_caisse:comptaRenderVentilationCaisse,brouillard_caisse:comptaRenderVentilationCaisse,validation:comptaRenderValidation,bilan:comptaRenderBilan,resultat:comptaRenderCompteResultat,cloture:comptaRenderCloture,plan_comptable:comptaRenderPlanComptable};
+  const renderers={journal:comptaRenderJournal,automatismes:comptaRenderAutomatismes,grand_livre:comptaRenderGrandLivre,balance:comptaRenderBalance,ventilation_caisse:comptaRenderVentilationCaisse,brouillard_caisse:comptaRenderVentilationCaisse,validation:comptaRenderValidation,bilan:comptaRenderBilan,resultat:comptaRenderCompteResultat,cloture:comptaRenderCloture,plan_comptable:comptaRenderPlanComptable};
   const fn=renderers[window._compta.cycleView]||comptaRenderJournal;
   await fn(host);
 }
@@ -7795,6 +8154,7 @@ function caisseOuvrirVentilation(caisseId){
 }
 async function renderCaisse(el){
   const {debut,fin,label}=caissePeriode();
+  await comptaAutoCaisse({silencieux:true});
   await chargerAffectations(true);
   const [{data:toutesCaisses},{data:sessionsOuvertes}]=await Promise.all([
     sb.from('caisses').select('*, projets(libelle)').eq('actif',true).order('created_at'),
@@ -7879,7 +8239,7 @@ function caisseOuvrirNouvelleCaisseModal(){
       <div class="field mb-3"><label>Nom</label>${fieldWrap('💰',`<input id="ncNom" placeholder="ex: Caisse chantier Cocody">`)}</div>
       <div class="field mb-3"><label>Chantier associé (optionnel)</label>${fieldWrap('🏗️',`<select id="ncProjet"><option value="">— Aucun —</option>${(projets||[]).map(p=>`<option value="${p.id}">${escapeHtml(p.libelle)}</option>`).join('')}</select>`)}</div>
       <div class="field mb-3"><label>Responsable</label>${fieldWrap('👤',`<input id="ncResponsable">`)}</div>
-      <div class="field mb-4"><label>Compte comptable</label>${fieldWrap('📗',`<select id="ncCompte">${compteOptionsHtml('571000')}</select>`)}</div>
+      <div class="field mb-4"><label>Compte comptable</label>${fieldWrap('📗',`<select id="ncCompte">${compteOptionsHtml(requireCompteDefaut('caisse'))}</select>`)}</div>
       <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseSauverNouvelle()">Créer</button></div>`);
   });
 }
@@ -7895,6 +8255,7 @@ async function caisseSauverNouvelle(){
 /* ---------- Détail d'une caisse : session, mouvements, ventilation, transferts ---------- */
 async function renderCaisseDetail(el){
   const caisseId=window._editId;
+  await comptaAutoCaisse({silencieux:true});
   const {data:c}=await sb.from('caisses').select('*, projets(libelle)').eq('id',caisseId).single();
   if(!c){ el.innerHTML='<div class="text-red-600">Caisse introuvable.</div>'; return; }
   await chargerAffectations();
@@ -7981,7 +8342,7 @@ async function caisseConfirmerOuverture(caisseId){
 }
 async function caisseOuvrirBonModal(type){
   const {session,caisse}=window._caisseDetailCache;
-  await chargerChantiersRef();
+  await chargerChantiersRef(); await comptaChargerReferentiel();
   openModal(`
     <h3 class="font-bold text-lg mb-4">${type==='entree'?"+ Bon d'entrée":'− Bon de sortie'}</h3>
     <div class="grid sm:grid-cols-2 gap-3 mb-3">
@@ -7991,7 +8352,9 @@ async function caisseOuvrirBonModal(type){
     <div class="field mb-3"><label>Motif</label>${fieldWrap('📝',`<input id="bonMotif" placeholder="ex: Achat quincaillerie chantier X">`)}</div>
     <div class="field mb-3"><label>${type==='entree'?'Provenance':'Bénéficiaire'}</label>${fieldWrap('👤',`<input id="bonBeneficiaire">`)}</div>
     <div class="grid sm:grid-cols-2 gap-3 mb-1">${chantierPickerHtml('bon',caisse?.projet_id||'')}</div>
-    <div class="text-xs text-gray-400 mb-4">Rattachez le bon au chantier d'un client pour suivre ses dépenses (fiche du projet) ; l'écriture de ventilation portera ce chantier.</div>
+    <div class="text-xs text-gray-400 mb-3">Rattachez le bon au chantier d'un client pour suivre ses dépenses (fiche du projet) ; l'écriture de ventilation portera ce chantier.</div>
+    <div class="field mb-1"><label>Compte d'imputation SYSCOHADA (comptabilité automatique)</label>${fieldWrap('📗',`<select id="bonCompte"><option value="">— Déterminé par les règles, sinon à ventiler —</option>${compteOptionsHtml('')}</select>`)}</div>
+    <div class="text-xs text-gray-400 mb-4">${type==='entree'?'Ex. 4111 client, 4191 avance reçue, 758 produits divers':'Ex. 6042 carburant, 6181 déplacements, 604 fournitures, 622 locations, 4011 règlement fournisseur, 421 avance au personnel'} — l'écriture est générée dès que le bon est enregistré (ou validé par le DG).</div>
     <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseSauverBon('${type}','${session.id}')">Enregistrer</button></div>`);
 }
 async function caisseSauverBon(type,sessionId){
@@ -8002,9 +8365,13 @@ async function caisseSauverBon(type,sessionId){
   if(!montant||montant<=0){ toast('Montant invalide.','error'); return; }
   if(!motif){ toast('Motif requis.','error'); return; }
   const {caisse}=window._caisseDetailCache;
+  // Compte d'imputation : choisi sur le bon, sinon déduit des règles de ventilation (mot-clé du motif)
+  let compteImputation=document.getElementById('bonCompte')?.value||'';
+  if(!compteImputation){ const {data:regles}=await sb.from('caisse_regles_ventilation').select('*'); compteImputation=(regles||[]).find(r=>motif.toLowerCase().includes(String(r.mot_cle).toLowerCase()))?.compte_code||''; }
+  if(compteImputation && compteEstRegroupement(compteImputation)) compteImputation='';
   if(bonExigeValidation(montant,false)){
     // Circuit DG : demande soumise à validation — le bon n'entre dans le solde qu'une fois approuvé
-    const d=await creerDemandeCaisse({caisse_id:caisse.id,session_id:sessionId,type,montant,date_mouvement,motif,beneficiaire:beneficiaire||null,projet_id:chantierValeur('bon')});
+    const d=await creerDemandeCaisse({caisse_id:caisse.id,session_id:sessionId,type,montant,date_mouvement,motif,beneficiaire:beneficiaire||null,projet_id:chantierValeur('bon'),...(compteImputation?{compte_imputation:compteImputation}:{})});
     if(!d) return;
     closeModal(); await showPage('caisse-detail'); majBadgeValidations(); demandeEnvoyeeModal(d,caisse.nom); return;
   }
@@ -8014,9 +8381,13 @@ async function caisseSauverBon(type,sessionId){
   const maxBon=(numsBons||[]).reduce((mx,r)=>{const n=parseInt(String(r.numero).split('-').pop(),10);return Number.isFinite(n)&&n>mx?n:mx;},0);
   const numero=`${type==='entree'?'BE':'BS'}-${String(Math.max(count||0,maxBon)+1).padStart(5,'0')}`;
   const projet_id=chantierValeur('bon');
-  const {error}=await sb.from('caisse_mouvements').insert({session_id:sessionId,caisse_id:caisse.id,numero,date_mouvement,type,montant,motif,beneficiaire:beneficiaire||null,statut:'a_ventiler',created_by:CURRENT_USER.id,...(projet_id?{projet_id}:{})});
+  const {data:mvt,error}=await sb.from('caisse_mouvements').insert({session_id:sessionId,caisse_id:caisse.id,numero,date_mouvement,type,montant,motif,beneficiaire:beneficiaire||null,statut:'a_ventiler',created_by:CURRENT_USER.id,...(projet_id?{projet_id}:{})}).select().single();
   if(error){ toast(error.message,'error'); return; }
-  toast('Bon enregistré.'); closeModal();
+  if(compteImputation && mvt){
+    const r=await caisseExecuterVentilation({...mvt,caisses:{compte_code:caisse.compte_code,nom:caisse.nom}},compteImputation,false);
+    toast(r.ok?`Bon ${numero} enregistré et comptabilisé (${compteImputation}).`:`Bon enregistré — écriture non générée : ${r.message}`,r.ok?'success':'error');
+  } else toast('Bon enregistré (à ventiler en comptabilité).');
+  closeModal();
   showPage('caisse-detail');
 }
 /* ============================== CAISSE — MODIFIER / SUPPRIMER UN MOUVEMENT ==============================
@@ -8245,17 +8616,22 @@ async function caisseOuvrirVentilerModal(mvtId,contexte){
 }
 async function caisseExecuterVentilation(mvt,compte,memoriser){
   if(!compte) return {ok:false,message:'Choisissez un compte.'};
-  const caisseCompte=mvt.caisses?.compte_code;
+  await comptaChargerReferentiel();
+  if(!compteByCode(compte)) return {ok:false,message:`Le compte ${compte} n'existe pas (ou est désactivé) dans le plan comptable.`};
+  if(compteEstRegroupement(compte)) return {ok:false,message:`Le compte ${compte} est un compte de regroupement : choisissez l'un de ses sous-comptes.`};
+  const caisseCompte=mvt.caisses?.compte_code||requireCompteDefaut('caisse');
   if(exerciceEstClos(mvt.date_mouvement)) return {ok:false,message:'Exercice clôturé pour cette date.'};
-  const annee=new Date(mvt.date_mouvement).getFullYear();
-  const ref=await genererRefEcriture(annee);
+  // Réservation du mouvement : évite une double écriture si deux postes comptabilisent en même temps
+  const {data:pris,error:eP}=await sb.from('caisse_mouvements').update({statut:'ventile',compte_ventile:compte}).eq('id',mvt.id).eq('statut','a_ventiler').select('id');
+  if(eP) return {ok:false,message:eP.message};
+  if(!pris||!pris.length) return {ok:false,deja:true,message:'Mouvement déjà ventilé.'};
   const lignes=mvt.type==='entree'
     ?[{compte_code:caisseCompte,sens:'D',montant:mvt.montant,libelle:mvt.motif},{compte_code:compte,sens:'C',montant:mvt.montant,libelle:mvt.motif}]
     :[{compte_code:compte,sens:'D',montant:mvt.montant,libelle:mvt.motif},{compte_code:caisseCompte,sens:'C',montant:mvt.montant,libelle:mvt.motif}];
-  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:mvt.date_mouvement,journal_code:'CA',piece:mvt.numero,libelle:mvt.motif,source:'auto',source_type:'caisse_mouvement',source_id:mvt.id,projet_id:mvt.projet_id||null,created_by:CURRENT_USER.id}).select().single();
-  if(error) return {ok:false,message:error.message};
-  await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
-  await sb.from('caisse_mouvements').update({statut:'ventile',compte_ventile:compte,ecriture_id:ecr.id}).eq('id',mvt.id);
+  let ecr;
+  try{ ecr=await comptaEcritureAuto({date_ecriture:mvt.date_mouvement,journal_code:'CA',piece:mvt.numero,libelle:mvt.motif,source_type:'caisse_mouvement',source_id:mvt.id,projet_id:mvt.projet_id||null},lignes); }
+  catch(e){ await sb.from('caisse_mouvements').update({statut:'a_ventiler',compte_ventile:mvt.compte_ventile||null}).eq('id',mvt.id); return {ok:false,message:e.message||String(e)}; }
+  await sb.from('caisse_mouvements').update({ecriture_id:ecr.id}).eq('id',mvt.id);
   if(memoriser){
     const motCle=(mvt.motif.split(/\s+/)[0]||'').trim();
     if(motCle && motCle.length>=3){
@@ -8447,7 +8823,8 @@ async function caisseConfirmerTransfert(){
   if(e1){ toast(e1.message,'error'); return; }
   const {error:e2}=await sb.from('caisse_mouvements').insert({session_id:destSession.id,caisse_id:destId,numero:'TRF-IN',date_mouvement,type:'entree',montant,motif:`Transfert depuis ${escapeHtml(caisse.nom)}`,statut:'a_ventiler',transfert_id:transfertId,created_by:CURRENT_USER.id});
   if(e2){ toast(e2.message,'error'); return; }
-  toast('Transfert enregistré des deux côtés (à ventiler — suggestion : compte 585000).'); closeModal();
+  await comptaAutoCaisse({silencieux:true});   // virement de fonds 585 : comptabilisé automatiquement des deux côtés
+  toast('Transfert enregistré et comptabilisé des deux côtés (585 — virements de fonds).'); closeModal();
   showPage('caisse-detail');
 }
 async function caisseOuvrirClotureModal(){
@@ -8499,26 +8876,21 @@ async function comptaFactureDejaComptabilisee(factureId){
   const {data}=await sb.from('compta_ecritures').select('id').eq('source_type','facture').eq('source_id',factureId).eq('journal_code','VE').maybeSingle();
   return !!data;
 }
-async function comptabiliserVenteFacture(factureId){
-  await comptaChargerReferentiel();
-  const {data:f}=await sb.from('factures').select('*, clients(nom,prenoms)').eq('id',factureId).single();
-  if(!f) return null;
+async function comptabiliserVenteFacture(factureId,opts){
+  opts=opts||{};
+  await comptaChargerReferentiel(); if(!window.APP_PARAMS) await loadAppParams();
+  const {data:f}=await sb.from('factures').select('*, clients(nom,prenoms), devis(projet_id)').eq('id',factureId).single();
+  if(!f||f.statut==='annulee') return null;
   if(await comptaFactureDejaComptabilisee(factureId)) return null;
   const dateFacture=f.date_facture||new Date().toISOString().slice(0,10);
-  if(exerciceEstClos(dateFacture)){ toast('Exercice clôturé pour la date de cette facture.','error'); return null; }
-  const p=window.APP_PARAMS||{};
-  const tvaPct=+p.tva_pct||0;
-  const ttc=+f.total||0;
-  const ht=tvaPct>0?Math.round(ttc/(1+tvaPct/100)):ttc;
-  const tva=ttc-ht;
-  const annee=new Date(dateFacture).getFullYear();
-  const ref=await genererRefEcriture(annee);
-  const lignes=[{compte_code:requireCompteDefaut('clients'),sens:'D',montant:ttc,libelle:'Facture '+f.code},{compte_code:requireCompteDefaut('ventes'),sens:'C',montant:ht,libelle:'Facture '+f.code}];
+  const tvaPct=+(window.APP_PARAMS||{}).tva_pct||0;
+  const ttc=+f.total||0; if(ttc<=0) return null;
+  const ht=tvaPct>0?Math.round(ttc/(1+tvaPct/100)):ttc, tva=ttc-ht;
+  const client=f.clients?[f.clients.nom,f.clients.prenoms].filter(Boolean).join(' '):'';
+  const lignes=[{compte_code:requireCompteDefaut('clients'),sens:'D',montant:ttc,libelle:'Facture '+f.code,tiers_type:'client',tiers_id:f.client_id||null},{compte_code:requireCompteDefaut('ventes'),sens:'C',montant:ht,libelle:'Facture '+f.code}];
   if(tva>0) lignes.push({compte_code:requireCompteDefaut('tva_collectee'),sens:'C',montant:tva,libelle:'TVA sur facture '+f.code});
-  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:dateFacture,journal_code:'VE',piece:f.code,libelle:`Vente — ${f.code}${f.clients?' — '+[f.clients.nom,f.clients.prenoms].filter(Boolean).join(' '):''}`,source:'auto',source_type:'facture',source_id:factureId,created_by:CURRENT_USER.id}).select().single();
-  if(error){ toast(error.message,'error'); return null; }
-  await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
-  return ecr;
+  try{ return await comptaEcritureAuto({date_ecriture:dateFacture,journal_code:'VE',piece:f.code,libelle:`Vente — ${f.code}${client?' — '+client:''}`,source_type:'facture',source_id:factureId,projet_id:f.devis?.projet_id||null},lignes); }
+  catch(e){ if(opts.silencieux) throw e; toast('Facture non comptabilisée : '+(e.message||e),'error'); return null; }
 }
 function ouvrirEncaissementModal(factureId,montantRestant){
   sb.from('caisses').select('id,nom').eq('actif',true).then(({data:caisses})=>{
@@ -8557,16 +8929,13 @@ async function enregistrerEncaissement(factureId){
     if(!s){ toast("La caisse choisie n'a pas de séance ouverte.",'error'); return; }
     sessionOuverte=s; caisseCompte=c?.compte_code;
   }
-  const compteTreso=requireCompteDefaut('banque');
-  const annee=new Date(date_paiement).getFullYear();
-  const ref=await genererRefEcriture(annee);
   const lignes=[
-    {compte_code:mode==='espece'?caisseCompte:compteTreso,sens:'D',montant,libelle:'Encaissement '+f.code},
-    {compte_code:requireCompteDefaut('clients'),sens:'C',montant,libelle:'Encaissement '+f.code}
+    {compte_code:compteTresorerie(mode,{compte_code:caisseCompte}),sens:'D',montant,libelle:'Encaissement '+f.code},
+    {compte_code:requireCompteDefaut('clients'),sens:'C',montant,libelle:'Encaissement '+f.code,tiers_type:'client',tiers_id:f.client_id||null}
   ];
-  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:date_paiement,journal_code:mode==='espece'?'CA':(mode==='mobile_money'?'MM':'BQ'),piece:reference,libelle:`Encaissement facture ${f.code}`,source:'auto',source_type:'paiement',created_by:CURRENT_USER.id}).select().single();
-  if(error){ toast(error.message,'error'); return; }
-  await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
+  let ecr;
+  try{ ecr=await comptaEcritureAuto({date_ecriture:date_paiement,journal_code:journalTresorerie(mode),piece:reference||f.code,libelle:`Encaissement facture ${f.code}`,source_type:'paiement'},lignes); }
+  catch(e){ toast('Encaissement non comptabilisé : '+(e.message||e),'error'); return; }
   const {data:paiement,error:errP}=await sb.from('paiements').insert({facture_id:factureId,date_paiement,montant,mode,caisse_id:caisseId,reference,ecriture_id:ecr.id,created_by:CURRENT_USER.id}).select().single();
   if(errP){ toast(errP.message,'error'); return; }
   await sb.from('compta_ecritures').update({source_id:paiement.id}).eq('id',ecr.id);
@@ -8582,24 +8951,17 @@ async function enregistrerEncaissement(factureId){
 }
 
 /* ---------- Intégration automatique : achat de stock (entrée avec prix) → écriture 601/401 ---------- */
-async function comptabiliserAchatMouvementStock(composantNom,quantite,prixUnitaire,motif,reference){
+async function comptabiliserAchatMouvementStock(composant,quantite,prixUnitaire,motif,reference,projetId){
   const montant=Math.round((+quantite||0)*(+prixUnitaire||0));
   if(montant<=0) return null;
-  await comptaChargerReferentiel();
+  await comptaChargerReferentiel(); if(!window.APP_PARAMS) await loadAppParams();
   const today=new Date().toISOString().slice(0,10);
-  if(exerciceEstClos(today)){ toast('Achat non comptabilisé : exercice clôturé.','error'); return null; }
-  const annee=new Date().getFullYear();
-  const ref=await genererRefEcriture(annee);
-  const libelle=`Achat stock — ${composantNom||'composant'}${motif?' — '+motif:''}`;
-  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:today,journal_code:'AC',piece:reference||null,libelle,source:'auto',source_type:'mouvement_stock',created_by:CURRENT_USER.id}).select().single();
-  if(error) return null;
-  await sb.from('compta_lignes').insert([
-    {ecriture_id:ecr.id,compte_code:requireCompteDefaut('achats'),sens:'D',montant,libelle},
-    {ecriture_id:ecr.id,compte_code:requireCompteDefaut('fournisseurs'),sens:'C',montant,libelle}
-  ]);
-  return ecr;
+  const k=comptesStockComposant(composant);
+  const libelle=`Achat stock — ${composant?.nom||'composant'}${motif?' — '+motif:''}`;
+  try{ return await comptaEcritureAuto({date_ecriture:today,journal_code:'AC',piece:reference||null,libelle,source_type:'mouvement_stock',projet_id:projetId||null},
+    [{compte_code:k.achat,sens:'D',montant,libelle},{compte_code:requireCompteDefaut('fournisseurs'),sens:'C',montant,libelle,tiers_type:'fournisseur'}]); }
+  catch(e){ toast('Achat non comptabilisé : '+(e.message||e),'error'); return null; }
 }
-
 /* ============================== DÉPÔTS, POINTS DE VENTE & TRANSFERTS ==============================
    Stock par dépôt (table stocks_depot) ; composants.stock_actuel = total tous dépôts.
    Chaque point de vente est affilié à un dépôt (source du stock vendu) et à une caisse.
@@ -9410,7 +9772,7 @@ async function finaliserVenteComptoir(v,caisse,sessionId){
   const ecr=await comptabiliserVenteComptoir(v,caisse);
   if(ecr) await sb.from('ventes_comptoir').update({ecriture_id:ecr.id}).eq('id',v.id);
   if(sessionId && caisse){
-    const {error:eC}=await sb.from('caisse_mouvements').insert({session_id:sessionId,caisse_id:caisse.id,numero:v.code,date_mouvement:v.date_vente,type:'entree',montant:v.total,motif:'Vente au comptoir '+v.code,beneficiaire:v.client_nom||null,statut:ecr?'ventile':'a_ventiler',compte_ventile:ecr?requireCompteDefaut('ventes'):null,ecriture_id:ecr?.id||null,created_by:CURRENT_USER.id});
+    const {error:eC}=await sb.from('caisse_mouvements').insert({session_id:sessionId,caisse_id:caisse.id,numero:v.code,date_mouvement:v.date_vente,type:'entree',montant:v.total,motif:'Vente au comptoir '+v.code,beneficiaire:v.client_nom||null,statut:ecr?'ventile':'a_ventiler',compte_ventile:ecr?requireCompteDefaut('ventes_comptoir'):null,ecriture_id:ecr?.id||null,created_by:CURRENT_USER.id});
     if(eC) toast('Vente enregistrée, mais mouvement de caisse non créé : '+eC.message,'error');
   }
 }
@@ -9429,24 +9791,17 @@ HL.enregistrerAction('apresVenteComptoir',async({venteId,caisseId,sessionId})=>{
 async function comptabiliserVenteComptoir(v,caisse){
   try{
     const date=v.date_vente;
-    if(exerciceEstClos(date)){ toast('Vente non comptabilisée : exercice clôturé.','error'); return null; }
     const p=window.APP_PARAMS||await loadAppParams()||{};
+    await comptaChargerReferentiel();
     const tvaPct=+p.tva_pct||0, ttc=+v.total||0;
     if(ttc<=0) return null;
     const ht=tvaPct>0?Math.round(ttc/(1+tvaPct/100)):ttc, tva=ttc-ht;
-    const compteTreso=v.mode_paiement==='espece'?(caisse?.compte_code||requireCompteDefaut('caisse')):requireCompteDefaut('banque');
-    const annee=new Date(date).getFullYear();
-    const ref=await genererRefEcriture(annee);
     const libelle=`Vente au comptoir ${v.code}${v.client_nom?' — '+v.client_nom:''}`;
-    const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:date,journal_code:COMPTOIR_MODES[v.mode_paiement]?.journal||'CA',piece:v.code,libelle,source:'auto',source_type:'vente_comptoir',source_id:v.id,created_by:CURRENT_USER.id}).select().single();
-    if(error){ toast('Vente non comptabilisée : '+error.message,'error'); return null; }
-    const lignes=[{compte_code:compteTreso,sens:'D',montant:ttc,libelle},{compte_code:requireCompteDefaut('ventes'),sens:'C',montant:ht,libelle}];
+    const lignes=[{compte_code:compteTresorerie(v.mode_paiement,caisse),sens:'D',montant:ttc,libelle},{compte_code:requireCompteDefaut('ventes_comptoir'),sens:'C',montant:ht,libelle}];
     if(tva>0) lignes.push({compte_code:requireCompteDefaut('tva_collectee'),sens:'C',montant:tva,libelle:'TVA — '+v.code});
-    await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id})));
-    return ecr;
-  }catch(e){ toast('Vente non comptabilisée : '+e.message,'error'); return null; }
+    return await comptaEcritureAuto({date_ecriture:date,journal_code:journalTresorerie(v.mode_paiement),piece:v.code,libelle,source_type:'vente_comptoir',source_id:v.id},lignes);
+  }catch(e){ toast('Vente non comptabilisée : '+(e.message||e),'error'); return null; }
 }
-
 /* ---------- Rapport périodique point de vente & caisse ----------
    Ventes (CA, marge, modes de paiement, articles, vendeurs, documents émis) + caisse(s) des points de vente
    (séances, entrées/sorties, écarts de clôture, rapprochement ventes espèces ↔ encaissements en caisse). */

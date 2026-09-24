@@ -126,3 +126,37 @@ L'accueil reprend la structure du tableau de bord de Menko Immo, adaptée à la 
 - **🧾 Ticket Z** (Vente au comptoir → Ticket Z) : clôture **numérotée et définitive** d'un point de vente (`Z-PDV-00001` journalier, `ZP-…` périodique) : ventes, remises, HT/TVA, annulations, règlements par mode, documents émis, caisse espèces (fond, ventes, autres flux, théorique, compté, écart), articles, vendeurs, **grand total perpétuel**. Format ticket 80 mm. **Lecture X** = mêmes totaux sans numéro ni clôture. Réédition = **DUPLICATA** compté ; alerte si des ventes ont changé après l'émission. Numérotation et totaux de contrôle calculés par le serveur (`ticket_z_emettre`), pas d'écriture directe dans `tickets_z`.
 - **📊 État périodique** (ancien « Rapport périodique ») : analyse détaillée d'une période (CA, marge, jours, articles, vendeurs, caisses).
 - Migration : `sql/tickets_z.sql` (aussi dans `00_installation_complete.sql`).
+
+## Comptabilité SYSCOHADA révisé — plan arborescent et comptabilisation automatique
+- **Plan comptable SYSCOHADA révisé (2017)** : environ 510 comptes de référence, classes 1 à 8 ; comptes principaux (2 chiffres), divisionnaires (3) et sous-comptes utiles (4011, 4111, 4431, 4452, 6032, 6042…). **Arborescence par préfixe**, sur le modèle de Menko Immo : 401 → 4011 → 40110001. Un compte qui a des sous-comptes est un **regroupement** : il totalise ses sous-comptes et n'est plus imputable, ce qui est contrôlé en base (`trg_compta_lignes_imputable`).
+- **Écran Plan comptable** :
+  - classes dépliables ;
+  - badges « regroupement », « propre à l'entité » et « mouvementé » ;
+  - soldes cumulés par sous-arbre ;
+  - recherche qui affiche aussi les comptes parents ;
+  - bouton **＋ sous-compte** qui propose le code libre suivant ; le nouveau compte hérite de la classe et de la nature de son parent ;
+  - **audit** : comptes par défaut, caisses ou écritures pointant sur un regroupement ;
+  - import CSV (export Sage accepté : colonnes *Numéro* / *Intitulé*).
+- **Reprise du plan d'origine** : chaque ancien code à 6 chiffres est fusionné dans son compte révisé, par exemple 571000 → 571, 512000 → 521 (banques), 701000 → 701, 443000 → 4431, 401000 → 4011, 411000 → 4111 ; 421000 et 422000 sont remis dans le bon sens ; 110000/120000/129000 → 121/131/139. Les écritures, caisses, ventilations, règles et comptes par défaut suivent. Les comptes propres à l'entité sont conservés.
+- **Comptabilisation automatique** (Comptabilité → ⚡ Automatismes, pour rattraper les pièces sans écriture) :
+
+  | Opération | Écriture générée |
+  |---|---|
+  | Facture émise | D 4111 / C 702 + C 4431 |
+  | Facture annulée | Contre-passation automatique |
+  | Encaissement | Trésorerie selon le mode (571 caisse, 521 banque, 552 Mobile Money, chèques) / C 4111 |
+  | Vente au comptoir | Trésorerie / 701 + 4431 |
+  | Achat de stock | 602 ou 6041 selon la famille / 4011 |
+  | Bon de caisse avec compte d'imputation (choisi ou déduit des règles), y compris après validation du DG | Écriture générée à l'enregistrement |
+  | Transfert entre caisses | 585 des deux côtés |
+  | Écart de clôture de caisse | 658 / 758 |
+  | Variation des stocks (inventaire) | 3x / 6032-6033, stock valorisé au CMUP |
+  | Clôture de l'exercice | Classes 6, 7, 8 → 131 / 139, puis à-nouveaux des classes 1 à 5 |
+
+  Une réservation empêche la double comptabilisation d'un même mouvement.
+- **États** :
+  - balance hiérarchique (classe, compte principal, divisionnaire, détail) ;
+  - grand livre d'un compte ou d'un regroupement, avec ses sous-comptes ;
+  - **Bilan** (AD… BZ / CA… DZ) et **Compte de résultat** (TA… XI : marge commerciale, valeur ajoutée, EBE, résultats d'exploitation, financier, HAO et net) au format SYSCOHADA système normal, imprimables. Les tiers et la trésorerie sont classés selon le sens de leur solde.
+- **Comptes par défaut** (Paramètres → Comptabilité) regroupés par thème, avec les codes révisés : caisse, banque, Mobile Money, chèques, virements, clients, ventes d'ouvrages, ventes au comptoir, TVA, fournisseurs, achats, stocks, variations, écarts.
+- Migration : `sql/syscohada_revise.sql` (aussi dans `00_installation_complete.sql`).
