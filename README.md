@@ -112,3 +112,72 @@ L'accueil reprend la structure du tableau de bord de Menko Immo, adaptée à la 
 - **Mode** (sur la page Validations, pour les administrateurs) : *Tous les bons (règle DG, par défaut)*, *Au-delà du plafond de l'auteur*, *Circuit désactivé*.
 - Contrôlé **dans la base** : un bon manuel ou un transfert ne peut pas être inséré directement ; seule la fonction de validation crée le mouvement (numéro BE/BS attribué à la validation). Le montant d'un bon validé n'est modifiable que par un validateur dont le plafond le couvre. Les ventes au comptoir, remboursements et encaissements de factures restent immédiats. Clôture de séance : avertissement s'il reste des demandes en attente.
 - Migration : `sql/validation_dg.sql` (aussi dans `00_installation_complete.sql`).
+
+## Configurateur d'ouvrage — catalogue étendu (aluminium & inox)
+- **85 ouvrages** (8 historiques + 77 nouveaux) en **10 familles** : fenêtres (française 1/2/3 vantaux, oscillo-battant, soufflet, projetant à l'italienne, basculant, pivotant, fixe, composé, imposte, guillotine) ; coulissants (baies 2/3/4/6 vantaux, 2-3 rails, 1 vantail + fixe, levant-coulissant, porte pliante accordéon) ; portes (entrée, tiercée, 2 vantaux, porte-fenêtre, va-et-vient, pivot désaxée, service tôlée, ensemble d'entrée) ; façades (mur-rideau VEP / VEC, vitrine, cloison de bureau, verrière d'atelier, châssis filant) ; fermetures (volet roulant, garage enroulable, rideau métallique, grille maillée, moustiquaire, sectionnelle, volet persienné, persienne, BSO, brise-soleil, claustra) ; pergolas bioclimatiques, toiture fixe, carport, auvents ; garde-corps alu / inox (barreaux, lisses, câbles, verre sur sabot ou à pinces, tôle perforée), rampe d'escalier, main courante murale, clôture de piscine ; portails battants / coulissants, portillon, clôture, grille de défense ; douche (walk-in, pivotante, coulissante, angle) ; bardage composite ACM.
+- **📚 Catalogue** avec vignettes, recherche et filtres par famille ; menu « Type d'ouvrage » groupé par famille. Chaque ouvrage a ses **paramètres propres** (sens, imposte, allège, remplissage, soubassement, serrure, trame, lames, manœuvre, pente, fixation, avancée, modules…).
+- Un **moteur par nature d'ouvrage** (châssis, enroulable, sectionnelle, lames, pergola, portail, garde-corps, douche, habillage) calcule la nomenclature (débit des barres, remplissage, quincaillerie par ouverture) et une géométrie unique réutilisée par la **vue de face à l'échelle** (symboles d'ouverture normalisés : triangle pointe côté ferrage / axe, flèches de coulissement), le **plan de fabrication** (coupe adaptée : dormant/ouvrant, coffre et diamètre d'enroulement, lames, vue en plan de pergola, cadre de portail, poteau + fixation, cassette ACM), la **3D** et les vignettes.
+- **Contrôles techniques** affichés : garde-corps NF P01-012 (H ≥ 1,00 m, 0,90 m en rampant, vide ≤ 110 mm, lisses ≤ 110 / 180 mm, zone de 600 mm), piscine NF P90-306 (≥ 1,10 m), verre de sécurité sur les portes, largeurs de vantail, poids des coulissants, enroulement dans le coffre, portées de pergola, taux d'utilisation des plaques ACM, inox 316 en bord de mer.
+- Composants (≈ 124 codes, prix indicatifs FCFA modifiables) : `sql/catalogue_ouvrages.sql` (aussi dans `00_installation_complete.sql`).
+
+## Brouillard de caisse, ventilation des mouvements et ticket Z : trois états distincts
+- **📖 Brouillard de caisse** (Caisse → Brouillard de caisse) : journal chronologique d'une caisse, séance par séance — report du fond d'ouverture, chaque pièce (heure, n°, libellé, chantier, entrée, sortie, **solde progressif**), totaux, solde théorique, espèces comptées et **écart**. Contrôle du report (fond d'ouverture ≠ comptage de la veille). Ventes au comptoir regroupées (option) ; colonne « Compta » indiquant seulement si la pièce est ventilée. Impression A4 (caissier, contrôleur, visa DG) et CSV.
+- **📒 Ventilation des mouvements** (Comptabilité → Contrôle → Ventilation caisse, ancien « Brouillards caisse ») : imputation de chaque mouvement de caisse sur un compte de contrepartie et génération de l'écriture (règles, ventilation automatique).
+- **🧾 Ticket Z** (Vente au comptoir → Ticket Z) : clôture **numérotée et définitive** d'un point de vente (`Z-PDV-00001` journalier, `ZP-…` périodique) : ventes, remises, HT/TVA, annulations, règlements par mode, documents émis, caisse espèces (fond, ventes, autres flux, théorique, compté, écart), articles, vendeurs, **grand total perpétuel**. Format ticket 80 mm. **Lecture X** = mêmes totaux sans numéro ni clôture. Réédition = **DUPLICATA** compté ; alerte si des ventes ont changé après l'émission. Numérotation et totaux de contrôle calculés par le serveur (`ticket_z_emettre`), pas d'écriture directe dans `tickets_z`.
+- **📊 État périodique** (ancien « Rapport périodique ») : analyse détaillée d'une période (CA, marge, jours, articles, vendeurs, caisses).
+- Migration : `sql/tickets_z.sql` (aussi dans `00_installation_complete.sql`).
+
+## Comptabilité SYSCOHADA révisé — plan arborescent et comptabilisation automatique
+- **Plan comptable SYSCOHADA révisé (2017)** : environ 510 comptes de référence, classes 1 à 8 ; comptes principaux (2 chiffres), divisionnaires (3) et sous-comptes utiles (4011, 4111, 4431, 4452, 6032, 6042…). **Arborescence par préfixe**, sur le modèle de Menko Immo : 401 → 4011 → 40110001. Un compte qui a des sous-comptes est un **regroupement** : il totalise ses sous-comptes et n'est plus imputable, ce qui est contrôlé en base (`trg_compta_lignes_imputable`).
+- **Écran Plan comptable** :
+  - classes dépliables ;
+  - badges « regroupement », « propre à l'entité » et « mouvementé » ;
+  - soldes cumulés par sous-arbre ;
+  - recherche qui affiche aussi les comptes parents ;
+  - bouton **＋ sous-compte** qui propose le code libre suivant ; le nouveau compte hérite de la classe et de la nature de son parent ;
+  - **audit** : comptes par défaut, caisses ou écritures pointant sur un regroupement ;
+  - import CSV (export Sage accepté : colonnes *Numéro* / *Intitulé*).
+- **Reprise du plan d'origine** : chaque ancien code à 6 chiffres est fusionné dans son compte révisé, par exemple 571000 → 571, 512000 → 521 (banques), 701000 → 701, 443000 → 4431, 401000 → 4011, 411000 → 4111 ; 421000 et 422000 sont remis dans le bon sens ; 110000/120000/129000 → 121/131/139. Les écritures, caisses, ventilations, règles et comptes par défaut suivent. Les comptes propres à l'entité sont conservés.
+- **Comptabilisation automatique** (Comptabilité → ⚡ Automatismes, pour rattraper les pièces sans écriture) :
+
+  | Opération | Écriture générée |
+  |---|---|
+  | Facture émise | D 4111 / C 702 + C 4431 |
+  | Facture annulée | Contre-passation automatique |
+  | Encaissement | Trésorerie selon le mode (571 caisse, 521 banque, 552 Mobile Money, chèques) / C 4111 |
+  | Vente au comptoir | Trésorerie / 701 + 4431 |
+  | Achat de stock | 602 ou 6041 selon la famille / 4011 |
+  | Bon de caisse avec compte d'imputation (choisi ou déduit des règles), y compris après validation du DG | Écriture générée à l'enregistrement |
+  | Transfert entre caisses | 585 des deux côtés |
+  | Écart de clôture de caisse | 658 / 758 |
+  | Variation des stocks (inventaire) | 3x / 6032-6033, stock valorisé au CMUP |
+  | Clôture de l'exercice | Classes 6, 7, 8 → 131 / 139, puis à-nouveaux des classes 1 à 5 |
+
+  Une réservation empêche la double comptabilisation d'un même mouvement.
+- **États** :
+  - balance hiérarchique (classe, compte principal, divisionnaire, détail) ;
+  - grand livre d'un compte ou d'un regroupement, avec ses sous-comptes ;
+  - **Bilan** (AD… BZ / CA… DZ) et **Compte de résultat** (TA… XI : marge commerciale, valeur ajoutée, EBE, résultats d'exploitation, financier, HAO et net) au format SYSCOHADA système normal, imprimables. Les tiers et la trésorerie sont classés selon le sens de leur solde.
+- **Comptes par défaut** (Paramètres → Comptabilité) regroupés par thème, avec les codes révisés : caisse, banque, Mobile Money, chèques, virements, clients, ventes d'ouvrages, ventes au comptoir, TVA, fournisseurs, achats, stocks, variations, écarts.
+- Migration : `sql/syscohada_revise.sql` (aussi dans `00_installation_complete.sql`).
+
+## Synchronisation local (IndexedDB) ↔ cloud (Supabase), multi-appareils
+Écran **Paramètres → 🔄 Synchro**.
+- **Envoi** : la file d'attente des saisies faites hors ligne part vers Supabase.
+- **Réception** : chaque élément (table) est copié entièrement sur le poste, dans un miroir IndexedDB. Hors ligne, tout écran lit cette copie, **même un écran jamais ouvert sur ce poste**. Les filtres, le tri, la pagination et les relations simples sont appliqués localement.
+- **État de la synchronisation (envoi ↔ réception)** : le nombre d'enregistrements **local ↔ cloud**, élément par élément, avec l'un de ces états :
+  - ✅ À jour ;
+  - ⬆️ n à envoyer ;
+  - ⬇️ n à recevoir ;
+  - « en trop sur ce poste » (supprimé dans le cloud) ;
+  - accès refusé.
+
+  L'écran affiche aussi la date de la dernière réception par élément, les dates du dernier envoi et de la dernière réception, et des totaux.
+- **Boutons** :
+  - « Synchroniser maintenant » (envoi puis réception) ;
+  - « Envoyer local → cloud » ;
+  - « Tout récupérer cloud → local » ;
+  - « Recevoir » un seul élément ;
+  - **🔍 Détail**, qui liste les identifiants présents d'un seul côté ;
+  - « File d'attente ».
+- **Synchronisation automatique** (désactivable sur le poste) : à l'ouverture de session puis toutes les 30 minutes. La copie locale est effacée à la déconnexion.
