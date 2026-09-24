@@ -103,3 +103,12 @@ L'accueil reprend la structure du tableau de bord de Menko Immo, adaptée à la 
   - *Santé par domaine* (0-100) : recouvrement, caisse, commercial, chantiers, stock, données — avec la cause dominante ;
   - *💬 Partager* la file d'actions (WhatsApp) et *📊 Bulletin* de pilotage imprimable.
 - Les autres onglets détaillent : encaissements mensuels et ancienneté des impayés, devis par statut et performance par commercial, chantiers par étape et en retard, stock sous le seuil et valeur immobilisée, ventes et marge du comptoir, alertes par domaine.
+
+## Circuit de validation DG de la caisse (modèle Menko Immo)
+- Un **bon d'entrée / de sortie** ou un **transfert entre caisses** est d'abord une **demande** (n° `DV-AAAA-00001`) : il **n'entre dans le solde qu'une fois approuvé**.
+- **Qui valide** : le DG (administrateur, plafond illimité — y compris ses propres bons) ou un délégué ayant le droit « valider » du module Caisse **et** un plafond de rôle couvrant le montant (Paramètres → Rôles & accès → Plafond de validation). Au-delà : « 🔒 Plafond insuffisant ».
+- **Rejet motivé**, visible par l'auteur ; l'auteur suit ses demandes, confirme la **remise physique des fonds** (💰 Décaisser) et **imprime le bon** (uniquement après validation : visa DG, signatures).
+- **Caisse → Validations (DG)** : file des demandes en attente (badge dans le menu), mes demandes, historique des décisions, lien vers les écritures à viser. Le **Cockpit** place « Valider N demande(s) de caisse » en tête de la file d'actions du DG ; l'auteur y voit ses demandes rejetées et les fonds à remettre. Bouton « 📲 Prévenir le DG (WhatsApp) » à la création.
+- **Mode** (sur la page Validations, pour les administrateurs) : *Tous les bons (règle DG, par défaut)*, *Au-delà du plafond de l'auteur*, *Circuit désactivé*.
+- Contrôlé **dans la base** : un bon manuel ou un transfert ne peut pas être inséré directement ; seule la fonction de validation crée le mouvement (numéro BE/BS attribué à la validation). Le montant d'un bon validé n'est modifiable que par un validateur dont le plafond le couvre. Les ventes au comptoir, remboursements et encaissements de factures restent immédiats. Clôture de séance : avertissement s'il reste des demandes en attente.
+- Migration : `sql/validation_dg.sql` (aussi dans `00_installation_complete.sql`).
