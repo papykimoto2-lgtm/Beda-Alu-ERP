@@ -426,4 +426,14 @@ Paramètres → 🌐 Portail client génère toujours un fichier HTML unique et 
 - **Cartes de savoir-faire et galerie de réalisations** avec effet de survol, zoom léger sur les photos.
 - **Bouton WhatsApp flottant** persistant (si un numéro est renseigné), pastille animée.
 - **Espace client** : formulaire de connexion repensé (avatar, champs modernisés), suivi de chantier en **frise verticale** (étapes franchies, étape en cours mise en évidence, étapes à venir), devis et factures avec **badges de statut colorés**.
-- Aucun changement de logique : mêmes champs de configuration (nom, slogan, couleur, coordonnées, réseaux sociaux, à propos), même RPC `portail_lookup`, même fichier généré côté client (pas de nouvelle table ni migration).
+- Aucun changement de logique : mêmes champs de configuration (nom, slogan, couleur, coordonnées, réseaux sociaux, à propos), même RPC `portail_lookup`, même fichier généré côté client.
+
+## Portail client — vitrine complète (produits, portfolio filtrable, mot du DG)
+Le portail devient un vrai site vitrine, avec les commodités d'un site moderne :
+- **Onglet 📦 Produits** : catalogue des gammes fabriquées (photo + nom + famille, sans prix), alimenté automatiquement par les produits **ayant une photo** (Produits → fiche du produit). Filtres par famille.
+- **Réalisations** enrichies : filtres par famille, et **visionneuse plein écran** (lightbox) avec navigation précédent/suivant, clavier (← → Échap), titre, famille et description — réutilisée pour le catalogue produits.
+- **« Comment nous travaillons »** : quatre étapes numérotées (devis gratuit, fabrication sur-mesure, pose, suivi en ligne) sur la page d'accueil.
+- **Bandeau d'appel à l'action** (« Prêt à démarrer votre projet ? ») avant le pied de page.
+- **Le mot du DG** : nouvelle rubrique dans Paramètres → Portail client — photo, nom, fonction et message de la direction, affichés en citation sur la page « À propos » (masquée si aucun message n'est renseigné).
+- **Référencement** : balises Open Graph (titre, description, image) et méta-description mises à jour dynamiquement, en plus du favicon et du titre d'onglet déjà générés automatiquement.
+- Migration : `sql/portail_dg.sql` (colonnes `portail_dg_nom/titre/message/photo` sur `parametres`), copiée en section 21 de `00_installation_complete.sql`. Toujours un seul fichier HTML autonome, régénéré et redéposé après chaque modification.
