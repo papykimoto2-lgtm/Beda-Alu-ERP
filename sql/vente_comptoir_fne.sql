@@ -1,5 +1,5 @@
 -- ============================================================================
--- BEDA ALU ERP — Vente au comptoir : facture simple et facture normalisée FNE (DGI)
+-- Sanix AluExpert ERP — Vente au comptoir : facture simple et facture normalisée FNE (DGI)
 -- ============================================================================
 -- À exécuter APRÈS sql/depots_points_vente_transferts.sql. Additif.
 -- La certification passe par l'Edge Function `fne-proxy` (supabase/functions/fne-proxy),

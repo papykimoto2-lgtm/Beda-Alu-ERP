@@ -1,5 +1,5 @@
 -- ============================================================================
--- BEDA ALU ERP — Module Vente au comptoir
+-- Sanix AluExpert ERP — Module Vente au comptoir
 -- ============================================================================
 -- À exécuter APRÈS sql/composants_prix_achat_vente.sql.
 -- Additif : crée deux tables, une fonction de numérotation et deux RPC.
