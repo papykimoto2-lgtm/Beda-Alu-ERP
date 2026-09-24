@@ -269,6 +269,7 @@ window.SB_CFG = {
       <button class="nav-parent" data-toggle="caisse-g">🏠 <span>Caisse</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="caisse-g">
         <button class="nav-child" data-page="caisse">→ Tableau de bord</button>
+        <button class="nav-child" data-page="caisse-affectations">→ Affectations & codes PIN</button>
       </div>
 
       <div class="sidebar-group-title">Site web</div>
@@ -393,8 +394,9 @@ async function enterApp(){
   const {data:{user}}=await sb.auth.getUser();
   if(!user) return;
   CURRENT_USER=user;
-  const {data:profile}=await sb.from('profiles').select('nom_complet,email').eq('id',user.id).maybeSingle();
-  if(profile && profile.email!==user.email) sb.from('profiles').update({email:user.email}).eq('id',user.id);
+  const {data:profile}=await sb.from('profiles').select('*').eq('id',user.id).maybeSingle();
+  if(profile && 'email' in profile && profile.email!==user.email) sb.from('profiles').update({email:user.email}).eq('id',user.id);
+  window._affect.charge=false; chargerAffectations();
   const displayName=profile?.nom_complet||user.email;
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('appScreen').classList.remove('hidden');
@@ -419,9 +421,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'Rapport périodique — Point de vente & caisse',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'Rapport périodique — Point de vente & caisse',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g'};
 /* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
 const ALL_MODULES=[
   {code:'Clients',label:'Clients',groupe:'Clients'},
@@ -4716,7 +4718,7 @@ function printEstimation(){
 }
 
 /* ============================== PARAMÉTRAGE : SOCIÉTÉ / LOGO / SUPABASE / SYNCHRO / SAUVEGARDE ============================== */
-const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','depots','stocks_depot','transferts_stock','transferts_stock_lignes','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','points_vente','paiements','ventes_comptoir','ventes_comptoir_lignes','roles','role_permissions','invitations'];
+const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','depots','stocks_depot','transferts_stock','transferts_stock_lignes','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','points_vente','caisse_affectations','point_vente_affectations','paiements','ventes_comptoir','ventes_comptoir_lignes','roles','role_permissions','invitations'];
 async function loadAppParams(){
   let {data}=await sb.from('parametres').select('*').limit(1).maybeSingle();
   if(!data){ const res=await sb.from('parametres').insert({}).select().single(); data=res.data; }
@@ -5563,10 +5565,13 @@ function caisseOuvrirBrouillard(caisseId){
 }
 async function renderCaisse(el){
   const {debut,fin,label}=caissePeriode();
-  const [{data:caisses},{data:sessionsOuvertes}]=await Promise.all([
+  await chargerAffectations(true);
+  const [{data:toutesCaisses},{data:sessionsOuvertes}]=await Promise.all([
     sb.from('caisses').select('*, projets(libelle)').eq('actif',true).order('created_at'),
     sb.from('caisse_sessions').select('*').eq('statut','ouverte')
   ]);
+  // Cloisonnement (Menko) : un utilisateur ne voit que les caisses qui lui sont affectées ou ouvertes à tous
+  const caisses=(toutesCaisses||[]).filter(c=>peutUtiliserCaisse(c.id));
   const sessionIds=(sessionsOuvertes||[]).map(s=>s.id);
   const {data:mvtsOuverts}=sessionIds.length?await sb.from('caisse_mouvements').select('*').in('session_id',sessionIds):{data:[]};
   const {data:mvtsPeriode}=await sb.from('caisse_mouvements').select('*').gte('date_mouvement',debut).lte('date_mouvement',fin);
@@ -5591,7 +5596,9 @@ async function renderCaisse(el){
       <div><h2>💰 Caisse</h2><p class="text-xs text-gray-500">Ouverture/clôture · Bons d'entrée & de sortie · Brouillard journalier · Transferts.</p></div>
       <div class="flex gap-2">
         <button class="btn btn-outline" onclick="caisseOuvrirBrouillard()">🧾 Brouillard de caisse${aVentiler.length?` (${aVentiler.length})`:''}</button>
-        <button class="btn btn-primary" onclick="caisseOuvrirNouvelleCaisseModal()">+ Nouvelle caisse</button>
+        <button class="btn btn-outline" onclick="openMonPinModal()" title="Changer mon code PIN de caisse">🔑 Mon code PIN</button>
+        ${estGestionnaireCaisse()?`<button class="btn btn-outline" onclick="showPage('caisse-affectations')">👥 Affectations</button>
+        <button class="btn btn-primary" onclick="caisseOuvrirNouvelleCaisseModal()">+ Nouvelle caisse</button>`:''}
       </div>
     </div>
     <div class="page-card mb-4">
@@ -5619,7 +5626,9 @@ function caisseCardHtml(c,soldeInfo,mvtsPeriode){
   const ouverte=!!soldeInfo;
   return `<div class="card p-3">
     <div class="flex justify-between items-start mb-2">
-      <div><b>${escapeHtml(c.nom)}</b><div class="text-xs text-gray-400">${escapeHtml(c.projets?.libelle||'—')}</div></div>
+      <div><b>${escapeHtml(c.nom)}</b><div class="text-xs text-gray-400">${escapeHtml(c.projets?.libelle||'—')}</div>
+        <div class="text-[11px] mt-0.5 ${window._affect.caisses.some(a=>a.caisse_id===c.id)?'text-violet-700':'text-amber-700'}">👥 ${window._affect.caisses.filter(a=>a.caisse_id===c.id).length||'Ouverte à tous'}${window._affect.caisses.some(a=>a.caisse_id===c.id)?' affecté(s)':''}</div>
+        ${ouverte&&soldeInfo.session.ouverte_par?`<div class="text-[11px] text-gray-500">🔓 ${escapeHtml(soldeInfo.session.ouverte_par)}</div>`:''}</div>
       <span class="badge ${ouverte?'bg-emerald-50 text-emerald-700':'bg-gray-100 text-gray-500'}">${ouverte?'OUVERTE':'FERMÉE'}</span>
     </div>
     ${ouverte?`<div class="text-xl font-black mb-2" style="color:var(--accent)">${money(soldeInfo.solde)}</div>`:''}
@@ -5657,6 +5666,8 @@ async function renderCaisseDetail(el){
   const caisseId=window._editId;
   const {data:c}=await sb.from('caisses').select('*, projets(libelle)').eq('id',caisseId).single();
   if(!c){ el.innerHTML='<div class="text-red-600">Caisse introuvable.</div>'; return; }
+  await chargerAffectations();
+  if(!peutUtiliserCaisse(c.id)){ el.innerHTML=`<div class="card p-8 text-center text-gray-500">🔒 Vous n'êtes pas affecté(e) à la caisse « ${escapeHtml(c.nom)} ».<div class="mt-3"><button class="btn btn-outline" onclick="showPage('caisse')">← Retour</button></div></div>`; return; }
   await comptaChargerReferentiel();
   const {data:session}=await sb.from('caisse_sessions').select('*').eq('caisse_id',caisseId).eq('statut','ouverte').maybeSingle();
   let mvts=[];
@@ -5678,7 +5689,7 @@ async function renderCaisseDetail(el){
   window._caisseDetailCache={caisse:c,session,mvts};
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
-      <div><h2>${escapeHtml(c.nom)}</h2><p class="text-xs text-gray-500">${escapeHtml(c.projets?.libelle||'Aucun chantier associé')} · Compte ${compteLabel(c.compte_code)}</p></div>
+      <div><h2>${escapeHtml(c.nom)}</h2><p class="text-xs text-gray-500">${escapeHtml(c.projets?.libelle||'Aucun chantier associé')} · Compte ${compteLabel(c.compte_code)}${session?` · Séance ouverte par <b>${escapeHtml(session.ouverte_par||'—')}</b> le ${new Date(session.ouverte_le||session.date_session).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'})}`:''}</p></div>
       <button class="btn btn-outline" onclick="showPage('caisse')">← Retour</button>
     </div>
     ${session?`
@@ -5707,19 +5718,31 @@ async function renderCaisseDetail(el){
       </div>`
       :`<div class="card p-6 text-center"><p class="text-gray-500 mb-4">Aucune séance ouverte pour cette caisse.</p><button class="btn btn-primary" onclick="caisseOuvrirSessionModal()">🔓 Ouvrir la caisse</button></div>`}`;
 }
-function caisseOuvrirSessionModal(){
+async function caisseOuvrirSessionModal(){
   const c=window._caisseDetailCache.caisse;
+  const [etatPin,{data:derniere}]=await Promise.all([
+    monPinCaisseEtat(),
+    sb.from('caisse_sessions').select('date_session,fond_cloture_reel').eq('caisse_id',c.id).eq('statut','cloturee').order('cloturee_le',{ascending:false}).limit(1).maybeSingle()
+  ]);
+  const fond=derniere?(+derniere.fond_cloture_reel||0):0;
+  const aUnPin=!!etatPin?.a_un_pin;
   openModal(`
-    <h3 class="font-bold text-lg mb-4">Ouvrir la caisse « ${escapeHtml(c.nom)} »</h3>
-    <div class="field mb-4"><label>Fond d'ouverture (FCFA)</label>${fieldWrap('💵',`<input id="csFond" type="number" value="0">`)}</div>
-    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseConfirmerOuverture('${c.id}')">Ouvrir</button></div>`);
+    <h3 class="font-bold text-lg mb-4">🔓 Ouvrir la caisse « ${escapeHtml(c.nom)} »</h3>
+    <div class="field mb-1"><label>Fond d'ouverture (FCFA)</label>${fieldWrap('💵',`<input id="csFond" type="number" value="${fond}">`)}</div>
+    <div class="text-xs text-gray-500 mb-4">${derniere?`Repris du solde compté à la clôture du ${fmtDate(derniere.date_session)} (${money(fond)}). Modifiable si besoin.`:'Première ouverture de cette caisse.'}</div>
+    ${aUnPin?`<div class="field mb-1"><label>Votre code PIN *</label>${fieldWrap('🔑',`<input id="csPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" onkeydown="if(event.key==='Enter')caisseConfirmerOuverture('${c.id}')">`)}</div>
+    <div class="text-xs text-gray-500 mb-4">Code personnel attribué par un gestionnaire. 5 erreurs bloquent l'ouverture 10 minutes.</div>`:''}
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" id="csBtn" onclick="caisseConfirmerOuverture('${c.id}')">Ouvrir</button></div>`);
+  setTimeout(()=>document.getElementById(aUnPin?'csPin':'csFond')?.focus(),50);
 }
 async function caisseConfirmerOuverture(caisseId){
   const fond=+document.getElementById('csFond').value||0;
-  const {data:existe}=await sb.from('caisse_sessions').select('id').eq('caisse_id',caisseId).eq('statut','ouverte').maybeSingle();
-  if(existe){ toast('Une séance est déjà ouverte pour cette caisse.','error'); return; }
-  const {error}=await sb.from('caisse_sessions').insert({caisse_id:caisseId,date_session:new Date().toISOString().slice(0,10),fond_ouverture:fond,statut:'ouverte',ouverte_par:CURRENT_USER.email});
+  const pin=document.getElementById('csPin')?.value||null;
+  const btn=document.getElementById('csBtn'); if(btn) btn.disabled=true;
+  const {data,error}=await sb.rpc('caisse_ouvrir_session',{p_caisse_id:caisseId,p_fond:fond,p_pin:pin});
+  if(btn) btn.disabled=false;
   if(error){ toast(error.message,'error'); return; }
+  if(!data?.ok){ toast(data?.message||'Ouverture refusée.','error'); const i=document.getElementById('csPin'); if(i){ i.value=''; i.focus(); } return; }
   toast('Caisse ouverte.'); closeModal();
   window._editId=caisseId; showPage('caisse-detail');
 }
@@ -6207,7 +6230,7 @@ async function caisseConfirmerCloture(theorique){
     const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,date_ecriture:today,journal_code:'CA',libelle:`Écart de clôture — ${caisse.nom}`,source:'auto',source_type:'caisse_session',source_id:session.id,created_by:CURRENT_USER.id}).select().single();
     if(!error){ await sb.from('compta_lignes').insert(lignes.map(l=>({...l,ecriture_id:ecr.id}))); ecartEcritureId=ecr.id; }
   }
-  await sb.from('caisse_sessions').update({statut:'cloturee',fond_cloture_theorique:theorique,fond_cloture_reel:reel,ecart,cloturee_par:CURRENT_USER.email,cloturee_le:new Date().toISOString(),ecart_ecriture_id:ecartEcritureId}).eq('id',session.id);
+  await sb.from('caisse_sessions').update({statut:'cloturee',fond_cloture_theorique:theorique,fond_cloture_reel:reel,ecart,cloturee_par:CURRENT_USER.email,cloturee_par_id:CURRENT_USER.id,cloturee_le:new Date().toISOString(),ecart_ecriture_id:ecartEcritureId}).eq('id',session.id);
   toast('Séance clôturée.'); closeModal();
   showPage('caisse-detail');
 }
@@ -6248,7 +6271,7 @@ function ouvrirEncaissementModal(factureId,montantRestant){
         <div class="field"><label>Montant (FCFA)</label>${fieldWrap('💵',`<input id="encMontant" type="number" value="${montantRestant}">`)}</div>
       </div>
       <div class="field mb-3"><label>Mode de paiement</label>${fieldWrap('💳',`<select id="encMode" onchange="document.getElementById('encCaisseWrap').style.display=this.value==='espece'?'':'none'"><option value="espece">Espèces</option><option value="banque">Virement bancaire</option><option value="mobile_money">Mobile Money</option><option value="cheque">Chèque</option></select>`)}</div>
-      <div class="field mb-4" id="encCaisseWrap"><label>Caisse</label>${fieldWrap('💰',`<select id="encCaisse"><option value="">— Choisir —</option>${(caisses||[]).map(c=>`<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('')}</select>`)}</div>
+      <div class="field mb-4" id="encCaisseWrap"><label>Caisse</label>${fieldWrap('💰',`<select id="encCaisse"><option value="">— Choisir —</option>${(caisses||[]).filter(c=>peutUtiliserCaisse(c.id)).map(c=>`<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('')}</select>`)}</div>
       <div class="field mb-4"><label>Référence (optionnel)</label>${fieldWrap('#',`<input id="encReference">`)}</div>
       <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="enregistrerEncaissement('${factureId}')">Enregistrer</button></div>`);
   });
@@ -6346,7 +6369,7 @@ function prochainCode(prefixe,codes){
 /* ---------- Dépôts & points de vente ---------- */
 async function renderStockDepots(el){
   const [depots,{data:pdvs},{data:stocks},{data:caisses},{data:transit}]=await Promise.all([
-    chargerDepots(true),
+    chargerDepots(true).then(async d=>{ await chargerAffectations(true); return d; }),
     sb.from('points_vente').select('*, depots(nom), caisses(nom)').order('code'),
     sb.from('stocks_depot').select('depot_id,quantite,composants(cmup)'),
     sb.from('caisses').select('id,nom').eq('actif',true).order('created_at'),
@@ -6400,18 +6423,19 @@ async function renderStockDepots(el){
     </div>
     <h3 class="text-sm font-bold uppercase text-gray-500 mb-2">🏪 Points de vente (${(pdvs||[]).length})</h3>
     <div class="card overflow-x-auto">
-      <table><thead><tr><th>Code</th><th>Point de vente</th><th>Dépôt affilié</th><th>Caisse</th><th>Responsable</th><th>Statut</th><th></th></tr></thead>
+      <table><thead><tr><th>Code</th><th>Point de vente</th><th>Dépôt affilié</th><th>Caisse</th><th>Utilisateurs</th><th>Responsable</th><th>Statut</th><th></th></tr></thead>
       <tbody>${(pdvs||[]).map(p=>`<tr style="${p.actif?'':'opacity:.55'}">
         <td class="font-semibold">${escapeHtml(p.code)}</td>
         <td>${escapeHtml(p.nom)}${p.adresse?`<div class="text-xs text-gray-400">${escapeHtml(p.adresse)}</div>`:''}</td>
         <td>${depotNom(p.depot_id)}</td>
         <td>${p.caisses?'💰 '+escapeHtml(p.caisses.nom):'<span class="text-gray-400">—</span>'}</td>
+        <td class="text-xs"><a href="#" onclick="showPage('caisse-affectations');return false" class="${window._affect.pdv.some(a=>a.point_vente_id===p.id)?'text-violet-700':'text-amber-700'} font-semibold">👥 ${window._affect.pdv.filter(a=>a.point_vente_id===p.id).length||'Ouvert à tous'}</a></td>
         <td class="text-xs">${escapeHtml([p.responsable,p.telephone].filter(Boolean).join(' · ')||'—')}</td>
         <td>${p.actif?'<span class="text-xs font-semibold text-emerald-600">Actif</span>':'<span class="text-xs font-semibold text-gray-500">Inactif</span>'}</td>
         <td class="text-right whitespace-nowrap text-xs font-semibold">
           <button class="text-violet-700 mr-2" onclick="window._pos.pointVenteId='${p.id}';showPage('comptoir')">🛒 Vendre</button>
           <button class="text-gray-600" onclick="openPointVenteModal('${p.id}')">✏️ Modifier</button>
-        </td></tr>`).join('')||'<tr><td colspan="7" class="text-center text-gray-400 p-4">Aucun point de vente.</td></tr>'}</tbody></table>
+        </td></tr>`).join('')||'<tr><td colspan="8" class="text-center text-gray-400 p-4">Aucun point de vente.</td></tr>'}</tbody></table>
     </div>`;
 }
 function openDepotModal(id){
@@ -6743,6 +6767,170 @@ async function imprimerBonTransfert(id){
   win.document.close(); win.focus();
 }
 
+/* ============================== AFFECTATIONS CAISSES & POINTS DE VENTE — CODE PIN ==============================
+   Inspiré de la caisse Menko Immo : utilisateurs affectés par caisse / point de vente (une caisse ou un point de
+   vente sans affectation reste ouvert à tous), gestionnaires (admin, manager) sans restriction, PIN personnel de
+   4 chiffres exigé à l'ouverture de séance. Les règles sont appliquées dans la base (sql/affectations_caisse_pdv.sql) ;
+   ces fonctions ne font que refléter l'état à l'écran. */
+const ROLES_UTILISATEUR={admin:'👑 Administrateur',manager:'🧭 Manager',comptable:'📗 Comptable',caissier:'💰 Caissier(ère)',commercial:'🤝 Commercial',technicien:'🛠️ Technicien',utilisateur:'👤 Utilisateur'};
+window._affect=window._affect||{charge:false,role:null,caisses:[],pdv:[]};
+async function chargerAffectations(force){
+  if(window._affect.charge && !force) return window._affect;
+  const [{data:prof},{data:ca},{data:pa}]=await Promise.all([
+    sb.from('profiles').select('id,role').eq('id',CURRENT_USER?.id).maybeSingle(),
+    sb.from('caisse_affectations').select('caisse_id,user_id'),
+    sb.from('point_vente_affectations').select('point_vente_id,user_id,par_defaut')
+  ]);
+  const roleRbac=(window._rbac?.loaded && window._rbac.provisionne && typeof monRole==='function')?monRole()?.code:null;
+  Object.assign(window._affect,{charge:true,role:roleRbac||prof?.role||null,caisses:ca||[],pdv:pa||[]});
+  return window._affect;
+}
+function estGestionnaireCaisse(){ return ['admin','manager'].includes(window._affect.role); }
+function peutUtiliserCaisse(caisseId){
+  if(estGestionnaireCaisse()) return true;
+  const l=window._affect.caisses.filter(x=>x.caisse_id===caisseId);
+  return !l.length || l.some(x=>x.user_id===CURRENT_USER?.id);
+}
+function peutUtiliserPdv(pdvId){
+  if(estGestionnaireCaisse()) return true;
+  const l=window._affect.pdv.filter(x=>x.point_vente_id===pdvId);
+  return !l.length || l.some(x=>x.user_id===CURRENT_USER?.id);
+}
+function monPdvParDefaut(){ return window._affect.pdv.find(x=>x.user_id===CURRENT_USER?.id && x.par_defaut)?.point_vente_id||''; }
+
+async function renderCaisseAffectations(el){
+  await chargerAffectations(true);
+  if(!estGestionnaireCaisse()){ el.innerHTML='<div class="card p-8 text-center text-gray-500">🔒 Réservé aux gestionnaires (administrateur, manager).</div>'; return; }
+  const [{data:users},{data:caisses},{data:pdvs},{data:pins,error:ePins}]=await Promise.all([
+    sb.from('profiles').select('id,nom_complet,role,created_at').order('nom_complet'),
+    sb.from('caisses').select('id,nom,actif').order('created_at'),
+    sb.from('points_vente').select('id,code,nom,actif,caisse_id').order('code'),
+    sb.rpc('etat_pins_caisse')
+  ]);
+  const pinMap=Object.fromEntries((pins||[]).map(p=>[p.user_id,p]));
+  const aff=window._affect, estAdmin=aff.role==='admin';
+  window._affectPage={users:users||[]};
+  const ca=(c,u)=>aff.caisses.some(x=>x.caisse_id===c&&x.user_id===u);
+  const pa=(p,u)=>aff.pdv.find(x=>x.point_vente_id===p&&x.user_id===u);
+  const nbAff=(liste,cle,id)=>liste.filter(x=>x[cle]===id).length;
+  const pinCell=u=>{
+    const p=pinMap[u.id];
+    if(!p) return '<span class="text-gray-400">—</span>';
+    if(p.bloque_jusqu && new Date(p.bloque_jusqu)>new Date()) return `<span class="text-red-600 font-semibold" title="${p.echecs} échec(s)">⛔ bloqué jusqu'à ${new Date(p.bloque_jusqu).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>`;
+    return p.a_un_pin?`<span class="text-emerald-700 font-semibold" title="Défini le ${fmtDate(p.updated_at)}">🔑 défini</span>`:'<span class="text-gray-400">—</span>';
+  };
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-start gap-3 mb-4">
+      <div class="max-w-3xl">
+        <h2>👥 Affectations caisses & points de vente</h2>
+        <p class="text-sm text-gray-500">Cochez qui peut utiliser chaque caisse et chaque point de vente. Une caisse ou un point de vente <b>sans personne cochée reste accessible à tous</b>. Les administrateurs et managers ont toujours accès à tout. ⭐ = point de vente proposé par défaut à l'utilisateur.</p>
+      </div>
+      <button class="btn btn-outline" onclick="showPage('caisse')">← Caisse</button>
+    </div>
+    ${ePins?`<div class="text-xs bg-red-50 text-red-700 border border-red-200 rounded-lg px-3 py-2 mb-3">État des codes PIN indisponible : ${escapeHtml(ePins.message)}</div>`:''}
+    <div class="card overflow-x-auto">
+      <table>
+        <thead>
+          <tr><th rowspan="2">Utilisateur</th><th rowspan="2">Rôle</th><th rowspan="2">Code PIN caisse</th>
+            ${(caisses||[]).length?`<th colspan="${caisses.length}" class="text-center" style="border-left:2px solid #e5e7eb">💰 Caisses</th>`:''}
+            ${(pdvs||[]).length?`<th colspan="${pdvs.length}" class="text-center" style="border-left:2px solid #e5e7eb">🏪 Points de vente</th>`:''}</tr>
+          <tr>${(caisses||[]).map((c,i)=>`<th class="text-center" style="${i===0?'border-left:2px solid #e5e7eb;':''}${c.actif?'':'opacity:.5'}">${escapeHtml(c.nom)}<div class="text-[10px] font-normal ${nbAff(aff.caisses,'caisse_id',c.id)?'text-violet-700':'text-amber-700'}">${nbAff(aff.caisses,'caisse_id',c.id)?nbAff(aff.caisses,'caisse_id',c.id)+' affecté(s)':'ouverte à tous'}</div></th>`).join('')}
+            ${(pdvs||[]).map((p,i)=>`<th class="text-center" style="${i===0?'border-left:2px solid #e5e7eb;':''}${p.actif?'':'opacity:.5'}">${escapeHtml(p.nom)}<div class="text-[10px] font-normal ${nbAff(aff.pdv,'point_vente_id',p.id)?'text-violet-700':'text-amber-700'}">${nbAff(aff.pdv,'point_vente_id',p.id)?nbAff(aff.pdv,'point_vente_id',p.id)+' affecté(s)':'ouvert à tous'}</div></th>`).join('')}</tr>
+        </thead>
+        <tbody>${(users||[]).map(u=>{
+          const gest=['admin','manager'].includes(u.role);
+          return `<tr>
+          <td class="font-semibold">${escapeHtml(u.nom_complet||u.id.slice(0,8))}${u.id===CURRENT_USER?.id?' <span class="text-xs text-gray-400">(vous)</span>':''}</td>
+          <td>${estAdmin?`<select onchange="changerRoleUtilisateur('${u.id}',this.value,this)" style="width:auto;padding:4px 6px" data-old="${u.role}">${Object.entries(ROLES_UTILISATEUR).map(([k,l])=>`<option value="${k}" ${u.role===k?'selected':''}>${l}</option>`).join('')}</select>`:escapeHtml(ROLES_UTILISATEUR[u.role]||u.role||'—')}</td>
+          <td class="whitespace-nowrap text-xs">${pinCell(u)}
+            <div class="mt-1 flex gap-2"><button class="text-violet-700 font-semibold" onclick="openDefinirPinModal('${u.id}')">${pinMap[u.id]?.a_un_pin?'Réinitialiser':'Définir'}</button>${pinMap[u.id]?.a_un_pin?`<button class="text-red-600 font-semibold" onclick="supprimerPinCaisse('${u.id}')">Retirer</button>`:''}</div></td>
+          ${(caisses||[]).map((c,i)=>`<td class="text-center" style="${i===0?'border-left:2px solid #e5e7eb':''}">${gest?'<span class="text-xs text-gray-400" title="Accès complet par son rôle">tout</span>':`<input type="checkbox" style="width:18px;height:18px" ${ca(c.id,u.id)?'checked':''} onchange="basculerAffectationCaisse('${c.id}','${u.id}',this.checked,this)">`}</td>`).join('')}
+          ${(pdvs||[]).map((p,i)=>{ const a=pa(p.id,u.id); return `<td class="text-center whitespace-nowrap" style="${i===0?'border-left:2px solid #e5e7eb':''}">${gest?'<span class="text-xs text-gray-400" title="Accès complet par son rôle">tout</span>':`<input type="checkbox" style="width:18px;height:18px;vertical-align:middle" ${a?'checked':''} onchange="basculerAffectationPdv('${p.id}','${u.id}',this.checked,this)">
+            ${a?`<button title="${a.par_defaut?'Point de vente par défaut':'Définir comme point de vente par défaut'}" onclick="definirPdvParDefaut('${p.id}','${u.id}')" style="font-size:15px;vertical-align:middle;${a.par_defaut?'':'filter:grayscale(1);opacity:.35'}">⭐</button>`:''}`}</td>`; }).join('')}
+        </tr>`; }).join('')||'<tr><td colspan="20" class="text-center text-gray-400 p-6">Aucun utilisateur.</td></tr>'}</tbody>
+      </table>
+    </div>
+    <div class="text-xs text-gray-500 mt-3 space-y-1">
+      <div>🔑 Le code PIN (4 chiffres) est personnel : il est demandé à l'ouverture d'une séance de caisse. Il est stocké chiffré et n'est jamais réaffiché ; 5 codes faux bloquent l'utilisateur 10 minutes (une réinitialisation lève le blocage).</div>
+      <div>👤 Les nouveaux comptes sont créés avec le rôle « Utilisateur » : attribuez-leur ici un rôle puis leurs caisses / points de vente.${estAdmin?'':' Seul un administrateur peut changer les rôles.'}</div>
+    </div>`;
+}
+async function changerRoleUtilisateur(userId,role,sel){
+  const {error}=await sb.from('profiles').update({role}).eq('id',userId);
+  if(error){ toast(error.message,'error'); sel.value=sel.dataset.old; return; }
+  toast('Rôle mis à jour.'); showPage('caisse-affectations');
+}
+async function basculerAffectationCaisse(caisseId,userId,coche,cb){
+  const {error}=coche?await sb.from('caisse_affectations').insert({caisse_id:caisseId,user_id:userId})
+    :await sb.from('caisse_affectations').delete().eq('caisse_id',caisseId).eq('user_id',userId);
+  if(error){ toast(error.message,'error'); cb.checked=!coche; return; }
+  await chargerAffectations(true); showPage('caisse-affectations');
+}
+async function basculerAffectationPdv(pdvId,userId,coche,cb){
+  const aDefaut=window._affect.pdv.some(x=>x.user_id===userId&&x.par_defaut);
+  const {error}=coche?await sb.from('point_vente_affectations').insert({point_vente_id:pdvId,user_id:userId,par_defaut:!aDefaut})
+    :await sb.from('point_vente_affectations').delete().eq('point_vente_id',pdvId).eq('user_id',userId);
+  if(error){ toast(error.message,'error'); cb.checked=!coche; return; }
+  await chargerAffectations(true); showPage('caisse-affectations');
+}
+async function definirPdvParDefaut(pdvId,userId){
+  const e1=(await sb.from('point_vente_affectations').update({par_defaut:false}).eq('user_id',userId).eq('par_defaut',true)).error;
+  const e2=e1||(await sb.from('point_vente_affectations').update({par_defaut:true}).eq('point_vente_id',pdvId).eq('user_id',userId)).error;
+  if(e2){ toast(e2.message,'error'); return; }
+  await chargerAffectations(true); showPage('caisse-affectations');
+}
+function openDefinirPinModal(userId){
+  const u=(window._affectPage?.users||[]).find(x=>x.id===userId)||{};
+  openModal(`
+    <h3 class="font-bold text-lg mb-1">🔑 Code PIN de caisse</h3>
+    <p class="text-sm text-gray-500 mb-4">${escapeHtml(u.nom_complet||'')} — 4 chiffres, à communiquer à l'utilisateur en main propre. Il pourra le changer lui-même.</p>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div class="field"><label>Nouveau code</label>${fieldWrap('🔑',`<input id="pinNew" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password">`)}</div>
+      <div class="field"><label>Confirmation</label>${fieldWrap('🔑',`<input id="pinNew2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password">`)}</div>
+    </div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="confirmerDefinirPin('${userId}')">Enregistrer</button></div>`);
+}
+async function confirmerDefinirPin(userId){
+  const a=val('pinNew'), b=val('pinNew2');
+  if(!/^[0-9]{4}$/.test(a)){ toast('Le code PIN doit comporter exactement 4 chiffres.','error'); return; }
+  if(a!==b){ toast('Les deux saisies ne correspondent pas.','error'); return; }
+  const {error}=await sb.rpc('definir_pin_caisse',{p_user_id:userId,p_pin:a});
+  if(error){ toast(error.message,'error'); return; }
+  toast('Code PIN enregistré.'); closeModal(); showPage('caisse-affectations');
+}
+async function supprimerPinCaisse(userId){
+  if(!confirm("Retirer le code PIN de cet utilisateur ? Il pourra ouvrir ses caisses sans code.")) return;
+  const {error}=await sb.rpc('supprimer_pin_caisse',{p_user_id:userId});
+  if(error){ toast(error.message,'error'); return; }
+  toast('Code PIN retiré.'); showPage('caisse-affectations');
+}
+function openMonPinModal(){
+  openModal(`
+    <h3 class="font-bold text-lg mb-1">🔑 Changer mon code PIN de caisse</h3>
+    <p class="text-sm text-gray-500 mb-4">4 chiffres. Ne le communiquez à personne.</p>
+    <div class="grid gap-3 mb-4">
+      <div class="field"><label>Code actuel</label>${fieldWrap('🔒',`<input id="monPinAncien" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password">`)}</div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="field"><label>Nouveau code</label>${fieldWrap('🔑',`<input id="monPinNouveau" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password">`)}</div>
+        <div class="field"><label>Confirmation</label>${fieldWrap('🔑',`<input id="monPinNouveau2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password">`)}</div>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="confirmerMonPin()">Enregistrer</button></div>`);
+}
+async function confirmerMonPin(){
+  const n=val('monPinNouveau');
+  if(!/^[0-9]{4}$/.test(n)){ toast('Le code PIN doit comporter exactement 4 chiffres.','error'); return; }
+  if(n!==val('monPinNouveau2')){ toast('Les deux saisies ne correspondent pas.','error'); return; }
+  const {data,error}=await sb.rpc('modifier_mon_pin_caisse',{p_ancien:val('monPinAncien'),p_nouveau:n});
+  if(error){ toast(error.message,'error'); return; }
+  if(!data?.ok){ toast(data?.message||'Refusé.','error'); return; }
+  toast('Votre code PIN a été changé.'); closeModal();
+}
+async function monPinCaisseEtat(){
+  const {data}=await sb.rpc('etat_pins_caisse');
+  return (data||[]).find(p=>p.user_id===CURRENT_USER?.id)||null;
+}
+
 /* ============================== VENTE AU COMPTOIR ==============================
    Caisse enregistreuse pour la revente directe des composants & consommables.
    Validation : RPC vente_comptoir_valider (en-tête + lignes + sorties de stock, une transaction — voir sql/vente_comptoir.sql),
@@ -6758,13 +6946,14 @@ function posChangerPointVente(id){
   showPage('comptoir');
 }
 async function renderComptoir(el){
-  const {data:pdvs}=await sb.from('points_vente').select('*, depots(nom,type)').eq('actif',true).order('code');
-  window._posPdvs=pdvs||[];
+  const [{data:pdvs}]=await Promise.all([sb.from('points_vente').select('*, depots(nom,type)').eq('actif',true).order('code'),chargerAffectations(true)]);
+  window._posPdvs=(pdvs||[]).filter(p=>peutUtiliserPdv(p.id));
   const pos0=window._pos;
-  if(!pos0.pointVenteId){ try{ pos0.pointVenteId=localStorage.getItem('beda_pos_pdv')||''; }catch(e){} }
+  if(!pos0.pointVenteId){ pos0.pointVenteId=monPdvParDefaut(); if(!pos0.pointVenteId){ try{ pos0.pointVenteId=localStorage.getItem('beda_pos_pdv')||''; }catch(e){} } }
   if(!window._posPdvs.some(p=>p.id===pos0.pointVenteId)){ pos0.pointVenteId=(window._posPdvs[0]||{}).id||''; pos0.caisseId=(window._posPdvs[0]||{}).caisse_id||pos0.caisseId; }
   const pdv=window._posPdvs.find(p=>p.id===pos0.pointVenteId);
-  if(!pdv){ el.innerHTML=`<div class="card p-8 text-center"><div class="text-4xl mb-2">🏪</div><p class="mb-4">Aucun point de vente actif. Créez-en un et affiliez-le à un dépôt.</p><button class="btn btn-primary" onclick="showPage('stock-depots')">Dépôts & points de vente</button></div>`; return; }
+  if(!pdv){ el.innerHTML=(pdvs||[]).length?`<div class="card p-8 text-center"><div class="text-4xl mb-2">🔒</div><p>Vous n'êtes affecté(e) à aucun point de vente. Demandez à un gestionnaire de vous en attribuer un (Caisse → Affectations).</p></div>`
+    :`<div class="card p-8 text-center"><div class="text-4xl mb-2">🏪</div><p class="mb-4">Aucun point de vente actif. Créez-en un et affiliez-le à un dépôt.</p><button class="btn btn-primary" onclick="showPage('stock-depots')">Dépôts & points de vente</button></div>`; return; }
   const {data:stocksPdv}=await sb.from('stocks_depot').select('composant_id,quantite').eq('depot_id',pdv.depot_id);
   window._posStock=Object.fromEntries((stocksPdv||[]).map(s=>[s.composant_id,+s.quantite||0]));
   const [{data:composants,error},{data:clients},{data:caisses},{data:sessions}]=await Promise.all([
@@ -6776,7 +6965,8 @@ async function renderComptoir(el){
   if(error){ el.innerHTML=`<div class="card text-red-600">${escapeHtml(error.message)}</div>`; return; }
   window._posComposants=composants||[];
   window._clientsCache=clients||[];
-  window._posCaisses=(caisses||[]).map(c=>({...c,sessionId:(sessions||[]).find(s=>s.caisse_id===c.id)?.id||null}));
+  window._posCaisses=(caisses||[]).filter(c=>peutUtiliserCaisse(c.id)).map(c=>({...c,sessionId:(sessions||[]).find(s=>s.caisse_id===c.id)?.id||null}));
+  if(pos0.caisseId && !window._posCaisses.some(c=>c.id===pos0.caisseId)) pos0.caisseId='';
   const pos=window._pos;
   if(!pos.caisseId){ const ouverte=window._posCaisses.find(c=>c.sessionId); pos.caisseId=(ouverte||window._posCaisses[0]||{}).id||''; }
   pos.panier.forEach(l=>{ l.stock=posStockDe(l.composant_id); });
@@ -8368,7 +8558,7 @@ async function importerSauvegarde(e){
     for(const table of BACKUP_TABLES){
       const rows=backup.tables?.[table];
       if(!rows || !rows.length) continue;
-      const {error}=await sb.from(table).upsert(rows,{onConflict:table==='stocks_depot'?'depot_id,composant_id':'id'});
+      const {error}=await sb.from(table).upsert(rows,{onConflict:({stocks_depot:'depot_id,composant_id',caisse_affectations:'caisse_id,user_id',point_vente_affectations:'point_vente_id,user_id'})[table]||'id'});
       if(error) throw new Error(table+' : '+error.message);
     }
     resEl.textContent='✅ Import terminé.'; resEl.className='text-sm mt-3 text-emerald-600';
