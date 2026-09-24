@@ -181,3 +181,21 @@ L'accueil reprend la structure du tableau de bord de Menko Immo, adaptée à la 
   - **🔍 Détail**, qui liste les identifiants présents d'un seul côté ;
   - « File d'attente ».
 - **Synchronisation automatique** (désactivable sur le poste) : à l'ouverture de session puis toutes les 30 minutes. La copie locale est effacée à la déconnexion.
+
+## Photos des produits et composants — vente au comptoir
+- **Où ajouter une photo** : dans la fiche **Composant** et dans la fiche **Produit**, par l'un de ces moyens :
+  - « 🖼️ Choisir une photo » ;
+  - « 📷 Prendre une photo » (appareil photo du téléphone) ;
+  - glisser-déposer ;
+  - Ctrl+V.
+- **Compression sur l'appareil** :
+  - une **miniature carrée d'environ 240 px (quelques Ko)** est rangée dans la fiche (`composants.photo`, `produits.photo`) ;
+  - un **grand format d'environ 1 000 px** est rangé dans `photos_articles`, chargé seulement pour l'agrandir.
+- **Catalogues** Composants et Produits : vignettes (grille et liste) ; cliquer sur une vignette l'agrandit.
+- **Vente au comptoir** :
+  - catalogue **en photos**, avec le prix, le stock du dépôt et un bandeau « Rupture » ;
+  - bouton 🔍 pour agrandir la photo ;
+  - bouton « Vue compacte / Vue photos » ;
+  - miniature dans le panier.
+- **Produits et ouvrages vendables au comptoir** : option « Proposé à la vente au comptoir » et prix de vente dans la fiche produit. La vente passe sans mouvement de stock ; le coût est le coût matériel du produit.
+- Migration : `sql/photos_articles.sql` (aussi dans `00_installation_complete.sql`).
