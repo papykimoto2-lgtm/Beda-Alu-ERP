@@ -307,3 +307,34 @@ L'accueil reprend la structure du tableau de bord de Menko Immo, adaptée à la 
 3. **Motifs d'écart d'inventaire** : ils sont définis deux fois, dans l'application (`INV_MOTIFS`) et dans la base (`inventaire_motif_libelle`). À passer en table si la liste doit évoluer.
 4. **Types de dépôts** (dépôt, magasin, atelier, chantier) : contrainte CHECK, à passer en référentiel si besoin.
 5. **Sauvegarde JSON** : les inventaires, les tickets Z et le registre des documents imprimés ne sont pas dans l'export. Ils sont protégés en écriture et ne peuvent donc pas être réimportés tels quels. Il faudrait un export en lecture seule de ces journaux.
+
+## Valorisation du stock — valeur d'achat, CA prévisionnel et marge
+- **Où** : Stock → **Valorisation du stock**.
+- **Par article** :
+  - quantité ;
+  - coût unitaire : CMUP, à défaut le prix d'achat du catalogue, signalé « estimé » ;
+  - **valeur d'achat** ;
+  - prix de vente et **CA prévisionnel** ;
+  - **marge brute HT** et taux de marge ;
+  - classe ABC ;
+  - date de la dernière sortie.
+- **Totaux** :
+  - valeur d'achat du stock ;
+  - CA prévisionnel TTC et HT ;
+  - marge brute prévisionnelle et taux ;
+  - coefficient moyen (prix de vente HT ÷ coût).
+- **Données utiles en plus** :
+  - stock sans prix de vente, exclu du CA et de la marge ;
+  - articles à marge négative ;
+  - **stock dormant** (plus de 90 jours sans sortie) ;
+  - anomalies : stocks négatifs, coûts estimés ;
+  - classes **ABC** : A = 80 % de la valeur, B = 15 %, C = 5 %.
+- **Filtres** : lieu de stock, famille, type, standing, stock (en stock / tout / négatif), prix de vente (avec / sans), marge (négative, sous 20 %, 20 % ou plus), classe ABC, dormant, recherche.
+- **Regroupement** : par famille, lieu de stock, type, standing, ou liste simple. **Tri** : valeur, CA, marge, taux, quantité, désignation.
+- **Synthèses** par famille, **par lieu de stock** et par classe ABC.
+- **Prix TTC** : les prix de vente du catalogue sont considérés comme TTC (comme au comptoir). La marge est calculée sur le HT (TTC ÷ (1 + TVA)). Une case permet de les traiter comme des prix HT.
+- **Sorties** :
+  - **impression** A4 paysage, avec en-tête, filtres appliqués, indicateurs, synthèses, détail regroupé avec sous-totaux, signatures et QR de sécurité ;
+  - **Excel (CSV)** ;
+  - **📤 WhatsApp / e-mail** : le document est généré en **PDF**. Sur téléphone, il est joint directement via le partage de l'appareil. Sur ordinateur, il est téléchargé et WhatsApp Web ou la messagerie s'ouvrent avec un message résumé prérempli ; le PDF est à joindre. Le dernier numéro et la dernière adresse utilisés sont mémorisés.
+- **Réutilisable** : la génération PDF et l'envoi (`impGenererPdf`, `impOuvrirEnvoi`) font partie du moteur d'impression et pourront servir aux autres documents.
