@@ -208,6 +208,7 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
     <nav class="flex-1 px-3 pb-4 overflow-y-auto text-sm" id="sidebarNav">
       <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="dashboard">🏠 <span>Accueil</span></button>
       <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="carte">🗺️ <span>Carte</span></button>
+      <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="validations">✅ <span>Validations</span> <span class="badge-validations dash-tab-badge hidden">0</span></button>
 
       <div class="sidebar-group-title">Clients</div>
       <button class="nav-parent" data-toggle="clients-g">🏠 <span>Clients</span><span class="chev">▸</span></button>
@@ -971,8 +972,8 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant',referentiels:"Familles d'articles & unités",'stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Journal des mouvements','achats-commandes':'Commandes fournisseurs','achats-commande-edit':'Commande fournisseur','achats-commande-view':'Commande fournisseur','achats-reception':'Réception fournisseur','achats-receptions':'Réceptions fournisseurs','commandes-internes':'Commandes internes','commande-interne-edit':'Commande interne','commande-interne-view':'Commande interne','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-valorisation':'Stock — Valorisation, CA prévisionnel et marge','stock-inventaires':"Stock — États d'inventaire",'stock-inventaire-view':"État d'inventaire",'stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'État périodique — Point de vente & caisse','comptoir-z':'Ticket Z — Clôture du point de vente','caisse-brouillard':'Brouillard de caisse',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,referentiels:renderReferentiels,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'achats-commandes':renderAchatsCommandes,'achats-commande-edit':renderAchatsCommandeEdit,'achats-commande-view':renderAchatsCommandeView,'achats-reception':renderAchatsReception,'achats-receptions':renderAchatsReceptions,'commandes-internes':renderCommandesInternes,'commande-interne-edit':renderCommandeInterneEdit,'commande-interne-view':renderCommandeInterneView,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-valorisation':renderStockValorisation,'stock-inventaires':renderStockInventaires,'stock-inventaire-view':renderInventaireDetail,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,'caisse-validations':renderCaisseValidations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,'comptoir-z':renderComptoirZ,'caisse-brouillard':renderCaisseBrouillard,parametres:renderParametres};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant',referentiels:"Familles d'articles & unités",'stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Journal des mouvements','achats-commandes':'Commandes fournisseurs','achats-commande-edit':'Commande fournisseur','achats-commande-view':'Commande fournisseur','achats-reception':'Réception fournisseur','achats-receptions':'Réceptions fournisseurs','commandes-internes':'Commandes internes','commande-interne-edit':'Commande interne','commande-interne-view':'Commande interne','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-valorisation':'Stock — Valorisation, CA prévisionnel et marge','stock-inventaires':"Stock — États d'inventaire",'stock-inventaire-view':"État d'inventaire",'stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',validations:'Validations — Direction générale & hiérarchie autorisée',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'État périodique — Point de vente & caisse','comptoir-z':'Ticket Z — Clôture du point de vente','caisse-brouillard':'Brouillard de caisse',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,referentiels:renderReferentiels,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'achats-commandes':renderAchatsCommandes,'achats-commande-edit':renderAchatsCommandeEdit,'achats-commande-view':renderAchatsCommandeView,'achats-reception':renderAchatsReception,'achats-receptions':renderAchatsReceptions,'commandes-internes':renderCommandesInternes,'commande-interne-edit':renderCommandeInterneEdit,'commande-interne-view':renderCommandeInterneView,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-valorisation':renderStockValorisation,'stock-inventaires':renderStockInventaires,'stock-inventaire-view':renderInventaireDetail,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,'caisse-validations':renderCaisseValidations,validations:renderValidations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,'comptoir-z':renderComptoirZ,'caisse-brouillard':renderCaisseBrouillard,parametres:renderParametres};
 const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',referentiels:'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','achats-commandes':'achats-g','achats-commande-edit':'achats-g','achats-commande-view':'achats-g','achats-reception':'achats-g','achats-receptions':'achats-g','commandes-internes':'achats-g','commande-interne-edit':'achats-g','commande-interne-view':'achats-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-valorisation':'stock-g','stock-inventaires':'stock-g','stock-inventaire-view':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g','caisse-validations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g','comptoir-z':'comptoir-g','caisse-brouillard':'caisse-g'};
 /* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
 const ALL_MODULES=[
@@ -1061,10 +1062,7 @@ function exigerPlafond(montant,libelle){
 const VALID_MODES={tous:'Tous les bons (règle DG)',plafond:"Au-delà du plafond de l'auteur",aucun:'Circuit désactivé'};
 function validationMode(){ const m=window.APP_PARAMS?.validation_caisse_mode; return m===undefined?'aucun':(m||'tous'); }   // colonne absente = base non migrée
 function monPlafondValidation(){ const r=monRole(); return r&&r.plafond_validation!=null?+r.plafond_validation:null; }
-function jePeuxValiderMontant(montant){
-  if(!(monRole()?.code==='admin'||peutModule('Caisse','valider'))) return false;
-  const p=monPlafondValidation(); return p===null||(+montant||0)<=p;
-}
+function jePeuxValiderMontant(montant){ return jePeuxValider('Caisse',montant); }
 function bonExigeValidation(montant,estTransfert){
   const m=validationMode();
   if(m==='aucun') return false;
@@ -1126,12 +1124,14 @@ async function decaisserDemande(id){
 function apresDecisionValidation(){
   majBadgeValidations();
   if(window._dash) window._dash.data=null;
-  const p=window._pageCourante; if(p==='caisse-detail'||p==='caisse-validations'||p==='dashboard') showPage(p);
+  const p=window._pageCourante; if(['caisse-detail','caisse-validations','dashboard','validations','achats-commande-view','commande-interne-view'].includes(p)) showPage(p);
 }
 async function majBadgeValidations(){
   if(validationMode()==='aucun'&&!window.APP_PARAMS) return;
-  const {count}=await sb.from('caisse_demandes').select('id',{count:'exact',head:true}).eq('statut','en_attente');
-  const n=jePeuxValiderMontant(0)?(count||0):0;
+  let n=0;
+  const {data,error}=await sb.from('v_validations').select('categorie,montant').eq('statut','en_attente');
+  if(!error) n=(data||[]).filter(vcPeutDecider).length;
+  else { const {count}=await sb.from('caisse_demandes').select('id',{count:'exact',head:true}).eq('statut','en_attente'); n=jePeuxValiderMontant(0)?(count||0):0; }
   document.querySelectorAll('.badge-validations').forEach(b=>{ b.textContent=n; b.classList.toggle('hidden',!n); });
 }
 async function imprimerBonDemande(id){
@@ -1215,7 +1215,7 @@ async function renderCaisseValidations(el){
   const onglets=[['attente',`⏳ En attente (${attente.length})`],['miennes',`📋 Mes demandes (${miennes.filter(d=>d.statut==='en_attente').length})`],['historique','🗂️ Historique']];
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-start gap-3 mb-4">
-      <div><h2 class="text-lg font-bold">✅ Validations — circuit DG</h2>
+      <div><h2 class="text-lg font-bold">✅ Validations — circuit DG <button class="btn btn-outline text-xs ml-2" onclick="window._vc.onglet='attente';window._vc.cat='';showPage('validations')">Centre de validation (tous types) →</button></h2>
         <p class="text-sm text-gray-500 max-w-2xl">Bons d'entrée / de sortie et transferts entre caisses soumis à l'approbation du DG ou d'un délégué dont le plafond couvre le montant. Votre plafond : <b>${monPlafondValidation()===null?'illimité':money(monPlafondValidation())}</b>${jePeuxValiderMontant(0)?'':' — vous ne validez pas (droit « valider » Caisse absent)'}.</p></div>
       ${peutParam?`<div class="card p-3"><div class="text-xs text-gray-500 mb-1">Mode du circuit (Paramètres)</div><select onchange="enregistrerModeValidation(this.value)">${Object.entries(VALID_MODES).map(([k,v])=>`<option value="${k}" ${k===validationMode()?'selected':''}>${v}</option>`).join('')}</select></div>`:''}
     </div>
@@ -1231,6 +1231,290 @@ async function enregistrerModeValidation(mode){
   const {error}=await sb.from('parametres').update({validation_caisse_mode:mode}).eq('id',p.id);
   if(error){ toast(error.message,'error'); return; }
   window.APP_PARAMS.validation_caisse_mode=mode; toast('Mode du circuit de validation : '+VALID_MODES[mode]);
+}
+
+/* ============================== CENTRE DE VALIDATION — DG & HIÉRARCHIE AUTORISÉE (modèle Menko Immo) ==============================
+   Une seule page « ✅ Validations » réunit tout ce qui attend une décision : bons d'entrée / de sortie et transferts de
+   caisse, bons de commande fournisseur au-delà du seuil, commandes internes entre dépôts (vue serveur v_validations).
+   Onglets : ⏳ En attente (par type, avec badges) · 🗂️ Historique des décisions (filtres + export Excel) ·
+   📊 État périodique par type (imprimable, envoi WhatsApp / e-mail) · 🏛️ Hiérarchie & seuils.
+   Décider exige : droit « valider » du module (ou administrateur = DG), plafond du rôle couvrant le montant et,
+   si les paliers sont activés, un niveau hiérarchique suffisant (N+1 / Direction N+2 / DG-PDG) — contrôlé aussi
+   dans la base (peut_valider, sql/validations_hierarchie.sql). */
+const VAL_HIER_DEFAUT={paliers_actifs:false,paliers:[{code:'N1',libelle:'Responsable hiérarchique (N+1)',seuil:1000000,niveau:2},{code:'N2',libelle:'Direction (N+2)',seuil:5000000,niveau:3},{code:'DG',libelle:'Directeur général / PDG',seuil:20000000,niveau:4}],bon_commande:{actif:true,seuil:500000},commande_interne:{actif:true}};
+function valHier(){ const h=window.APP_PARAMS?.validation_hierarchie; return h&&typeof h==='object'?{...VAL_HIER_DEFAUT,...h}:null; }
+function valNiveauRequis(montant){
+  const h=valHier(); if(!h||!h.paliers_actifs) return 0;
+  return (h.paliers||[]).filter(p=>(+montant||0)>(+p.seuil||0)).reduce((m,p)=>Math.max(m,+p.niveau||0),0);
+}
+function valPalier(montant){
+  const h=valHier(); if(!h||!h.paliers_actifs) return null;
+  return (h.paliers||[]).filter(p=>(+montant||0)>(+p.seuil||0)).sort((a,b)=>(+b.niveau||0)-(+a.niveau||0))[0]||null;
+}
+/* Miroir client de peut_valider(module, montant) */
+function jePeuxValider(module,montant){
+  const r=monRole(); if(!r) return !window._rbac?.provisionne;
+  if(!(r.code==='admin'||peutModule(module,'valider'))) return false;
+  if(r.plafond_validation!=null&&(+montant||0)>+r.plafond_validation) return false;
+  return r.code==='admin'||(+r.niveau||0)>=valNiveauRequis(montant);
+}
+function bcValidationRequise(montant){ const b=valHier()?.bon_commande; return !!(b&&b.actif&&(+montant||0)>(+b.seuil||0)); }
+function bcEstValidee(c){ return !bcValidationRequise(c.total_ttc)||(c.validation_statut==='validee'&&+c.total_ttc<=(+c.validation_montant||0)+0.005); }
+const VC_CATS={caisse:{l:'Mouvements de caisse',i:'💰',module:'Caisse'},bon_commande:{l:'Bons de commande fournisseur',i:'🧾',module:'Stock'},commande_interne:{l:'Commandes internes',i:'🔁',module:'Stock'}};
+const VC_TYPES={caisse_entree:'▲ Bon d\'entrée de caisse',caisse_sortie:'▼ Bon de sortie de caisse',caisse_transfert:'⇄ Transfert entre caisses',bon_commande:'🧾 Bon de commande fournisseur',commande_interne:'🔁 Commande interne'};
+const VC_STATUTS={en_attente:{l:'En attente',c:'#d97706',i:'⏳'},valide:{l:'Validée',c:'#059669',i:'✅'},rejete:{l:'Rejetée',c:'#dc2626',i:'✖'},annule:{l:'Annulée',c:'#6b7280',i:'—'}};
+function vcPeutDecider(v){
+  if(v.categorie==='commande_interne'&&['admin','manager'].includes(monRole()?.code)) return true;
+  return jePeuxValider(VC_CATS[v.categorie]?.module||'Stock',v.montant);
+}
+const vcAge=(d)=>{ const h=(Date.now()-new Date(d).getTime())/36e5; return h<1?'< 1 h':h<48?Math.round(h)+' h':Math.round(h/24)+' j'; };
+const vcDelaiH=(v)=>v.date_decision&&v.date_demande?Math.max(0,(new Date(v.date_decision)-new Date(v.date_demande))/36e5):null;
+const vcDelaiTxt=(h)=>h==null?'—':h<1?Math.round(h*60)+' min':h<48?String(Math.round(h*10)/10).replace('.',',')+' h':String(Math.round(h/24*10)/10).replace('.',',')+' j';
+
+function vcEtatInitial(){
+  const a=new Date(), d=new Date(a.getFullYear(),a.getMonth(),1), iso=x=>x.toISOString().slice(0,10);
+  return {onglet:'attente',cat:'',statut:'',du:iso(new Date(d.getTime()-d.getTimezoneOffset()*6e4)),au:iso(new Date(a.getTime()-a.getTimezoneOffset()*6e4)),q:'',demandeur:''};
+}
+window._vc=window._vc||vcEtatInitial();
+async function vcCharger(){
+  const {data,error}=await sb.from('v_validations').select('*').order('date_demande',{ascending:false}).limit(3000);
+  if(error) return {erreur:error.message};
+  return {l:data||[]};
+}
+async function renderValidations(el){
+  const V=window._vc;
+  if(!window.APP_PARAMS) await loadAppParams();
+  const res=await vcCharger();
+  if(res.erreur){ el.innerHTML=`<div class="card p-6 text-sm text-gray-500">Centre de validation indisponible : ${escapeHtml(res.erreur)}<br>Exécutez la migration <code>sql/validations_hierarchie.sql</code>.</div>`; return; }
+  window._vcData=res.l;
+  const L=res.l, attente=L.filter(v=>v.statut==='en_attente');
+  const dansPeriode=(v)=>{ const d=(v.date_decision||v.date_demande||'').slice(0,10); return d>=V.du&&d<=V.au; };
+  const decPer=L.filter(v=>['valide','rejete'].includes(v.statut)&&dansPeriode(v));
+  const r=monRole(), plaf=r?.plafond_validation;
+  const h=valHier();
+  const onglets=[['attente',`⏳ En attente <span class="dash-tab-badge ${attente.length?'':'hidden'}">${attente.length}</span>`],['historique','🗂️ Historique des décisions'],['etat','📊 État périodique par type'],['hierarchie','🏛️ Hiérarchie & seuils']];
+  const delais=decPer.map(vcDelaiH).filter(x=>x!=null);
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-start gap-3 mb-4">
+      <div><h2 class="text-lg font-bold">✅ Validations — tout ce qui attend une décision</h2>
+        <p class="text-sm text-gray-500 max-w-3xl">Circuit de la Direction générale et de la hiérarchie autorisée : mouvements de caisse, bons de commande fournisseur au-delà de ${h?money(h.bon_commande?.seuil||0):'—'}${h&&!h.bon_commande?.actif?' (circuit désactivé)':''}, commandes internes entre dépôts.</p>
+        <div class="text-xs text-gray-500 mt-1">Vous : <b>${escapeHtml(r?.label||'—')}</b> · niveau ${r?.niveau??'—'} · plafond <b>${plaf==null?'illimité':money(plaf)}</b>${h?.paliers_actifs?' · paliers hiérarchiques <b>actifs</b>':' · paliers hiérarchiques inactifs'}</div></div>
+      <button class="btn btn-outline" onclick="showPage('validations')">↻ Actualiser</button>
+    </div>
+    ${dashCartes([
+      {lib:'En attente',val:attente.length,icone:'⏳',coul:attente.length?'#d97706':'',sous:money(attente.reduce((s,v)=>s+(+v.montant||0),0)),fn:"window._vc.onglet='attente';window._vc.cat='';showPage('validations')"},
+      {lib:'Que vous pouvez valider',val:attente.filter(vcPeutDecider).length,icone:'🔑',coul:attente.filter(vcPeutDecider).length?'#059669':''},
+      {lib:'Validées (période)',val:decPer.filter(v=>v.statut==='valide').length,icone:'✅',coul:'#059669',sous:money(decPer.filter(v=>v.statut==='valide').reduce((s,v)=>s+(+v.montant||0),0))},
+      {lib:'Rejetées (période)',val:decPer.filter(v=>v.statut==='rejete').length,icone:'✖',coul:decPer.some(v=>v.statut==='rejete')?'#dc2626':'',sous:money(decPer.filter(v=>v.statut==='rejete').reduce((s,v)=>s+(+v.montant||0),0))},
+      {lib:'Délai moyen de décision',val:vcDelaiTxt(delais.length?delais.reduce((a,b)=>a+b,0)/delais.length:null),icone:'⏱️',sous:attente.length?'plus ancienne : '+vcAge(attente[attente.length-1].date_demande):''}])}
+    <div class="flex flex-wrap gap-1.5 p-1.5 mb-3 rounded-xl" style="background:#eef0f5">${onglets.map(([k,l])=>`<button class="dash-tab ${V.onglet===k?'active':''}" onclick="window._vc.onglet='${k}';showPage('validations')">${l}</button>`).join('')}</div>
+    <div id="vcCorps"></div>`;
+  const corps=document.getElementById('vcCorps');
+  if(V.onglet==='historique') vcHistorique(corps,L);
+  else if(V.onglet==='etat') vcEtat(corps,L);
+  else if(V.onglet==='hierarchie') await vcHierarchie(corps);
+  else vcAttente(corps,attente);
+  majBadgeValidations();
+}
+function vcTable(l,opts={}){
+  if(!l.length) return `<div class="p-8 text-center text-gray-400">${opts.vide||'Aucun élément.'}</div>`;
+  return `<table><thead><tr><th>Référence / type</th><th>Objet</th><th class="text-right">Montant</th><th>Demandeur</th><th>${opts.decision?'Décision':'Palier requis'}</th><th>Statut</th><th></th></tr></thead><tbody>
+    ${l.map(v=>{ const pal=valPalier(v.montant), ok=vcPeutDecider(v);
+      return `<tr><td class="whitespace-nowrap"><a href="#" class="text-indigo-600 underline font-mono text-xs font-semibold" onclick="event.preventDefault();vcVoir(${jsArg(v.categorie)},${jsArg(v.ref_id)})">${escapeHtml(v.reference||'—')}</a><div class="text-[11px] text-gray-500">${escapeHtml(VC_TYPES[v.type]||v.type)}</div></td>
+      <td class="text-sm" style="min-width:180px">${escapeHtml(v.libelle||'')}<div class="text-[11px] text-gray-400">${escapeHtml(v.lieu||'')}</div>${v.motif?`<div class="text-xs ${v.statut==='rejete'?'text-red-600':'text-gray-500'}">${v.statut==='rejete'?'Motif du rejet : ':''}${escapeHtml(v.motif)}</div>`:''}${v.projet_id?chantierBadgeHtml(v.projet_id):''}</td>
+      <td class="text-right font-semibold whitespace-nowrap">${money(v.montant)}</td>
+      <td class="text-xs">${escapeHtml(v.demandeur||'—')}<div class="text-gray-400 whitespace-nowrap">${new Date(v.date_demande).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'})}${v.statut==='en_attente'?' · il y a '+vcAge(v.date_demande):''}</div></td>
+      <td class="text-xs">${opts.decision?`${escapeHtml(v.valideur||'—')}<div class="text-gray-400 whitespace-nowrap">${v.date_decision?new Date(v.date_decision).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):'—'} · délai ${vcDelaiTxt(vcDelaiH(v))}</div>`:pal?escapeHtml(pal.libelle):'<span class="text-gray-400">habilité du module</span>'}</td>
+      <td>${statutPill(VC_STATUTS,v.statut)}</td>
+      <td class="whitespace-nowrap">${v.statut==='en_attente'?(ok?`<button class="btn btn-primary text-xs" onclick="vcDecider(${jsArg(v.categorie)},${jsArg(v.ref_id)},'valider')">✅ Valider</button> <button class="btn btn-outline text-xs" onclick="vcDecider(${jsArg(v.categorie)},${jsArg(v.ref_id)},'rejeter')">✖ Rejeter</button>`
+        :`<span class="text-xs text-gray-500" title="Votre rôle, votre plafond ou votre niveau hiérarchique ne couvre pas ce montant">🔒 réservé à la hiérarchie</span>`):''}</td></tr>`; }).join('')}</tbody></table>`;
+}
+function vcAttente(corps,attente){
+  const V=window._vc, liste=attente.filter(v=>!V.cat||v.categorie===V.cat).sort((a,b)=>a.date_demande.localeCompare(b.date_demande));
+  const nb=(c)=>attente.filter(v=>v.categorie===c).length;
+  corps.innerHTML=`<div class="flex flex-wrap gap-2 mb-3">
+      <button class="btn ${!V.cat?'btn-primary':'btn-outline'} text-sm" onclick="window._vc.cat='';showPage('validations')">Tous (${attente.length})</button>
+      ${Object.entries(VC_CATS).map(([k,c])=>`<button class="btn ${V.cat===k?'btn-primary':'btn-outline'} text-sm" onclick="window._vc.cat='${k}';showPage('validations')">${c.i} ${c.l} <span class="dash-tab-badge ${nb(k)?'':'hidden'}">${nb(k)}</span></button>`).join('')}</div>
+    <div class="card overflow-x-auto">${vcTable(liste,{vide:'✅ Rien n\'attend de décision.'})}</div>
+    <p class="text-xs text-gray-400 mt-2">Les demandes les plus anciennes sont en tête. 🔒 = votre rôle (droit « valider », plafond ou niveau hiérarchique) ne couvre pas le montant : la décision revient à un supérieur.</p>`;
+}
+function vcFiltrer(L){
+  const V=window._vc, q=(V.q||'').toLowerCase().trim();
+  return L.filter(v=>v.statut!=='en_attente')
+    .filter(v=>!V.cat||v.categorie===V.cat).filter(v=>!V.statut||v.statut===V.statut)
+    .filter(v=>{ const d=(v.date_decision||v.date_demande||'').slice(0,10); return d>=V.du&&d<=V.au; })
+    .filter(v=>!V.demandeur||v.demandeur===V.demandeur||v.valideur===V.demandeur)
+    .filter(v=>!q||[v.reference,v.libelle,v.demandeur,v.valideur,v.motif,v.lieu].join(' ').toLowerCase().includes(q));
+}
+function vcFiltresHtml(L,page){
+  const V=window._vc, gens=[...new Set(L.flatMap(v=>[v.demandeur,v.valideur]).filter(Boolean))].sort();
+  return `<div class="card p-3 mb-3 flex flex-wrap items-end gap-2 text-sm">
+    <label>Du<br><input type="date" value="${V.du}" onchange="window._vc.du=this.value;showPage('validations')"></label>
+    <label>Au<br><input type="date" value="${V.au}" onchange="window._vc.au=this.value;showPage('validations')"></label>
+    <label>Type<br><select onchange="window._vc.cat=this.value;showPage('validations')"><option value="">Tous les types</option>${Object.entries(VC_CATS).map(([k,c])=>`<option value="${k}" ${V.cat===k?'selected':''}>${c.i} ${c.l}</option>`).join('')}</select></label>
+    ${page==='historique'?`<label>Décision<br><select onchange="window._vc.statut=this.value;showPage('validations')"><option value="">Validées et rejetées</option><option value="valide" ${V.statut==='valide'?'selected':''}>✅ Validées</option><option value="rejete" ${V.statut==='rejete'?'selected':''}>✖ Rejetées</option><option value="annule" ${V.statut==='annule'?'selected':''}>Annulées</option></select></label>`:''}
+    <label>Personne<br><select onchange="window._vc.demandeur=this.value;showPage('validations')"><option value="">Toutes</option>${gens.map(g=>`<option ${V.demandeur===g?'selected':''}>${escapeHtml(g)}</option>`).join('')}</select></label>
+    ${page==='historique'?`<label class="flex-1 min-w-[160px]">Recherche<br><input type="search" value="${escapeHtml(V.q)}" placeholder="Référence, objet, motif…" onchange="window._vc.q=this.value;showPage('validations')"></label>`:''}
+    <div class="flex gap-1">${[['Ce mois',0],['Mois dernier',1],['Année',12]].map(([l,n])=>`<button class="btn btn-outline text-xs" onclick="vcPeriode(${n})">${l}</button>`).join('')}</div></div>`;
+}
+function vcPeriode(n){
+  const a=new Date(), iso=x=>new Date(x.getTime()-x.getTimezoneOffset()*6e4).toISOString().slice(0,10);
+  if(n===12){ window._vc.du=a.getFullYear()+'-01-01'; window._vc.au=iso(a); }
+  else if(n===1){ window._vc.du=iso(new Date(a.getFullYear(),a.getMonth()-1,1)); window._vc.au=iso(new Date(a.getFullYear(),a.getMonth(),0)); }
+  else { window._vc.du=iso(new Date(a.getFullYear(),a.getMonth(),1)); window._vc.au=iso(a); }
+  showPage('validations');
+}
+function vcHistorique(corps,L){
+  const l=vcFiltrer(L);
+  corps.innerHTML=`${vcFiltresHtml(L,'historique')}
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-2"><div class="text-sm text-gray-500">${l.length} décision(s) · validé ${money(l.filter(v=>v.statut==='valide').reduce((s,v)=>s+(+v.montant||0),0))} · rejeté ${money(l.filter(v=>v.statut==='rejete').reduce((s,v)=>s+(+v.montant||0),0))}</div>
+      <button class="btn btn-outline text-sm" onclick="vcExporterCsv()">📊 Export Excel</button></div>
+    <div class="card overflow-x-auto">${vcTable(l,{decision:true,vide:'Aucune décision sur la période.'})}</div>`;
+}
+function vcCalcEtat(L){
+  const V=window._vc;
+  const dans=(d)=>{ d=(d||'').slice(0,10); return d>=V.du&&d<=V.au; };
+  const base=L.filter(v=>(!V.cat||v.categorie===V.cat)&&(!V.demandeur||v.demandeur===V.demandeur||v.valideur===V.demandeur));
+  const soumis=base.filter(v=>dans(v.date_demande)), decides=base.filter(v=>['valide','rejete'].includes(v.statut)&&dans(v.date_decision)), attente=base.filter(v=>v.statut==='en_attente');
+  const agg=()=>({soumis:0,ms:0,val:0,mv:0,rej:0,mr:0,att:0,ma:0,del:[]});
+  const parType={}, parValideur={};
+  soumis.forEach(v=>{ const t=parType[v.type]=parType[v.type]||agg(); t.soumis++; t.ms+=+v.montant||0; });
+  decides.forEach(v=>{ const t=parType[v.type]=parType[v.type]||agg(), w=parValideur[v.valideur||'—']=parValideur[v.valideur||'—']||agg(), d=vcDelaiH(v);
+    [t,w].forEach(x=>{ if(v.statut==='valide'){ x.val++; x.mv+=+v.montant||0; } else { x.rej++; x.mr+=+v.montant||0; } if(d!=null) x.del.push(d); }); });
+  attente.forEach(v=>{ const t=parType[v.type]=parType[v.type]||agg(); t.att++; t.ma+=+v.montant||0; });
+  const tot=agg(); Object.values(parType).forEach(t=>{ ['soumis','ms','val','mv','rej','mr','att','ma'].forEach(k=>tot[k]+=t[k]); tot.del.push(...t.del); });
+  const moy=(a)=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+  return {parType,parValideur,tot,moy,decides,attente};
+}
+function vcEtatTableHtml(r,cls){
+  const c=cls||{t:'',r:'text-right'};
+  const ligne=(lib,t,b)=>`<tr${b?' style="font-weight:700;background:#f8fafc"':''}><td>${lib}</td><td class="${c.r}">${t.soumis}</td><td class="${c.r}">${money(t.ms)}</td><td class="${c.r}">${t.val}</td><td class="${c.r}">${money(t.mv)}</td><td class="${c.r}">${t.rej}</td><td class="${c.r}">${money(t.mr)}</td><td class="${c.r}">${t.val+t.rej?Math.round(t.val/(t.val+t.rej)*100)+' %':'—'}</td><td class="${c.r}">${t.att}</td><td class="${c.r}">${money(t.ma)}</td><td class="${c.r}">${vcDelaiTxt(r.moy(t.del))}</td></tr>`;
+  const types=Object.keys(VC_TYPES).filter(k=>r.parType[k]);
+  return `<table><thead><tr><th>Type</th><th class="${c.r}">Soumises</th><th class="${c.r}">Montant soumis</th><th class="${c.r}">Validées</th><th class="${c.r}">Montant validé</th><th class="${c.r}">Rejetées</th><th class="${c.r}">Montant rejeté</th><th class="${c.r}">Taux</th><th class="${c.r}">En attente</th><th class="${c.r}">Montant en attente</th><th class="${c.r}">Délai moyen</th></tr></thead><tbody>
+    ${types.map(k=>ligne(escapeHtml(VC_TYPES[k]),r.parType[k])).join('')||`<tr><td colspan="11" style="text-align:center;color:#9ca3af">Aucune demande sur la période.</td></tr>`}
+    ${types.length?ligne('TOTAL',r.tot,true):''}</tbody></table>`;
+}
+function vcValideursHtml(r,cls){
+  const c=cls||{r:'text-right'}, e=Object.entries(r.parValideur).sort((a,b)=>(b[1].val+b[1].rej)-(a[1].val+a[1].rej));
+  return `<table><thead><tr><th>Valideur</th><th class="${c.r}">Décisions</th><th class="${c.r}">Validées</th><th class="${c.r}">Montant validé</th><th class="${c.r}">Rejetées</th><th class="${c.r}">Montant rejeté</th><th class="${c.r}">Délai moyen</th></tr></thead><tbody>
+    ${e.map(([n,t])=>`<tr><td>${escapeHtml(n)}</td><td class="${c.r}">${t.val+t.rej}</td><td class="${c.r}">${t.val}</td><td class="${c.r}">${money(t.mv)}</td><td class="${c.r}">${t.rej}</td><td class="${c.r}">${money(t.mr)}</td><td class="${c.r}">${vcDelaiTxt(r.moy(t.del))}</td></tr>`).join('')||`<tr><td colspan="7" style="text-align:center;color:#9ca3af">Aucune décision sur la période.</td></tr>`}</tbody></table>`;
+}
+function vcEtat(corps,L){
+  const r=vcCalcEtat(L); window._vcEtat=r;
+  corps.innerHTML=`${vcFiltresHtml(L,'etat')}
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-2"><div class="text-sm text-gray-500">Période du <b>${fmtDate(window._vc.du)}</b> au <b>${fmtDate(window._vc.au)}</b> — soumissions datées à la demande, décisions datées au jour de la décision ; « en attente » = situation actuelle.</div>
+      <div class="flex gap-2"><button class="btn btn-outline text-sm" onclick="vcImprimer()">🖨 Imprimer l'état</button><button class="btn btn-outline text-sm" onclick="vcEnvoyer()">📤 WhatsApp / e-mail</button><button class="btn btn-outline text-sm" onclick="vcExporterCsv()">📊 Excel</button></div></div>
+    <div class="card overflow-x-auto mb-4"><div class="p-3 font-bold">Synthèse par type de validation</div>${vcEtatTableHtml(r)}</div>
+    <div class="card overflow-x-auto mb-4"><div class="p-3 font-bold">Par valideur</div>${vcValideursHtml(r)}</div>
+    <div class="card overflow-x-auto"><div class="p-3 font-bold">Détail des décisions de la période (${r.decides.length})</div>${vcTable(r.decides.slice().sort((a,b)=>(b.date_decision||'').localeCompare(a.date_decision||'')),{decision:true,vide:'Aucune décision sur la période.'})}</div>`;
+}
+function vcFiltresTexte(){
+  const V=window._vc;
+  return `Du ${fmtDate(V.du)} au ${fmtDate(V.au)}${V.cat?' · '+VC_CATS[V.cat].l:' · tous les types'}${V.demandeur?' · '+V.demandeur:''}`;
+}
+function vcRapportHtml(){
+  const r=window._vcEtat||vcCalcEtat(window._vcData||[]);
+  const cls={r:'r'};
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>État périodique des validations</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:22px;color:#0f172a;font-size:10px}
+    h2{font-size:12px;margin:14px 0 4px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd5e1;padding:3px 5px;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9px;text-transform:uppercase}.r{text-align:right;white-space:nowrap}
+    .k{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}.k div{border:1px solid #cbd5e1;border-radius:6px;padding:6px}.k b{display:block;font-size:13px}
+    thead{display:table-header-group}tr{break-inside:avoid}@page{size:A4 landscape;margin:9mm}@media print{body{padding:0}}</style></head><body>${achBouton}
+    <h1 style="font-size:16px;margin:0">ÉTAT PÉRIODIQUE DES VALIDATIONS PAR TYPE</h1><div style="color:#475569">${escapeHtml(vcFiltresTexte())} · édité le ${new Date().toLocaleString('fr-FR')}</div>
+    <div class="k"><div>Demandes soumises<b>${r.tot.soumis}</b>${money(r.tot.ms)}</div><div>Validées<b style="color:#047857">${r.tot.val}</b>${money(r.tot.mv)}</div><div>Rejetées<b style="color:#b91c1c">${r.tot.rej}</b>${money(r.tot.mr)}</div><div>En attente (actuel)<b style="color:#b45309">${r.tot.att}</b>${money(r.tot.ma)} · délai moyen ${vcDelaiTxt(r.moy(r.tot.del))}</div></div>
+    <h2>Synthèse par type</h2>${vcEtatTableHtml(r,cls)}
+    <h2>Par valideur</h2>${vcValideursHtml(r,cls)}
+    <h2>Détail des décisions</h2><table><thead><tr><th>Décision le</th><th>Type</th><th>Référence</th><th>Objet</th><th>Lieu</th><th class="r">Montant</th><th>Demandeur</th><th>Valideur</th><th>Délai</th><th>Statut</th><th>Motif</th></tr></thead><tbody>
+    ${r.decides.slice().sort((a,b)=>(a.date_decision||'').localeCompare(b.date_decision||'')).map(v=>`<tr><td>${v.date_decision?new Date(v.date_decision).toLocaleString('fr-FR'):''}</td><td>${escapeHtml(VC_TYPES[v.type]||v.type)}</td><td>${escapeHtml(v.reference||'')}</td><td>${escapeHtml(v.libelle||'')}</td><td>${escapeHtml(v.lieu||'')}</td><td class="r">${money(v.montant)}</td><td>${escapeHtml(v.demandeur||'')}</td><td>${escapeHtml(v.valideur||'')}</td><td class="r">${vcDelaiTxt(vcDelaiH(v))}</td><td>${VC_STATUTS[v.statut]?.l||v.statut}</td><td>${escapeHtml(v.motif||'')}</td></tr>`).join('')||'<tr><td colspan="11" style="text-align:center">Aucune décision sur la période.</td></tr>'}</tbody></table>
+    ${r.attente.length?`<h2>En attente à la date d'édition (${r.attente.length})</h2><table><thead><tr><th>Demandé le</th><th>Type</th><th>Référence</th><th>Objet</th><th class="r">Montant</th><th>Demandeur</th><th>Ancienneté</th></tr></thead><tbody>${r.attente.map(v=>`<tr><td>${new Date(v.date_demande).toLocaleString('fr-FR')}</td><td>${escapeHtml(VC_TYPES[v.type]||v.type)}</td><td>${escapeHtml(v.reference||'')}</td><td>${escapeHtml(v.libelle||'')}</td><td class="r">${money(v.montant)}</td><td>${escapeHtml(v.demandeur||'')}</td><td>${vcAge(v.date_demande)}</td></tr>`).join('')}</tbody></table>`:''}
+    <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`;
+}
+const vcMeta=()=>{ const r=window._vcEtat||vcCalcEtat(window._vcData||[]); return {type:'ETAT_VALIDATIONS',titre:'État périodique des validations',periode:`${window._vc.du} → ${window._vc.au}`,montant:r.tot.mv,niveau:window._vc.cat?VC_CATS[window._vc.cat].l:'Tous les types',contenu:true}; };
+async function vcImprimer(){ const win=window.open('','_blank','width=1200,height=1000'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; } await impEcrire(win,vcMeta(),vcRapportHtml()); }
+function vcEnvoyer(){
+  const r=window._vcEtat||vcCalcEtat(window._vcData||[]);
+  const texte=`✅ *État des validations* — ${nomEntreprise()||APP_NOM}\n${vcFiltresTexte()}\n\n• Soumises : ${r.tot.soumis} (${money(r.tot.ms)})\n• Validées : ${r.tot.val} (${money(r.tot.mv)})\n• Rejetées : ${r.tot.rej} (${money(r.tot.mr)})\n• En attente : ${r.tot.att} (${money(r.tot.ma)})\n• Délai moyen : ${vcDelaiTxt(r.moy(r.tot.del))}`;
+  impOuvrirEnvoi({titre:'État périodique des validations',html:vcRapportHtml(),meta:vcMeta(),orientation:'landscape',nomFichier:`${slugEntreprise()}-validations-${window._vc.du}_${window._vc.au}.pdf`,texte});
+}
+function vcExporterCsv(){
+  const l=window._vc.onglet==='etat'?(window._vcEtat?.decides||[]):vcFiltrer(window._vcData||[]);
+  const n=x=>x==null||x===''?'':String(Math.round(+x*100)/100).replace('.',',');
+  const lignes=[['Type','Référence','Objet','Lieu','Montant','Demandeur','Demandé le','Statut','Valideur','Décidé le','Délai (h)','Motif']];
+  l.forEach(v=>lignes.push([VC_TYPES[v.type]||v.type,v.reference||'',v.libelle||'',v.lieu||'',n(v.montant),v.demandeur||'',new Date(v.date_demande).toLocaleString('fr-FR'),VC_STATUTS[v.statut]?.l||v.statut,v.valideur||'',v.date_decision?new Date(v.date_decision).toLocaleString('fr-FR'):'',n(vcDelaiH(v)),v.motif||'']));
+  const csv='﻿'+lignes.map(x=>x.map(y=>{ const s=String(y??''); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(';')).join('\r\n');
+  telechargerFichier(new File([csv],`${slugEntreprise()}-validations-${window._vc.du}_${window._vc.au}.csv`,{type:'text/csv;charset=utf-8'}));
+}
+function vcVoir(cat,id){
+  if(cat==='bon_commande'){ window._bcVoir=id; showPage('achats-commande-view'); }
+  else if(cat==='commande_interne'){ window._ciVoir=id; showPage('commande-interne-view'); }
+  else { window._validHub={onglet:'attente'}; showPage('caisse-validations'); }
+}
+async function vcDecider(cat,id,decision){
+  if(cat==='caisse') return decision==='valider'?validerDemande(id):rejeterDemande(id);
+  const v=(window._vcData||[]).find(x=>x.ref_id===id)||{};
+  let motif=null;
+  if(decision==='rejeter'){ motif=prompt(`Motif du rejet de ${v.reference||''} (visible par le demandeur) :`,''); if(motif===null) return; if(!motif.trim()){ toast('Motif du rejet obligatoire.','error'); return; } }
+  else if(!confirm(`Valider ${v.reference||''} — ${v.libelle||''} (${money(v.montant)}) ?`)) return;
+  const {error}=cat==='bon_commande'
+    ?await sb.rpc('commande_fournisseur_action',{p_id:id,p_action:decision,p_motif:motif})
+    :await sb.rpc('commande_interne_action',{p_id:id,p_action:decision==='valider'?'valider':'refuser',p_motif:motif});
+  if(error){ toast(error.message,'error'); return; }
+  toast(decision==='valider'?`✅ ${v.reference||'Demande'} validée.`:`✖ ${v.reference||'Demande'} rejetée.`);
+  apresDecisionValidation();
+}
+async function vcHierarchie(corps){
+  const h=valHier(), peutParam=peutModule('Parametres','modifier');
+  if(!h){ corps.innerHTML='<div class="card p-6 text-sm text-gray-500">Exécutez la migration <code>sql/validations_hierarchie.sql</code> pour paramétrer la hiérarchie.</div>'; return; }
+  const {data:perms}=await sb.from('role_permissions').select('role_id,module_code,peut_valider').in('module_code',['Caisse','Stock']);
+  const roles=(window._rbac?.roles||[]).filter(r=>r.code!=='sans_role');
+  const pv=(r,m)=>r.code==='admin'||(perms||[]).some(p=>p.role_id===r.id&&p.module_code===m&&p.peut_valider);
+  const paliers=(h.paliers||[]).slice().sort((a,b)=>(+a.seuil||0)-(+b.seuil||0));
+  // Montant maximal qu'un rôle peut décider : plafond du rôle, borné par le premier palier dont le niveau dépasse le sien
+  const maxRole=(r)=>{ if(r.code==='admin') return r.plafond_validation==null?Infinity:+r.plafond_validation;
+    let m=r.plafond_validation==null?Infinity:+r.plafond_validation;
+    if(h.paliers_actifs){ const bloque=paliers.find(p=>(+p.niveau||0)>(+r.niveau||0)); if(bloque) m=Math.min(m,+bloque.seuil||0); }
+    return m; };
+  const dis=peutParam?'':'disabled';
+  corps.innerHTML=`<div class="grid lg:grid-cols-2 gap-4">
+    <div class="card p-4"><div class="font-bold mb-1">🏛️ Seuils de validation hiérarchique par montant</div>
+      <p class="text-xs text-gray-500 mb-3">Au-delà de chaque seuil, seul un rôle de niveau au moins égal peut décider (en plus du droit « valider » du module et du plafond du rôle). L'administrateur (DG) passe tous les paliers. S'applique à la caisse, aux bons de commande et aux commandes internes.</p>
+      <label class="flex items-center gap-2 text-sm mb-3"><input type="checkbox" id="vhActif" ${h.paliers_actifs?'checked':''} ${dis} style="width:16px;height:16px"> Activer les paliers hiérarchiques</label>
+      <table class="text-sm"><thead><tr><th>Palier</th><th class="text-right">Au-delà de (FCFA)</th><th>Niveau de rôle exigé</th></tr></thead><tbody>
+        ${paliers.map((p,i)=>`<tr><td><input class="vhLib" data-i="${i}" data-code="${escapeHtml(p.code||'')}" value="${escapeHtml(p.libelle||'')}" ${dis}></td><td><input class="vhSeuil text-right" data-i="${i}" type="number" min="0" step="1000" value="${+p.seuil||0}" ${dis} style="width:140px"></td>
+          <td><select class="vhNiv" data-i="${i}" ${dis}>${[1,2,3,4].map(n=>`<option value="${n}" ${+p.niveau===n?'selected':''}>Niveau ${n}${n===4?' (DG / administrateur)':''}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table>
+      <div class="font-bold mt-4 mb-1">🧾 Bons de commande fournisseur</div>
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="vhBcActif" ${h.bon_commande?.actif?'checked':''} ${dis} style="width:16px;height:16px"> Validation obligatoire au-delà de</label>
+      <input id="vhBcSeuil" type="number" min="0" step="1000" value="${+(h.bon_commande?.seuil||0)}" ${dis} class="mt-1" style="width:180px"> FCFA TTC
+      <p class="text-xs text-gray-500 mt-1">Au-delà, la commande doit être soumise puis validée avant envoi au fournisseur et avant réception. Un décideur habilité valide en l'envoyant.</p>
+      <div class="font-bold mt-4 mb-1">💰 Caisse</div>
+      <select id="vhCaisseMode" ${dis}>${Object.entries(VALID_MODES).map(([k,v])=>`<option value="${k}" ${k===validationMode()?'selected':''}>${v}</option>`).join('')}</select>
+      ${peutParam?`<div class="mt-4 flex gap-2"><button class="btn btn-primary" onclick="vcEnregistrerHierarchie()">💾 Enregistrer</button><button class="btn btn-outline" onclick="vcModeleMenko()">Modèle 1 M / 5 M / 20 M</button></div>`:'<p class="text-xs text-gray-400 mt-3">Lecture seule — seul un rôle autorisé à modifier les Paramètres peut changer ces seuils.</p>'}
+    </div>
+    <div class="card p-4 overflow-x-auto"><div class="font-bold mb-1">👥 Hiérarchie autorisée — qui peut décider quoi</div>
+      <p class="text-xs text-gray-500 mb-3">Calculé à partir des rôles (Paramètres → Utilisateurs & rôles) : droit « valider » par module, plafond du rôle et niveau hiérarchique.</p>
+      <table class="text-sm"><thead><tr><th>Rôle</th><th>Niveau</th><th class="text-right">Plafond</th><th>Caisse</th><th>Achats / Stock</th><th class="text-right">Décide jusqu'à</th></tr></thead><tbody>
+        ${roles.map(r=>{ const m=maxRole(r), c=pv(r,'Caisse'), s=pv(r,'Stock'); return `<tr><td>${escapeHtml(r.icon||'')} ${escapeHtml(r.label)}</td><td>${r.niveau}</td><td class="text-right">${r.plafond_validation==null?'illimité':money(r.plafond_validation)}</td>
+          <td>${c?'✅':'—'}</td><td>${s||['admin','manager'].includes(r.code)?'✅':'—'}</td><td class="text-right font-semibold">${!c&&!s?'<span class="text-gray-400">aucune décision</span>':m===Infinity?'sans limite':money(m)}</td></tr>`; }).join('')}</tbody></table>
+      ${peutModule('Utilisateurs','voir')||peutModule('Parametres','voir')?`<button class="btn btn-outline text-sm mt-3" onclick="showPage('parametres')">⚙️ Gérer les rôles, niveaux et plafonds</button>`:''}
+    </div></div>`;
+}
+function vcModeleMenko(){
+  [[1000000,2],[5000000,3],[20000000,4]].forEach(([s,n],i)=>{ const a=document.querySelector(`.vhSeuil[data-i="${i}"]`), b=document.querySelector(`.vhNiv[data-i="${i}"]`); if(a) a.value=s; if(b) b.value=n; });
+  const c=document.getElementById('vhActif'); if(c) c.checked=true;
+  toast('Modèle appliqué : N+1 > 1 000 000, Direction > 5 000 000, DG > 20 000 000 — enregistrez pour confirmer.');
+}
+async function vcEnregistrerHierarchie(){
+  if(!exigerDroit('Parametres','modifier','les seuils de validation')) return;
+  const h=valHier();
+  const paliers=[...document.querySelectorAll('.vhSeuil')].map(inp=>{ const i=inp.dataset.i, lib=document.querySelector(`.vhLib[data-i="${i}"]`);
+    return {code:lib?.dataset.code||('P'+i),libelle:(lib?.value||'').trim()||'Palier',seuil:Math.max(0,+inp.value||0),niveau:+document.querySelector(`.vhNiv[data-i="${i}"]`).value}; });
+  const val={...h,paliers_actifs:document.getElementById('vhActif').checked,paliers,
+    bon_commande:{actif:document.getElementById('vhBcActif').checked,seuil:Math.max(0,+document.getElementById('vhBcSeuil').value||0)}};
+  const p=window.APP_PARAMS||await loadAppParams();
+  const mode=document.getElementById('vhCaisseMode').value;
+  const {error}=await sb.from('parametres').update({validation_hierarchie:val,validation_caisse_mode:mode}).eq('id',p.id);
+  if(error){ toast(error.message,'error'); return; }
+  window.APP_PARAMS.validation_hierarchie=val; window.APP_PARAMS.validation_caisse_mode=mode;
+  toast('✅ Hiérarchie de validation enregistrée.'); showPage('validations');
 }
 
 function rbacAppliquerSidebar(){
@@ -1431,7 +1715,7 @@ function dashActions(){
   if(aValider.length){ const plusVieille=Math.max(...aValider.map(x=>dashJours(x.demande_le))); push({
     aid:'valid_'+k.auj, prio:130+Math.min(20,aValider.length), urgent:plusVieille>=1, icone:'🔐', montant:aValider.reduce((t,x)=>t+(+x.montant||0),0),
     titre:`Valider ${aValider.length} demande(s) de caisse`, detail:aValider.slice(0,4).map(x=>`${x.numero} · ${escapeHtml(x.motif)} (${money(x.montant)})`).join(' — ')+(aValider.length>4?' …':'')+` · la plus ancienne attend depuis ${plusVieille} j. Tant qu'elles ne sont pas validées, elles ne comptent pas dans le solde.`,
-    boutons:[{lib:'✅ Ouvrir les validations',fn:`window._validHub={onglet:'attente'};showPage('caisse-validations')`}]}); }
+    boutons:[{lib:'✅ Centre de validation',fn:`window._vc.onglet='attente';window._vc.cat='caisse';showPage('validations')`},{lib:'💰 Circuit caisse',fn:`window._validHub={onglet:'attente'};showPage('caisse-validations')`}]}); }
   dem.filter(x=>x.demande_par===CURRENT_USER?.id&&x.statut==='rejetee'&&dashJours(x.decide_le)<=7).forEach(x=>push({
     aid:'rej_'+x.id, prio:88, urgent:false, icone:'✖', montant:+x.montant||0, titre:`Demande ${x.numero} rejetée par ${x.decide_nom||'le DG'}`,
     detail:`${escapeHtml(x.motif)} — motif du rejet : <b>${escapeHtml(x.motif_rejet||'—')}</b>. Corrigez puis soumettez une nouvelle demande si nécessaire.`,
@@ -3432,13 +3716,13 @@ async function renderAchatsCommandes(el){
   await achatsRef(true);
   const {data,error}=await sb.from('commandes_fournisseur').select('*').order('created_at',{ascending:false}).limit(500);
   if(error){ el.innerHTML=`<div class="card p-6 text-sm text-amber-700">Module Achats non installé : ${escapeHtml(error.message)}<br>Exécutez <b>sql/achats_commandes.sql</b> dans Supabase.</div>`; return; }
-  const F=window._bcFiltre, l=(data||[]).filter(c=>(!F.statut||(F.statut==='encours'?['envoyee','partielle'].includes(c.statut):c.statut===F.statut))&&(!F.fournisseur||c.fournisseur_id===F.fournisseur)&&(!F.depot||c.depot_id===F.depot));
+  const F=window._bcFiltre, l=(data||[]).filter(c=>(!F.statut||(F.statut==='encours'?['envoyee','partielle'].includes(c.statut):F.statut==='a_valider'?c.statut==='brouillon'&&c.validation_statut==='en_attente':c.statut===F.statut))&&(!F.fournisseur||c.fournisseur_id===F.fournisseur)&&(!F.depot||c.depot_id===F.depot));
   const tous=data||[], encours=tous.filter(c=>['envoyee','partielle'].includes(c.statut));
   const tuile=(t,v,s,c)=>`<div class="card p-4"><div class="text-xs text-gray-400 font-semibold uppercase">${t}</div><div class="text-2xl font-black mt-1" style="color:${c||'inherit'}">${v}</div><div class="text-xs text-gray-500">${s||''}</div></div>`;
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
       <div class="flex flex-wrap gap-2">
-        <select style="width:auto" onchange="window._bcFiltre.statut=this.value;showPage('achats-commandes')"><option value="">Tous statuts</option><option value="encours" ${F.statut==='encours'?'selected':''}>En cours (à recevoir)</option>${Object.entries(BC_STATUTS).map(([k,s])=>`<option value="${k}" ${F.statut===k?'selected':''}>${s.i} ${s.l}</option>`).join('')}</select>
+        <select style="width:auto" onchange="window._bcFiltre.statut=this.value;showPage('achats-commandes')"><option value="">Tous statuts</option><option value="encours" ${F.statut==='encours'?'selected':''}>En cours (à recevoir)</option><option value="a_valider" ${F.statut==='a_valider'?'selected':''}>🔐 En attente de validation</option>${Object.entries(BC_STATUTS).map(([k,s])=>`<option value="${k}" ${F.statut===k?'selected':''}>${s.i} ${s.l}</option>`).join('')}</select>
         <select style="width:auto" onchange="window._bcFiltre.fournisseur=this.value;showPage('achats-commandes')"><option value="">Tous fournisseurs</option>${window._achRef.fournisseurs.map(f=>`<option value="${f.id}" ${F.fournisseur===f.id?'selected':''}>${escapeHtml(f.nom)}</option>`).join('')}</select>
         <select style="width:auto" onchange="window._bcFiltre.depot=this.value;showPage('achats-commandes')"><option value="">Tous dépôts</option>${depotOptionsHtml(F.depot)}</select>
       </div>
@@ -3455,8 +3739,8 @@ async function renderAchatsCommandes(el){
         <td class="font-mono font-semibold">${escapeHtml(c.code)}${c.reference_fournisseur?`<div class="text-[10px] font-sans text-gray-400">réf. ${escapeHtml(c.reference_fournisseur)}</div>`:''}</td><td>${fmtDate(c.date_commande)}</td>
         <td>${escapeHtml(achFourn(c.fournisseur_id)?.nom||'—')}</td><td class="text-xs">${escapeHtml(depNomCourt(c.depot_id))}${c.projet_id?chantierBadgeHtml(c.projet_id):''}</td>
         <td class="text-xs" style="${c.date_livraison_prevue&&['envoyee','partielle'].includes(c.statut)&&c.date_livraison_prevue<new Date().toISOString().slice(0,10)?'color:#dc2626;font-weight:700':''}">${c.date_livraison_prevue?fmtDate(c.date_livraison_prevue):'—'}</td>
-        <td class="text-right">${money(c.total_ht)}</td><td class="text-right text-gray-500">${money(c.total_ttc)}</td><td>${statutPill(BC_STATUTS,c.statut)}</td>
-        <td class="whitespace-nowrap" onclick="event.stopPropagation()">${['envoyee','partielle','brouillon'].includes(c.statut)?`<button class="btn btn-outline text-xs" onclick="window._recepCommande='${c.id}';showPage('achats-reception')">📥 Réceptionner</button>`:''} <button class="btn btn-outline text-xs" onclick="imprimerBonCommande('${c.id}')">🖨</button></td></tr>`).join('')}
+        <td class="text-right">${money(c.total_ht)}</td><td class="text-right text-gray-500">${money(c.total_ttc)}</td><td>${statutPill(BC_STATUTS,c.statut)}${c.statut==='brouillon'&&c.validation_statut?`<div class="mt-1">${statutPill(VC_STATUTS,{en_attente:'en_attente',validee:'valide',rejetee:'rejete'}[c.validation_statut])}</div>`:c.statut==='brouillon'&&!bcEstValidee(c)?'<div class="text-[10px] text-amber-700 mt-1">🔐 validation requise</div>':''}</td>
+        <td class="whitespace-nowrap" onclick="event.stopPropagation()">${['envoyee','partielle'].includes(c.statut)||(c.statut==='brouillon'&&bcEstValidee(c))?`<button class="btn btn-outline text-xs" onclick="window._recepCommande='${c.id}';showPage('achats-reception')">📥 Réceptionner</button>`:''} <button class="btn btn-outline text-xs" onclick="imprimerBonCommande('${c.id}')">🖨</button></td></tr>`).join('')}
     </tbody></table>`:'<div class="p-8 text-center text-gray-400">Aucune commande fournisseur.</div>'}</div>`;
 }
 
@@ -3557,6 +3841,7 @@ async function renderAchatsCommandeView(el){
   if(!c){ el.innerHTML='<div class="card p-6 text-gray-400">Commande introuvable.</div>'; return; }
   const f=achFourn(c.fournisseur_id), ouverte=['envoyee','partielle'].includes(c.statut);
   const reste=lignes.reduce((s,l)=>s+Math.max(0,+l.quantite-(+l.quantite_recue)),0);
+  const valOk=bcEstValidee(c), peutDec=jePeuxValider('Stock',c.total_ttc), brouillon=c.statut==='brouillon';
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-start gap-3 mb-3">
       <div><div class="text-xl font-black font-mono">${escapeHtml(c.code)} ${statutPill(BC_STATUTS,c.statut)}</div>
@@ -3565,14 +3850,16 @@ async function renderAchatsCommandeView(el){
         ${c.projet_id?chantierBadgeHtml(c.projet_id):''}${c.motif_annulation?`<div class="text-xs text-red-600 mt-1">${c.statut==='annulee'?'Annulée':'Soldée'} : ${escapeHtml(c.motif_annulation)}</div>`:''}</div>
       <div class="flex flex-wrap gap-2">
         <button class="btn btn-outline" onclick="showPage('achats-commandes')">← Commandes</button>
-        ${c.statut==='brouillon'?`<button class="btn btn-outline" onclick="window._bcEdit='${c.id}';showPage('achats-commande-edit')">✏️ Modifier</button><button class="btn btn-outline" onclick="bcAction('${c.id}','envoyer')">📤 Marquer envoyée</button>`:''}
-        ${ouverte||c.statut==='brouillon'?`<button class="btn btn-primary" onclick="window._recepCommande='${c.id}';showPage('achats-reception')">📥 Réceptionner</button>`:''}
+        ${brouillon?`<button class="btn btn-outline" onclick="window._bcEdit='${c.id}';showPage('achats-commande-edit')">✏️ Modifier</button>${valOk||peutDec?`<button class="btn btn-outline" onclick="bcAction('${c.id}','envoyer')">📤 Marquer envoyée${valOk?'':' (et valider)'}</button>`:''}`:''}
+        ${brouillon&&!valOk&&c.validation_statut!=='en_attente'?`<button class="btn btn-primary" onclick="bcAction('${c.id}','soumettre_validation')">🔐 Soumettre à validation</button>`:''}
+        ${ouverte||(brouillon&&valOk)?`<button class="btn btn-primary" onclick="window._recepCommande='${c.id}';showPage('achats-reception')">📥 Réceptionner</button>`:''}
         ${c.statut==='partielle'||c.statut==='envoyee'?`<button class="btn btn-outline" onclick="bcAction('${c.id}','solder')" title="Clôture la commande : le reste non livré est abandonné">☑️ Solder</button>`:''}
         ${!receptions.length&&!['annulee','recue','soldee'].includes(c.statut)?`<button class="btn btn-outline" onclick="bcAction('${c.id}','annuler')">✕ Annuler</button>`:''}
         <button class="btn btn-outline" onclick="imprimerBonCommande('${c.id}')">🖨 Imprimer</button>
         <button class="btn btn-outline" onclick="bcEnvoyer('${c.id}')">📤 WhatsApp / e-mail</button>
       </div>
     </div>
+    ${bcBandeauValidation(c,valOk,peutDec)}
     <div class="card overflow-x-auto mb-4"><table><thead><tr><th>Article</th><th class="text-right">Commandé</th><th class="text-right">Reçu</th><th class="text-right">Reste</th><th class="text-right">P.U. HT</th><th class="text-right">Remise</th><th class="text-right">Montant HT</th></tr></thead><tbody>
       ${lignes.map(l=>{ const r=Math.max(0,+l.quantite-(+l.quantite_recue)); return `<tr><td>${escapeHtml(l.designation)}</td><td class="text-right">${fmtQte(l.quantite)} ${escapeHtml(l.unite||'')}</td>
         <td class="text-right" style="color:${+l.quantite_recue>=+l.quantite?'#059669':+l.quantite_recue>0?'#d97706':'#9ca3af'}">${fmtQte(l.quantite_recue)}</td><td class="text-right font-semibold">${r?fmtQte(r):'—'}</td>
@@ -3584,15 +3871,29 @@ async function renderAchatsCommandeView(el){
       ${receptions.length?`<table><thead><tr><th>N°</th><th>Date</th><th>Dépôt</th><th>BL fournisseur</th><th class="text-right">Montant HT</th><th>Compta</th><th>Reçu par</th><th></th></tr></thead><tbody>
       ${receptions.map(r=>`<tr><td class="font-mono">${escapeHtml(r.code)}</td><td>${fmtDate(r.date_reception)}</td><td class="text-xs">${escapeHtml(depNomCourt(r.depot_id))}</td><td>${escapeHtml(r.bl_fournisseur||'—')}</td><td class="text-right">${money(r.montant_ht)}</td><td>${r.comptabilise?'✅':'—'}</td><td class="text-xs">${escapeHtml(r.recu_par_nom||'')}</td><td><button class="btn btn-outline text-xs" onclick="imprimerBonReception('${r.id}')">🖨</button></td></tr>`).join('')}</tbody></table>`:'<div class="px-3 pb-3 text-sm text-gray-400">Aucune réception.</div>'}</div>`;
 }
+function bcBandeauValidation(c,valOk,peutDec){
+  const req=bcValidationRequise(c.total_ttc), pal=valPalier(c.total_ttc), seuil=valHier()?.bon_commande?.seuil;
+  const boite=(coul,html)=>`<div class="text-sm rounded-lg px-3 py-2 mb-3 border" style="background:${coul}10;border-color:${coul}55;color:${coul}">${html}</div>`;
+  const decider=peutDec?` <button class="btn btn-primary text-xs ml-2" onclick="bcAction('${c.id}','valider')">✅ Valider</button> <button class="btn btn-outline text-xs" onclick="bcAction('${c.id}','rejeter')">✖ Rejeter</button>`:' <span class="text-xs">🔒 décision réservée à la hiérarchie habilitée</span>';
+  if(c.validation_statut==='en_attente'&&c.statut==='brouillon') return boite('#b45309',`⏳ <b>En attente de validation hiérarchique</b> — soumise le ${new Date(c.validation_demande_le).toLocaleString('fr-FR')} par ${escapeHtml(c.validation_demande_nom||'—')} pour ${money(c.validation_montant)}${pal?' · palier requis : <b>'+escapeHtml(pal.libelle)+'</b>':''}.${decider} <button class="btn btn-outline text-xs" onclick="bcAction('${c.id}','retirer_validation')">↩ Retirer la demande</button>`);
+  if(c.validation_statut==='rejetee'&&c.statut==='brouillon') return boite('#dc2626',`✖ <b>Validation rejetée</b> par ${escapeHtml(c.valide_par_nom||'—')} le ${c.valide_le?new Date(c.valide_le).toLocaleString('fr-FR'):'—'} — motif : ${escapeHtml(c.motif_rejet||'—')}. Modifiez la commande puis soumettez-la à nouveau.`);
+  if(c.validation_statut==='validee') return boite('#047857',`✅ <b>Validée</b> par ${escapeHtml(c.valide_par_nom||'—')} le ${c.valide_le?new Date(c.valide_le).toLocaleString('fr-FR'):'—'} (${money(c.validation_montant)})${!valOk&&c.statut==='brouillon'?' — <b>le montant a augmenté depuis : nouvelle validation requise</b>':''}.`);
+  if(req&&c.statut==='brouillon') return boite('#b45309',`🔐 Montant supérieur au seuil de validation des commandes (${money(seuil)}) : la commande doit être validée par la hiérarchie avant envoi au fournisseur et réception.${peutDec?' Votre rôle est habilité : « Marquer envoyée » la valide en même temps.':''}`);
+  return '';
+}
 async function bcAction(id,action){
-  const txt={envoyer:'Marquer la commande comme envoyée au fournisseur ?',solder:'Solder la commande ? Le reste non livré sera abandonné (la commande est close).',annuler:'Annuler la commande ?'}[action];
+  const txt={envoyer:'Marquer la commande comme envoyée au fournisseur ?',solder:'Solder la commande ? Le reste non livré sera abandonné (la commande est close).',annuler:'Annuler la commande ?',
+    soumettre_validation:'Soumettre la commande à la validation de la hiérarchie ?',retirer_validation:'Retirer la demande de validation ?',valider:'Valider cette commande ? Elle pourra être envoyée au fournisseur et réceptionnée.'}[action];
   let motif=null;
-  if(action==='annuler'){ motif=prompt('Motif de l\'annulation :'); if(!motif||!motif.trim()) return; }
+  if(action==='rejeter'){ motif=prompt('Motif du rejet (visible par le demandeur) :'); if(!motif||!motif.trim()) return; }
+  else if(action==='annuler'){ motif=prompt('Motif de l\'annulation :'); if(!motif||!motif.trim()) return; }
   else if(action==='solder'){ if(!confirm(txt)) return; motif=prompt('Motif (optionnel) :')||null; }
   else if(!confirm(txt)) return;
   const {error}=await sb.rpc('commande_fournisseur_action',{p_id:id,p_action:action,p_motif:motif});
   if(error){ toast(error.message,'error'); return; }
-  toast('Commande mise à jour.'); showPage('achats-commande-view');
+  toast({soumettre_validation:'🔐 Commande soumise à validation.',valider:'✅ Commande validée.',rejeter:'✖ Commande rejetée.',retirer_validation:'Demande de validation retirée.'}[action]||'Commande mise à jour.');
+  if(['soumettre_validation','valider','rejeter','retirer_validation'].includes(action)) majBadgeValidations();
+  showPage('achats-commande-view');
 }
 
 /* ---------- Réception fournisseur ---------- */
@@ -3850,7 +4151,8 @@ async function renderCommandeInterneView(el){
   const {c,lignes,transferts}=await chargerCommandeInterne(window._ciVoir);
   if(!c){ el.innerHTML='<div class="card p-6 text-gray-400">Commande interne introuvable.</div>'; return; }
   window._ciDetail={c,lignes};
-  const gest=achatGestionnaire(), aServir=['validee','servie_partielle'].includes(c.statut);
+  const valeurCI=lignes.reduce((s,l)=>{ const cp=achComp(l.composant_id)||{}; return s+(+l.quantite_demandee||0)*(+cp.cmup||+cp.prix_unitaire||0); },0);
+  const gest=achatGestionnaire()||jePeuxValider('Stock',valeurCI), aServir=['validee','servie_partielle'].includes(c.statut);
   el.innerHTML=`<div class="flex flex-wrap justify-between items-start gap-3 mb-3">
       <div><div class="text-xl font-black font-mono">${escapeHtml(c.code)} ${statutPill(CI_STATUTS,c.statut)}</div>
         <div class="text-sm text-gray-600 mt-1"><b>${escapeHtml(depNomCourt(c.depot_demandeur_id))}</b> demande à <b>${escapeHtml(depNomCourt(c.depot_fournisseur_id))}</b>${c.date_besoin?' · besoin pour le '+fmtDate(c.date_besoin):''}</div>
@@ -3864,7 +4166,7 @@ async function renderCommandeInterneView(el){
         ${c.statut==='servie_partielle'?`<button class="btn btn-outline" onclick="ciAction('${c.id}','solder')">☑️ Solder</button>`:''}
         ${['brouillon','soumise','validee'].includes(c.statut)?`<button class="btn btn-outline" onclick="ciAction('${c.id}','annuler')">✕ Annuler</button>`:''}
         <button class="btn btn-outline" onclick="imprimerCommandeInterne('${c.id}')">🖨 Imprimer</button></div></div>
-    ${c.statut==='soumise'&&!gest?'<div class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 mb-3">⏳ En attente de validation par un administrateur ou un manager.</div>':''}
+    ${c.statut==='soumise'&&!gest?'<div class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 mb-3">⏳ En attente de validation par la hiérarchie autorisée (administrateur, manager ou rôle habilité) — suivi dans ✅ Validations.</div>':''}
     <div class="card overflow-x-auto mb-4"><table><thead><tr><th>Article</th><th class="text-right">Demandé</th><th class="text-right">Servi</th><th class="text-right">Reste</th><th class="text-right">Dispo au dépôt fournisseur</th></tr></thead><tbody>
       ${lignes.map(l=>{ const cp=achComp(l.composant_id)||{}, r=Math.max(0,+l.quantite_demandee-(+l.quantite_servie)), d=achDispo(l.composant_id,c.depot_fournisseur_id); return `<tr><td>${escapeHtml(cp.nom||'—')}</td><td class="text-right">${fmtQte(l.quantite_demandee)} ${escapeHtml(cp.unite||'')}</td>
         <td class="text-right" style="color:${+l.quantite_servie>=+l.quantite_demandee?'#059669':+l.quantite_servie>0?'#d97706':'#9ca3af'}">${fmtQte(l.quantite_servie)}</td><td class="text-right font-semibold">${r?fmtQte(r):'—'}</td>
@@ -8302,7 +8604,7 @@ async function imprimerPageCourante(){
     <script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body></html>`);
 }
 /* ---------- Vérification d'un document (scan du QR de sécurité, sans compte) ---------- */
-const IMP_TYPES={DEVIS:'Devis',FACTURE:'Facture',FACTURE_FNE:'Facture normalisée (FNE)',RECU:'Reçu de caisse',BON_CAISSE:'Bon de caisse',BON_TRANSFERT:'Bon de transfert',FICHE_CLIENT:'Fiche client',FICHE_FOURNISSEUR:'Fiche fournisseur',FICHE_EXECUTION:"Fiche d'exécution",ESTIMATION:'Estimation financière',ETAT_PDV:'État périodique point de vente',BROUILLARD:'Brouillard de caisse',TICKET_Z:'Ticket Z',LECTURE_X:'Lecture X',ETAT_COMPTABLE:'État comptable SYSCOHADA',BULLETIN:'Bulletin de pilotage',PAGE:'Page imprimée',ETAT_INVENTAIRE:"État d'inventaire",FEUILLE_COMPTAGE:'Feuille de comptage',VALORISATION_STOCK:'Valorisation du stock',BON_COMMANDE:'Bon de commande fournisseur',BON_RECEPTION:'Bon de réception',COMMANDE_INTERNE:'Commande interne',JOURNAL_STOCK:'Journal des mouvements de stock'};
+const IMP_TYPES={ETAT_VALIDATIONS:'État périodique des validations',DEVIS:'Devis',FACTURE:'Facture',FACTURE_FNE:'Facture normalisée (FNE)',RECU:'Reçu de caisse',BON_CAISSE:'Bon de caisse',BON_TRANSFERT:'Bon de transfert',FICHE_CLIENT:'Fiche client',FICHE_FOURNISSEUR:'Fiche fournisseur',FICHE_EXECUTION:"Fiche d'exécution",ESTIMATION:'Estimation financière',ETAT_PDV:'État périodique point de vente',BROUILLARD:'Brouillard de caisse',TICKET_Z:'Ticket Z',LECTURE_X:'Lecture X',ETAT_COMPTABLE:'État comptable SYSCOHADA',BULLETIN:'Bulletin de pilotage',PAGE:'Page imprimée',ETAT_INVENTAIRE:"État d'inventaire",FEUILLE_COMPTAGE:'Feuille de comptage',VALORISATION_STOCK:'Valorisation du stock',BON_COMMANDE:'Bon de commande fournisseur',BON_RECEPTION:'Bon de réception',COMMANDE_INTERNE:'Commande interne',JOURNAL_STOCK:'Journal des mouvements de stock'};
 function impVerificationResultatHtml(r){
   if(!r) return `<div style="color:#b91c1c;font-weight:700">⚠ Vérification impossible (serveur injoignable). Réessayez avec une connexion Internet.</div>`;
   if(!r.trouve) return `<div style="text-align:center"><div style="font-size:44px">❌</div><div style="font-size:18px;font-weight:800;color:#b91c1c">Code inconnu</div><p style="color:#475569">Aucun document n'a été émis par le logiciel avec ce code. Le document présenté n'est pas authentique ou le code a été mal saisi.</p></div>`;
