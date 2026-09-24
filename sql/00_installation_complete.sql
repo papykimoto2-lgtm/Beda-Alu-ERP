@@ -1500,3 +1500,474 @@ insert into public.composants (code, standing, nom, type, famille, unite, prix_u
 on conflict (code, standing) do nothing;
 
 reset check_function_bodies;
+
+-- ===========================================================================
+-- 6. Utilisateurs, rôles et droits par module (copie de sql/utilisateurs_roles.sql)
+-- ===========================================================================
+-- ============================================================================
+-- Sanix AluExpert ERP — Module Utilisateurs, Rôles & Accès (à l'image de ImmoSuite)
+-- ============================================================================
+-- À exécuter dans l'éditeur SQL Supabase, APRÈS sql/comptabilite_syscohada.sql
+-- et sql/parametres_comptes_defaut.sql. Additif : crée 3 nouvelles tables
+-- (roles, role_permissions, invitations) et ajoute 2 colonnes à `profiles`
+-- (déjà existante). Aucune table existante n'est modifiée en profondeur.
+--
+-- Modèle : chaque rôle porte, pour chaque module de l'application, 5 droits
+-- indépendants (voir/créer/modifier/supprimer/valider). Contrairement à
+-- ImmoSuite (où l'absence de restriction sur un module = tout autorisé),
+-- ici chaque couple (rôle, module) a une ligne explicite dans
+-- role_permissions — pas de valeur implicite, pour éviter les angles morts
+-- de sécurité. Règle absolue conservée d'ImmoSuite : seuls les rôles
+-- « admin » et « manager » peuvent supprimer, même si un rôle personnalisé
+-- coche « supprimer » sur un module (contrôlée côté application).
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- 1. Rôles
+-- ----------------------------------------------------------------------------
+create table if not exists roles (
+  id uuid primary key default gen_random_uuid(),
+  code text unique not null,
+  label text not null,
+  icon text not null default '👤',
+  niveau int not null default 1,
+  est_systeme boolean not null default false,
+  peut_supprimer boolean not null default true,
+  plafond_validation numeric(14,2),
+  description text,
+  created_at timestamptz not null default now()
+);
+
+-- ----------------------------------------------------------------------------
+-- 2. Permissions par rôle et par module
+-- ----------------------------------------------------------------------------
+create table if not exists role_permissions (
+  role_id uuid not null references roles(id) on delete cascade,
+  module_code text not null,
+  peut_voir boolean not null default false,
+  peut_creer boolean not null default false,
+  peut_modifier boolean not null default false,
+  peut_supprimer boolean not null default false,
+  peut_valider boolean not null default false,
+  primary key (role_id, module_code)
+);
+
+-- ----------------------------------------------------------------------------
+-- 3. Invitations (l'application n'a pas d'API admin Supabase côté client : on ne
+--    peut pas créer un compte auth pour quelqu'un d'autre. Une invitation
+--    pré-attribue un rôle à un email ; quand cette personne s'inscrit via
+--    l'écran de connexion existant, le rôle lui est attribué automatiquement)
+-- ----------------------------------------------------------------------------
+create table if not exists invitations (
+  id uuid primary key default gen_random_uuid(),
+  email text unique not null,
+  role_id uuid not null references roles(id),
+  statut text not null default 'en_attente' check (statut in ('en_attente','acceptee')),
+  invited_by uuid,
+  created_at timestamptz not null default now(),
+  accepted_at timestamptz
+);
+
+-- ----------------------------------------------------------------------------
+-- 4. Rattachement d'un rôle et d'un statut actif/inactif à chaque profil
+-- ----------------------------------------------------------------------------
+alter table profiles add column if not exists role_id uuid references roles(id);
+alter table profiles add column if not exists actif boolean not null default true;
+-- `profiles` n'avait pas de colonne email (l'email vit dans auth.users, non
+-- lisible par le client). On la duplique ici pour l'affichage dans l'écran
+-- Utilisateurs et le rapprochement des invitations ; elle se renseigne toute
+-- seule à la prochaine connexion de chaque utilisateur (voir index.html).
+alter table profiles add column if not exists email text;
+
+-- ----------------------------------------------------------------------------
+-- 5. Sécurité — RLS + garde-fou anti élévation de privilège
+-- ----------------------------------------------------------------------------
+alter table roles enable row level security;
+alter table role_permissions enable row level security;
+alter table invitations enable row level security;
+
+create or replace function public.is_admin() returns boolean
+language sql stable as $$
+  select exists(
+    select 1 from profiles p join roles r on r.id = p.role_id
+    where p.id = auth.uid() and r.code = 'admin'
+  );
+$$;
+
+drop policy if exists "roles_select" on roles;
+create policy "roles_select" on roles for select using (auth.role() = 'authenticated');
+drop policy if exists "roles_insert_admin" on roles;
+create policy "roles_insert_admin" on roles for insert with check (public.is_admin());
+drop policy if exists "roles_update_admin" on roles;
+create policy "roles_update_admin" on roles for update using (public.is_admin()) with check (public.is_admin());
+drop policy if exists "roles_delete_admin" on roles;
+create policy "roles_delete_admin" on roles for delete using (public.is_admin());
+
+drop policy if exists "role_permissions_select" on role_permissions;
+create policy "role_permissions_select" on role_permissions for select using (auth.role() = 'authenticated');
+drop policy if exists "role_permissions_insert_admin" on role_permissions;
+create policy "role_permissions_insert_admin" on role_permissions for insert with check (public.is_admin());
+drop policy if exists "role_permissions_update_admin" on role_permissions;
+create policy "role_permissions_update_admin" on role_permissions for update using (public.is_admin()) with check (public.is_admin());
+drop policy if exists "role_permissions_delete_admin" on role_permissions;
+create policy "role_permissions_delete_admin" on role_permissions for delete using (public.is_admin());
+
+drop policy if exists "invitations_select" on invitations;
+create policy "invitations_select" on invitations for select using (public.is_admin() or email = (auth.jwt()->>'email'));
+drop policy if exists "invitations_insert_admin" on invitations;
+create policy "invitations_insert_admin" on invitations for insert with check (public.is_admin());
+drop policy if exists "invitations_update" on invitations;
+create policy "invitations_update" on invitations for update
+  using (public.is_admin() or email = (auth.jwt()->>'email'))
+  with check (public.is_admin() or email = (auth.jwt()->>'email'));
+drop policy if exists "invitations_delete_admin" on invitations;
+create policy "invitations_delete_admin" on invitations for delete using (public.is_admin());
+
+-- Garde-fou indépendant de la policy RLS existante sur `profiles` (que cette
+-- migration ne connaît pas et ne modifie pas) : quel que soit ce que cette
+-- policy autorise déjà, ce trigger empêche un utilisateur non-admin de
+-- modifier son propre rôle ou son statut actif une fois qu'un rôle lui a
+-- déjà été attribué. Exception nécessaire : un profil qui n'a PAS encore de
+-- rôle (role_id IS NULL, cas d'une inscription qui vient d'avoir lieu) peut
+-- recevoir son rôle initial — c'est ce qui permet à l'inscription et au
+-- mécanisme d'invitation de fonctionner sans intervention manuelle.
+create or replace function public.proteger_role_profil() returns trigger
+language plpgsql as $$
+declare
+  appelant_admin boolean;
+begin
+  if new.role_id is distinct from old.role_id or new.actif is distinct from old.actif then
+    select public.is_admin() into appelant_admin;
+    if not appelant_admin and old.role_id is not null then
+      new.role_id := old.role_id;
+      new.actif := old.actif;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists trg_proteger_role_profil on profiles;
+create trigger trg_proteger_role_profil before update on profiles
+for each row execute function public.proteger_role_profil();
+
+-- ----------------------------------------------------------------------------
+-- 6. Rôles système + matrice de permissions par défaut
+-- ----------------------------------------------------------------------------
+do $$
+declare
+  rid uuid;
+  m text;
+  tous_modules text[] := array['Clients','Prospects','Fournisseurs','Projets','Devis','Factures',
+                                'FichesExecution','Produits','Composants','Stock','Comptabilite',
+                                'Caisse','Comptoir','Realisations','Utilisateurs','Parametres'];
+begin
+  -- ADMINISTRATEUR : accès total, y compris Utilisateurs et Paramètres
+  insert into roles(code,label,icon,niveau,est_systeme,peut_supprimer,plafond_validation,description)
+    values ('admin','Administrateur','👑',4,true,true,null,'Accès complet à tous les modules, y compris Utilisateurs et Paramètres.')
+    on conflict (code) do nothing;
+  select id into rid from roles where code='admin';
+  foreach m in array tous_modules loop
+    insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+      values (rid,m,true,true,true,true,true) on conflict (role_id,module_code) do nothing;
+  end loop;
+
+  -- MANAGER : tout sauf Comptabilité, Utilisateurs, Paramètres
+  insert into roles(code,label,icon,niveau,est_systeme,peut_supprimer,plafond_validation,description)
+    values ('manager','Manager','🧭',3,true,true,null,'Gestion opérationnelle complète (commercial, chantiers, stock) — sans accès à la Comptabilité ni aux Paramètres.')
+    on conflict (code) do nothing;
+  select id into rid from roles where code='manager';
+  foreach m in array tous_modules loop
+    if m in ('Comptabilite','Utilisateurs','Parametres') then
+      insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+        values (rid,m,false,false,false,false,false) on conflict (role_id,module_code) do nothing;
+    else
+      insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+        values (rid,m,true,true,true,true,true) on conflict (role_id,module_code) do nothing;
+    end if;
+  end loop;
+
+  -- COMPTABLE : Comptabilité/Caisse/Factures/Fournisseurs en création-modif (pas suppression),
+  -- consultation sur le reste, aucun accès à Utilisateurs/Paramètres/Prospects
+  insert into roles(code,label,icon,niveau,est_systeme,peut_supprimer,plafond_validation,description)
+    values ('comptable','Comptable','📗',2,true,false,1000000,'Comptabilité SYSCOHADA, Caisse, Factures et Fournisseurs — sans droit de suppression.')
+    on conflict (code) do nothing;
+  select id into rid from roles where code='comptable';
+  foreach m in array tous_modules loop
+    if m in ('Comptabilite','Caisse','Factures','Fournisseurs') then
+      insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+        values (rid,m,true,true,true,false,true) on conflict (role_id,module_code) do nothing;
+    elsif m in ('Clients','Devis','Projets','Stock','Produits','Composants','Realisations','FichesExecution','Comptoir') then
+      insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+        values (rid,m,true,false,false,false,false) on conflict (role_id,module_code) do nothing;
+    else
+      insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+        values (rid,m,false,false,false,false,false) on conflict (role_id,module_code) do nothing;
+    end if;
+  end loop;
+
+  -- COMMERCIAL : Clients/Prospects/Devis en création-modif, consultation sur le reste du cycle de vente
+  insert into roles(code,label,icon,niveau,est_systeme,peut_supprimer,plafond_validation,description)
+    values ('commercial','Commercial','🤝',1,true,false,null,'Clients, prospects et devis — sans droit de suppression, sans accès à la Comptabilité ni à la Caisse.')
+    on conflict (code) do nothing;
+  select id into rid from roles where code='commercial';
+  foreach m in array tous_modules loop
+    if m in ('Clients','Prospects','Devis','Realisations','Comptoir') then
+      insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+        values (rid,m,true,true,true,false,true) on conflict (role_id,module_code) do nothing;
+    elsif m in ('Projets','FichesExecution','Produits','Composants','Stock','Factures') then
+      insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+        values (rid,m,true,false,false,false,false) on conflict (role_id,module_code) do nothing;
+    else
+      insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+        values (rid,m,false,false,false,false,false) on conflict (role_id,module_code) do nothing;
+    end if;
+  end loop;
+
+  -- CAISSIÈRE : Caisse en création-modif uniquement (ni suppression, ni validation —
+  -- ségrégation des tâches), simple consultation de la Comptabilité
+  insert into roles(code,label,icon,niveau,est_systeme,peut_supprimer,plafond_validation,description)
+    values ('caissiere','Caissier(ère)','💰',1,true,false,100000,'Bons d''entrée/sortie de caisse — sans suppression ni validation, pour la ségrégation des tâches.')
+    on conflict (code) do nothing;
+  select id into rid from roles where code='caissiere';
+  foreach m in array tous_modules loop
+    if m in ('Caisse','Comptoir') then
+      insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+        values (rid,m,true,true,true,false,false) on conflict (role_id,module_code) do nothing;
+    elsif m='Comptabilite' then
+      insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+        values (rid,m,true,false,false,false,false) on conflict (role_id,module_code) do nothing;
+    else
+      insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+        values (rid,m,false,false,false,false,false) on conflict (role_id,module_code) do nothing;
+    end if;
+  end loop;
+
+  -- COMMISSAIRE (auditeur externe) : consultation seule sur tous les modules financiers/métier
+  insert into roles(code,label,icon,niveau,est_systeme,peut_supprimer,plafond_validation,description)
+    values ('commissaire','Commissaire aux comptes','🔍',1,true,false,0,'Consultation uniquement — aucune création, modification, suppression ou validation.')
+    on conflict (code) do nothing;
+  select id into rid from roles where code='commissaire';
+  foreach m in array tous_modules loop
+    if m in ('Utilisateurs','Parametres') then
+      insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+        values (rid,m,false,false,false,false,false) on conflict (role_id,module_code) do nothing;
+    else
+      insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+        values (rid,m,true,false,false,false,false) on conflict (role_id,module_code) do nothing;
+    end if;
+  end loop;
+
+  -- SANS RÔLE : aucun accès — attribué par défaut à toute inscription sans invitation
+  -- lorsqu'un compte administrateur existe déjà (empêche un inconnu de s'auto-attribuer
+  -- un accès en s'inscrivant sur l'écran de connexion public)
+  insert into roles(code,label,icon,niveau,est_systeme,peut_supprimer,plafond_validation,description)
+    values ('sans_role','Sans rôle (en attente)','🚫',0,true,false,0,'Compte créé sans invitation : aucun accès tant qu''un administrateur n''attribue un rôle.')
+    on conflict (code) do nothing;
+  select id into rid from roles where code='sans_role';
+  foreach m in array tous_modules loop
+    insert into role_permissions(role_id,module_code,peut_voir,peut_creer,peut_modifier,peut_supprimer,peut_valider)
+      values (rid,m,false,false,false,false,false) on conflict (role_id,module_code) do nothing;
+  end loop;
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- 7. Migration des comptes déjà existants : conserve leur accès complet actuel
+--    (aujourd'hui, sans notion de rôle, TOUT utilisateur connecté a un accès
+--    complet — on ne restreint donc personne rétroactivement, seuls les
+--    NOUVEAUX comptes créés après cette migration seront concernés par le
+--    rôle « Sans rôle » par défaut).
+-- ----------------------------------------------------------------------------
+-- Si un rôle texte existe déjà (profiles.role, cf. sql/affectations_caisse_pdv.sql), on le reprend ;
+-- « utilisateur » / « technicien » (sans équivalent) → « sans rôle » ; profil sans rôle du tout → administrateur
+-- (comportement historique : avant ce module, tout compte connecté avait un accès complet).
+do $$
+begin
+  if exists (select 1 from information_schema.columns where table_schema='public' and table_name='profiles' and column_name='role') then
+    execute $q$
+      update profiles p set role_id = r.id from roles r
+      where p.role_id is null and p.role is not null
+        and r.code = case p.role when 'caissier' then 'caissiere' when 'utilisateur' then 'sans_role'
+                                 when 'technicien' then 'sans_role' else p.role end $q$;
+  end if;
+end $$;
+update profiles set role_id = (select id from roles where code = 'admin') where role_id is null;
+
+-- ===========================================================================
+-- 7. Comptes, connexion et sécurité à la manière de Menko Immo
+--    (copie de sql/utilisateurs_auth_menko.sql)
+-- ===========================================================================
+-- ============================================================================
+-- Sanix AluExpert ERP — Comptes utilisateurs à la manière de Menko Immo
+-- ============================================================================
+-- À exécuter APRÈS sql/utilisateurs_roles.sql (rôles & droits par module) et
+-- sql/affectations_caisse_pdv.sql. Reprend le fonctionnement de Menko Immo :
+--   • comptes créés par un administrateur (identifiant + mot de passe provisoire),
+--     plus d'inscription libre (sauf le tout premier compte, qui devient administrateur) ;
+--   • connexion par identifiant OU e-mail (Edge Function « connexion ») avec blocage
+--     après 5 échecs sur 24 h et journal des connexions (IP, navigateur) ;
+--   • changement de mot de passe obligatoire à la première connexion / après réinitialisation ;
+--   • activation / désactivation des comptes, déconnexion forcée de tous les postes,
+--     déconnexion après inactivité (paramétrable).
+-- En plus de Menko, appliqué DANS LA BASE : un compte désactivé, « sans rôle » ou devant
+-- changer son mot de passe n'a accès à AUCUNE donnée (politiques RLS restrictives).
+-- L'authentification reste celle de Supabase (sessions signées, RLS) : pas de table de
+-- mots de passe maison.
+-- ============================================================================
+
+-- ---------- Profils : colonnes Menko ----------
+alter table profiles add column if not exists login text;
+alter table profiles add column if not exists telephone text;
+alter table profiles add column if not exists must_change boolean not null default false;
+alter table profiles add column if not exists derniere_connexion timestamptz;
+alter table profiles add column if not exists cree_par uuid;
+create unique index if not exists profiles_login_unique on profiles (lower(login)) where login is not null;
+
+-- Identifiant proposé à partir d'un e-mail (début de l'adresse, rendu unique)
+create or replace function public.login_depuis_email(p_email text) returns text
+language plpgsql stable security definer set search_path = public as $$
+declare base text; cand text; n int := 1;
+begin
+  base := lower(regexp_replace(split_part(coalesce(p_email,''),'@',1), '[^a-zA-Z0-9._-]', '', 'g'));
+  base := left(regexp_replace(base, '^[^a-z0-9]+', ''), 26);
+  if length(base) < 3 then base := base || 'utilisateur'; end if;
+  cand := base;
+  while exists (select 1 from profiles where lower(login) = cand) loop n := n + 1; cand := base || n; end loop;
+  return cand;
+end $$;
+
+-- E-mail et identifiant des comptes existants
+update profiles p set email = u.email from auth.users u where u.id = p.id and p.email is null;
+do $$
+declare r record;
+begin
+  for r in select id, email from profiles where login is null and email is not null order by created_at loop
+    update profiles set login = public.login_depuis_email(r.email) where id = r.id;
+  end loop;
+end $$;
+
+-- Nouveaux comptes : le profil reçoit aussi l'e-mail et un identifiant (modifiable ensuite)
+create or replace function public.handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.profiles (id, nom_complet, email, login)
+  values (new.id, coalesce(new.raw_user_meta_data->>'nom_complet', new.email),
+          case when new.email like '%@comptes.aluexpert.local' then null else new.email end,
+          public.login_depuis_email(new.email));
+  return new;
+end $$;
+
+-- ---------- Rôle texte = reflet du rôle attribué (roles.code) ----------
+-- Les rôles sont désormais dynamiques (rôles personnalisés possibles) : plus de liste figée.
+alter table profiles drop constraint if exists profiles_role_check;
+alter table profiles alter column role drop default;
+alter table profiles alter column role drop not null;
+
+create or replace function public.profiles_garde_et_role() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare v_admin uuid; v_sans uuid; v_nb_admins int; appelant_admin boolean;
+begin
+  select id into v_admin from roles where code = 'admin';
+  select id into v_sans from roles where code = 'sans_role';
+  appelant_admin := public.is_admin();
+
+  if tg_op = 'INSERT' then
+    -- Rôle initial : le tout premier compte devient administrateur ; ensuite « sans rôle »,
+    -- sauf création par un administrateur ou par le serveur (Edge Function, service role).
+    if auth.uid() is not null and not appelant_admin then new.role_id := null; end if;
+    if new.role_id is null then
+      new.role_id := case when exists (select 1 from profiles where role_id = v_admin) then v_sans else v_admin end;
+    end if;
+  else
+    -- Champs réservés à un administrateur (ou au serveur / aux fonctions autorisées)
+    if auth.uid() is not null and not appelant_admin
+       and coalesce(current_setting('app.maj_compte_autorisee', true), '') <> '1' then
+      new.role_id := old.role_id; new.actif := old.actif; new.login := old.login;
+      new.must_change := old.must_change; new.cree_par := old.cree_par;
+    end if;
+    -- Jamais moins d'un administrateur actif
+    if old.role_id = v_admin and old.actif and (new.role_id is distinct from v_admin or not new.actif) then
+      select count(*) into v_nb_admins from profiles where role_id = v_admin and actif and id <> old.id;
+      if v_nb_admins = 0 then raise exception 'Impossible : ce compte est le dernier administrateur actif'; end if;
+    end if;
+  end if;
+  new.role := (select code from roles where id = new.role_id);
+  return new;
+end $$;
+drop trigger if exists trg_proteger_role_profil on profiles;         -- remplacé par la garde ci-dessous
+drop trigger if exists trg_profiles_proteger_role on profiles;       -- idem (ancienne garde sur le rôle texte)
+drop trigger if exists trg_zz_profiles_garde_et_role on profiles;
+create trigger trg_zz_profiles_garde_et_role before insert or update on profiles
+  for each row execute function public.profiles_garde_et_role();
+-- Un administrateur peut modifier les profils des autres (rôle, statut…) ; chacun garde la main sur le sien
+drop policy if exists "profiles_admin_update" on profiles;
+create policy "profiles_admin_update" on profiles for update to authenticated using (public.is_admin()) with check (public.is_admin());
+-- Réaligne le rôle texte des comptes existants
+update profiles p set role = r.code from roles r where r.id = p.role_id and p.role is distinct from r.code;
+
+-- ---------- Accès aux données : comptes actifs, avec rôle, mot de passe à jour ----------
+create or replace function public.est_utilisateur_autorise() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from profiles p join roles r on r.id = p.role_id
+    where p.id = auth.uid() and p.actif and not p.must_change and r.code <> 'sans_role'
+  );
+$$;
+do $$
+declare t text;
+begin
+  for t in select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+           where n.nspname = 'public' and c.relkind = 'r' and c.relrowsecurity
+             and c.relname not in ('profiles','roles','role_permissions','invitations','logs_connexion','caisse_pins')
+  loop
+    execute format('drop policy if exists "acces_comptes_autorises" on public.%I', t);
+    execute format('create policy "acces_comptes_autorises" on public.%I as restrictive for all to authenticated using (public.est_utilisateur_autorise()) with check (public.est_utilisateur_autorise())', t);
+  end loop;
+end $$;
+
+-- ---------- Journal des connexions (écrit par l'Edge Function « connexion ») ----------
+create table if not exists logs_connexion (
+  id uuid primary key default gen_random_uuid(),
+  login_saisi text not null,
+  user_id uuid references profiles(id) on delete set null,
+  succes boolean not null,
+  detail text,
+  ip text,
+  user_agent text,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_logs_connexion_login on logs_connexion (login_saisi, created_at desc);
+create index if not exists idx_logs_connexion_date on logs_connexion (created_at desc);
+alter table logs_connexion enable row level security;
+drop policy if exists "logs_connexion_admin" on logs_connexion;
+create policy "logs_connexion_admin" on logs_connexion for select to authenticated using (public.is_admin());
+
+-- ---------- Paramètres de session ----------
+alter table parametres add column if not exists session_inactivite_min int not null default 30;   -- 0 = désactivé
+alter table parametres add column if not exists deconnexion_forcee_le timestamptz;
+
+-- ---------- Fonctions appelées par l'application ----------
+-- Installation vierge ? (affiche « Créer le compte administrateur » sur l'écran de connexion)
+create or replace function public.installation_vierge() returns boolean
+language sql stable security definer set search_path = public as $$
+  select not exists (select 1 from profiles p join roles r on r.id = p.role_id where r.code = 'admin');
+$$;
+-- Après un changement de mot de passe obligatoire (le mot de passe est changé via Supabase Auth)
+create or replace function public.mot_de_passe_change() returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then raise exception 'Non authentifié'; end if;
+  perform set_config('app.maj_compte_autorisee', '1', true);
+  update profiles set must_change = false where id = auth.uid();
+end $$;
+-- Déconnecte tous les postes (chaque application vérifie cette date toutes les minutes)
+create or replace function public.forcer_deconnexion_generale() returns timestamptz
+language plpgsql security definer set search_path = public as $$
+declare v timestamptz := now();
+begin
+  if not public.is_admin() then raise exception 'Réservé à un administrateur'; end if;
+  update parametres set deconnexion_forcee_le = v where true;
+  return v;
+end $$;
+revoke execute on function public.mot_de_passe_change(), public.forcer_deconnexion_generale() from public, anon;
+grant execute on function public.mot_de_passe_change(), public.forcer_deconnexion_generale() to authenticated;
+grant execute on function public.installation_vierge() to anon, authenticated;
