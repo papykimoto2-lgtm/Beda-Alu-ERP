@@ -92,3 +92,14 @@ L'application continue de fonctionner quand internet est coupé :
 - **Stock** : un mouvement (sortie de matériaux, retour, achat livré sur chantier…) se rattache de la même façon ; colonne et filtre « Chantier » dans Stock → Mouvements. Les sorties faites depuis une fiche d'exécution sont rattachées automatiquement au chantier de la fiche.
 - **Fiche du projet** : section « Suivi du chantier » — dépenses et encaissements de caisse, matériaux sortis (valorisés au CMUP), coût direct suivi, et bouton « Sortie de stock pour ce chantier ».
 - Migration : `sql/chantiers_caisse_stock.sql` (colonnes `projet_id`, reprise des caisses de chantier et des sorties de fiches d'exécution existantes).
+
+## Tableau de bord — Cockpit (structure Menko Immo)
+L'accueil reprend la structure du tableau de bord de Menko Immo, adaptée à la menuiserie aluminium. Onglets (affichés selon les droits du rôle) : **🎛️ Cockpit** (écran d'accueil) · 📊 Vue générale · 💰 Finance & Trésorerie · 🎯 Commercial · 🏗️ Chantiers · 📦 Stock · 🛒 Comptoir · ⚠️ Alertes.
+- **Cockpit, le tableau de bord qui travaille** : il ne décrit pas seulement l'activité, il prescrit le geste suivant.
+  - *Briefing* du jour en langage naturel et première action recommandée ;
+  - *cartes d'encours* : reste à encaisser, échu > 30 jours, devis acceptés à facturer, pipeline, comptoir du jour ;
+  - *file d'actions priorisée* : relancer une facture impayée (📞 appel, 💬 WhatsApp pré-rédigé, ✓ relance faite), clôturer une caisse restée ouverte, facturer un devis accepté, certifier une facture FNE, chantier en retard, réapprovisionner, ventiler la caisse, relancer un devis sans réponse, réceptionner un transfert, contacter un prospect, saisies hors ligne refusées. Chaque action se reporte (🌙 demain) ou s'ignore (✕) — choix propre au poste ;
+  - *Pouls de l'activité* : courbe des encaissements 30 jours (factures + comptoir), 7 derniers jours, tendance, espèces en caisse ;
+  - *Santé par domaine* (0-100) : recouvrement, caisse, commercial, chantiers, stock, données — avec la cause dominante ;
+  - *💬 Partager* la file d'actions (WhatsApp) et *📊 Bulletin* de pilotage imprimable.
+- Les autres onglets détaillent : encaissements mensuels et ancienneté des impayés, devis par statut et performance par commercial, chantiers par étape et en retard, stock sous le seuil et valeur immobilisée, ventes et marge du comptoir, alertes par domaine.

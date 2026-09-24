@@ -29,6 +29,16 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
   body{background:#f3f4f6;color:#111827;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif}
   .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700}
   .hidden{display:none!important}
+  .dash-tab{padding:7px 11px;border-radius:9px;font-size:13px;font-weight:600;color:#475569;background:transparent;border:none;cursor:pointer;white-space:nowrap;transition:background .12s}
+  .dash-tab:hover{background:#fff}
+  .dash-tab.active{background:#fff;color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .dash-tab-badge{background:#ef4444;color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-left:3px}
+  .ck-titre{font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--accent-2)}
+  .ck-item{transition:opacity .25s ease,transform .25s ease}
+  .ck-item.ck-done{opacity:0;transform:translateX(24px)}
+  @keyframes ckPulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .ck-urgent-dot{animation:ckPulse 1.6s infinite}
+  @media (max-width:900px){.ck-grid{grid-template-columns:1fr!important}}
   .hl-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid;white-space:nowrap;cursor:pointer}
   .hl-pill .hl-dot{width:8px;height:8px;border-radius:50%;background:currentColor}
   .hl-ok{color:#047857;background:#ecfdf5;border-color:#a7f3d0}
@@ -901,25 +911,465 @@ document.querySelectorAll('.nav-parent[data-toggle]').forEach(b=>{
 });
 
 /* ============================== DASHBOARD ============================== */
+/* ============================== TABLEAU DE BORD — COCKPIT (structure Menko Immo) ==============================
+   Onglets : 🎛️ Cockpit (écran d'accueil) · 📊 Vue générale · 💰 Finance & Trésorerie · 🎯 Commercial ·
+   🏗️ Chantiers · 📦 Stock · 🛒 Comptoir · ⚠️ Alertes — chaque onglet n'apparaît que si le rôle voit le module.
+   Le Cockpit PRESCRIT puis AGIT (même parti pris que Menko Immo) :
+   1. dashActions()  — scanne les données et produit une file d'actions priorisées ; chaque action porte le
+      geste qui débloque (appeler, relancer par WhatsApp, facturer, ventiler, clôturer, réapprovisionner…) ;
+   2. dashBriefing() — synthèse en langage naturel de la journée ;
+   3. dashPouls()    — encaissements des 30 derniers jours, tendance et espèces en caisse ;
+   4. dashSante()    — score 0-100 par domaine, sur des critères vérifiables, avec la cause dominante.
+   Reports (« Demain », « 7 jours ») et actions ignorées : localStorage (décision d'écran, propre au poste). */
+const DASH_SNOOZE='aluexpert_cockpit_reports_v1';
+const DASH_ETAPES={en_attente:'En attente',mesure_disponible:'Mesure disponible',pret_fabrication:'Prêt pour fabrication',fabrication_en_cours:'Fabrication en cours',installation_en_cours:'Installation en cours',termine:'Terminé',annule:'Annulé'};
+const DASH_ONGLETS=[
+  {k:'cockpit',lib:'🎛️ Cockpit'},{k:'vue',lib:'📊 Vue générale'},{k:'finance',lib:'💰 Finance & Trésorerie',mod:'Factures'},
+  {k:'commercial',lib:'🎯 Commercial',mod:'Devis'},{k:'chantiers',lib:'🏗️ Chantiers',mod:'Projets'},{k:'stock',lib:'📦 Stock',mod:'Stock'},
+  {k:'comptoir',lib:'🛒 Comptoir',mod:'Comptoir'},{k:'alertes',lib:'⚠️ Alertes'}];
+window._dash=window._dash||{onglet:'cockpit',data:null};
+const dashIso=d=>{ const x=new Date(d); return new Date(x.getTime()-x.getTimezoneOffset()*60000).toISOString().slice(0,10); };
+const dashJours=(d)=>d?Math.floor((Date.now()-new Date(d).getTime())/86400000):0;
+const dashPeut=(mod)=>!mod||!window._rbac?.loaded||peutModule(mod,'voir');
+function dashTel(t){ const n=String(t||'').replace(/\D/g,''); if(!n) return ''; return n.length<=10?'225'+n:n; }   // indicatif Côte d'Ivoire par défaut
+
 async function renderDashboard(el){
-  const [{count:nbClients},{count:nbDevisEnCours},{count:nbChantiers},facturesRes]=await Promise.all([
-    sb.from('clients').select('*',{count:'exact',head:true}),
-    sb.from('devis').select('*',{count:'exact',head:true}).in('statut',['en_attente','en_cours']).eq('is_current',true),
-    sb.from('projets').select('*',{count:'exact',head:true}),
-    sb.from('factures').select('total,statut').neq('statut','payee')
-  ]);
-  const enAttente=(facturesRes.data||[]).reduce((s,f)=>s+(+f.total||0),0);
+  const onglets=DASH_ONGLETS.filter(o=>dashPeut(o.mod));
+  if(!onglets.some(o=>o.k===window._dash.onglet)) window._dash.onglet='cockpit';
   el.innerHTML=`
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <div class="card p-5"><div class="text-gray-400 text-xs">Clients</div><div class="text-2xl font-black mt-2">${nbClients||0}</div></div>
-      <div class="card p-5"><div class="text-gray-400 text-xs">Devis en cours</div><div class="text-2xl font-black mt-2">${nbDevisEnCours||0}</div></div>
-      <div class="card p-5"><div class="text-gray-400 text-xs">Projets / chantiers</div><div class="text-2xl font-black mt-2">${nbChantiers||0}</div></div>
-      <div class="card p-5"><div class="text-gray-400 text-xs">Factures impayées</div><div class="text-2xl font-black mt-2 text-red-600">${money(enAttente)}</div></div>
+    <div id="dashTabs" class="flex flex-wrap items-center gap-1 p-1.5 mb-5 rounded-xl" style="background:#eef0f5;box-shadow:inset 0 1px 3px rgba(0,0,0,.06)">
+      ${onglets.map(o=>`<button class="dash-tab ${o.k===window._dash.onglet?'active':''}" data-onglet="${o.k}" onclick="dashOnglet('${o.k}')">${o.lib}${o.k==='alertes'?' <span id="dashNbAlertes" class="dash-tab-badge hidden"></span>':''}</button>`).join('')}
+      <button class="dash-tab ml-auto" title="Actualiser les données" onclick="dashCharger(true)">↻</button>
     </div>
-    <div class="card p-6">
-      <h2 class="font-bold mb-1">Bienvenue, ${escapeHtml(CURRENT_USER?.email||'')} 👋</h2>
-      <p class="text-sm text-gray-500">Créez un client, un devis, puis générez la fiche d'exécution et l'estimation financière depuis la fiche du devis.</p>
+    <div id="dashPane"><div class="text-sm text-gray-400 p-8 text-center">Analyse de l'activité…</div></div>`;
+  await dashCharger(false);
+}
+function dashOnglet(k){
+  window._dash.onglet=k;
+  document.querySelectorAll('#dashTabs .dash-tab[data-onglet]').forEach(b=>b.classList.toggle('active',b.dataset.onglet===k));
+  dashRendre();
+}
+async function dashCharger(force){
+  const D=window._dash;
+  if(force||!D.data||Date.now()-D.t>60000){
+    const il=new Date(); il.setDate(il.getDate()-90); const d90=dashIso(il);
+    const q=(p)=>p.then(r=>r.data||[]).catch(()=>[]);
+    const [factures,paiements,devis,projets,clients,prospects,composants,sessions,mvtsAV,ventes,fiches,transferts,caisses]=await Promise.all([
+      q(sb.from('factures').select('id,code,client_id,devis_id,date_facture,total,statut,type_facture')),
+      q(sb.from('paiements').select('facture_id,montant,date_paiement,mode')),
+      q(sb.from('devis').select('id,code,libelle,client_id,projet_id,statut,total,date_creation,date_echeance,commercial,is_current,created_at').eq('is_current',true)),
+      q(sb.from('projets').select('id,code,libelle,client_id,etape,date_debut,date_fin,created_at')),
+      q(sb.from('clients').select('id,nom,prenoms,telephone,email,commercial')),
+      q(sb.from('prospects').select('id,code,nom,prenoms,telephone,statut,commercial,created_at')),
+      q(sb.from('composants').select('id,nom,unite,stock_actuel,stock_min,cmup,prix_unitaire,type')),
+      q(sb.from('caisse_sessions').select('id,caisse_id,date_session,fond_ouverture,statut,ouverte_par')),
+      q(sb.from('caisse_mouvements').select('id,session_id,caisse_id,type,montant,statut,date_mouvement')),
+      q(sb.from('ventes_comptoir').select('id,code,date_vente,total,cout_total,statut,fne_statut,mode_paiement,point_vente_id').gte('date_vente',d90)),
+      q(sb.from('fiches_execution').select('id,code,statut,projet_id,created_at,updated_at')),
+      q(sb.from('transferts_stock').select('id,code,statut,date_expedition,depot_source_id,depot_destination_id')),
+      q(sb.from('caisses').select('id,nom,actif'))
+    ]);
+    D.data={factures,paiements,devis,projets,clients,prospects,composants,sessions,mvtsAV,ventes,fiches,transferts,caisses};
+    D.t=Date.now();
+    dashCalculer();
+  }
+  dashRendre();
+}
+/* Indicateurs dérivés, calculés une fois par chargement et partagés par tous les onglets */
+function dashCalculer(){
+  const D=window._dash, d=D.data, auj=dashIso(new Date());
+  const cli=Object.fromEntries(d.clients.map(c=>[c.id,c]));
+  const payeParFacture={}; d.paiements.forEach(p=>{ payeParFacture[p.facture_id]=(payeParFacture[p.facture_id]||0)+(+p.montant||0); });
+  const impayees=d.factures.filter(f=>f.statut!=='annulee'&&f.statut!=='payee').map(f=>{
+    const reste=Math.max(0,(+f.total||0)-(payeParFacture[f.id]||0)); const c=cli[f.client_id]||{};
+    return {...f,reste,jours:dashJours(f.date_facture),client:[c.nom,c.prenoms].filter(Boolean).join(' ')||'Client',tel:c.telephone||''};
+  }).filter(f=>f.reste>0).sort((a,b)=>b.reste-a.reste);
+  const factDevis=new Set(d.factures.filter(f=>f.statut!=='annulee').map(f=>f.devis_id).filter(Boolean));
+  const devisANFacturer=d.devis.filter(x=>x.statut==='accepte'&&!factDevis.has(x.id));
+  const devisOuverts=d.devis.filter(x=>['en_attente','en_cours'].includes(x.statut));
+  const actifs=d.projets.filter(p=>!['termine','annule'].includes(p.etape));
+  const retard=actifs.filter(p=>p.date_fin&&p.date_fin<auj);
+  const sousMin=d.composants.filter(c=>(+c.stock_min||0)>0&&(+c.stock_actuel||0)<=(+c.stock_min||0));
+  const valeurStock=d.composants.reduce((s,c)=>s+Math.max(0,+c.stock_actuel||0)*(+c.cmup||+c.prix_unitaire||0),0);
+  const sessOuvertes=d.sessions.filter(s=>s.statut==='ouverte');
+  const sessTard=sessOuvertes.filter(s=>s.date_session&&s.date_session<auj);
+  const aVentiler=d.mvtsAV.filter(m=>m.statut==='a_ventiler');
+  const idsOuv=new Set(sessOuvertes.map(s=>s.id));
+  const especes=sessOuvertes.reduce((s,x)=>s+(+x.fond_ouverture||0),0)+d.mvtsAV.filter(m=>idsOuv.has(m.session_id)).reduce((s,m)=>s+(m.type==='entree'?1:-1)*(+m.montant||0),0);
+  const ventesOk=d.ventes.filter(v=>v.statut!=='annulee');
+  // Encaissements par jour (paiements de factures + ventes au comptoir)
+  const parJour={};
+  d.paiements.forEach(p=>{ const k=String(p.date_paiement||'').slice(0,10); if(k) parJour[k]=(parJour[k]||0)+(+p.montant||0); });
+  ventesOk.forEach(v=>{ const k=String(v.date_vente||'').slice(0,10); if(k) parJour[k]=(parJour[k]||0)+(+v.total||0); });
+  const decides=d.devis.filter(x=>['accepte','refuse','annule'].includes(x.statut));
+  D.k={cli,impayees,devisANFacturer,devisOuverts,actifs,retard,sousMin,valeurStock,sessOuvertes,sessTard,aVentiler,especes,ventesOk,parJour,
+    totalImpaye:impayees.reduce((s,f)=>s+f.reste,0), echu:impayees.filter(f=>f.jours>30), totalEchu:impayees.filter(f=>f.jours>30).reduce((s,f)=>s+f.reste,0),
+    montantANFacturer:devisANFacturer.reduce((s,x)=>s+(+x.total||0),0), montantPipeline:devisOuverts.reduce((s,x)=>s+(+x.total||0),0),
+    tauxTransfo:decides.length?Math.round(d.devis.filter(x=>x.statut==='accepte').length/decides.length*100):null, auj};
+}
+function dashRendre(){
+  const host=document.getElementById('dashPane'); if(!host||!window._dash.data) return;
+  const alertes=dashAlertes(); const b=document.getElementById('dashNbAlertes');
+  if(b){ b.textContent=alertes.length; b.classList.toggle('hidden',!alertes.length); }
+  const r={cockpit:dashCockpit,vue:dashVue,finance:dashFinance,commercial:dashCommercial,chantiers:dashChantiers,stock:dashStock,comptoir:dashComptoir,alertes:dashOngletAlertes}[window._dash.onglet]||dashCockpit;
+  host.innerHTML=r();
+  if(window._dash.onglet==='finance') dashGraphFinance();
+  if(window._dash.onglet==='comptoir') dashGraphComptoir();
+}
+
+/* ---------- Reports / ignorés (propres au poste) ---------- */
+function dashReports(){ try{ return JSON.parse(localStorage.getItem(DASH_SNOOZE)||'{}'); }catch(e){ return {}; } }
+function dashMasquee(aid){ const s=dashReports()[aid]; if(!s) return false; if(s==='toujours') return true; return new Date(s)>new Date(); }
+function dashReporter(aid,mode){
+  const s=dashReports();
+  if(mode==='toujours') s[aid]='toujours';
+  else { const d=new Date(); if(mode==='demain'){ d.setDate(d.getDate()+1); d.setHours(6,0,0,0); } else d.setDate(d.getDate()+7); s[aid]=d.toISOString(); }
+  try{ localStorage.setItem(DASH_SNOOZE,JSON.stringify(s)); }catch(e){}
+  const el=document.getElementById('ck-'+aid);
+  if(el){ el.classList.add('ck-done'); setTimeout(dashRendre,260); } else dashRendre();
+}
+function dashReafficher(){ try{ localStorage.removeItem(DASH_SNOOZE); }catch(e){} toast('Actions reportées ou ignorées réaffichées.'); dashRendre(); }
+function dashRelanceFaite(aid,libelle){ dashReporter(aid,'semaine'); toast(`✓ Relance notée : ${libelle} — l'action reviendra dans 7 jours si rien ne bouge.`); }
+
+/* ---------- 1. File d'actions ---------- */
+function dashActions(){
+  const D=window._dash, d=D.data, k=D.k, A=[];
+  const push=a=>{ if(!dashMasquee(a.aid)) A.push(a); };
+  const wa=(tel,txt)=>{ const n=dashTel(tel); return n?{lib:'💬 WhatsApp',href:`https://wa.me/${n}?text=${encodeURIComponent(txt)}`}:null; };
+  const appel=(tel)=>tel?{lib:'📞 Appeler',href:'tel:'+String(tel).replace(/\s/g,'')}:null;
+  const soc=window.APP_PARAMS?.raison_sociale||'';
+  // R1 — Factures impayées échues : le geste est la relance
+  if(dashPeut('Factures')) k.impayees.filter(f=>f.jours>15).slice(0,6).forEach(f=>push({
+    aid:'fact_'+f.id, prio:100+Math.min(60,Math.round(f.reste/250000))+Math.min(30,Math.floor(f.jours/15)), urgent:f.jours>60, icone:'📞',
+    titre:`Relancer ${f.client} — facture ${f.code}`, montant:f.reste,
+    detail:`${money(f.reste)} restant dû · émise il y a ${f.jours} jours${f.statut==='payee_partielle'?' · partiellement payée':''}`,
+    boutons:[appel(f.tel),wa(f.tel,`Bonjour ${f.client}, sauf erreur de notre part la facture ${f.code} présente un solde de ${money(f.reste)}. Merci de nous indiquer la date de règlement prévue.${soc?' — '+soc:''}`),
+      {lib:'✓ Relance faite',fn:`dashRelanceFaite('fact_${f.id}','${escapeHtml(f.code)}')`},{lib:'🔎 Facture',fn:`window._editId='${f.id}';showPage('facture-view')`}].filter(Boolean)}));
+  // R2 — Séances de caisse non clôturées depuis un jour précédent
+  if(dashPeut('Caisse')) k.sessTard.forEach(s=>{ const c=d.caisses.find(x=>x.id===s.caisse_id); push({
+    aid:'sess_'+s.id, prio:95, urgent:true, icone:'🔐', titre:`Clôturer la caisse${c?' « '+c.nom+' »':''}`,
+    detail:`Séance ouverte le ${fmtDate(s.date_session)}${s.ouverte_par?' par '+escapeHtml(s.ouverte_par):''} et jamais clôturée : le fond n'est plus contrôlé.`,
+    boutons:[{lib:'🔐 Aller clôturer',fn:`window._editId='${s.caisse_id}';showPage('caisse-detail')`}]}); });
+  // R3 — Devis acceptés non facturés : de l'argent gagné qui n'est pas encore réclamé
+  if(dashPeut('Devis')) k.devisANFacturer.slice(0,5).forEach(x=>{ const c=k.cli[x.client_id]||{}; push({
+    aid:'afact_'+x.id, prio:85+Math.min(30,Math.round((+x.total||0)/500000)), urgent:false, icone:'🧾', montant:+x.total||0,
+    titre:`Facturer le devis ${x.code} accepté`, detail:`${escapeHtml([c.nom,c.prenoms].filter(Boolean).join(' ')||'Client')}${x.libelle?' · '+escapeHtml(x.libelle):''} — accepté mais aucune facture émise.`,
+    boutons:[{lib:'🧾 Ouvrir le devis',fn:`window._editId='${x.id}';showPage('devis-view')`}]}); });
+  // R4 — Mouvements de caisse à ventiler
+  if(dashPeut('Comptabilite') && k.aVentiler.length){ const m=k.aVentiler.reduce((s,x)=>s+(+x.montant||0),0); push({
+    aid:'vent_'+k.auj, prio:60+Math.min(25,Math.round(k.aVentiler.length/10)), urgent:k.aVentiler.length>100, icone:'📒', montant:m,
+    titre:`Ventiler ${k.aVentiler.length} mouvement(s) de caisse`, detail:`${money(m)} encaissés ou décaissés encore absents de la comptabilité.`,
+    boutons:[{lib:'📒 Ventiler',fn:`window._compta.cycleView='brouillard_caisse';showPage('comptabilite')`}]}); }
+  // R5 — Chantiers en retard
+  if(dashPeut('Projets')) k.retard.sort((a,b)=>a.date_fin.localeCompare(b.date_fin)).slice(0,5).forEach(p=>{ const c=k.cli[p.client_id]||{}; const j=dashJours(p.date_fin); push({
+    aid:'ret_'+p.id, prio:70+Math.min(20,Math.floor(j/7)), urgent:j>30, icone:'🏗️', titre:`Chantier en retard : ${p.libelle}`,
+    detail:`${escapeHtml(p.code||'')} · ${escapeHtml([c.nom,c.prenoms].filter(Boolean).join(' '))} · fin prévue le ${fmtDate(p.date_fin)} (${j} j de retard) · étape « ${DASH_ETAPES[p.etape]||p.etape} ».`,
+    boutons:[appel(c.telephone),{lib:'🏗️ Ouvrir le chantier',fn:`window._editId='${p.id}';showPage('projets-add')`}].filter(Boolean)}); });
+  // R6 — Stock sous le minimum
+  if(dashPeut('Stock') && k.sousMin.length){ const top=k.sousMin.slice().sort((a,b)=>(+a.stock_actuel/(+a.stock_min||1))-(+b.stock_actuel/(+b.stock_min||1))).slice(0,6); push({
+    aid:'stock_'+k.auj, prio:65+Math.min(20,k.sousMin.length), urgent:k.sousMin.some(c=>(+c.stock_actuel||0)<=0), icone:'📦',
+    titre:`Réapprovisionner ${k.sousMin.length} article(s) sous le seuil`,
+    detail:top.map(c=>`${escapeHtml(c.nom)} : ${(+c.stock_actuel||0)} / min ${+c.stock_min} ${escapeHtml(c.unite||'')}`).join(' · ')+(k.sousMin.length>6?' …':''),
+    boutons:[{lib:'📦 Voir les alertes',fn:`showPage('stock-alertes')`},{lib:'➕ Entrée de stock',fn:`openMouvementModal('entree','${top[0].id}')`}]}); }
+  // R7 — Devis en attente sans réponse depuis plus de 10 jours
+  if(dashPeut('Devis')) k.devisOuverts.filter(x=>dashJours(x.date_creation||x.created_at)>10).sort((a,b)=>(+b.total||0)-(+a.total||0)).slice(0,4).forEach(x=>{ const c=k.cli[x.client_id]||{}; const nom=[c.nom,c.prenoms].filter(Boolean).join(' ')||'Client'; push({
+    aid:'dev_'+x.id, prio:55+Math.min(25,Math.round((+x.total||0)/1000000)), urgent:false, icone:'🎯', montant:+x.total||0,
+    titre:`Relancer ${nom} — devis ${x.code}`, detail:`Sans réponse depuis ${dashJours(x.date_creation||x.created_at)} jours${x.commercial?' · '+escapeHtml(x.commercial):''}${x.date_echeance&&x.date_echeance<k.auj?' · validité dépassée':''}.`,
+    boutons:[appel(c.telephone),wa(c.telephone,`Bonjour ${nom}, avez-vous pu étudier notre devis ${x.code} ? Nous restons à votre disposition pour tout ajustement.${soc?' — '+soc:''}`),
+      {lib:'✓ Relance faite',fn:`dashRelanceFaite('dev_${x.id}','${escapeHtml(x.code)}')`},{lib:'🔎 Devis',fn:`window._editId='${x.id}';showPage('devis-view')`}].filter(Boolean)}); });
+  // R8 — Transferts de stock en transit depuis plus de 2 jours
+  if(dashPeut('Stock')) d.transferts.filter(t=>t.statut==='en_transit'&&dashJours(t.date_expedition)>2).forEach(t=>push({
+    aid:'trf_'+t.id, prio:50, urgent:dashJours(t.date_expedition)>7, icone:'🚚', titre:`Réceptionner le transfert ${t.code||''}`,
+    detail:`En transit depuis ${dashJours(t.date_expedition)} jours : la marchandise n'est comptée dans aucun dépôt.`,
+    boutons:[{lib:'🚚 Ouvrir',fn:`window._editId='${t.id}';showPage('stock-transfert-edit')`}]}));
+  // R9 — Prospects nouveaux jamais contactés
+  if(dashPeut('Prospects')) d.prospects.filter(p=>p.statut==='nouveau'&&dashJours(p.created_at)>3).slice(0,4).forEach(p=>{ const nom=[p.nom,p.prenoms].filter(Boolean).join(' '); push({
+    aid:'pro_'+p.id, prio:45, urgent:false, icone:'🤝', titre:`Contacter le prospect ${nom}`, detail:`Enregistré il y a ${dashJours(p.created_at)} jours, toujours « nouveau »${p.commercial?' · '+escapeHtml(p.commercial):''}.`,
+    boutons:[appel(p.telephone),wa(p.telephone,`Bonjour ${nom}, merci de votre intérêt pour nos menuiseries aluminium. Quand pouvons-nous passer prendre les mesures ?${soc?' — '+soc:''}`),{lib:'✓ Contacté',fn:`dashRelanceFaite('pro_${p.id}','prospect')`}].filter(Boolean)}); });
+  // R10 — Ventes au comptoir dont la certification FNE a échoué
+  if(dashPeut('Comptoir')){ const ko=k.ventesOk.filter(v=>v.fne_statut==='erreur'||v.fne_statut==='provisoire'); if(ko.length) push({
+    aid:'fne_'+k.auj, prio:75, urgent:true, icone:'🏛️', titre:`${ko.length} facture(s) FNE à certifier`, detail:ko.slice(0,5).map(v=>v.code).join(', ')+' — le client attend une facture normalisée.',
+    boutons:[{lib:'🏛️ Historique des ventes',fn:`showPage('comptoir-ventes')`}]}); }
+  // R11 — Saisies hors ligne refusées par le serveur
+  if(typeof HL!=='undefined' && HL.etat.erreurs) push({aid:'hl_'+k.auj,prio:98,urgent:true,icone:'📴',titre:`${HL.etat.erreurs} saisie(s) hors ligne refusée(s)`,
+    detail:"Des opérations faites sans connexion n'ont pas pu être enregistrées : à corriger ou abandonner.",boutons:[{lib:'🔎 Voir',fn:'HL.ouvrirPanneau()'}]});
+  return A.sort((a,b)=>b.prio-a.prio);
+}
+
+/* ---------- 2. Briefing ---------- */
+function dashBriefing(actions){
+  const k=window._dash.k, h=new Date().getHours();
+  const salut=h<12?'Bonjour':h<18?'Bon après-midi':'Bonsoir';
+  const nom=(document.getElementById('hdrUserName')?.textContent||'').split(/\s+/)[0]||'';
+  const ph=[];
+  if(dashPeut('Factures')) ph.push(k.totalEchu>0?`<b>${money(k.totalEchu)}</b> de factures échues depuis plus de 30 jours chez ${new Set(k.echu.map(f=>f.client_id)).size} client(s)`:'aucune facture échue depuis plus de 30 jours');
+  if(dashPeut('Devis') && k.devisANFacturer.length) ph.push(`${k.devisANFacturer.length} devis accepté(s) à facturer (${money(k.montantANFacturer)})`);
+  if(dashPeut('Projets') && k.retard.length) ph.push(`${k.retard.length} chantier(s) en retard`);
+  if(dashPeut('Comptabilite') && k.aVentiler.length) ph.push(`${k.aVentiler.length} mouvement(s) de caisse à ventiler`);
+  const urg=actions.filter(a=>a.urgent).length; if(urg) ph.push(`${urg} action(s) urgente(s)`);
+  const reco=actions.length?`Première action recommandée : <b>${escapeHtml(actions[0].titre)}</b>.`:"File vide — rien d'urgent. Bon moment pour la prospection et le terrain.";
+  return `<div class="card p-4" style="border-left:4px solid var(--accent)">
+    <div class="text-base font-bold mb-1">${salut}${nom?' '+escapeHtml(nom):''} 👋</div>
+    <div class="text-sm text-gray-500" style="line-height:1.8">${ph.slice(0,4).join(' · ')}.</div>
+    <div class="text-sm mt-1.5">${reco}</div></div>`;
+}
+
+/* ---------- 3. Pouls de l'activité ---------- */
+function dashSerie(n){ const k=window._dash.k, v=[]; for(let i=n-1;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); v.push(k.parJour[dashIso(d)]||0); } return v; }
+function dashPouls(){
+  const k=window._dash.k, vals=dashSerie(30), max=Math.max(0,...vals), W=280, H=54;
+  const pts=vals.map((v,j)=>`${j?'L':'M'}${Math.round(j*(W-8)/(vals.length-1))+4} ${H-6-(max>0?Math.round(v/max*(H-16)):0)}`).join(' ');
+  const tot=vals.reduce((s,v)=>s+v,0), t7=vals.slice(-7).reduce((s,v)=>s+v,0), t7p=vals.slice(-14,-7).reduce((s,v)=>s+v,0);
+  const tend=t7p>0?Math.round((t7-t7p)/t7p*100):(t7>0?100:0);
+  return `<div class="card p-3.5">
+    <div class="flex justify-between items-baseline"><div class="text-xs text-gray-500">Encaissements — 30 jours (factures + comptoir)</div><div class="font-bold" style="color:var(--accent)">${money(tot)}</div></div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;margin-top:4px"><path d="${pts}" fill="none" stroke="#6d28d9" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>
+    <div class="flex gap-3 mt-2 flex-wrap text-sm">
+      <div class="flex-1 min-w-[80px]"><div class="text-[10px] text-gray-400">7 derniers jours</div><div class="font-bold">${money(t7)}</div></div>
+      <div class="flex-1 min-w-[80px]"><div class="text-[10px] text-gray-400">Tendance vs 7 j préc.</div><div class="font-bold" style="color:${tend>=0?'#059669':'#dc2626'}">${tend>=0?'▲ +':'▼ '}${Math.abs(tend)} %</div></div>
+      ${dashPeut('Caisse')?`<div class="flex-1 min-w-[80px]"><div class="text-[10px] text-gray-400">Espèces en caisse</div><div class="font-bold">${money(k.especes)}</div></div>`:''}
+    </div></div>`;
+}
+
+/* ---------- 4. Santé par domaine ---------- */
+function dashSante(){
+  const D=window._dash, d=D.data, k=D.k, doms=[];
+  const dom=(nom,icone,score,cause,page,mod)=>{ if(dashPeut(mod)) doms.push({nom,icone,score:Math.max(0,Math.min(100,Math.round(score))),cause,page}); };
+  dom('Recouvrement','💰',k.totalImpaye>0?100-k.totalEchu/k.totalImpaye*100:100,k.totalEchu>0?`${money(k.totalEchu)} échus (> 30 j) sur ${money(k.totalImpaye)} d'impayés`:'Aucune facture échue','factures','Factures');
+  const nbM=d.mvtsAV.length||1;
+  dom('Caisse','💵',100-Math.min(70,Math.round(k.aVentiler.length/nbM*100))-k.sessTard.length*15,
+    [k.aVentiler.length?k.aVentiler.length+' mvt à ventiler':'',k.sessTard.length?k.sessTard.length+' séance(s) non clôturée(s)':''].filter(Boolean).join(' · ')||'Ventilation et clôtures à jour','caisse','Caisse');
+  if(k.tauxTransfo!==null) dom('Commercial','🎯',k.tauxTransfo*1.4,`Taux de transformation des devis : ${k.tauxTransfo} %${k.devisANFacturer.length?' · '+k.devisANFacturer.length+' accepté(s) non facturé(s)':''}`,'devis','Devis');
+  else dom('Commercial','🎯',100,'Pas encore de devis conclus','devis','Devis');
+  dom('Chantiers','🏗️',k.actifs.length?100-k.retard.length/k.actifs.length*100:100,k.retard.length?`${k.retard.length} chantier(s) en retard sur ${k.actifs.length} en cours`:`${k.actifs.length} chantier(s) en cours, aucun en retard`,'projets','Projets');
+  const suivis=d.composants.filter(c=>(+c.stock_min||0)>0);
+  dom('Stock','📦',suivis.length?100-k.sousMin.length/suivis.length*100:100,suivis.length?(k.sousMin.length?`${k.sousMin.length} article(s) sous le seuil sur ${suivis.length} suivis`:'Tous les articles au-dessus du seuil'):'Aucun seuil minimum défini','stock-alertes','Stock');
+  const sansTel=d.clients.filter(c=>!String(c.telephone||'').trim()).length;
+  dom('Données','🧬',d.clients.length?100-sansTel/d.clients.length*100:100,sansTel?`${sansTel} client(s) sans téléphone sur ${d.clients.length} (relance impossible)`:'Fiches clients complètes','clients','Clients');
+  return doms.map(x=>{ const col=x.score>=80?'#059669':x.score>=50?'#d97706':'#dc2626'; return `
+    <div class="card p-3 mb-2 cursor-pointer hover:shadow-md" onclick="showPage('${x.page}')" title="Ouvrir le module">
+      <div class="flex justify-between items-center mb-1.5"><span class="text-sm font-semibold">${x.icone} ${x.nom}</span><span class="font-extrabold" style="color:${col}">${x.score}</span></div>
+      <div style="height:6px;background:#e5e7eb;border-radius:4px;overflow:hidden"><div style="height:100%;width:${x.score}%;background:${col};border-radius:4px;transition:width .5s"></div></div>
+      <div class="text-[11px] text-gray-500 mt-1.5">${escapeHtml(x.cause)}</div></div>`; }).join('');
+}
+
+/* ---------- Cartes « encours » en tête du Cockpit ---------- */
+function dashCartes(liste){
+  return `<div class="grid grid-cols-2 lg:grid-cols-${Math.min(liste.length,5)} gap-3 mb-4">${liste.map(c=>`
+    <div class="card p-4 ${c.fn?'cursor-pointer hover:shadow-md':''}" ${c.fn?`onclick="${c.fn}"`:''}>
+      <div class="text-xs text-gray-400">${c.icone||''} ${c.lib}</div>
+      <div class="text-xl font-black mt-1" style="${c.coul?'color:'+c.coul:''}">${c.val}</div>
+      ${c.sous?`<div class="text-[11px] text-gray-400 mt-0.5">${c.sous}</div>`:''}</div>`).join('')}</div>`;
+}
+function dashCockpit(){
+  const k=window._dash.k, actions=dashActions();
+  const cartes=[];
+  if(dashPeut('Factures')) cartes.push({lib:'Reste à encaisser — factures',val:money(k.totalImpaye),icone:'⏳',coul:'#dc2626',sous:`${k.impayees.length} facture(s)`,fn:"showPage('factures')"},{lib:'Dont échu > 30 jours',val:money(k.totalEchu),icone:'🔥',coul:k.totalEchu?'#dc2626':'',sous:`${k.echu.length} facture(s)`,fn:"showPage('factures')"});
+  if(dashPeut('Devis')) cartes.push({lib:'Devis acceptés à facturer',val:money(k.montantANFacturer),icone:'🧾',coul:'#d97706',sous:`${k.devisANFacturer.length} devis`,fn:"showPage('devis')"},{lib:'Pipeline devis en cours',val:money(k.montantPipeline),icone:'🎯',sous:`${k.devisOuverts.length} devis`,fn:"showPage('devis-pipeline')"});
+  if(dashPeut('Comptoir')){ const j=k.ventesOk.filter(v=>v.date_vente===k.auj); cartes.push({lib:"Comptoir aujourd'hui",val:money(j.reduce((s,v)=>s+(+v.total||0),0)),icone:'🛒',sous:`${j.length} vente(s)`,fn:"showPage('comptoir-ventes')"}); }
+  return `${dashBriefing(actions)}<div class="mt-4">${cartes.length?dashCartes(cartes):''}</div>
+    <div class="grid gap-4 items-start ck-grid" style="grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)">
+      <div>
+        <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
+          <div class="ck-titre">⚡ File d'actions — à traiter maintenant</div>
+          <div class="flex gap-1.5 items-center"><span class="text-xs text-gray-400">${actions.length?actions.length+' action(s)':''}</span>
+            <button class="btn btn-outline text-xs py-1 px-2" onclick="dashPartagerFile()" title="Copier / partager la file d'actions (WhatsApp)">💬 Partager</button>
+            <button class="btn btn-outline text-xs py-1 px-2" onclick="dashImprimerBulletin()" title="Bulletin de pilotage imprimable">📊 Bulletin</button>
+            <button class="btn btn-outline text-xs py-1 px-2" onclick="dashReafficher()" title="Réafficher les actions reportées ou ignorées">↺</button></div>
+        </div>
+        ${actions.length?actions.slice(0,12).map(a=>`
+          <div class="card ck-item p-3 mb-2.5" id="ck-${a.aid}" style="border-left:4px solid ${a.urgent?'#dc2626':'#e5e7eb'}">
+            <div class="flex items-start gap-2.5"><div class="text-xl leading-none">${a.icone}</div>
+              <div class="flex-1 min-w-0">
+                <div class="flex justify-between gap-2 items-baseline flex-wrap"><b class="text-sm">${a.urgent?'<span class="ck-urgent-dot" style="color:#dc2626">●</span> ':''}${escapeHtml(a.titre)}</b>${a.montant?`<span class="text-xs font-extrabold whitespace-nowrap" style="color:var(--accent)">${money(a.montant)}</span>`:''}</div>
+                <div class="text-xs text-gray-500 mt-1" style="line-height:1.6">${a.detail}</div>
+                <div class="flex gap-1.5 mt-2 flex-wrap items-center">
+                  ${a.boutons.map(b=>b.href?`<a class="btn btn-outline text-xs py-1 px-2" target="_blank" rel="noopener" href="${b.href}">${b.lib}</a>`:`<button class="btn btn-outline text-xs py-1 px-2" onclick="${b.fn}">${b.lib}</button>`).join('')}
+                  <span class="ml-auto whitespace-nowrap"><button class="text-xs text-gray-400 hover:text-gray-700" title="Revoir demain matin" onclick="dashReporter('${a.aid}','demain')">🌙 Demain</button><button class="text-xs text-gray-400 hover:text-gray-700 ml-2" title="Ne plus proposer cette action" onclick="dashReporter('${a.aid}','toujours')">✕</button></span>
+                </div></div></div></div>`).join('')+(actions.length>12?`<div class="text-center text-xs text-gray-400 p-1.5">${actions.length-12} action(s) de moindre priorité non affichée(s) — traitez celles-ci d'abord.</div>`:'')
+          :`<div class="card p-7 text-center"><div class="text-3xl mb-2">🏁</div><div class="font-bold mb-1">File vide — tout est traité.</div><div class="text-xs text-gray-400">Le cockpit re-scanne vos données à chaque passage. Les actions reportées reviendront à leur échéance.</div></div>`}
+      </div>
+      <div>
+        <div class="ck-titre mb-2">🫀 Pouls de l'activité</div>
+        <div class="mb-4">${dashPouls()}</div>
+        <div class="ck-titre mb-2">🩺 Santé par domaine</div>
+        ${dashSante()}
+      </div>
     </div>`;
+}
+function dashTexteFile(){
+  const a=dashActions(); const soc=window.APP_PARAMS?.raison_sociale||APP_NOM;
+  const L=[`*${soc} — File d'actions du ${new Date().toLocaleDateString('fr-FR')}*`,''];
+  a.slice(0,15).forEach((x,i)=>L.push(`${i+1}. ${x.urgent?'🔴 ':''}${x.titre}${x.montant?' — '+money(x.montant):''}`));
+  if(!a.length) L.push('File vide — tout est traité.');
+  return L.join('\n');
+}
+async function dashPartagerFile(){
+  const t=dashTexteFile();
+  try{ await navigator.clipboard.writeText(t); }catch(e){}
+  openModal(`<h3 class="font-bold text-lg mb-2">💬 Partager la file d'actions</h3><textarea rows="12" class="w-full text-sm" readonly>${escapeHtml(t)}</textarea>
+    <div class="text-xs text-gray-400 mt-1">Texte copié dans le presse-papiers.</div>
+    <div class="flex justify-end gap-2 mt-3"><button class="btn btn-outline" onclick="closeModal()">Fermer</button><a class="btn btn-primary" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(t)}">Envoyer par WhatsApp</a></div>`);
+}
+function dashImprimerBulletin(){
+  const k=window._dash.k, a=dashActions(), p=window.APP_PARAMS||{};
+  const w=window.open('','_blank','width=900,height=1100'); if(!w){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const sante=document.createElement('div'); sante.innerHTML=dashSante();
+  const doms=[...sante.querySelectorAll('.card')].map(c=>{ const t=c.querySelectorAll('span'); return `<tr><td>${t[0]?.textContent||''}</td><td style="text-align:right;font-weight:700">${t[1]?.textContent||''}</td><td>${c.querySelector('.text-\\[11px\\]')?.textContent||''}</td></tr>`; }).join('');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bulletin de pilotage</title><style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:28px}h1{font-size:18px;margin:0}h2{font-size:13px;margin:18px 0 6px;border-bottom:2px solid #6d28d9;padding-bottom:3px}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #e5e7eb;padding:5px;text-align:left}.k{display:inline-block;width:32%;margin:0 1% 8px 0;border:1px solid #e5e7eb;border-radius:6px;padding:8px;box-sizing:border-box}.k b{display:block;font-size:14px;margin-top:3px}</style></head><body>
+    <h1>📊 Bulletin de pilotage — ${escapeHtml(p.raison_sociale||'')}</h1><div style="color:#6b7280">${new Date().toLocaleString('fr-FR')} · ${escapeHtml(APP_NOM)}</div>
+    <h2>Indicateurs clés</h2>
+    <div class="k">Reste à encaisser (factures)<b>${money(k.totalImpaye)}</b></div><div class="k">Dont échu &gt; 30 jours<b>${money(k.totalEchu)}</b></div><div class="k">Devis acceptés à facturer<b>${money(k.montantANFacturer)}</b></div>
+    <div class="k">Pipeline devis en cours<b>${money(k.montantPipeline)}</b></div><div class="k">Chantiers en cours / en retard<b>${k.actifs.length} / ${k.retard.length}</b></div><div class="k">Valeur du stock (CMUP)<b>${money(k.valeurStock)}</b></div>
+    <h2>Santé par domaine</h2><table>${doms}</table>
+    <h2>File d'actions (${a.length})</h2><table><tr><th>#</th><th>Action</th><th style="text-align:right">Montant</th></tr>${a.slice(0,20).map((x,i)=>`<tr><td>${i+1}</td><td>${x.urgent?'🔴 ':''}${escapeHtml(x.titre)}</td><td style="text-align:right">${x.montant?money(x.montant):''}</td></tr>`).join('')||'<tr><td colspan="3">File vide.</td></tr>'}</table>
+    <script>window.onload=function(){window.print();}<\/script></body></html>`);
+  w.document.close();
+}
+
+/* ---------- Onglet : Vue générale ---------- */
+function dashKpis(titre,couleur,liste){
+  return `<div class="flex items-center gap-2 mb-2 mt-1"><span style="display:inline-block;width:3px;height:16px;background:${couleur};border-radius:2px"></span><span class="text-[10px] font-bold tracking-widest uppercase" style="color:${couleur}">${titre}</span></div>${dashCartes(liste)}`;
+}
+function dashVue(){
+  const D=window._dash, d=D.data, k=D.k;
+  const mois=k.auj.slice(0,7);
+  const encMois=Object.entries(k.parJour).filter(([j])=>j.startsWith(mois)).reduce((s,[,v])=>s+v,0);
+  const factMois=d.factures.filter(f=>String(f.date_facture||'').startsWith(mois)&&f.statut!=='annulee').reduce((s,f)=>s+(+f.total||0),0);
+  let h='';
+  if(dashPeut('Factures')) h+=dashKpis('💰 Finance & recouvrement','#6d28d9',[
+    {lib:'Facturé ce mois',val:money(factMois),icone:'🧾'},{lib:'Encaissé ce mois',val:money(encMois),icone:'💵',coul:'#059669'},
+    {lib:'Reste à encaisser',val:money(k.totalImpaye),icone:'⏳',coul:'#dc2626',fn:"showPage('factures')"},{lib:'Échu > 30 jours',val:money(k.totalEchu),icone:'🔥',coul:k.totalEchu?'#dc2626':''}]);
+  const pipe=[]; if(dashPeut('Devis')) pipe.push({lib:'Devis en cours',val:k.devisOuverts.length,sous:money(k.montantPipeline),icone:'🎯',fn:"showPage('devis')"},{lib:'Taux de transformation',val:k.tauxTransfo===null?'—':k.tauxTransfo+' %',icone:'📈'});
+  if(dashPeut('Projets')) pipe.push({lib:'Chantiers en cours',val:k.actifs.length,icone:'🏗️',fn:"showPage('projets')"},{lib:'Chantiers en retard',val:k.retard.length,icone:'⏰',coul:k.retard.length?'#dc2626':'',fn:"showPage('projets-retard')"});
+  if(pipe.length) h+=dashKpis('🏗️ Commercial & production','#2563eb',pipe);
+  const st=[]; if(dashPeut('Stock')) st.push({lib:'Valeur du stock (CMUP)',val:money(k.valeurStock),icone:'📦',fn:"showPage('stock-dashboard')"},{lib:'Articles sous le seuil',val:k.sousMin.length,icone:'⚠️',coul:k.sousMin.length?'#d97706':'',fn:"showPage('stock-alertes')"});
+  if(dashPeut('Caisse')) st.push({lib:'Espèces en caisse',val:money(k.especes),icone:'💵',sous:`${k.sessOuvertes.length} séance(s) ouverte(s)`,fn:"showPage('caisse')"});
+  if(dashPeut('Comptabilite')) st.push({lib:'Mouvements à ventiler',val:k.aVentiler.length,icone:'📒',coul:k.aVentiler.length?'#d97706':''});
+  if(st.length) h+=dashKpis('📦 Stock & trésorerie','#059669',st);
+  const al=dashAlertes().filter(a=>a.niveau==='rouge').slice(0,6);
+  const ech=dashEcheances().slice(0,8);
+  h+=`<div class="grid md:grid-cols-2 gap-4 mt-2">
+    <div class="card p-4"><div class="font-bold mb-2">⚠️ Alertes critiques</div>${al.length?al.map(a=>`<div class="text-sm py-1.5 border-b border-gray-100 last:border-0 cursor-pointer" onclick="${a.fn||''}">${a.icone} ${escapeHtml(a.texte)}</div>`).join(''):'<div class="text-sm text-gray-400">Aucune alerte critique.</div>'}</div>
+    <div class="card p-4"><div class="font-bold mb-2">📅 Échéances à venir (30 jours)</div>${ech.length?ech.map(e=>`<div class="flex justify-between text-sm py-1.5 border-b border-gray-100 last:border-0 cursor-pointer" onclick="${e.fn}"><span>${e.icone} ${escapeHtml(e.texte)}</span><span class="text-gray-500 whitespace-nowrap ml-2">${fmtDate(e.date)}</span></div>`).join(''):'<div class="text-sm text-gray-400">Rien dans les 30 prochains jours.</div>'}</div>
+  </div>`;
+  return h;
+}
+function dashEcheances(){
+  const D=window._dash, d=D.data, k=D.k; const lim=new Date(); lim.setDate(lim.getDate()+30); const L=dashIso(lim); const E=[];
+  if(dashPeut('Projets')) k.actifs.filter(p=>p.date_fin&&p.date_fin>=k.auj&&p.date_fin<=L).forEach(p=>E.push({date:p.date_fin,icone:'🏗️',texte:`Fin prévue : ${p.libelle}`,fn:`window._editId='${p.id}';showPage('projets-add')`}));
+  if(dashPeut('Projets')) d.projets.filter(p=>p.etape==='en_attente'&&p.date_debut&&p.date_debut>=k.auj&&p.date_debut<=L).forEach(p=>E.push({date:p.date_debut,icone:'🚧',texte:`Démarrage : ${p.libelle}`,fn:`window._editId='${p.id}';showPage('projets-add')`}));
+  if(dashPeut('Devis')) k.devisOuverts.filter(x=>x.date_echeance&&x.date_echeance>=k.auj&&x.date_echeance<=L).forEach(x=>E.push({date:x.date_echeance,icone:'🎯',texte:`Fin de validité du devis ${x.code}`,fn:`window._editId='${x.id}';showPage('devis-view')`}));
+  return E.sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+/* ---------- Onglet : Finance & Trésorerie ---------- */
+function dashFinance(){
+  const k=window._dash.k;
+  const tranches=[['0-30 j',0,30],['31-60 j',31,60],['61-90 j',61,90],['> 90 j',91,1e9]].map(([l,a,b])=>({l,m:k.impayees.filter(f=>f.jours>=a&&f.jours<=b).reduce((s,f)=>s+f.reste,0)}));
+  const maxT=Math.max(1,...tranches.map(t=>t.m));
+  return dashCartes([{lib:'Reste à encaisser',val:money(k.totalImpaye),icone:'⏳',coul:'#dc2626'},{lib:'Échu > 30 jours',val:money(k.totalEchu),icone:'🔥'},{lib:'Encaissé — 30 jours',val:money(dashSerie(30).reduce((s,v)=>s+v,0)),icone:'💵',coul:'#059669'},{lib:'Espèces en caisse',val:money(k.especes),icone:'💰'}])
+   +`<div class="grid lg:grid-cols-3 gap-4">
+      <div class="card p-4 lg:col-span-2"><div class="font-bold mb-2">📊 Encaissements mensuels (12 mois)</div><div style="height:230px"><canvas id="dashChartEnc"></canvas></div></div>
+      <div class="card p-4"><div class="font-bold mb-2">⏳ Ancienneté des impayés</div>${tranches.map(t=>`<div class="mb-2"><div class="flex justify-between text-sm"><span>${t.l}</span><b>${money(t.m)}</b></div><div style="height:6px;background:#e5e7eb;border-radius:4px"><div style="height:100%;width:${Math.round(t.m/maxT*100)}%;background:${t.l==='0-30 j'?'#6d28d9':'#dc2626'};border-radius:4px"></div></div></div>`).join('')}</div>
+    </div>
+    <div class="card p-4 mt-4"><div class="font-bold mb-2">📋 Factures impayées — les plus lourdes</div><div class="overflow-x-auto"><table><thead><tr><th>Facture</th><th>Client</th><th>Date</th><th class="text-right">Ancienneté</th><th class="text-right">Reste dû</th></tr></thead><tbody>
+      ${k.impayees.slice(0,12).map(f=>`<tr class="cursor-pointer" onclick="window._editId='${f.id}';showPage('facture-view')"><td class="font-semibold text-indigo-600">${escapeHtml(f.code)}</td><td>${escapeHtml(f.client)}</td><td>${fmtDate(f.date_facture)}</td><td class="text-right ${f.jours>30?'text-red-600':''}">${f.jours} j</td><td class="text-right font-semibold">${money(f.reste)}</td></tr>`).join('')||'<tr><td colspan="5" class="text-center text-gray-400 p-3">Aucune facture impayée.</td></tr>'}
+    </tbody></table></div></div>`;
+}
+function dashMois(n){ const L=[]; const d=new Date(); d.setDate(1); for(let i=n-1;i>=0;i--){ const x=new Date(d.getFullYear(),d.getMonth()-i,1); L.push(dashIso(x).slice(0,7)); } return L; }
+function dashGraphFinance(){
+  const el=document.getElementById('dashChartEnc'); if(!el||typeof Chart==='undefined') return;
+  const d=window._dash.data, mois=dashMois(12), fact=mois.map(()=>0), cpt=mois.map(()=>0);
+  d.paiements.forEach(p=>{ const i=mois.indexOf(String(p.date_paiement||'').slice(0,7)); if(i>=0) fact[i]+=+p.montant||0; });
+  window._dash.k.ventesOk.forEach(v=>{ const i=mois.indexOf(String(v.date_vente||'').slice(0,7)); if(i>=0) cpt[i]+=+v.total||0; });
+  window._dashChart?.destroy?.();
+  window._dashChart=new Chart(el,{type:'bar',data:{labels:mois.map(m=>new Date(m+'-01').toLocaleDateString('fr-FR',{month:'short',year:'2-digit'})),datasets:[{label:'Factures',data:fact,backgroundColor:'#6d28d9',borderRadius:4,stack:'e'},{label:'Comptoir',data:cpt,backgroundColor:'#a78bfa',borderRadius:4,stack:'e'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+' : '+money(c.parsed.y)}}},scales:{y:{ticks:{callback:v=>new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}}});
+}
+
+/* ---------- Onglet : Commercial ---------- */
+function dashCommercial(){
+  const D=window._dash, d=D.data, k=D.k;
+  const parStatut=Object.keys(STATUT_DEVIS).map(s=>({s,n:d.devis.filter(x=>x.statut===s).length,m:d.devis.filter(x=>x.statut===s).reduce((t,x)=>t+(+x.total||0),0)}));
+  const parCom={}; d.devis.forEach(x=>{ const c=x.commercial||'—'; parCom[c]=parCom[c]||{n:0,acc:0,m:0}; parCom[c].n++; if(x.statut==='accepte'){ parCom[c].acc++; parCom[c].m+=+x.total||0; } });
+  const prosp={}; d.prospects.forEach(p=>{ prosp[p.statut]=(prosp[p.statut]||0)+1; });
+  const topCli={}; d.factures.filter(f=>f.statut!=='annulee').forEach(f=>{ topCli[f.client_id]=(topCli[f.client_id]||0)+(+f.total||0); });
+  const top=Object.entries(topCli).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  return dashCartes([{lib:'Pipeline en cours',val:money(k.montantPipeline),sous:`${k.devisOuverts.length} devis`,icone:'🎯'},{lib:'Taux de transformation',val:k.tauxTransfo===null?'—':k.tauxTransfo+' %',icone:'📈'},{lib:'Acceptés à facturer',val:money(k.montantANFacturer),icone:'🧾',coul:'#d97706'},{lib:'Prospects actifs',val:d.prospects.filter(p=>!['gagne','perdu'].includes(p.statut)).length,icone:'🤝',fn:"showPage('prospects')"}])
+   +`<div class="grid md:grid-cols-2 gap-4">
+     <div class="card p-4"><div class="font-bold mb-2">📑 Devis par statut</div><table><tbody>${parStatut.map(x=>`<tr><td><span class="badge ${STATUT_DEVIS[x.s].color}">${STATUT_DEVIS[x.s].label}</span></td><td class="text-right">${x.n}</td><td class="text-right font-semibold">${money(x.m)}</td></tr>`).join('')}</tbody></table></div>
+     <div class="card p-4"><div class="font-bold mb-2">👤 Performance par commercial</div><table><thead><tr><th>Commercial</th><th class="text-right">Devis</th><th class="text-right">Acceptés</th><th class="text-right">CA accepté</th></tr></thead><tbody>${Object.entries(parCom).sort((a,b)=>b[1].m-a[1].m).map(([c,v])=>`<tr><td>${escapeHtml(c)}</td><td class="text-right">${v.n}</td><td class="text-right">${v.acc} (${v.n?Math.round(v.acc/v.n*100):0} %)</td><td class="text-right font-semibold">${money(v.m)}</td></tr>`).join('')||'<tr><td colspan="4" class="text-gray-400">—</td></tr>'}</tbody></table></div>
+     <div class="card p-4"><div class="font-bold mb-2">🏆 Meilleurs clients (facturé)</div><table><tbody>${top.map(([id,m])=>{ const c=k.cli[id]||{}; return `<tr><td>${escapeHtml([c.nom,c.prenoms].filter(Boolean).join(' ')||'—')}</td><td class="text-right font-semibold">${money(m)}</td></tr>`; }).join('')||'<tr><td class="text-gray-400">Aucune facture.</td></tr>'}</tbody></table></div>
+     <div class="card p-4"><div class="font-bold mb-2">🤝 Prospects par statut</div><table><tbody>${['nouveau','contacte','qualifie','gagne','perdu'].map(s=>`<tr><td class="capitalize">${s==='contacte'?'Contacté':s==='qualifie'?'Qualifié':s==='gagne'?'Gagné':s}</td><td class="text-right font-semibold">${prosp[s]||0}</td></tr>`).join('')}</tbody></table></div>
+   </div>`;
+}
+
+/* ---------- Onglet : Chantiers ---------- */
+function dashChantiers(){
+  const D=window._dash, d=D.data, k=D.k;
+  const etapes=Object.keys(DASH_ETAPES).filter(e=>e!=='annule');
+  const n=e=>d.projets.filter(p=>p.etape===e).length, max=Math.max(1,...etapes.map(n));
+  const fiches={}; d.fiches.forEach(f=>{ fiches[f.statut]=(fiches[f.statut]||0)+1; });
+  return dashCartes([{lib:'Chantiers en cours',val:k.actifs.length,icone:'🏗️',fn:"showPage('projets')"},{lib:'En retard',val:k.retard.length,icone:'⏰',coul:k.retard.length?'#dc2626':'',fn:"showPage('projets-retard')"},{lib:"Fiches d'exécution en cours",val:(fiches.en_attente||0)+(fiches.en_cours||0),icone:'📋',fn:"showPage('fiches')"},{lib:'Terminés',val:n('termine'),icone:'✅',coul:'#059669'}])
+   +`<div class="grid md:grid-cols-2 gap-4">
+     <div class="card p-4"><div class="font-bold mb-2">🧭 Chantiers par étape</div>${etapes.map(e=>`<div class="mb-2 cursor-pointer" onclick="showPage('${{en_attente:'projets-attente',mesure_disponible:'projets-mesure',pret_fabrication:'projets-pret',fabrication_en_cours:'projets-fabrication',installation_en_cours:'projets-installation',termine:'projets-termine'}[e]}')"><div class="flex justify-between text-sm"><span>${DASH_ETAPES[e]}</span><b>${n(e)}</b></div><div style="height:6px;background:#e5e7eb;border-radius:4px"><div style="height:100%;width:${Math.round(n(e)/max*100)}%;background:${ETAPE_MAP_COLORS[e]||'#6d28d9'};border-radius:4px"></div></div></div>`).join('')}</div>
+     <div class="card p-4"><div class="font-bold mb-2">⏰ Chantiers en retard</div>${k.retard.length?`<table><tbody>${k.retard.map(p=>{ const c=k.cli[p.client_id]||{}; return `<tr class="cursor-pointer" onclick="window._editId='${p.id}';showPage('projets-add')"><td><b>${escapeHtml(p.libelle)}</b><div class="text-xs text-gray-400">${escapeHtml(p.code||'')} · ${escapeHtml([c.nom,c.prenoms].filter(Boolean).join(' '))}</div></td><td class="text-xs">${DASH_ETAPES[p.etape]||''}</td><td class="text-right text-red-600 whitespace-nowrap">${dashJours(p.date_fin)} j</td></tr>`; }).join('')}</tbody></table>`:'<div class="text-sm text-gray-400">Aucun chantier en retard.</div>'}</div>
+   </div>`;
+}
+
+/* ---------- Onglet : Stock ---------- */
+function dashStock(){
+  const D=window._dash, d=D.data, k=D.k;
+  const parValeur=d.composants.map(c=>({...c,v:Math.max(0,+c.stock_actuel||0)*(+c.cmup||+c.prix_unitaire||0)})).sort((a,b)=>b.v-a.v).slice(0,10);
+  return dashCartes([{lib:'Valeur du stock (CMUP)',val:money(k.valeurStock),icone:'📦'},{lib:'Articles suivis',val:d.composants.length,icone:'🔩',fn:"showPage('composants')"},{lib:'Sous le seuil',val:k.sousMin.length,icone:'⚠️',coul:k.sousMin.length?'#d97706':'',fn:"showPage('stock-alertes')"},{lib:'Transferts en transit',val:d.transferts.filter(t=>t.statut==='en_transit').length,icone:'🚚',fn:"showPage('stock-transferts')"}])
+   +`<div class="grid md:grid-cols-2 gap-4">
+     <div class="card p-4"><div class="font-bold mb-2">⚠️ Sous le seuil minimum</div>${k.sousMin.length?`<table><thead><tr><th>Article</th><th class="text-right">Stock</th><th class="text-right">Minimum</th></tr></thead><tbody>${k.sousMin.map(c=>`<tr><td>${escapeHtml(c.nom)}</td><td class="text-right ${(+c.stock_actuel||0)<=0?'text-red-600 font-bold':''}">${+c.stock_actuel||0} ${escapeHtml(c.unite||'')}</td><td class="text-right">${+c.stock_min}</td></tr>`).join('')}</tbody></table>`:'<div class="text-sm text-gray-400">Aucun article sous le seuil.</div>'}</div>
+     <div class="card p-4"><div class="font-bold mb-2">💎 Articles qui immobilisent le plus</div><table><tbody>${parValeur.map(c=>`<tr><td>${escapeHtml(c.nom)}</td><td class="text-right text-xs text-gray-500">${+c.stock_actuel||0} ${escapeHtml(c.unite||'')}</td><td class="text-right font-semibold">${money(c.v)}</td></tr>`).join('')}</tbody></table></div>
+   </div>`;
+}
+
+/* ---------- Onglet : Comptoir ---------- */
+function dashComptoir(){
+  const k=window._dash.k, v=k.ventesOk;
+  const somme=(a)=>a.reduce((s,x)=>s+(+x.total||0),0), marge=(a)=>a.reduce((s,x)=>s+(+x.total||0)-(+x.cout_total||0),0);
+  const j=v.filter(x=>x.date_vente===k.auj); const d7=new Date(); d7.setDate(d7.getDate()-6); const s7=v.filter(x=>x.date_vente>=dashIso(d7)); const m=v.filter(x=>String(x.date_vente).startsWith(k.auj.slice(0,7)));
+  const modes={}; m.forEach(x=>{ modes[x.mode_paiement]=(modes[x.mode_paiement]||0)+(+x.total||0); });
+  return dashCartes([{lib:"Aujourd'hui",val:money(somme(j)),sous:`${j.length} vente(s)`,icone:'🛒'},{lib:'7 derniers jours',val:money(somme(s7)),sous:`${s7.length} vente(s)`,icone:'📅'},{lib:'Ce mois',val:money(somme(m)),sous:`marge ${money(marge(m))}`,icone:'📆'},{lib:'Panier moyen (mois)',val:money(m.length?somme(m)/m.length:0),icone:'🧺'}])
+   +`<div class="grid lg:grid-cols-3 gap-4">
+     <div class="card p-4 lg:col-span-2"><div class="font-bold mb-2">📊 Ventes au comptoir — 30 jours</div><div style="height:220px"><canvas id="dashChartCpt"></canvas></div></div>
+     <div class="card p-4"><div class="font-bold mb-2">💳 Modes de paiement (mois)</div><table><tbody>${Object.entries(modes).map(([mo,t])=>`<tr><td>${escapeHtml(COMPTOIR_MODES[mo]?.label||mo)}</td><td class="text-right font-semibold">${money(t)}</td></tr>`).join('')||'<tr><td class="text-gray-400">Aucune vente ce mois.</td></tr>'}</tbody></table>
+       <button class="btn btn-outline w-full mt-3" onclick="showPage('comptoir-rapport')">📑 Rapport périodique PDV & caisse</button></div>
+   </div>`;
+}
+function dashGraphComptoir(){
+  const el=document.getElementById('dashChartCpt'); if(!el||typeof Chart==='undefined') return;
+  const k=window._dash.k, jours=[]; for(let i=29;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); jours.push(dashIso(d)); }
+  const tot=jours.map(j=>k.ventesOk.filter(v=>v.date_vente===j).reduce((s,v)=>s+(+v.total||0),0));
+  const mg=jours.map(j=>k.ventesOk.filter(v=>v.date_vente===j).reduce((s,v)=>s+(+v.total||0)-(+v.cout_total||0),0));
+  window._dashChart?.destroy?.();
+  window._dashChart=new Chart(el,{type:'bar',data:{labels:jours.map(j=>j.slice(8)+'/'+j.slice(5,7)),datasets:[{label:'Ventes',data:tot,backgroundColor:'#6d28d9',borderRadius:3},{label:'Marge',data:mg,type:'line',borderColor:'#059669',backgroundColor:'#059669',pointRadius:0,borderWidth:2,tension:.3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+' : '+money(c.parsed.y)}}},scales:{y:{ticks:{callback:v=>new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}}});
+}
+
+/* ---------- Onglet : Alertes ---------- */
+function dashAlertes(){
+  const D=window._dash, d=D.data, k=D.k, A=[];
+  if(dashPeut('Factures')) k.impayees.filter(f=>f.jours>60).forEach(f=>A.push({niveau:'rouge',icone:'🔥',domaine:'Finance',texte:`Facture ${f.code} impayée depuis ${f.jours} jours — ${f.client} (${money(f.reste)})`,fn:`window._editId='${f.id}';showPage('facture-view')`}));
+  if(dashPeut('Caisse')) k.sessTard.forEach(s=>{ const c=d.caisses.find(x=>x.id===s.caisse_id); A.push({niveau:'rouge',icone:'🔐',domaine:'Caisse',texte:`Séance de caisse non clôturée depuis le ${fmtDate(s.date_session)}${c?' — '+c.nom:''}`,fn:`window._editId='${s.caisse_id}';showPage('caisse-detail')`}); });
+  if(dashPeut('Stock')) k.sousMin.forEach(c=>A.push({niveau:(+c.stock_actuel||0)<=0?'rouge':'orange',icone:'📦',domaine:'Stock',texte:`${c.nom} : ${+c.stock_actuel||0} ${c.unite||''} (minimum ${+c.stock_min})`,fn:`showPage('stock-alertes')`}));
+  if(dashPeut('Projets')) k.retard.forEach(p=>A.push({niveau:dashJours(p.date_fin)>30?'rouge':'orange',icone:'⏰',domaine:'Chantiers',texte:`${p.libelle} : ${dashJours(p.date_fin)} jours de retard`,fn:`window._editId='${p.id}';showPage('projets-add')`}));
+  if(dashPeut('Devis')) k.devisANFacturer.forEach(x=>A.push({niveau:'orange',icone:'🧾',domaine:'Commercial',texte:`Devis ${x.code} accepté non facturé (${money(x.total)})`,fn:`window._editId='${x.id}';showPage('devis-view')`}));
+  if(dashPeut('Comptoir')) k.ventesOk.filter(v=>v.fne_statut==='erreur').forEach(v=>A.push({niveau:'rouge',icone:'🏛️',domaine:'Comptoir',texte:`Certification FNE en erreur — vente ${v.code}`,fn:`showPage('comptoir-ventes')`}));
+  if(dashPeut('Comptabilite') && k.aVentiler.length>50) A.push({niveau:'orange',icone:'📒',domaine:'Comptabilité',texte:`${k.aVentiler.length} mouvements de caisse à ventiler`});
+  return A.sort((a,b)=>(a.niveau==='rouge'?0:1)-(b.niveau==='rouge'?0:1));
+}
+function dashOngletAlertes(){
+  const A=dashAlertes();
+  if(!A.length) return `<div class="card p-8 text-center"><div class="text-3xl mb-2">✅</div><div class="font-bold">Aucune alerte.</div></div>`;
+  const doms=[...new Set(A.map(a=>a.domaine))];
+  return doms.map(dm=>`<div class="card p-4 mb-3"><div class="font-bold mb-2">${dm} <span class="text-xs text-gray-400">(${A.filter(a=>a.domaine===dm).length})</span></div>${A.filter(a=>a.domaine===dm).map(a=>`
+    <div class="flex items-center gap-2 text-sm py-1.5 border-b border-gray-100 last:border-0 ${a.fn?'cursor-pointer hover:bg-gray-50':''}" ${a.fn?`onclick="${a.fn}"`:''}><span style="width:8px;height:8px;border-radius:50%;background:${a.niveau==='rouge'?'#dc2626':'#f59e0b'};flex:none"></span>${a.icone} ${escapeHtml(a.texte)}</div>`).join('')}</div>`).join('');
 }
 
 /* ============================== CLIENTS ============================== */
