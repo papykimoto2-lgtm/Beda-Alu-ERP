@@ -284,6 +284,7 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
         <button class="nav-child" data-page="stock-alertes">→ Alertes <span class="nav-badge nav-badge-red" id="badgeStockAlertes">0</span></button>
         <button class="nav-child" data-page="stock-inventaire">→ Inventaire</button>
         <button class="nav-child" data-page="stock-inventaires">→ États d'inventaire</button>
+        <button class="nav-child" data-page="stock-valorisation">→ Valorisation du stock</button>
         <button class="nav-child" data-page="stock-par-depot">→ Stock par dépôt</button>
         <button class="nav-child" data-page="stock-transferts">→ Transferts <span class="nav-badge nav-badge-amber hidden" id="badgeTransferts">0</span></button>
         <button class="nav-child" data-page="stock-depots">→ Dépôts & points de vente</button>
@@ -896,9 +897,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant',referentiels:"Familles d'articles & unités",'stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-inventaires':"Stock — États d'inventaire",'stock-inventaire-view':"État d'inventaire",'stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'État périodique — Point de vente & caisse','comptoir-z':'Ticket Z — Clôture du point de vente','caisse-brouillard':'Brouillard de caisse',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,referentiels:renderReferentiels,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-inventaires':renderStockInventaires,'stock-inventaire-view':renderInventaireDetail,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,'caisse-validations':renderCaisseValidations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,'comptoir-z':renderComptoirZ,'caisse-brouillard':renderCaisseBrouillard,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',referentiels:'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-inventaires':'stock-g','stock-inventaire-view':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g','caisse-validations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g','comptoir-z':'comptoir-g','caisse-brouillard':'caisse-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant',referentiels:"Familles d'articles & unités",'stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-valorisation':'Stock — Valorisation, CA prévisionnel et marge','stock-inventaires':"Stock — États d'inventaire",'stock-inventaire-view':"État d'inventaire",'stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'État périodique — Point de vente & caisse','comptoir-z':'Ticket Z — Clôture du point de vente','caisse-brouillard':'Brouillard de caisse',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,referentiels:renderReferentiels,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-valorisation':renderStockValorisation,'stock-inventaires':renderStockInventaires,'stock-inventaire-view':renderInventaireDetail,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,'caisse-validations':renderCaisseValidations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,'comptoir-z':renderComptoirZ,'caisse-brouillard':renderCaisseBrouillard,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',referentiels:'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-valorisation':'stock-g','stock-inventaires':'stock-g','stock-inventaire-view':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g','caisse-validations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g','comptoir-z':'comptoir-g','caisse-brouillard':'caisse-g'};
 /* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
 const ALL_MODULES=[
   {code:'Clients',label:'Clients',groupe:'Clients'},
@@ -3437,6 +3438,247 @@ async function renderStockAlertes(el){
       <table><thead><tr><th>Composant</th><th>Famille</th><th class="text-right">Stock</th><th class="text-right">Seuil max</th><th></th></tr></thead>
       <tbody>${surstocks.map(c=>rowHtml(c,'surstock')).join('')||'<tr><td colspan="5" class="text-gray-400 p-3">Aucun surstock.</td></tr>'}</tbody></table>
     </div>`;
+}
+
+/* ============================== VALORISATION DU STOCK ==============================
+   Valeur d'achat (quantité × CMUP, à défaut prix d'achat catalogue), chiffre d'affaires prévisionnel
+   (quantité × prix de vente), marge brute prévisionnelle HT par article et au total, avec filtres
+   (lieu de stock, famille, type, standing, prix, marge, classe ABC, stock dormant, recherche) et
+   regroupements (famille, dépôt, type). Imprimable, exportable (CSV) et envoyable (PDF → WhatsApp / e-mail).
+   Les prix de vente du catalogue sont saisis TTC (comme au comptoir) : la marge est calculée sur le HT. */
+window._valo=window._valo||{depot:'',famille:'',type:'',standing:'',stock:'positif',prix:'',marge:'',abc:'',dormant:false,q:'',groupe:'famille',tri:'valeur',ttc:true,detail:true};
+const VALO_TRIS={valeur:"Valeur d'achat",ca:'CA prévisionnel',marge:'Marge brute',taux:'Taux de marge',quantite:'Quantité',nom:'Désignation'};
+const VALO_GROUPES={famille:'Famille',depot:'Lieu de stock',type:'Type',standing:'Standing',aucun:'Aucun (liste)'};
+async function renderStockValorisation(el){
+  await Promise.all([chargerReferentiels(),chargerDepots(true)]);
+  const depuis=new Date(Date.now()-365*86400000).toISOString();
+  const [{data:comps,error},{data:stocks},{data:mvts}]=await Promise.all([
+    sb.from('composants').select('*').order('nom'),
+    sb.from('stocks_depot').select('depot_id,composant_id,quantite'),
+    sb.from('mouvements_stock').select('composant_id,type,quantite,created_at').gte('created_at',depuis).order('created_at',{ascending:false}).limit(20000)
+  ]);
+  if(error) throw error;
+  const derniereSortie={};
+  (mvts||[]).forEach(m=>{ if((m.type==='sortie'||(m.type!=='entree'&&+m.quantite<0)) && !derniereSortie[m.composant_id]) derniereSortie[m.composant_id]=m.created_at; });
+  window._valoData={comps:comps||[],stocks:stocks||[],derniereSortie,le:new Date()};
+  const V=window._valo, tva=+(window.APP_PARAMS?.tva_pct??18);
+  const fams=famillesPresentes('composant',(comps||[]).map(c=>c.famille));
+  const sel=(id,opts,v)=>`<select id="${id}" class="border rounded-lg px-2 py-1.5 text-sm" style="width:auto" onchange="valoFiltre('${id.slice(2)}',this.value)">${opts.map(([k,l])=>`<option value="${escapeHtml(k)}" ${String(v)===String(k)?'selected':''}>${escapeHtml(l)}</option>`).join('')}</select>`;
+  el.innerHTML=`
+    <div class="card p-3 mb-3 flex flex-wrap gap-2 items-center">
+      ${sel('vfdepot',[['','🏭 Tous les lieux de stock'],...(window._depotsCache||[]).filter(d=>d.actif!==false).map(d=>[d.id,(DEPOT_TYPES[d.type]?.icon||'🏭')+' '+d.nom])],V.depot)}
+      ${sel('vffamille',[['','🏷️ Toutes les familles'],...fams.map(f=>[f,famIcone('composant',f)+' '+f])],V.famille)}
+      ${sel('vftype',[['','🗂️ Tous types'],...COMPOSANT_TYPES.map(t=>[t,t])],V.type)}
+      ${sel('vfstanding',[['','⭐ Tous standings'],...Object.entries(COMPOSANT_STANDINGS).map(([k,v])=>[k,v.icon+' '+v.label])],V.standing)}
+      ${sel('vfstock',[['positif','📦 En stock'],['tous','Tous les articles'],['negatif','⚠ Stock négatif']],V.stock)}
+      ${sel('vfprix',[['','💲 Tous prix'],['avec','Avec prix de vente'],['sans','Sans prix de vente']],V.prix)}
+      ${sel('vfmarge',[['','📈 Toutes marges'],['negative','Marge négative'],['faible','Marge < 20 %'],['bonne','Marge ≥ 20 %']],V.marge)}
+      ${sel('vfabc',[['','🅰 Toutes classes ABC'],['A','Classe A (80 % de la valeur)'],['B','Classe B (15 %)'],['C','Classe C (5 %)']],V.abc)}
+      <label class="text-sm flex items-center gap-1 whitespace-nowrap"><input type="checkbox" style="width:16px;height:16px;flex:none" ${V.dormant?'checked':''} onchange="valoFiltre('dormant',this.checked)"> 💤 Dormant (&gt; 90 j sans sortie)</label>
+      <div class="flex-1 min-w-[180px]">${fieldWrap('🔎',`<input id="vfq" value="${escapeHtml(V.q)}" placeholder="Article, code, référence…" oninput="valoFiltre('q',this.value)">`)}</div>
+    </div>
+    <div class="flex flex-wrap gap-2 items-center mb-3">
+      <span class="text-xs text-gray-500">Regrouper par</span>${sel('vfgroupe',Object.entries(VALO_GROUPES),V.groupe)}
+      <span class="text-xs text-gray-500">Trier par</span>${sel('vftri',Object.entries(VALO_TRIS),V.tri)}
+      <label class="text-xs flex items-center gap-1 whitespace-nowrap" title="Les prix de vente du catalogue sont saisis TTC (comme au comptoir)"><input type="checkbox" style="width:16px;height:16px;flex:none" ${V.ttc?'checked':''} onchange="valoFiltre('ttc',this.checked)"> Prix de vente saisis TTC (TVA ${tva} %)</label>
+      <label class="text-xs flex items-center gap-1 whitespace-nowrap"><input type="checkbox" style="width:16px;height:16px;flex:none" ${V.detail?'checked':''} onchange="valoFiltre('detail',this.checked)"> Détail par article à l'impression</label>
+      <div class="ml-auto flex gap-2 flex-wrap">
+        <button class="btn btn-outline" onclick="valoExporterCsv()">⬇ Excel (CSV)</button>
+        <button class="btn btn-outline" onclick="valoImprimer()">🖨 Imprimer</button>
+        <button class="btn btn-primary" onclick="valoEnvoyer()">📤 WhatsApp / e-mail</button>
+      </div>
+    </div>
+    <div id="valoResultats"></div>`;
+  valoAfficher();
+}
+function valoFiltre(k,v){
+  window._valo[k]=v;
+  if(k==='q'){ clearTimeout(window._valoT); window._valoT=setTimeout(valoAfficher,200); } else valoAfficher();
+}
+/* Calcul : lignes (article, ou article × lieu si regroupement par lieu), indicateurs, synthèses */
+function valoCalculer(){
+  const V=window._valo, D=window._valoData||{comps:[],stocks:[],derniereSortie:{}};
+  const tva=+(window.APP_PARAMS?.tva_pct??18), coefHT=V.ttc?1/(1+tva/100):1, jours=d=>d?Math.floor((D.le-new Date(d))/86400000):null;
+  const parComp={}; D.comps.forEach(c=>parComp[c.id]=c);
+  const avecDepot=new Set(D.stocks.map(s=>s.composant_id));
+  let paires=D.stocks.filter(s=>parComp[s.composant_id]).map(s=>({c:parComp[s.composant_id],depot:s.depot_id,q:+s.quantite||0}));
+  D.comps.filter(c=>!avecDepot.has(c.id)).forEach(c=>paires.push({c,depot:null,q:+c.stock_actuel||0}));
+  if(V.depot) paires=paires.filter(p=>p.depot===V.depot);
+  const negLieux=paires.filter(p=>p.q<0);   // anomalies visibles même quand les lieux sont additionnés
+  let lignes;
+  if(V.groupe==='depot') lignes=paires;
+  else { const agg={}; paires.forEach(p=>{ (agg[p.c.id]=agg[p.c.id]||{c:p.c,depot:V.depot||null,q:0}).q+=p.q; }); lignes=Object.values(agg);
+    if(!V.depot) D.comps.forEach(c=>{ if(!agg[c.id]) lignes.push({c,depot:null,q:0}); }); }
+  lignes=lignes.map(l=>{
+    const c=l.c, cmup=+c.cmup||0, cout=cmup||+c.prix_unitaire||0, pv=c.prix_vente!=null&&c.prix_vente!==''?+c.prix_vente:null;
+    const qv=Math.max(0,l.q), va=qv*cout, ca=pv!=null?qv*pv:0, caHT=ca*coefHT, marge=pv!=null?caHT-va:null;
+    const ds=D.derniereSortie[c.id], j=jours(ds);
+    return {...l,famille:c.famille||'Autre',cout,coutEstime:!cmup&&!!cout,pv,va,ca,caHT,marge,taux:pv!=null&&caHT>0?marge/caHT:null,
+      coef:pv!=null&&cout>0?(pv*coefHT)/cout:null,derniereSortie:ds,dormant:qv>0&&(j==null||j>90),joursSortie:j};
+  });
+  // Classe ABC sur la valeur d'achat (avant filtres d'affichage)
+  const tri=[...lignes].filter(l=>l.va>0).sort((a,b)=>b.va-a.va), totVa=tri.reduce((s,l)=>s+l.va,0); let cum=0;
+  tri.forEach(l=>{ cum+=l.va; l.abc=cum/totVa<=0.8||cum===l.va?'A':cum/totVa<=0.95?'B':'C'; });
+  const q=(V.q||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''), mots=q.split(/\s+/).filter(Boolean);
+  lignes=lignes.filter(l=>{
+    const c=l.c;
+    if(V.famille&&l.famille!==V.famille) return false;
+    if(V.type&&c.type!==V.type) return false;
+    if(V.standing&&(c.standing||'standard')!==V.standing) return false;
+    if(V.stock==='positif'&&!(l.q>0)) return false;
+    if(V.stock==='negatif'&&!(l.q<0)) return false;
+    if(V.prix==='avec'&&l.pv==null) return false;
+    if(V.prix==='sans'&&l.pv!=null) return false;
+    if(V.marge==='negative'&&!(l.marge!=null&&l.marge<0)) return false;
+    if(V.marge==='faible'&&!(l.taux!=null&&l.taux<0.2)) return false;
+    if(V.marge==='bonne'&&!(l.taux!=null&&l.taux>=0.2)) return false;
+    if(V.abc&&l.abc!==V.abc) return false;
+    if(V.dormant&&!l.dormant) return false;
+    if(mots.length){ const t=[c.nom,c.code,c.reference,l.famille,c.emplacement].filter(Boolean).join(' ').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); if(!mots.every(m=>t.includes(m))) return false; }
+    return true;
+  });
+  const cle={valeur:l=>-l.va,ca:l=>-l.ca,marge:l=>-(l.marge??-1e15),taux:l=>-(l.taux??-1e9),quantite:l=>-l.q,nom:l=>0}[V.tri]||(l=>-l.va);
+  lignes.sort((a,b)=>(cle(a)-cle(b))||String(a.c.nom).localeCompare(b.c.nom,'fr'));
+  const somme=(ls,k)=>ls.reduce((s,l)=>s+(+l[k]||0),0);
+  const avecPv=lignes.filter(l=>l.pv!=null&&l.q>0), sansPv=lignes.filter(l=>l.pv==null&&l.q>0);
+  const T={n:lignes.length,enStock:lignes.filter(l=>l.q>0).length,va:somme(lignes,'va'),ca:somme(lignes,'ca'),caHT:somme(lignes,'caHT'),
+    vaAvecPv:somme(avecPv,'va'),marge:avecPv.reduce((s,l)=>s+l.marge,0),
+    sansPv:{n:sansPv.length,va:somme(sansPv,'va')},negMarge:lignes.filter(l=>l.marge!=null&&l.marge<0&&l.q>0),
+    dormant:lignes.filter(l=>l.dormant),negatif:negLieux,estime:lignes.filter(l=>l.coutEstime&&l.q>0)};
+  T.taux=T.caHT>0?T.marge/T.caHT:null;
+  const grouper=k=>{ const g={}; lignes.forEach(l=>{ const x=g[k(l)]=g[k(l)]||{n:0,va:0,ca:0,caHT:0,marge:0,vaPv:0}; x.n++; x.va+=l.va; x.ca+=l.ca; x.caHT+=l.caHT; if(l.pv!=null){ x.marge+=l.marge; x.vaPv+=l.va; } }); return g; };
+  const nomGroupe={famille:l=>l.famille,depot:l=>l.depot?depotNom(l.depot):'— (sans lieu)',type:l=>l.c.type||'—',standing:l=>COMPOSANT_STANDINGS[l.c.standing||'standard']?.label||'—',aucun:()=>'Tous les articles'};
+  return {lignes,T,tva,coefHT,parFamille:grouper(l=>l.famille),groupes:grouper(nomGroupe[V.groupe]||nomGroupe.famille),nomGroupe:nomGroupe[V.groupe]||nomGroupe.famille,
+    parABC:grouper(l=>l.abc||'—'),parDepot:valoParDepot()};
+}
+/* Répartition par lieu de stock (toujours au niveau article × lieu, mêmes filtres hors lieu) */
+function valoParDepot(){
+  const V=window._valo; if(V._dansDepot) return null;
+  const sauve={groupe:V.groupe,depot:V.depot}; V._dansDepot=true; V.groupe='depot'; V.depot='';
+  try{ const r=valoCalculer(); const g={}; r.lignes.forEach(l=>{ const k=l.depot?depotNom(l.depot):'— (sans lieu)'; const x=g[k]=g[k]||{n:0,va:0,ca:0,caHT:0,marge:0}; x.n++; x.va+=l.va; x.ca+=l.ca; x.caHT+=l.caHT; if(l.pv!=null) x.marge+=l.marge; }); return g; }
+  finally{ V.groupe=sauve.groupe; V.depot=sauve.depot; V._dansDepot=false; }
+}
+const valoPct=x=>x==null?'—':(Math.round(x*1000)/10).toLocaleString('fr-FR')+' %';
+function valoCouleurMarge(m){ return m==null?'#9ca3af':m<0?'#dc2626':'#047857'; }
+function valoSyntheseHtml(titre,g,total,avecPart){
+  const e=Object.entries(g).sort((a,b)=>b[1].va-a[1].va); if(!e.length) return '';
+  return `<div class="vs-bloc"><div class="vs-h">${titre}</div><table class="vs-t"><thead><tr><th>${titre.replace(/^Par /,'')}</th><th class="r">Articles</th><th class="r">Valeur d'achat</th>${avecPart?'<th class="r">Part</th>':''}<th class="r">CA prév. TTC</th><th class="r">Marge brute HT</th><th class="r">Taux</th></tr></thead><tbody>
+    ${e.map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td class="r">${v.n}</td><td class="r">${money(v.va)}</td>${avecPart?`<td class="r">${valoPct(total?v.va/total:0)}</td>`:''}<td class="r">${money(v.ca)}</td><td class="r" style="color:${valoCouleurMarge(v.marge)}">${money(v.marge)}</td><td class="r">${valoPct(v.caHT>0?v.marge/v.caHT:null)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function valoLigneHtml(l,avecLieu){
+  const c=l.c;
+  return `<tr><td>${escapeHtml(c.nom)}${c.code||c.reference?`<div class="vs-s">${escapeHtml([c.code,c.reference].filter(Boolean).join(' · '))}</div>`:''}</td>
+    ${avecLieu?`<td>${escapeHtml(l.depot?depotNom(l.depot):'—')}</td>`:''}
+    <td class="r" style="${l.q<0?'color:#dc2626;font-weight:700':''}">${fmtQ(l.q)} ${escapeHtml(c.unite||'')}</td>
+    <td class="r">${money(l.cout)}${l.coutEstime?'<div class="vs-s" title="Pas de CMUP : prix d\'achat catalogue">estimé</div>':''}</td>
+    <td class="r"><b>${money(l.va)}</b></td>
+    <td class="r">${l.pv!=null?money(l.pv):'<span class="vs-s" style="color:#d97706">sans prix</span>'}</td>
+    <td class="r">${l.pv!=null?money(l.ca):'—'}</td>
+    <td class="r" style="color:${valoCouleurMarge(l.marge)};font-weight:600">${l.marge!=null?money(l.marge):'—'}</td>
+    <td class="r">${valoPct(l.taux)}</td>
+    <td class="c">${l.abc||''}</td>
+    <td class="r vs-s">${l.derniereSortie?fmtDate(l.derniereSortie):(l.q>0?'&gt; 1 an':'')}${l.dormant?' 💤':''}</td></tr>`;
+}
+const VALO_CSS=`.vs-k{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}.vs-k>div{border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;background:#fff}
+  .vs-k .l{font-size:10px;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:.02em}.vs-k .v{font-size:17px;font-weight:800;margin-top:2px}.vs-k .s{font-size:10.5px;color:#64748b}
+  .vs-t{width:100%;border-collapse:collapse;font-size:11.5px}.vs-t th{background:#f1f5f9;text-transform:uppercase;font-size:9.5px;color:#475569;text-align:left;padding:5px 6px;border-bottom:1px solid #cbd5e1}
+  .vs-t td{padding:4px 6px;border-bottom:1px solid #eef2f7;vertical-align:top}.vs-t .r{text-align:right;white-space:nowrap}.vs-t .c{text-align:center}.vs-s{font-size:9.5px;color:#94a3b8}
+  .vs-t tr.g td{background:#e2e8f0;font-weight:700}.vs-t tr.st td{background:#f8fafc;font-weight:700}.vs-t tr.tot td{background:#1e293b;color:#fff;font-weight:800}
+  .vs-h{font-weight:800;font-size:12.5px;margin:12px 0 5px}.vs-g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.vs-bloc{break-inside:avoid}
+  .vs-alerte{font-size:11px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:6px 10px;margin-bottom:10px}
+  @media (max-width:760px){.vs-k{grid-template-columns:repeat(2,minmax(0,1fr))}.vs-g2{grid-template-columns:1fr}}`;
+function valoIndicateursHtml(r){
+  const T=r.T;
+  return `<div class="vs-k">
+    <div><div class="l">Valeur d'achat du stock</div><div class="v">${money(T.va)}</div><div class="s">${T.enStock} article(s) en stock · au CMUP</div></div>
+    <div><div class="l">CA prévisionnel TTC</div><div class="v" style="color:#1d4ed8">${money(T.ca)}</div><div class="s">soit ${money(T.caHT)} HT</div></div>
+    <div><div class="l">Marge brute prévisionnelle HT</div><div class="v" style="color:${valoCouleurMarge(T.marge)}">${money(T.marge)}</div><div class="s">taux de marge ${valoPct(T.taux)} · sur les articles avec prix</div></div>
+    <div><div class="l">Coefficient moyen</div><div class="v">${T.vaAvecPv>0?(T.caHT/T.vaAvecPv).toLocaleString('fr-FR',{maximumFractionDigits:2}):'—'}</div><div class="s">prix de vente HT ÷ coût d'achat</div></div>
+    <div><div class="l">Stock sans prix de vente</div><div class="v" style="color:${T.sansPv.n?'#d97706':''}">${money(T.sansPv.va)}</div><div class="s">${T.sansPv.n} article(s) — hors CA et marge</div></div>
+    <div><div class="l">Articles à marge négative</div><div class="v" style="color:${T.negMarge.length?'#dc2626':''}">${T.negMarge.length}</div><div class="s">${money(T.negMarge.reduce((s,l)=>s+l.marge,0))}</div></div>
+    <div><div class="l">Stock dormant (&gt; 90 j)</div><div class="v" style="color:${T.dormant.length?'#7c3aed':''}">${money(T.dormant.reduce((s,l)=>s+l.va,0))}</div><div class="s">${T.dormant.length} article(s) sans sortie</div></div>
+    <div><div class="l">Anomalies</div><div class="v" style="color:${T.negatif.length?'#dc2626':''}">${T.negatif.length+T.estime.length}</div><div class="s">${T.negatif.length} stock(s) négatif(s) · ${T.estime.length} coût(s) estimé(s)</div></div>
+  </div>`;
+}
+function valoDetailHtml(r,limite){
+  const V=window._valo, avecLieu=V.groupe==='depot';
+  const tete=`<thead><tr><th>Article</th>${avecLieu?'<th>Lieu</th>':''}<th class="r">Quantité</th><th class="r">Coût unit.</th><th class="r">Valeur d'achat</th><th class="r">PV unit. ${V.ttc?'TTC':'HT'}</th><th class="r">CA prév.</th><th class="r">Marge HT</th><th class="r">Taux</th><th class="c">ABC</th><th class="r">Dern. sortie</th></tr></thead>`;
+  const n=avecLieu?11:10;
+  if(V.groupe==='aucun') return `<table class="vs-t">${tete}<tbody>${r.lignes.slice(0,limite||1e9).map(l=>valoLigneHtml(l,avecLieu)).join('')}</tbody></table>`;
+  const g={}; r.lignes.forEach(l=>(g[r.nomGroupe(l)]=g[r.nomGroupe(l)]||[]).push(l));
+  const ordre=Object.keys(g).sort((a,b)=>g[b].reduce((s,l)=>s+l.va,0)-g[a].reduce((s,l)=>s+l.va,0));
+  return `<table class="vs-t">${tete}<tbody>${ordre.map(k=>{ const ls=g[k], va=ls.reduce((s,l)=>s+l.va,0), ca=ls.reduce((s,l)=>s+l.ca,0), m=ls.filter(l=>l.marge!=null).reduce((s,l)=>s+l.marge,0), ht=ls.reduce((s,l)=>s+l.caHT,0);
+    return `<tr class="g"><td colspan="${n}">${V.groupe==='famille'?escapeHtml(famIcone('composant',k))+' ':''}${escapeHtml(k)} <span class="vs-s">(${ls.length})</span></td></tr>${ls.map(l=>valoLigneHtml(l,avecLieu)).join('')}
+      <tr class="st"><td colspan="${avecLieu?4:3}">Sous-total ${escapeHtml(k)}</td><td class="r">${money(va)}</td><td></td><td class="r">${money(ca)}</td><td class="r" style="color:${valoCouleurMarge(m)}">${money(m)}</td><td class="r">${valoPct(ht>0?m/ht:null)}</td><td colspan="2"></td></tr>`; }).join('')}
+    <tr class="tot"><td colspan="${avecLieu?4:3}">TOTAL</td><td class="r">${money(r.T.va)}</td><td></td><td class="r">${money(r.T.ca)}</td><td class="r">${money(r.T.marge)}</td><td class="r">${valoPct(r.T.taux)}</td><td colspan="2"></td></tr></tbody></table>`;
+}
+function valoAfficher(){
+  const host=document.getElementById('valoResultats'); if(!host) return;
+  const r=valoCalculer(); window._valoCalc=r;
+  host.innerHTML=`<style>${VALO_CSS}</style>
+    ${valoIndicateursHtml(r)}
+    ${r.T.sansPv.n?`<div class="vs-alerte">⚠ ${r.T.sansPv.n} article(s) en stock n'ont pas de prix de vente (${money(r.T.sansPv.va)} de stock) : ils ne comptent ni dans le CA prévisionnel ni dans la marge. Renseignez-les dans la fiche composant (« Prix de vente »).</div>`:''}
+    <div class="vs-g2 mb-3">${valoSyntheseHtml('Par famille',r.parFamille,r.T.va,true)}${r.parDepot?valoSyntheseHtml('Par lieu de stock',r.parDepot,Object.values(r.parDepot).reduce((s,v)=>s+v.va,0),true):''}</div>
+    <div class="vs-g2 mb-3">${valoSyntheseHtml('Par classe ABC',r.parABC,r.T.va,true)}<div class="vs-bloc"><div class="vs-h">Lecture</div><div class="text-xs text-gray-600 leading-relaxed">
+      <b>Valeur d'achat</b> = quantité × CMUP (à défaut, prix d'achat du catalogue : « estimé »). <b>CA prévisionnel</b> = quantité × prix de vente ${window._valo.ttc?`(saisi TTC ; HT = TTC ÷ ${(1+r.tva/100).toLocaleString('fr-FR')})`:'(saisi HT)'}.
+      <b>Marge brute</b> = CA HT − valeur d'achat, sur les seuls articles ayant un prix de vente. <b>Classe ABC</b> : A = articles qui font 80 % de la valeur du stock, B = 15 % suivants, C = 5 % restants.
+      <b>Dormant</b> : en stock sans sortie depuis plus de 90 jours. Stocks négatifs valorisés à 0 (anomalie à corriger par inventaire).</div></div></div>
+    <div class="card overflow-x-auto p-0">${r.lignes.length?valoDetailHtml(r):'<div class="p-8 text-center text-gray-400">Aucun article ne correspond aux filtres.</div>'}</div>`;
+}
+function valoFiltresTexte(){
+  const V=window._valo, t=[];
+  t.push('Lieu : '+(V.depot?depotNom(V.depot).replace(/^\S+\s/,''):'tous les lieux de stock'));
+  if(V.famille) t.push('Famille : '+V.famille); if(V.type) t.push('Type : '+V.type); if(V.standing) t.push('Standing : '+(COMPOSANT_STANDINGS[V.standing]?.label||V.standing));
+  t.push({positif:'articles en stock',tous:'tous les articles',negatif:'stocks négatifs'}[V.stock]);
+  if(V.prix) t.push(V.prix==='avec'?'avec prix de vente':'sans prix de vente');
+  if(V.marge) t.push({negative:'marge négative',faible:'marge < 20 %',bonne:'marge ≥ 20 %'}[V.marge]);
+  if(V.abc) t.push('classe '+V.abc); if(V.dormant) t.push('stock dormant'); if(V.q) t.push('recherche « '+V.q+' »');
+  return t.join(' · ');
+}
+function valoRapportHtml(){
+  const r=window._valoCalc||valoCalculer(), V=window._valo, le=new Date().toLocaleString('fr-FR');
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Valorisation du stock</title>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:22px;color:#0f172a;font-size:11px}${VALO_CSS}.vs-k .v{font-size:14px}.vs-t{font-size:10px}
+    thead{display:table-header-group}tr{break-inside:avoid}@page{size:A4 landscape;margin:9mm}@media print{body{padding:0}}</style></head><body>
+    <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+    <h1 style="font-size:17px;margin:0">VALORISATION DU STOCK — VALEUR, CA PRÉVISIONNEL ET MARGE</h1>
+    <div style="color:#475569;margin:3px 0 10px">Situation au ${le} · ${escapeHtml(valoFiltresTexte())} · valorisation au CMUP · prix de vente ${V.ttc?'TTC (TVA '+r.tva+' %)':'HT'}</div>
+    ${valoIndicateursHtml(r)}
+    ${r.T.sansPv.n?`<div class="vs-alerte">⚠ ${r.T.sansPv.n} article(s) sans prix de vente (${money(r.T.sansPv.va)} de stock) : exclus du CA prévisionnel et de la marge.</div>`:''}
+    <div class="vs-g2">${valoSyntheseHtml('Par famille',r.parFamille,r.T.va,true)}${r.parDepot?valoSyntheseHtml('Par lieu de stock',r.parDepot,Object.values(r.parDepot).reduce((s,v)=>s+v.va,0),true):''}</div>
+    ${V.detail&&r.lignes.length?`<div class="vs-h">Détail par article${V.groupe!=='aucun'?' — regroupé par '+VALO_GROUPES[V.groupe].toLowerCase():''}</div>${valoDetailHtml(r)}`:''}
+    <div style="display:flex;gap:30px;margin-top:26px">${['Le responsable des stocks','Le contrôleur de gestion','Visa du DG'].map(x=>`<div style="flex:1;border-top:1px solid #0f172a;padding-top:5px;text-align:center">${x}</div>`).join('')}</div>
+    <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`;
+}
+function valoMeta(){
+  const r=window._valoCalc||valoCalculer(), V=window._valo;
+  return {type:'VALORISATION_STOCK',titre:'Valorisation du stock',montant:r.T.va,periode:new Date().toLocaleDateString('fr-FR'),niveau:V.depot?'Dépôt : '+depotNom(V.depot).replace(/^\S+\s/,''):'Tous les lieux de stock',contenu:true};
+}
+async function valoImprimer(){
+  const win=window.open('','_blank','width=1200,height=1000'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  await impEcrire(win,valoMeta(),valoRapportHtml());
+}
+function valoTexteMessage(){
+  const r=window._valoCalc||valoCalculer(), T=r.T;
+  return [`📦 *Valorisation du stock* — ${nomEntreprise()||APP_NOM}`,`Situation au ${new Date().toLocaleString('fr-FR')}`,valoFiltresTexte(),'',
+    `• Valeur d'achat : *${money(T.va)}* (${T.enStock} articles)`,`• CA prévisionnel : *${money(T.ca)}* TTC (${money(T.caHT)} HT)`,
+    `• Marge brute prévisionnelle : *${money(T.marge)}* HT (${valoPct(T.taux)})`,
+    T.sansPv.n?`• Sans prix de vente : ${T.sansPv.n} articles (${money(T.sansPv.va)})`:'',
+    T.negMarge.length?`• Marge négative : ${T.negMarge.length} articles`:'',
+    T.dormant.length?`• Stock dormant > 90 j : ${money(T.dormant.reduce((s,l)=>s+l.va,0))} (${T.dormant.length} articles)`:'',
+    '','Détail dans le PDF joint.'].filter((x,i,a)=>x!==''||a[i-1]!=='').join('\n');
+}
+function valoEnvoyer(){
+  const d=new Date().toISOString().slice(0,10);
+  impOuvrirEnvoi({titre:'Valorisation du stock',html:valoRapportHtml(),meta:valoMeta(),orientation:'landscape',nomFichier:`${slugEntreprise()}-valorisation-stock-${d}.pdf`,texte:valoTexteMessage()});
+}
+function valoExporterCsv(){
+  const r=window._valoCalc||valoCalculer(), V=window._valo, n=x=>x==null?'':String(Math.round(x*100)/100).replace('.',',');
+  const lignes=[['Code','Désignation','Famille','Type','Standing',...(V.groupe==='depot'?['Lieu']:[]),'Quantité','Unité','Coût unitaire (CMUP)','Coût estimé','Valeur achat','Prix de vente '+(V.ttc?'TTC':'HT'),'CA prévisionnel','CA prévisionnel HT','Marge brute HT','Taux de marge %','Classe ABC','Dernière sortie','Dormant']];
+  r.lignes.forEach(l=>{ const c=l.c; lignes.push([c.code||c.reference||'',c.nom,l.famille,c.type||'',COMPOSANT_STANDINGS[c.standing||'standard']?.label||'',...(V.groupe==='depot'?[l.depot?depotNom(l.depot).replace(/^\S+\s/,''):'']:[]),n(l.q),c.unite||'',n(l.cout),l.coutEstime?'oui':'',n(l.va),n(l.pv),l.pv!=null?n(l.ca):'',l.pv!=null?n(l.caHT):'',n(l.marge),l.taux!=null?n(l.taux*100):'',l.abc||'',l.derniereSortie?fmtDate(l.derniereSortie):'',l.dormant?'oui':'']); });
+  lignes.push([],['TOTAL','','','','',...(V.groupe==='depot'?['']:[]),'','','','',n(r.T.va),'',n(r.T.ca),n(r.T.caHT),n(r.T.marge),r.T.taux!=null?n(r.T.taux*100):'','','','']);
+  const csv='﻿'+lignes.map(l=>l.map(x=>{ const s=String(x??''); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(';')).join('\r\n');
+  telechargerFichier(new File([csv],`${slugEntreprise()}-valorisation-stock-${new Date().toISOString().slice(0,10)}.csv`,{type:'text/csv;charset=utf-8'}));
 }
 
 /* ============================== INVENTAIRE PHYSIQUE : saisie, justification des écarts, états ==============================
@@ -7091,7 +7333,8 @@ const IMP_CSS=`<style id="impCss">
 </style>`;
 /* Écrit le document dans la fenêtre d'impression en y ajoutant en-tête, pied légal et QR de sécurité.
    meta : {type, titre, numero, montant, tiers, periode, niveau, format:'a4'|'ticket', contenu:true (états), entete:false, securite:false} */
-async function impEcrire(win,meta,html){
+/* Compose le document final (en-tête, pied légal, QR de sécurité enregistré) sans l'afficher */
+async function impComposer(meta,html){
   meta=meta||{}; meta.type=meta.type||'DOCUMENT';
   const P=impParams();
   if(meta.entete!==false && !html.includes('data-imp-entete')){
@@ -7103,7 +7346,75 @@ async function impEcrire(win,meta,html){
   html=html.replace('</head>',IMP_CSS+'</head>');
   if(meta.format==='ticket' && +P.ticket_largeur===58) html=html.replace(/76mm/g,'54mm').replace(/80mm auto/g,'58mm auto').replace(/max-width:50mm/g,'max-width:40mm');
   const i=html.lastIndexOf('</body>'); html=i>=0?html.slice(0,i)+bas+html.slice(i):html+bas;
+  return html;
+}
+async function impEcrire(win,meta,html){
+  html=await impComposer(meta,html);
   try{ win.document.open(); win.document.write(html); win.document.close(); win.focus(); }catch(e){ /* fenêtre fermée par l'utilisateur */ }
+}
+/* ---------- PDF et envoi (WhatsApp / e-mail) d'un document composé par le moteur ---------- */
+function chargerScript(url,globale){
+  if(window[globale]) return Promise.resolve();
+  return new Promise((ok,ko)=>{ const s=document.createElement('script'); s.src=url; s.onload=()=>ok(); s.onerror=()=>ko(new Error('Bibliothèque PDF indisponible (connexion requise la première fois).')); document.head.appendChild(s); });
+}
+async function impGenererPdf(html,nomFichier,orientation){
+  await chargerScript('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js','html2pdf');
+  // Styles du document limités au conteneur du PDF (ils ne doivent pas toucher l'application pendant le rendu)
+  const styles=[...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map(m=>m[1]).join('\n')
+    .replace(/@page\s*\{[^}]*\}/g,'').replace(/@media print\s*\{([^{}]*\{[^}]*\})*[^}]*\}/g,'')
+    .replace(/(^|[},\s])body(?=[\s{,.:])/g,'$1.imp-pdf').replace(/(^|[},\s])\*(?=\s*\{)/g,'$1.imp-pdf *');
+  const corps=(html.match(/<body[^>]*>([\s\S]*)<\/body>/i)?.[1]||html).replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<div class="noprint"[^>]*>[\s\S]*?<\/div>/,'');
+  const larg=orientation==='landscape'?1060:730;   // largeur utile A4 (marges 8 mm) à 96 ppp : le rendu ne doit pas la dépasser
+  const source=`<div class="imp-pdf" style="width:${larg}px;background:#fff;padding:0;margin:0"><style>${styles}</style>${corps}</div>`;
+  const blob=await html2pdf().set({margin:[8,8,10,8],filename:nomFichier,image:{type:'jpeg',quality:0.94},
+    html2canvas:{scale:2,useCORS:true,windowWidth:larg,width:larg,x:0,y:0,scrollX:0,scrollY:0,backgroundColor:'#ffffff'},jsPDF:{unit:'mm',format:'a4',orientation:orientation||'portrait'},
+    pagebreak:{mode:['css','legacy'],avoid:['tr','.imp-sec','.vs-k']}}).from(source,'string').outputPdf('blob');
+  return new File([blob],nomFichier,{type:'application/pdf'});
+}
+function telechargerFichier(file){
+  const url=URL.createObjectURL(file), a=document.createElement('a'); a.href=url; a.download=file.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+/* Fenêtre d'envoi : PDF partagé directement (mobile) ou téléchargé + WhatsApp / messagerie ouverts avec le message prérempli */
+function impOuvrirEnvoi(opts){
+  window._impEnvoi=opts;
+  const tel=(window.APP_PARAMS?.impression?.envoi_whatsapp)||'', mail=(window.APP_PARAMS?.impression?.envoi_email)||'';
+  openModal(`<h3 class="text-lg font-bold mb-1">📤 Envoyer « ${escapeHtml(opts.titre)} »</h3>
+    <p class="text-xs text-gray-500 mb-3">Le document est généré en <b>PDF</b> (en-tête entreprise + QR de sécurité). Sur téléphone, il est joint directement à WhatsApp ou à l'e-mail ; sur ordinateur, il est téléchargé puis WhatsApp Web ou votre messagerie s'ouvrent avec le message prérempli — joignez-y le PDF.</p>
+    <div class="grid sm:grid-cols-2 gap-3 mb-3">
+      <div class="field"><label>N° WhatsApp (optionnel)</label>${fieldWrap('📲',`<input id="envTel" value="${escapeHtml(tel)}" placeholder="+225 07 00 00 00 00">`)}</div>
+      <div class="field"><label>E-mail (optionnel)</label>${fieldWrap('✉️',`<input id="envMail" type="email" value="${escapeHtml(mail)}" placeholder="dg@entreprise.ci">`)}</div>
+    </div>
+    <div class="field mb-3"><label>Message</label><textarea id="envTexte" rows="7" class="w-full border rounded-lg px-3 py-2 text-sm">${escapeHtml(opts.texte||'')}</textarea></div>
+    <div id="envEtat" class="text-xs text-gray-500 mb-2"></div>
+    <div class="flex flex-wrap justify-end gap-2">
+      <button class="btn btn-outline" onclick="closeModal()">Fermer</button>
+      <button class="btn btn-outline" onclick="impEnvoyer('pdf')">⬇ Télécharger le PDF</button>
+      <button class="btn btn-outline" onclick="impEnvoyer('email')">✉️ E-mail</button>
+      <button class="btn btn-primary" style="background:#16a34a" onclick="impEnvoyer('whatsapp')">📲 WhatsApp</button>
+    </div>`);
+  // PDF préparé dès l'ouverture : le partage mobile doit suivre immédiatement le clic de l'utilisateur
+  const etat=document.getElementById('envEtat'); etat.textContent='⏳ Préparation du PDF…';
+  opts._promesse=impComposer(opts.meta,opts.html).then(h=>impGenererPdf(h,opts.nomFichier,opts.orientation));
+  opts._promesse.then(f=>{ const e=document.getElementById('envEtat'); if(e&&window._impEnvoi===opts) e.textContent=`✔ PDF prêt (${Math.round(f.size/1024)} Ko) — choisissez l'envoi.`; })
+    .catch(e=>{ const el=document.getElementById('envEtat'); if(el) el.innerHTML=`<span class="text-red-600">⚠ ${escapeHtml(e.message||String(e))}</span> — utilisez « Imprimer » puis « Enregistrer en PDF ».`; });
+}
+async function impEnvoyer(canal){
+  const o=window._impEnvoi; if(!o) return;
+  const etat=document.getElementById('envEtat'), texte=document.getElementById('envTexte').value, tel=val('envTel').replace(/[^0-9]/g,''), mail=val('envMail');
+  let file;
+  try{ file=await o._promesse; }
+  catch(e){ etat.innerHTML=`<span class="text-red-600">⚠ ${escapeHtml(e.message||String(e))}</span> — utilisez « Imprimer » puis « Enregistrer en PDF ».`; return; }
+  try{ const p=window.APP_PARAMS; if(p?.id&&(tel||mail)){ const imp={...(p.impression||{}),envoi_whatsapp:val('envTel'),envoi_email:mail}; p.impression=imp; sb.from('parametres').update({impression:imp}).eq('id',p.id).then(()=>{}); } }catch(e){}
+  if(canal==='pdf'){ telechargerFichier(file); return; }
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file],title:o.titre,text:texte}); etat.textContent='✔ Envoyé via le partage de l\'appareil.'; return; }
+    catch(e){ if(e.name==='AbortError'){ etat.textContent='Partage annulé.'; return; } }
+  }
+  telechargerFichier(file);
+  const note=`\n\n📎 Pièce jointe : ${file.name}`;
+  const lien=canal==='whatsapp'?`https://wa.me/${tel}?text=${encodeURIComponent(texte+note)}`:`mailto:${encodeURIComponent(mail)}?subject=${encodeURIComponent(o.titre)}&body=${encodeURIComponent(texte+note)}`;
+  if(canal==='whatsapp') window.open(lien,'_blank','noopener'); else window.location.href=lien;
+  etat.innerHTML=`✔ PDF téléchargé : <b>${escapeHtml(file.name)}</b> — joignez-le au message. Si ${canal==='whatsapp'?'WhatsApp':'la messagerie'} ne s'est pas ouvert : <a href="${escapeHtml(lien)}" target="_blank" rel="noopener" class="underline text-indigo-600">ouvrir ${canal==='whatsapp'?'WhatsApp':'l\'e-mail'}</a>.`;
 }
 /* Imprime la page affichée (liste, tableau de bord, état…) avec en-tête entreprise + QR de sécurité */
 async function imprimerPageCourante(){
@@ -7131,7 +7442,7 @@ async function imprimerPageCourante(){
     <script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body></html>`);
 }
 /* ---------- Vérification d'un document (scan du QR de sécurité, sans compte) ---------- */
-const IMP_TYPES={DEVIS:'Devis',FACTURE:'Facture',FACTURE_FNE:'Facture normalisée (FNE)',RECU:'Reçu de caisse',BON_CAISSE:'Bon de caisse',BON_TRANSFERT:'Bon de transfert',FICHE_CLIENT:'Fiche client',FICHE_FOURNISSEUR:'Fiche fournisseur',FICHE_EXECUTION:"Fiche d'exécution",ESTIMATION:'Estimation financière',ETAT_PDV:'État périodique point de vente',BROUILLARD:'Brouillard de caisse',TICKET_Z:'Ticket Z',LECTURE_X:'Lecture X',ETAT_COMPTABLE:'État comptable SYSCOHADA',BULLETIN:'Bulletin de pilotage',PAGE:'Page imprimée',ETAT_INVENTAIRE:"État d'inventaire",FEUILLE_COMPTAGE:'Feuille de comptage'};
+const IMP_TYPES={DEVIS:'Devis',FACTURE:'Facture',FACTURE_FNE:'Facture normalisée (FNE)',RECU:'Reçu de caisse',BON_CAISSE:'Bon de caisse',BON_TRANSFERT:'Bon de transfert',FICHE_CLIENT:'Fiche client',FICHE_FOURNISSEUR:'Fiche fournisseur',FICHE_EXECUTION:"Fiche d'exécution",ESTIMATION:'Estimation financière',ETAT_PDV:'État périodique point de vente',BROUILLARD:'Brouillard de caisse',TICKET_Z:'Ticket Z',LECTURE_X:'Lecture X',ETAT_COMPTABLE:'État comptable SYSCOHADA',BULLETIN:'Bulletin de pilotage',PAGE:'Page imprimée',ETAT_INVENTAIRE:"État d'inventaire",FEUILLE_COMPTAGE:'Feuille de comptage',VALORISATION_STOCK:'Valorisation du stock'};
 function impVerificationResultatHtml(r){
   if(!r) return `<div style="color:#b91c1c;font-weight:700">⚠ Vérification impossible (serveur injoignable). Réessayez avec une connexion Internet.</div>`;
   if(!r.trouve) return `<div style="text-align:center"><div style="font-size:44px">❌</div><div style="font-size:18px;font-weight:800;color:#b91c1c">Code inconnu</div><p style="color:#475569">Aucun document n'a été émis par le logiciel avec ce code. Le document présenté n'est pas authentique ou le code a été mal saisi.</p></div>`;
