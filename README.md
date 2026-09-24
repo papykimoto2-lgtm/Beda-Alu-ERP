@@ -226,3 +226,29 @@ L'accueil reprend la structure du tableau de bord de Menko Immo, adaptée à la 
 - **QR code FNE (DGI)** : il reste imprimé à part sur les factures certifiées, avec la mention « QR CODE FNE — DGI ». Les QR sont désormais dessinés dans l'application (impression possible hors ligne).
 - **Hors ligne** : un code provisoire `LOC-…`, non vérifiable en ligne, est imprimé.
 - **Installation** : exécuter `sql/impressions_securite.sql` (section 15 de `00_installation_complete.sql`).
+
+## Inventaire physique — état d'inventaire et justification des écarts
+- **Saisie** (Stock → Inventaire) :
+  - par dépôt, avec la date, le responsable du comptage et le contrôleur ;
+  - recherche et filtres, y compris « Écarts non justifiés » ;
+  - valeur de chaque écart au CMUP, avec le total des excédents, des manquants et l'écart net.
+- **Justification obligatoire de chaque écart** : un motif normalisé et un commentaire (le commentaire est obligatoire pour « Autre »). Les motifs proposés dépendent du sens de l'écart :
+  - casse, vol, perte, péremption, chutes de découpe, consommation non saisie, sortie non saisie ;
+  - réception fournisseur non saisie ;
+  - transfert non saisi, erreur de saisie, erreur de comptage, erreur d'unité.
+- **Blocage de la validation** : tant qu'un écart n'est pas justifié, la validation est refusée. L'application affiche les lignes concernées ; le serveur applique le même contrôle.
+- **Brouillon** : les saisies sont gardées sur l'appareil jusqu'à la validation. Recharger la page ou couper la connexion ne fait rien perdre.
+- **Feuille de comptage** imprimable : comptage à l'aveugle, sans le stock système, classée par famille avec l'emplacement.
+- **Validation atomique** (`inventaire_valider`) :
+  - l'inventaire reçoit un numéro **INV-AAAA-NNNN** ;
+  - chaque ligne est figée : stock système au moment de la validation, quantité comptée, écart, CMUP, valeur, justification ;
+  - les mouvements de stock « inventaire » portent le code de l'inventaire et le motif.
+- **États d'inventaire** (Stock → États d'inventaire) :
+  - liste des inventaires ;
+  - détail avec indicateurs : articles, écarts, fiabilité, valeur théorique et réelle, excédents, manquants, net ;
+  - synthèse **par motif** et **par famille** ;
+  - détail des écarts et de leurs justifications.
+- **Impression** : état des écarts ou état complet, avec en-tête entreprise, sous-totaux par famille, signatures et QR code de sécurité.
+- **Justification après validation** : un administrateur ou un manager peut compléter ou corriger une justification (`inventaire_justifier`). La modification est tracée et ne change pas le stock.
+- **Comptabilité** (inventaire intermittent SYSCOHADA) : la valeur réelle des stocks est reprise à la clôture (variation des stocks, journal INV).
+- **Installation** : exécuter `sql/inventaires.sql` (section 16 de `00_installation_complete.sql`).
