@@ -7,7 +7,17 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#6d28d9">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<!-- Installation comme application (PC, smartphone, tablette) -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AluExpert">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="application-name" content="AluExpert">
+<meta name="msapplication-TileColor" content="#111a2e">
+<meta name="msapplication-TileImage" content="icons/icon-192.png">
+<meta name="format-detection" content="telephone=no">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -105,6 +115,7 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
   tbody tr{border-bottom:1px solid #f1f5f9}
   tbody tr:hover{background:#fafafa}
   .modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
+  @media (max-width:639px){ .hdr-opt{display:none!important} header .icon-btn{width:36px;height:36px} #pageTitle{font-size:15px} }
   .modal-box{background:#fff;border-radius:16px;padding:24px;max-width:900px;width:100%;max-height:92vh;overflow-y:auto}
   .icon-btn{position:relative;width:36px;height:36px;border-radius:999px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:15px;color:#4b5563;border:0;cursor:pointer}
   .icon-btn:hover{background:#e5e7eb}
@@ -181,6 +192,7 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
       </form>
       <button id="toggleSignup" class="hidden text-xs text-gray-400 hover:text-gray-600 w-full text-center mt-4">Première connexion ? Créer un compte administrateur</button>
     </div>
+      <button type="button" class="app-installer hidden btn btn-outline w-full mt-4" onclick="appInstaller()">📲 Installer l'application sur cet appareil</button>
       <p class="text-center text-xs text-gray-400 mt-6">Sanix AluExpert ERP · © Sanix Africa Division Technologies</p>
   </div>
 </div>
@@ -315,6 +327,7 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
     </nav>
     <div class="px-4 py-4 border-t border-white/10">
       <div id="sbUserEmail" class="text-xs text-slate-400 truncate mb-2"></div>
+      <button onclick="appInstaller()" class="app-installer hidden w-full text-left text-sm text-slate-300 hover:text-white mb-2">📲 Installer l'application</button>
       <button onclick="handleLogout()" class="w-full text-left text-sm text-slate-300 hover:text-white">⏻ Déconnexion</button>
       <div class="text-[10px] text-slate-500 mt-3 leading-tight">Sanix AluExpert ERP<br>© Sanix Africa Division Technologies</div>
     </div>
@@ -326,11 +339,12 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
         <button onclick="openSidebar()" class="md:hidden border rounded-lg px-2.5 py-1.5">☰</button>
         <h1 id="pageTitle" class="text-base sm:text-lg font-bold truncate">Accueil</h1>
       </div>
-      <div class="flex items-center gap-3 shrink-0">
+      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
         <button id="hlPill" class="hl-pill hl-ok" onclick="HL.ouvrirPanneau()" title="État de la synchronisation"><span class="hl-dot"></span><span>En ligne</span></button>
-        <button class="icon-btn" title="Imprimer cette page (en-tête entreprise + QR de sécurité)" onclick="imprimerPageCourante()">🖨</button>
+        <button class="icon-btn app-installer hidden" title="Installer l'application sur cet appareil (PC, smartphone, tablette)" onclick="appInstaller()">📲</button>
+        <button class="icon-btn hdr-opt" title="Imprimer cette page (en-tête entreprise + QR de sécurité)" onclick="imprimerPageCourante()">🖨</button>
         <button class="icon-btn" id="hdrPositionBtn" title="Partager ma position (commercial terrain)" onclick="partagerMaPosition()">📍</button>
-        <button class="icon-btn" title="Messages">💬</button>
+        <button class="icon-btn hdr-opt" title="Messages">💬</button>
         <button class="icon-btn" title="Notifications">🔔<span id="hdrBellCount" class="dot hidden">0</span></button>
         <div class="hidden sm:block text-right leading-tight">
           <div id="hdrUserName" class="text-sm font-semibold text-gray-700">—</div>
@@ -766,7 +780,56 @@ const HL=(()=>{
     horsLigne,viderLectures,majIndicateur,etat,enAttente:()=>file.length,jetonLocal:()=>jetonLocal,uuid,
     recevoir,recevoirTable,envoyer,miroirInfos,miroirLire,attenteParTable,nbErreurs:()=>etat.erreurs};
 })();
-if('serviceWorker' in navigator && location.protocol!=='file:') window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+if('serviceWorker' in navigator && location.protocol!=='file:') window.addEventListener('load',()=>{
+  const dejaControle=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').then(r=>{ setInterval(()=>r.update().catch(()=>{}),60*60*1000); }).catch(()=>{});
+  // Nouvelle version déployée : proposer de recharger (jamais de rechargement forcé pendant une saisie)
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(dejaControle) pwaAnnoncerMiseAJour(); });
+});
+/* ============================== APPLICATION INSTALLABLE (PC, smartphone, tablette) ==============================
+   Chrome / Edge / Samsung Internet (Windows, macOS, Linux, Android, ChromeOS) : invite d'installation native.
+   iPhone / iPad (Safari) et navigateurs sans invite : marche à suivre adaptée à l'appareil. */
+window._pwa=window._pwa||{invite:null};
+function pwaEstInstallee(){ return ['standalone','window-controls-overlay','minimal-ui'].some(m=>window.matchMedia?.(`(display-mode: ${m})`).matches)||navigator.standalone===true; }
+function pwaAppareil(){
+  const ua=navigator.userAgent||'', ios=/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);
+  const android=/Android/.test(ua), mobile=ios||android||/Mobi/.test(ua);
+  const nav=/Edg\//.test(ua)?'edge':/SamsungBrowser/.test(ua)?'samsung':/Firefox|FxiOS/.test(ua)?'firefox':/CriOS|Chrome/.test(ua)?'chrome':/Safari/.test(ua)?'safari':'autre';
+  return {ios,android,mobile,tablette:ios&&/iPad|Macintosh/.test(ua)||(android&&!/Mobile/.test(ua)),nav};
+}
+function pwaMajBoutons(){
+  const montrer=!pwaEstInstallee()&&location.protocol!=='file:';
+  document.querySelectorAll('.app-installer').forEach(b=>b.classList.toggle('hidden',!montrer));
+}
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); window._pwa.invite=e; pwaMajBoutons(); });
+window.addEventListener('appinstalled',()=>{ window._pwa.invite=null; pwaMajBoutons(); try{ toast('✅ Application installée : ouvrez « AluExpert » depuis votre écran d\'accueil ou le menu Démarrer.'); }catch(e){} });
+window.addEventListener('DOMContentLoaded',pwaMajBoutons);
+async function appInstaller(){
+  const inv=window._pwa.invite;
+  if(inv){
+    try{ await inv.prompt(); const r=await inv.userChoice; window._pwa.invite=null; pwaMajBoutons(); if(r.outcome!=='accepted') toast("Installation annulée — le bouton 📲 reste disponible."); }
+    catch(e){ pwaInstructions(); }
+    return;
+  }
+  pwaInstructions();
+}
+function pwaInstructions(){
+  const a=pwaAppareil();
+  const bloc=(actif,icone,titre,etapes,note)=>`<div class="border rounded-xl p-3 ${actif?'border-indigo-400 bg-indigo-50':''}"><div class="font-bold mb-1">${icone} ${titre}${actif?' <span class="text-[11px] font-semibold text-indigo-600">— votre appareil</span>':''}</div><ol class="list-decimal ml-5 text-sm space-y-0.5">${etapes.map(e=>`<li>${e}</li>`).join('')}</ol>${note?`<div class="text-[11px] text-gray-500 mt-1">${note}</div>`:''}</div>`;
+  const ios=bloc(a.ios,'🍏','iPhone / iPad',["Ouvrez l'application dans <b>Safari</b>.",`Touchez le bouton <b>Partager</b> <span style="font-size:15px">⬆️</span> (${a.tablette?'en haut à droite':'en bas de l\'écran'}).`,"Choisissez <b>« Sur l'écran d'accueil »</b>, puis <b>Ajouter</b>."],'Depuis iOS 16.4, Chrome et Edge le permettent aussi via Partager.');
+  const android=bloc(a.android,'🤖','Android (téléphone ou tablette)',[`Ouvrez l'application dans <b>Chrome</b>, <b>Edge</b> ou <b>Samsung Internet</b>.`,"Touchez le menu <b>⋮</b> (ou ☰).","Choisissez <b>« Installer l'application »</b> (ou « Ajouter à l'écran d'accueil »)."]);
+  const pc=bloc(!a.mobile,'💻','Ordinateur Windows / Mac / Linux',["Ouvrez l'application dans <b>Chrome</b> ou <b>Microsoft Edge</b>.","Cliquez l'icône <b>d'installation</b> (écran avec une flèche ⊕) à droite de la barre d'adresse,<br>ou menu <b>⋮</b> → <b>« Installer Sanix AluExpert ERP »</b> (Edge : <b>…</b> → Applications → Installer ce site en tant qu'application).","L'application s'ouvre dans sa propre fenêtre et apparaît dans le menu Démarrer / le Dock."],'Mac avec Safari 17+ : menu Fichier → « Ajouter au Dock ». Firefox ne permet pas l\'installation : utilisez Chrome ou Edge.');
+  const ordre=a.ios?[ios,android,pc]:a.android?[android,ios,pc]:[pc,android,ios];
+  openModal(`<h3 class="text-lg font-bold mb-1">📲 Installer AluExpert sur cet appareil</h3>
+    <p class="text-sm text-gray-500 mb-3">Une fois installée, l'application s'ouvre comme un logiciel (icône sur l'écran d'accueil, le bureau ou le menu Démarrer), en plein écran, et <b>fonctionne hors ligne</b> ; ses mises à jour sont automatiques. Raccourcis disponibles (appui long ou clic droit sur l'icône) : vente au comptoir, nouveau devis, inventaire, valorisation du stock.</p>
+    ${a.nav==='firefox'&&!a.mobile?'<div class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 mb-3">Firefox ne propose pas l\'installation d\'applications web : ouvrez cette adresse dans Chrome ou Edge.</div>':''}
+    <div class="space-y-2">${ordre.join('')}</div>
+    <div class="text-right mt-4"><button class="btn btn-primary" onclick="closeModal()">Compris</button></div>`);
+}
+function pwaAnnoncerMiseAJour(){
+  if(document.getElementById('pwaMaj')) return;
+  document.body.insertAdjacentHTML('beforeend',`<div id="pwaMaj" style="position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9998;background:#111a2e;color:#fff;border-radius:12px;padding:10px 14px;box-shadow:0 10px 30px rgba(0,0,0,.3);display:flex;gap:10px;align-items:center;font-size:13px;max-width:calc(100% - 32px)">🔄 Nouvelle version de l'application disponible.<button onclick="location.reload()" style="background:#6d28d9;color:#fff;border:0;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer">Recharger</button><button onclick="this.parentNode.remove()" style="background:none;border:0;color:#cbd5e1;cursor:pointer" title="Plus tard">✕</button></div>`);
+}
 const { createClient } = supabase;
 const sb = createClient(window.SB_CFG.SUPABASE_URL, window.SB_CFG.SUPABASE_ANON_KEY, {
   global: { fetch: HL.fetch }   // hors ligne : cache de lecture + file d'attente des saisies (voir HL)
@@ -888,7 +951,9 @@ async function enterApp(){
     document.getElementById('pageTitle').textContent='Compte en attente';
     return;
   }
-  showPage('dashboard');
+  const pageDemandee=new URLSearchParams(location.search).get('page');
+  showPage(pageDemandee&&PAGE_RENDERERS[pageDemandee]?pageDemandee:'dashboard');
+  pwaMajBoutons();
 }
 (async function boot(){
   if(await verifDocumentDepuisUrl()) return;   // scan d'un QR de sécurité : page de vérification publique, sans connexion
