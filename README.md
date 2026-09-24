@@ -403,3 +403,18 @@ Stock → **Journal des mouvements** : tous les mouvements (réceptions, ventes,
 - **Synthèses** par type et par dépôt.
 - **Détail** : pièce cliquable (bon de réception, inventaire, transfert), prix unitaire, valeur, stock du dépôt après le mouvement, auteur.
 - **Sorties** : impression A4 paysage, Excel (CSV), envoi PDF par WhatsApp ou e-mail.
+
+## Centre de validation — Direction générale & hiérarchie autorisée (modèle Menko Immo)
+Menu **✅ Validations** (en haut du menu, badge = demandes que **vous** pouvez décider) : une seule page pour tout ce qui attend une décision.
+- **Types de demandes** : bons d'entrée / de sortie et transferts de **caisse** (circuit DG existant), **bons de commande fournisseur** au-delà d'un seuil, **commandes internes** entre dépôts.
+- **⏳ En attente** : filtres par type avec badges, ancienneté, palier requis ; boutons **Valider / Rejeter** (motif obligatoire), ou **🔒 réservé à la hiérarchie** si votre rôle ne couvre pas le montant. Les plus anciennes en tête.
+- **🗂️ Historique des décisions** : filtres période, type, décision (validées / rejetées / annulées), personne, recherche ; valideur et délai de décision ; export Excel.
+- **📊 État périodique par type** : soumises, validées, rejetées, en attente (nombre et montant), taux de validation et délai moyen, par type et par valideur ; impression A4 (en-tête entreprise + QR de sécurité), PDF par WhatsApp / e-mail, Excel.
+- **🏛️ Hiérarchie & seuils** :
+  - **paliers par montant** (modèle : N+1 au-delà de 1 000 000, Direction N+2 au-delà de 5 000 000, DG / PDG au-delà de 20 000 000) : au-delà d'un seuil, seul un rôle de niveau suffisant décide. Inactifs par défaut ; bouton « Modèle 1 M / 5 M / 20 M » ;
+  - **seuil des bons de commande** (500 000 FCFA TTC par défaut) : au-delà, la commande est **soumise à validation** ; elle ne peut être envoyée au fournisseur ni réceptionnée avant validation. Un décideur habilité la valide en la marquant envoyée. Une hausse du montant après validation annule la validation ;
+  - **mode du circuit de caisse** ;
+  - tableau **« qui peut décider quoi »** : droit « valider » par module, plafond et niveau de chaque rôle, montant maximal décidable.
+- **Règle de décision** (contrôlée aussi dans la base, fonction `peut_valider`) : droit « valider » du module (Caisse ou Stock) **et** plafond du rôle couvrant le montant **et** niveau de rôle au moins égal au palier. L'administrateur (DG) passe tous les paliers.
+- Commandes fournisseur : bandeau de validation sur la fiche (soumise / validée / rejetée avec motif) et filtre « 🔐 En attente de validation » dans la liste.
+- Migration : `sql/validations_hierarchie.sql` (section 20 de `00_installation_complete.sql`).
