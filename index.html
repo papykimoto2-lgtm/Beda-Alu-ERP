@@ -293,6 +293,7 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
       <button class="nav-parent" data-toggle="caisse-g">🏠 <span>Caisse</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="caisse-g">
         <button class="nav-child" data-page="caisse">→ Tableau de bord</button>
+        <button class="nav-child" data-page="caisse-validations">→ Validations (DG) <span class="badge-validations dash-tab-badge hidden">0</span></button>
         <button class="nav-child" data-page="caisse-affectations">→ Affectations & codes PIN</button>
       </div>
 
@@ -761,6 +762,7 @@ async function enterApp(){
   rbacAppliquerSidebar();
   demarrerSurveillanceSession();
   HL.synchroniser();
+  majBadgeValidations().catch(()=>{});
   if(monRole()?.code==='sans_role'){
     document.getElementById('pageContent').innerHTML=`<div class="card p-10 text-center max-w-lg mx-auto mt-10"><div class="text-5xl mb-3">⏳</div><h2 class="text-lg font-bold mb-2">Compte en attente</h2><p class="text-gray-500">Votre compte n'a pas encore de rôle. Un administrateur doit vous en attribuer un (Paramètres → Utilisateurs & Rôles).</p><button class="btn btn-outline mt-5" onclick="handleLogout()">Se déconnecter</button></div>`;
     document.getElementById('pageTitle').textContent='Compte en attente';
@@ -774,9 +776,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'Rapport périodique — Point de vente & caisse',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'Rapport périodique — Point de vente & caisse',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,'caisse-validations':renderCaisseValidations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g','caisse-validations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g'};
 /* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
 const ALL_MODULES=[
   {code:'Clients',label:'Clients',groupe:'Clients'},
@@ -854,6 +856,187 @@ function exigerPlafond(montant,libelle){
   toast(`🔒 Montant de ${money(m)} supérieur à votre plafond de validation (${money(plafond)}). ${libelle||'Cette opération'} doit être approuvée par un responsable habilité.`,'error');
   return false;
 }
+/* ============================== CIRCUIT DE VALIDATION DG (modèle Menko Immo) ==============================
+   Un bon d'entrée / de sortie ou un transfert entre caisses est d'abord une DEMANDE (table caisse_demandes) :
+   il n'entre dans le solde qu'une fois approuvé. Approuver ou rejeter exige le droit « valider » du module
+   Caisse ET un plafond de rôle couvrant le montant (DG = administrateur, plafond illimité ; délégués dans la
+   limite de leur plafond). La décision passe par la fonction serveur caisse_demande_decider, seule à créer le
+   mouvement (contrôlé aussi dans la base : sql/validation_dg.sql). L'auteur suit ses demandes, confirme la
+   remise des fonds (« décaisser ») et imprime le bon une fois validé. */
+const VALID_MODES={tous:'Tous les bons (règle DG)',plafond:"Au-delà du plafond de l'auteur",aucun:'Circuit désactivé'};
+function validationMode(){ const m=window.APP_PARAMS?.validation_caisse_mode; return m===undefined?'aucun':(m||'tous'); }   // colonne absente = base non migrée
+function monPlafondValidation(){ const r=monRole(); return r&&r.plafond_validation!=null?+r.plafond_validation:null; }
+function jePeuxValiderMontant(montant){
+  if(!(monRole()?.code==='admin'||peutModule('Caisse','valider'))) return false;
+  const p=monPlafondValidation(); return p===null||(+montant||0)<=p;
+}
+function bonExigeValidation(montant,estTransfert){
+  const m=validationMode();
+  if(m==='aucun') return false;
+  if(m==='tous'||estTransfert) return true;
+  const p=monPlafondValidation(); return p!==null&&(+montant||0)>p;
+}
+const DEM_STATUTS={en_attente:{lib:'⏳ En attente',cls:'bg-amber-50 text-amber-700'},validee:{lib:'✅ Validée',cls:'bg-emerald-50 text-emerald-700'},rejetee:{lib:'✖ Rejetée',cls:'bg-red-50 text-red-700'},annulee:{lib:'Annulée',cls:'bg-gray-100 text-gray-500'}};
+const demType=(d)=>d.type==='entree'?'<span class="text-emerald-600">▲ Entrée</span>':d.type==='sortie'?'<span class="text-red-600">▼ Sortie</span>':'<span class="text-indigo-600">⇄ Transfert</span>';
+
+async function creerDemandeCaisse(rec){
+  const {data,error}=await sb.from('caisse_demandes').insert(rec).select().single();
+  if(error){ toast(error.message,'error'); return null; }
+  if(window._dash) window._dash.data=null;   // le Cockpit doit voir la nouvelle demande
+  return data;
+}
+function demandeEnvoyeeModal(d,caisseNom){
+  const txt=`🔐 Demande de validation ${d.numero||''} — ${d.type==='entree'?"bon d'entrée":d.type==='sortie'?'bon de sortie':'transfert'} de ${money(d.montant)} (caisse ${caisseNom||''}).\nMotif : ${d.motif}${d.beneficiaire?' — '+d.beneficiaire:''}\nDemandé par ${d.demande_nom||CURRENT_USER?.email||''}. Merci de valider ou rejeter dans ${APP_NOM} (Caisse → Validations).`;
+  openModal(`<div class="text-center"><div class="text-4xl mb-2">🔐</div><h3 class="font-bold text-lg">Demande ${escapeHtml(d.numero||'')} envoyée pour validation</h3>
+    <p class="text-sm text-gray-500 my-2">${money(d.montant)} — le mouvement n'entre dans le solde de caisse qu'après l'approbation d'un responsable habilité (DG ou délégué dont le plafond couvre ce montant).</p>
+    <div class="flex flex-wrap justify-center gap-2 mt-4">
+      <a class="btn btn-outline" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(txt)}">📲 Prévenir le DG (WhatsApp)</a>
+      ${jePeuxValiderMontant(d.montant)?`<button class="btn btn-primary" onclick="closeModal();validerDemande('${d.id}')">✅ Valider maintenant</button>`:''}
+      <button class="btn btn-outline" onclick="closeModal()">Fermer</button></div></div>`);
+}
+async function validerDemande(id){
+  const {data:d}=await sb.from('caisse_demandes').select('*').eq('id',id).maybeSingle();
+  if(!d){ toast('Demande introuvable.','error'); return; }
+  if(!jePeuxValiderMontant(d.montant)){ toast(`🔒 Votre plafond de validation ne couvre pas ${money(d.montant)}.`,'error'); return; }
+  if(!confirm(`Valider ${d.type==='transfert'?'le transfert':d.type==='entree'?"l'entrée":'la sortie'} de ${money(d.montant)} (${d.motif}) ?\n\nLe montant sera immédiatement ${d.type==='entree'?'ajouté au':'déduit du'} solde de caisse.`)) return;
+  const {data,error}=await sb.rpc('caisse_demande_decider',{p_id:id,p_decision:'valider',p_motif:null});
+  if(error){ toast(error.message,'error'); return; }
+  if(!data?.ok){ toast(data?.message||'Validation refusée.','error'); return; }
+  toast(`✅ Demande ${d.numero} validée${data.numero&&data.numero!=='TRF'?' — bon '+data.numero:''}.`);
+  apresDecisionValidation();
+}
+async function rejeterDemande(id){
+  const motif=prompt('Motif du rejet (visible par l\'auteur de la demande) :','');
+  if(motif===null) return;
+  if(!motif.trim()){ toast('Motif du rejet obligatoire.','error'); return; }
+  const {data,error}=await sb.rpc('caisse_demande_decider',{p_id:id,p_decision:'rejeter',p_motif:motif.trim()});
+  if(error||!data?.ok){ toast(error?.message||data?.message||'Rejet impossible.','error'); return; }
+  toast('✖ Demande rejetée — elle reste tracée mais n\'affecte pas le solde.');
+  apresDecisionValidation();
+}
+async function annulerDemande(id){
+  if(!confirm('Annuler cette demande en attente ?')) return;
+  const {data,error}=await sb.rpc('caisse_demande_annuler',{p_id:id});
+  if(error||!data?.ok){ toast(error?.message||data?.message,'error'); return; }
+  toast('Demande annulée.'); apresDecisionValidation();
+}
+async function decaisserDemande(id){
+  const {data:d}=await sb.from('caisse_demandes').select('*').eq('id',id).maybeSingle(); if(!d) return;
+  if(!confirm(`${d.type==='entree'?"Confirmer l'encaissement":'Confirmer la remise des fonds'} de ${money(d.montant)} (${d.motif}) — l'argent a-t-il été physiquement ${d.type==='entree'?'reçu':'remis'} ?`)) return;
+  const {data,error}=await sb.rpc('caisse_demande_decaisser',{p_id:id});
+  if(error||!data?.ok){ toast(error?.message||data?.message,'error'); return; }
+  toast('✅ Remise des fonds confirmée.'); apresDecisionValidation();
+}
+function apresDecisionValidation(){
+  majBadgeValidations();
+  if(window._dash) window._dash.data=null;
+  const p=window._pageCourante; if(p==='caisse-detail'||p==='caisse-validations'||p==='dashboard') showPage(p);
+}
+async function majBadgeValidations(){
+  if(validationMode()==='aucun'&&!window.APP_PARAMS) return;
+  const {count}=await sb.from('caisse_demandes').select('id',{count:'exact',head:true}).eq('statut','en_attente');
+  const n=jePeuxValiderMontant(0)?(count||0):0;
+  document.querySelectorAll('.badge-validations').forEach(b=>{ b.textContent=n; b.classList.toggle('hidden',!n); });
+}
+async function imprimerBonDemande(id){
+  const w=window.open('','_blank','width=800,height=900'); if(!w){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const [{data:d},p]=await Promise.all([sb.from('caisse_demandes').select('*, caisses:caisse_id(nom)').eq('id',id).maybeSingle(),window.APP_PARAMS?Promise.resolve(window.APP_PARAMS):loadAppParams()]);
+  if(!d||d.statut!=='validee'){ w.close(); toast('🔒 Le bon ne s\'imprime qu\'une fois validé.','error'); return; }
+  let numero=d.numero;
+  if(d.mouvement_id){ const {data:m}=await sb.from('caisse_mouvements').select('numero').eq('id',d.mouvement_id).maybeSingle(); if(m?.numero) numero=m.numero; }
+  const titre=d.type==='entree'?"BON D'ENTRÉE DE CAISSE":d.type==='sortie'?'BON DE SORTIE DE CAISSE':'BON DE TRANSFERT ENTRE CAISSES';
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${titre} ${escapeHtml(numero)}</title><style>body{font-family:Arial,sans-serif;font-size:13px;margin:32px;color:#111}h1{font-size:18px;text-align:center;margin:18px 0}table{width:100%;border-collapse:collapse}td{padding:7px;border-bottom:1px solid #e5e7eb}td:first-child{color:#6b7280;width:35%}.sig{display:flex;gap:16px;margin-top:40px}.sig div{flex:1;border-top:1px solid #111;padding-top:6px;text-align:center;font-size:12px;min-height:70px}.ok{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;padding:8px;margin-top:14px;font-size:12px}</style></head><body>
+    <div style="display:flex;justify-content:space-between"><div>${p?.logo_base64?`<img src="${p.logo_base64}" style="max-height:60px">`:''}<div style="font-weight:700">${escapeHtml(p?.raison_sociale||'')}</div></div><div style="text-align:right">N° <b>${escapeHtml(numero)}</b><br>Demande ${escapeHtml(d.numero)}<br>${fmtDate(d.date_mouvement)}</div></div>
+    <h1>${titre}</h1>
+    <table><tr><td>Caisse</td><td>${escapeHtml(d.caisses?.nom||'')}</td></tr><tr><td>Montant</td><td><b>${money(d.montant)}</b></td></tr><tr><td>Motif</td><td>${escapeHtml(d.motif)}</td></tr>
+    <tr><td>${d.type==='entree'?'Provenance':'Bénéficiaire'}</td><td>${escapeHtml(d.beneficiaire||'—')}</td></tr>${d.projet_id?`<tr><td>Chantier</td><td>${escapeHtml(chantierLabel(d.projet_id))}</td></tr>`:''}
+    <tr><td>Demandé par</td><td>${escapeHtml(d.demande_nom||'')} — ${new Date(d.demande_le).toLocaleString('fr-FR')}</td></tr></table>
+    <div class="ok">✅ Validé par <b>${escapeHtml(d.decide_nom||'')}</b> le ${new Date(d.decide_le).toLocaleString('fr-FR')}${d.decaisse_le?` · fonds remis le ${new Date(d.decaisse_le).toLocaleString('fr-FR')}`:''}</div>
+    <div class="sig"><div>Le demandeur</div><div>Visa DG / validateur</div><div>${d.type==='entree'?'Le déposant':'Le bénéficiaire'}</div></div>
+    <script>window.onload=function(){window.print();}<\/script></body></html>`);
+  w.document.close();
+}
+
+/* ---------- Tableau des demandes (réutilisé : détail de caisse, page Validations) ---------- */
+function tableDemandesHtml(liste,opts={}){
+  if(!liste.length) return `<div class="text-sm text-gray-400 p-3 text-center">${opts.vide||'Aucune demande.'}</div>`;
+  const cais=Object.fromEntries((opts.caisses||[]).map(c=>[c.id,c.nom]));
+  return `<div class="overflow-x-auto"><table><thead><tr><th>N°</th><th>Date</th>${opts.colCaisse?'<th>Caisse</th>':''}<th>Type</th><th>Motif</th><th class="text-right">Montant</th><th>Demandé par</th><th>Statut</th><th></th></tr></thead><tbody>
+    ${liste.map(d=>{
+      const moi=d.demande_par===CURRENT_USER?.id, st=DEM_STATUTS[d.statut]||{lib:d.statut,cls:''};
+      let act='';
+      if(d.statut==='en_attente'){
+        act=jePeuxValiderMontant(d.montant)?`<button class="btn btn-primary text-xs py-1 px-2" onclick="validerDemande('${d.id}')">✅ Valider</button> <button class="btn btn-outline text-xs py-1 px-2 text-red-600" onclick="rejeterDemande('${d.id}')">✖ Rejeter</button>`
+          :`<span class="badge bg-gray-100 text-gray-500" title="Votre plafond de validation ne couvre pas ce montant — un responsable habilité doit intervenir.">🔒 Plafond insuffisant</span>`;
+        if(moi) act+=` <button class="text-xs text-gray-500 hover:text-red-600 ml-1" onclick="annulerDemande('${d.id}')">Annuler</button>`;
+      } else if(d.statut==='validee'){
+        act=(d.decaisse_le?`<span class="text-[11px] text-emerald-700">✅ ${d.type==='entree'?'Encaissé':'Remis'} le ${fmtDate(d.decaisse_le)}</span>`:(moi||peutModule('Caisse','creer')?`<button class="btn btn-primary text-xs py-1 px-2" onclick="decaisserDemande('${d.id}')">💰 ${d.type==='entree'?'Encaisser':'Décaisser'}</button>`:''))
+          +` <button class="text-xs ml-1" title="Imprimer le bon" onclick="imprimerBonDemande('${d.id}')">🖨️</button>`;
+      }
+      const decision=d.statut==='validee'||d.statut==='rejetee'?`<div class="text-[11px] text-gray-500">${escapeHtml(d.decide_nom||'')} · ${fmtDate(d.decide_le)}</div>${d.motif_rejet?`<div class="text-[11px] text-red-600">${escapeHtml(d.motif_rejet)}</div>`:''}`:'';
+      return `<tr><td class="font-semibold whitespace-nowrap">${escapeHtml(d.numero||'')}</td><td class="text-xs whitespace-nowrap">${fmtDate(d.date_mouvement)}</td>
+        ${opts.colCaisse?`<td class="text-xs">${escapeHtml(cais[d.caisse_id]||'')}${d.type==='transfert'?' → '+escapeHtml(cais[d.caisse_dest_id]||''):''}</td>`:''}
+        <td class="text-xs whitespace-nowrap">${demType(d)}</td><td>${escapeHtml(d.motif)}${d.beneficiaire?' — '+escapeHtml(d.beneficiaire):''}${chantierBadgeHtml(d.projet_id)}</td>
+        <td class="text-right font-semibold whitespace-nowrap">${money(d.montant)}</td>
+        <td class="text-xs">${escapeHtml(d.demande_nom||'')}${d.plafond_demandeur!=null?`<div class="text-gray-400">plafond ${money(d.plafond_demandeur)}</div>`:''}</td>
+        <td><span class="badge ${st.cls}">${st.lib}</span>${decision}</td><td class="whitespace-nowrap text-right">${act}</td></tr>`; }).join('')}
+  </tbody></table></div>`;
+}
+
+/* ---------- Détail de caisse : demandes de cette caisse ---------- */
+async function caisseRenderDemandes(el,caisse){
+  if(validationMode()==='aucun' && !window.APP_PARAMS?.validation_caisse_mode) return;
+  const {data,error}=await sb.from('caisse_demandes').select('*').eq('caisse_id',caisse.id).order('demande_le',{ascending:false}).limit(60);
+  if(error) return;
+  const liste=data||[];
+  const attente=liste.filter(d=>d.statut==='en_attente');
+  const miennes=liste.filter(d=>d.statut!=='en_attente'&&d.demande_par===CURRENT_USER?.id).slice(0,10);
+  const html=`<div class="card p-4 mt-4" style="border-left:3px solid #d97706">
+      <div class="flex flex-wrap justify-between items-center gap-2 mb-2"><div class="font-bold">🔐 Demandes en attente de validation <span class="badge bg-red-50 text-red-700">${attente.length}</span></div>
+      <div class="text-xs text-gray-500">Mode : <b>${VALID_MODES[validationMode()]}</b> · Votre plafond : <b>${monPlafondValidation()===null?'illimité':money(monPlafondValidation())}</b></div></div>
+      <div class="text-xs text-gray-500 mb-2">Aucune n'entre dans le solde de caisse tant qu'elle n'est pas approuvée par un responsable habilité (DG ou délégué dont le plafond couvre le montant).</div>
+      ${tableDemandesHtml(attente,{vide:'Aucune demande en attente pour cette caisse.'})}
+    </div>
+    ${miennes.length?`<div class="card p-4 mt-4"><div class="font-bold mb-2">📋 Mes demandes traitées</div>${tableDemandesHtml(miennes)}</div>`:''}`;
+  el.insertAdjacentHTML('beforeend',html);
+}
+
+/* ---------- Page Caisse → Validations (hub du DG) ---------- */
+window._validHub=window._validHub||{onglet:'attente'};
+async function renderCaisseValidations(el){
+  const V=window._validHub;
+  const [{data:dem,error},{data:caisses},{count:nbVisa}]=await Promise.all([
+    sb.from('caisse_demandes').select('*').order('demande_le',{ascending:false}).limit(400),
+    sb.from('caisses').select('id,nom'),
+    sb.from('compta_ecritures').select('id',{count:'exact',head:true}).is('valide_le',null)
+  ]);
+  if(error){ el.innerHTML=`<div class="card p-6 text-sm text-gray-500">Circuit de validation indisponible : ${escapeHtml(error.message)}<br>Exécutez la migration <code>sql/validation_dg.sql</code>.</div>`; return; }
+  await chargerChantiersRef();
+  const L=dem||[], attente=L.filter(d=>d.statut==='en_attente').sort((a,b)=>a.demande_le.localeCompare(b.demande_le));
+  const miennes=L.filter(d=>d.demande_par===CURRENT_USER?.id), histo=L.filter(d=>['validee','rejetee'].includes(d.statut)).slice(0,100);
+  const habilite=attente.filter(d=>jePeuxValiderMontant(d.montant));
+  const peutParam=peutModule('Parametres','modifier');
+  const onglets=[['attente',`⏳ En attente (${attente.length})`],['miennes',`📋 Mes demandes (${miennes.filter(d=>d.statut==='en_attente').length})`],['historique','🗂️ Historique']];
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-start gap-3 mb-4">
+      <div><h2 class="text-lg font-bold">✅ Validations — circuit DG</h2>
+        <p class="text-sm text-gray-500 max-w-2xl">Bons d'entrée / de sortie et transferts entre caisses soumis à l'approbation du DG ou d'un délégué dont le plafond couvre le montant. Votre plafond : <b>${monPlafondValidation()===null?'illimité':money(monPlafondValidation())}</b>${jePeuxValiderMontant(0)?'':' — vous ne validez pas (droit « valider » Caisse absent)'}.</p></div>
+      ${peutParam?`<div class="card p-3"><div class="text-xs text-gray-500 mb-1">Mode du circuit (Paramètres)</div><select onchange="enregistrerModeValidation(this.value)">${Object.entries(VALID_MODES).map(([k,v])=>`<option value="${k}" ${k===validationMode()?'selected':''}>${v}</option>`).join('')}</select></div>`:''}
+    </div>
+    ${dashCartes([{lib:'En attente',val:attente.length,icone:'⏳',coul:attente.length?'#d97706':'',sous:money(attente.reduce((s,d)=>s+(+d.montant||0),0))},{lib:'Que vous pouvez valider',val:habilite.length,icone:'✅',coul:habilite.length?'#059669':''},{lib:'Plus ancienne',val:attente.length?`${dashJours(attente[0].demande_le)} j`:'—',icone:'🕒'},{lib:'Écritures à viser (compta)',val:nbVisa||0,icone:'🖊️',fn:"window._compta.cycleView='validation';showPage('comptabilite')"}])}
+    <div class="flex gap-1.5 p-1.5 mb-3 rounded-xl" style="background:#eef0f5">${onglets.map(([k,l])=>`<button class="dash-tab ${V.onglet===k?'active':''}" onclick="window._validHub.onglet='${k}';showPage('caisse-validations')">${l}</button>`).join('')}</div>
+    <div class="card p-4">${V.onglet==='attente'?tableDemandesHtml(attente,{colCaisse:true,caisses,vide:'✅ Aucune demande en attente.'})
+      :V.onglet==='miennes'?tableDemandesHtml(miennes,{colCaisse:true,caisses,vide:"Vous n'avez soumis aucune demande."})
+      :tableDemandesHtml(histo,{colCaisse:true,caisses,vide:'Aucune décision enregistrée.'})}</div>`;
+  majBadgeValidations();
+}
+async function enregistrerModeValidation(mode){
+  const p=window.APP_PARAMS||await loadAppParams();
+  const {error}=await sb.from('parametres').update({validation_caisse_mode:mode}).eq('id',p.id);
+  if(error){ toast(error.message,'error'); return; }
+  window.APP_PARAMS.validation_caisse_mode=mode; toast('Mode du circuit de validation : '+VALID_MODES[mode]);
+}
+
 function rbacAppliquerSidebar(){
   Object.entries(GROUP_TO_MODULE).forEach(([groupKey,moduleCode])=>{
     const visible=peutModule(moduleCode,'voir');
@@ -954,7 +1137,7 @@ async function dashCharger(force){
   if(force||!D.data||Date.now()-D.t>60000){
     const il=new Date(); il.setDate(il.getDate()-90); const d90=dashIso(il);
     const q=(p)=>p.then(r=>r.data||[]).catch(()=>[]);
-    const [factures,paiements,devis,projets,clients,prospects,composants,sessions,mvtsAV,ventes,fiches,transferts,caisses]=await Promise.all([
+    const [factures,paiements,devis,projets,clients,prospects,composants,sessions,mvtsAV,ventes,fiches,transferts,caisses,demandes]=await Promise.all([
       q(sb.from('factures').select('id,code,client_id,devis_id,date_facture,total,statut,type_facture')),
       q(sb.from('paiements').select('facture_id,montant,date_paiement,mode')),
       q(sb.from('devis').select('id,code,libelle,client_id,projet_id,statut,total,date_creation,date_echeance,commercial,is_current,created_at').eq('is_current',true)),
@@ -967,9 +1150,10 @@ async function dashCharger(force){
       q(sb.from('ventes_comptoir').select('id,code,date_vente,total,cout_total,statut,fne_statut,mode_paiement,point_vente_id').gte('date_vente',d90)),
       q(sb.from('fiches_execution').select('id,code,statut,projet_id,created_at,updated_at')),
       q(sb.from('transferts_stock').select('id,code,statut,date_expedition,depot_source_id,depot_destination_id')),
-      q(sb.from('caisses').select('id,nom,actif'))
+      q(sb.from('caisses').select('id,nom,actif')),
+      validationMode()==='aucun'?Promise.resolve([]):q(sb.from('caisse_demandes').select('id,numero,caisse_id,type,montant,motif,statut,demande_par,demande_le,decide_nom,decide_le,motif_rejet,decaisse_le').or(`statut.eq.en_attente,decide_le.gte.${d90}`))
     ]);
-    D.data={factures,paiements,devis,projets,clients,prospects,composants,sessions,mvtsAV,ventes,fiches,transferts,caisses};
+    D.data={factures,paiements,devis,projets,clients,prospects,composants,sessions,mvtsAV,ventes,fiches,transferts,caisses,demandes};
     D.t=Date.now();
     dashCalculer();
   }
@@ -1045,6 +1229,21 @@ function dashActions(){
     detail:`${money(f.reste)} restant dû · émise il y a ${f.jours} jours${f.statut==='payee_partielle'?' · partiellement payée':''}`,
     boutons:[appel(f.tel),wa(f.tel,`Bonjour ${f.client}, sauf erreur de notre part la facture ${f.code} présente un solde de ${money(f.reste)}. Merci de nous indiquer la date de règlement prévue.${soc?' — '+soc:''}`),
       {lib:'✓ Relance faite',fn:`dashRelanceFaite('fact_${f.id}','${escapeHtml(f.code)}')`},{lib:'🔎 Facture',fn:`window._editId='${f.id}';showPage('facture-view')`}].filter(Boolean)}));
+  // R0 — Circuit de validation DG : demandes de caisse à approuver / suites à donner
+  const dem=d.demandes||[], enAtt=dem.filter(x=>x.statut==='en_attente');
+  const aValider=enAtt.filter(x=>jePeuxValiderMontant(x.montant));
+  if(aValider.length){ const plusVieille=Math.max(...aValider.map(x=>dashJours(x.demande_le))); push({
+    aid:'valid_'+k.auj, prio:130+Math.min(20,aValider.length), urgent:plusVieille>=1, icone:'🔐', montant:aValider.reduce((t,x)=>t+(+x.montant||0),0),
+    titre:`Valider ${aValider.length} demande(s) de caisse`, detail:aValider.slice(0,4).map(x=>`${x.numero} · ${escapeHtml(x.motif)} (${money(x.montant)})`).join(' — ')+(aValider.length>4?' …':'')+` · la plus ancienne attend depuis ${plusVieille} j. Tant qu'elles ne sont pas validées, elles ne comptent pas dans le solde.`,
+    boutons:[{lib:'✅ Ouvrir les validations',fn:`window._validHub={onglet:'attente'};showPage('caisse-validations')`}]}); }
+  dem.filter(x=>x.demande_par===CURRENT_USER?.id&&x.statut==='rejetee'&&dashJours(x.decide_le)<=7).forEach(x=>push({
+    aid:'rej_'+x.id, prio:88, urgent:false, icone:'✖', montant:+x.montant||0, titre:`Demande ${x.numero} rejetée par ${x.decide_nom||'le DG'}`,
+    detail:`${escapeHtml(x.motif)} — motif du rejet : <b>${escapeHtml(x.motif_rejet||'—')}</b>. Corrigez puis soumettez une nouvelle demande si nécessaire.`,
+    boutons:[{lib:'📋 Mes demandes',fn:`window._validHub={onglet:'miennes'};showPage('caisse-validations')`}]}));
+  dem.filter(x=>x.demande_par===CURRENT_USER?.id&&x.statut==='validee'&&!x.decaisse_le&&x.type!=='transfert').forEach(x=>push({
+    aid:'dec_'+x.id, prio:84, urgent:false, icone:'💰', montant:+x.montant||0, titre:`${x.type==='entree'?'Encaisser':'Remettre les fonds'} — demande ${x.numero} validée`,
+    detail:`${escapeHtml(x.motif)} · validée par ${escapeHtml(x.decide_nom||'')} le ${fmtDate(x.decide_le)}. Confirmez la remise physique et imprimez le bon.`,
+    boutons:[{lib:`💰 ${x.type==='entree'?'Encaisser':'Décaisser'}`,fn:`decaisserDemande('${x.id}')`},{lib:'🖨️ Bon',fn:`imprimerBonDemande('${x.id}')`}]}));
   // R2 — Séances de caisse non clôturées depuis un jour précédent
   if(dashPeut('Caisse')) k.sessTard.forEach(s=>{ const c=d.caisses.find(x=>x.id===s.caisse_id); push({
     aid:'sess_'+s.id, prio:95, urgent:true, icone:'🔐', titre:`Clôturer la caisse${c?' « '+c.nom+' »':''}`,
@@ -1106,6 +1305,8 @@ function dashBriefing(actions){
   if(dashPeut('Devis') && k.devisANFacturer.length) ph.push(`${k.devisANFacturer.length} devis accepté(s) à facturer (${money(k.montantANFacturer)})`);
   if(dashPeut('Projets') && k.retard.length) ph.push(`${k.retard.length} chantier(s) en retard`);
   if(dashPeut('Comptabilite') && k.aVentiler.length) ph.push(`${k.aVentiler.length} mouvement(s) de caisse à ventiler`);
+  const nbVal=(window._dash.data.demandes||[]).filter(x=>x.statut==='en_attente'&&jePeuxValiderMontant(x.montant)).length;
+  if(nbVal) ph.unshift(`<b>${nbVal} demande(s) de caisse</b> attendent votre validation`);
   const urg=actions.filter(a=>a.urgent).length; if(urg) ph.push(`${urg} action(s) urgente(s)`);
   const reco=actions.length?`Première action recommandée : <b>${escapeHtml(actions[0].titre)}</b>.`:"File vide — rien d'urgent. Bon moment pour la prospection et le terrain.";
   return `<div class="card p-4" style="border-left:4px solid var(--accent)">
@@ -1137,8 +1338,9 @@ function dashSante(){
   const dom=(nom,icone,score,cause,page,mod)=>{ if(dashPeut(mod)) doms.push({nom,icone,score:Math.max(0,Math.min(100,Math.round(score))),cause,page}); };
   dom('Recouvrement','💰',k.totalImpaye>0?100-k.totalEchu/k.totalImpaye*100:100,k.totalEchu>0?`${money(k.totalEchu)} échus (> 30 j) sur ${money(k.totalImpaye)} d'impayés`:'Aucune facture échue','factures','Factures');
   const nbM=d.mvtsAV.length||1;
-  dom('Caisse','💵',100-Math.min(70,Math.round(k.aVentiler.length/nbM*100))-k.sessTard.length*15,
-    [k.aVentiler.length?k.aVentiler.length+' mvt à ventiler':'',k.sessTard.length?k.sessTard.length+' séance(s) non clôturée(s)':''].filter(Boolean).join(' · ')||'Ventilation et clôtures à jour','caisse','Caisse');
+  const demVieilles=(d.demandes||[]).filter(x=>x.statut==='en_attente'&&dashJours(x.demande_le)>=2).length;
+  dom('Caisse','💵',100-Math.min(70,Math.round(k.aVentiler.length/nbM*100))-k.sessTard.length*15-demVieilles*5,
+    [k.aVentiler.length?k.aVentiler.length+' mvt à ventiler':'',k.sessTard.length?k.sessTard.length+' séance(s) non clôturée(s)':'',demVieilles?demVieilles+' demande(s) en attente de validation depuis 2 j ou plus':''].filter(Boolean).join(' · ')||'Ventilation, validations et clôtures à jour','caisse','Caisse');
   if(k.tauxTransfo!==null) dom('Commercial','🎯',k.tauxTransfo*1.4,`Taux de transformation des devis : ${k.tauxTransfo} %${k.devisANFacturer.length?' · '+k.devisANFacturer.length+' accepté(s) non facturé(s)':''}`,'devis','Devis');
   else dom('Commercial','🎯',100,'Pas encore de devis conclus','devis','Devis');
   dom('Chantiers','🏗️',k.actifs.length?100-k.retard.length/k.actifs.length*100:100,k.retard.length?`${k.retard.length} chantier(s) en retard sur ${k.actifs.length} en cours`:`${k.actifs.length} chantier(s) en cours, aucun en retard`,'projets','Projets');
@@ -1356,6 +1558,7 @@ function dashGraphComptoir(){
 function dashAlertes(){
   const D=window._dash, d=D.data, k=D.k, A=[];
   if(dashPeut('Factures')) k.impayees.filter(f=>f.jours>60).forEach(f=>A.push({niveau:'rouge',icone:'🔥',domaine:'Finance',texte:`Facture ${f.code} impayée depuis ${f.jours} jours — ${f.client} (${money(f.reste)})`,fn:`window._editId='${f.id}';showPage('facture-view')`}));
+  (d.demandes||[]).filter(x=>x.statut==='en_attente'&&dashJours(x.demande_le)>=2&&jePeuxValiderMontant(x.montant)).forEach(x=>A.push({niveau:'rouge',icone:'🔐',domaine:'Caisse',texte:`Demande ${x.numero} (${money(x.montant)}) en attente de validation depuis ${dashJours(x.demande_le)} jours`,fn:`showPage('caisse-validations')`}));
   if(dashPeut('Caisse')) k.sessTard.forEach(s=>{ const c=d.caisses.find(x=>x.id===s.caisse_id); A.push({niveau:'rouge',icone:'🔐',domaine:'Caisse',texte:`Séance de caisse non clôturée depuis le ${fmtDate(s.date_session)}${c?' — '+c.nom:''}`,fn:`window._editId='${s.caisse_id}';showPage('caisse-detail')`}); });
   if(dashPeut('Stock')) k.sousMin.forEach(c=>A.push({niveau:(+c.stock_actuel||0)<=0?'rouge':'orange',icone:'📦',domaine:'Stock',texte:`${c.nom} : ${+c.stock_actuel||0} ${c.unite||''} (minimum ${+c.stock_min})`,fn:`showPage('stock-alertes')`}));
   if(dashPeut('Projets')) k.retard.forEach(p=>A.push({niveau:dashJours(p.date_fin)>30?'rouge':'orange',icone:'⏰',domaine:'Chantiers',texte:`${p.libelle} : ${dashJours(p.date_fin)} jours de retard`,fn:`window._editId='${p.id}';showPage('projets-add')`}));
@@ -5604,7 +5807,7 @@ function printEstimation(){
 }
 
 /* ============================== PARAMÉTRAGE : SOCIÉTÉ / LOGO / SUPABASE / SYNCHRO / SAUVEGARDE ============================== */
-const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','depots','stocks_depot','transferts_stock','transferts_stock_lignes','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','points_vente','caisse_affectations','point_vente_affectations','paiements','ventes_comptoir','ventes_comptoir_lignes','roles','role_permissions','invitations'];
+const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','depots','stocks_depot','transferts_stock','transferts_stock_lignes','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','points_vente','caisse_affectations','point_vente_affectations','paiements','ventes_comptoir','ventes_comptoir_lignes','roles','role_permissions','invitations','caisse_demandes'];
 async function loadAppParams(){
   let {data}=await sb.from('parametres').select('*').limit(1).maybeSingle();
   if(!data){ const res=await sb.from('parametres').insert({}).select().single(); data=res.data; }
@@ -6617,6 +6820,7 @@ async function renderCaisseDetail(el){
         </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4 text-center">Aucun mouvement dans cette séance.</td></tr>'}</tbody></table>
       </div>`
       :`<div class="card p-6 text-center"><p class="text-gray-500 mb-4">Aucune séance ouverte pour cette caisse.</p><button class="btn btn-primary" onclick="caisseOuvrirSessionModal()">🔓 Ouvrir la caisse</button></div>`}`;
+  await caisseRenderDemandes(el,c);
 }
 async function caisseOuvrirSessionModal(){
   const c=window._caisseDetailCache.caisse;
@@ -6669,6 +6873,12 @@ async function caisseSauverBon(type,sessionId){
   if(!montant||montant<=0){ toast('Montant invalide.','error'); return; }
   if(!motif){ toast('Motif requis.','error'); return; }
   const {caisse}=window._caisseDetailCache;
+  if(bonExigeValidation(montant,false)){
+    // Circuit DG : demande soumise à validation — le bon n'entre dans le solde qu'une fois approuvé
+    const d=await creerDemandeCaisse({caisse_id:caisse.id,session_id:sessionId,type,montant,date_mouvement,motif,beneficiaire:beneficiaire||null,projet_id:chantierValeur('bon')});
+    if(!d) return;
+    closeModal(); await showPage('caisse-detail'); majBadgeValidations(); demandeEnvoyeeModal(d,caisse.nom); return;
+  }
   const {count}=await sb.from('caisse_mouvements').select('id',{count:'exact',head:true}).eq('caisse_id',caisse.id);
   // Robuste après suppression : jamais de doublon de numéro de bon
   const {data:numsBons}=await sb.from('caisse_mouvements').select('numero').eq('caisse_id',caisse.id).or('numero.like.BE-%,numero.like.BS-%');
@@ -7091,6 +7301,13 @@ async function caisseConfirmerTransfert(){
   const montant=+document.getElementById('trfMontant').value||0;
   if(!destId){ toast('Choisissez une caisse destination.','error'); return; }
   if(!montant||montant<=0){ toast('Montant invalide.','error'); return; }
+  if(bonExigeValidation(montant,true)){
+    const {caisse,session}=window._caisseDetailCache;
+    const nomDest=document.getElementById('trfDest').selectedOptions[0]?.textContent||'caisse';
+    const d=await creerDemandeCaisse({caisse_id:caisse.id,session_id:session?.id||null,type:'transfert',caisse_dest_id:destId,montant,date_mouvement:new Date().toISOString().slice(0,10),motif:`Transfert vers ${nomDest}`});
+    if(!d) return;
+    closeModal(); await showPage('caisse-detail'); majBadgeValidations(); demandeEnvoyeeModal(d,caisse.nom); return;
+  }
   const {data:destSession}=await sb.from('caisse_sessions').select('*').eq('caisse_id',destId).eq('statut','ouverte').maybeSingle();
   if(!destSession){ toast('La caisse destination doit être ouverte (créez-y une séance).','error'); return; }
   const {data:destCaisse}=await sb.from('caisses').select('nom').eq('id',destId).single();
@@ -7104,8 +7321,12 @@ async function caisseConfirmerTransfert(){
   toast('Transfert enregistré des deux côtés (à ventiler — suggestion : compte 585000).'); closeModal();
   showPage('caisse-detail');
 }
-function caisseOuvrirClotureModal(){
-  const {session,mvts}=window._caisseDetailCache;
+async function caisseOuvrirClotureModal(){
+  const {session,mvts,caisse}=window._caisseDetailCache;
+  if(validationMode()!=='aucun'){
+    const {count}=await sb.from('caisse_demandes').select('id',{count:'exact',head:true}).eq('caisse_id',caisse.id).eq('statut','en_attente');
+    if(count && !confirm(`${count} demande(s) de cette caisse attendent encore la validation du DG : elles ne sont PAS dans le solde théorique. Une fois validées, elles s'inscriront dans la prochaine séance ouverte.\nClôturer quand même ?`)) return;
+  }
   const entrees=mvts.filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
   const sorties=mvts.filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
   const theorique=(+session.fond_ouverture||0)+entrees-sorties;
