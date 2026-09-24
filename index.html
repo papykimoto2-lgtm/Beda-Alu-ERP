@@ -13943,46 +13943,87 @@ const PORTAIL_TEMPLATE = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Portail client">
+<meta name="theme-color" content="#1D3557">
 <title>Portail client</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"><\/script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"><\/script>
 <style>
   :root{ --pc:#1D3557; --pc2:#0d1f38; }
   *{box-sizing:border-box}
-  body{font-family:Arial,sans-serif;background:#f8fafc;min-height:100vh;margin:0;color:#1f2937}
+  html{scroll-behavior:smooth}
+  body{font-family:'Plus Jakarta Sans',Arial,sans-serif;background:#f8fafc;min-height:100vh;margin:0;color:#1f2937;-webkit-font-smoothing:antialiased}
   .brand-bg{background:var(--pc)}
   .brand-text{color:var(--pc)}
   .brand-grad{background:linear-gradient(135deg,var(--pc),var(--pc2))}
-  header.site-header{position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-  .nav-pill{padding:8px 16px;border-radius:999px;font-size:13px;font-weight:700;color:#6b7280;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+  header.site-header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid #eef0f3}
+  .nav-pill{padding:8px 16px;border-radius:999px;font-size:13px;font-weight:700;color:#6b7280;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s;border:0;background:none;font-family:inherit}
   .nav-pill.active{background:var(--pc);color:#fff}
   .nav-pill:hover:not(.active){background:#f3f4f6}
-  .hero{background:linear-gradient(135deg,var(--pc),var(--pc2));color:#fff;padding:56px 20px;text-align:center}
-  .hero h1{font-size:28px;font-weight:900;margin:0 0 8px}
-  .hero p{font-size:14px;opacity:.9;max-width:520px;margin:0 auto}
-  .hero .cta{margin-top:22px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-  .btn-cta{padding:11px 22px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;border:0;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
-  .btn-cta.solid{background:#fff;color:var(--pc)}
+  .hero{position:relative;overflow:hidden;color:#fff;padding:76px 20px 60px;text-align:center}
+  .hero::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--pc),var(--pc2) 75%);z-index:0}
+  .hero::after{content:'';position:absolute;inset:0;z-index:0;background-image:radial-gradient(circle at 12% 18%,rgba(255,255,255,.16),transparent 42%),radial-gradient(circle at 88% 6%,rgba(255,255,255,.12),transparent 46%),radial-gradient(circle at 50% 130%,rgba(255,255,255,.10),transparent 55%)}
+  .hero-inner{position:relative;z-index:1;max-width:600px;margin:0 auto}
+  .hero-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:#fff;font-size:11px;font-weight:800;letter-spacing:.3px;padding:7px 15px;border-radius:999px;margin-bottom:18px;text-transform:uppercase}
+  .hero h1{font-size:32px;font-weight:900;margin:0 0 10px;letter-spacing:-.5px;line-height:1.15}
+  .hero p{font-size:15px;opacity:.92;max-width:460px;margin:0 auto;line-height:1.55}
+  .hero .cta{margin-top:26px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;position:relative;z-index:1}
+  .btn-cta{padding:12px 24px;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;border:0;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:transform .15s,box-shadow .15s;font-family:inherit}
+  .btn-cta:hover{transform:translateY(-1px)}
+  .btn-cta.solid{background:#fff;color:var(--pc);box-shadow:0 10px 22px -10px rgba(0,0,0,.35)}
   .btn-cta.outline{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.5)}
-  .section{max-width:1000px;margin:0 auto;padding:36px 20px}
-  .section-title{font-size:20px;font-weight:900;margin-bottom:6px}
-  .section-sub{font-size:13px;color:#6b7280;margin-bottom:24px}
-  .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px}
+  .hero-stats{position:relative;z-index:1;display:flex;gap:30px;justify-content:center;flex-wrap:wrap;margin-top:36px;padding-top:22px;border-top:1px solid rgba(255,255,255,.18)}
+  .hero-stat b{display:block;font-size:21px;font-weight:900}
+  .hero-stat span{font-size:11px;opacity:.82;text-transform:uppercase;letter-spacing:.3px}
+  .section{max-width:1000px;margin:0 auto;padding:44px 20px}
+  .eyebrow{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--pc);margin-bottom:8px;display:flex;align-items:center;gap:7px}
+  .eyebrow::before{content:'';width:18px;height:2px;background:var(--pc);border-radius:2px;flex:0 0 auto}
+  .section-title{font-size:21px;font-weight:900;margin-bottom:6px;letter-spacing:-.3px}
+  .section-sub{font-size:13px;color:#6b7280;margin-bottom:26px;max-width:520px}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:20px}
   .grid-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
-  .service-card{text-align:center}
-  .service-card .ic{width:52px;height:52px;border-radius:14px;background:color-mix(in srgb,var(--pc) 12%,white);color:var(--pc);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px}
-  .gallery-item{border-radius:14px;overflow:hidden;position:relative;aspect-ratio:4/3;background:#e5e7eb}
-  .gallery-item img{width:100%;height:100%;object-fit:cover}
-  .gallery-cap{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(0deg,rgba(0,0,0,.7),transparent);color:#fff;padding:14px 12px 8px;font-size:12px;font-weight:700}
-  .step{display:flex;align-items:center;gap:10px;padding:10px 0;border-left:2px solid #e5e7eb;margin-left:9px;padding-left:18px;position:relative}
-  .step:last-child{border-left-color:transparent}
-  .step::before{content:'';position:absolute;left:-6px;top:14px;width:10px;height:10px;border-radius:50%;background:#d1d5db}
-  .step.done::before{background:var(--pc)}
-  footer.site-footer{background:#0f172a;color:#cbd5e1;padding:32px 20px;text-align:center;font-size:12px}
+  .service-card{transition:transform .18s,box-shadow .18s,border-color .18s}
+  .service-card:hover{transform:translateY(-3px);box-shadow:0 16px 32px -14px rgba(15,23,42,.16);border-color:color-mix(in srgb,var(--pc) 30%,#e5e7eb)}
+  .service-card .ic{width:46px;height:46px;border-radius:12px;background:color-mix(in srgb,var(--pc) 12%,white);color:var(--pc);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px}
+  .service-card .lbl{font-weight:700;font-size:13px}
+  .gallery-item{border-radius:16px;overflow:hidden;position:relative;aspect-ratio:4/3;background:#e5e7eb;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .gallery-item img{width:100%;height:100%;object-fit:cover;transition:transform .45s ease}
+  .gallery-item:hover img{transform:scale(1.08)}
+  .gallery-cap{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent 72%);color:#fff;padding:16px 14px 10px;font-size:12px;font-weight:700}
+  .timeline{margin:4px 0 20px}
+  .tl-step{display:flex;gap:12px;position:relative;padding-bottom:20px}
+  .tl-step:last-child{padding-bottom:0}
+  .tl-step::before{content:'';position:absolute;left:13px;top:28px;bottom:0;width:2px;background:#e5e7eb}
+  .tl-step:last-child::before{display:none}
+  .tl-step.done::before{background:var(--pc)}
+  .tl-dot{flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:#f1f5f9;color:#9ca3af;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:2px solid #e5e7eb;z-index:1}
+  .tl-step.done .tl-dot{background:var(--pc);border-color:var(--pc);color:#fff}
+  .tl-step.current .tl-dot{background:#fff;border-color:var(--pc);color:var(--pc);box-shadow:0 0 0 4px color-mix(in srgb,var(--pc) 18%,white)}
+  .tl-label{font-size:13px;font-weight:700;padding-top:3px}
+  .tl-step:not(.done):not(.current) .tl-label{color:#9ca3af;font-weight:600}
+  .badge-status{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}
+  .auth-card{max-width:420px;margin:24px auto 0;text-align:center}
+  .auth-avatar{width:54px;height:54px;border-radius:16px;background:color-mix(in srgb,var(--pc) 12%,white);color:var(--pc);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 14px}
+  .field-input{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:12px 14px;font-size:13px;transition:border-color .15s,box-shadow .15s;font-family:inherit}
+  .field-input:focus{outline:none;border-color:var(--pc);box-shadow:0 0 0 3px color-mix(in srgb,var(--pc) 15%,white)}
+  .data-table{width:100%;border-collapse:collapse}
+  .data-table th{text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.3px;color:#9ca3af;padding-bottom:10px}
+  .data-table td{padding:10px 0;font-size:13px;border-top:1px solid #f1f5f9}
+  .data-table tr:hover td{background:#fafbfc}
+  footer.site-footer{background:#0f172a;color:#cbd5e1;padding:36px 20px 28px;text-align:center;font-size:12px}
   footer.site-footer a{color:#fff;text-decoration:none}
-  .social-row{display:flex;gap:12px;justify-content:center;margin:14px 0}
-  .social-row a{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:#fff}
-  @media(max-width:640px){ .hero h1{font-size:22px} }
+  .social-row{display:flex;gap:12px;justify-content:center;margin:16px 0}
+  .social-row a{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;transition:background .15s,transform .15s}
+  .social-row a:hover{background:rgba(255,255,255,.2);transform:translateY(-2px)}
+  .fab-wa{position:fixed;right:18px;bottom:18px;z-index:60;width:54px;height:54px;border-radius:50%;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:25px;box-shadow:0 10px 26px -6px rgba(22,163,74,.5);text-decoration:none;animation:pulseWa 2.6s ease-in-out infinite}
+  @keyframes pulseWa{0%,100%{box-shadow:0 10px 26px -6px rgba(22,163,74,.5)}50%{box-shadow:0 10px 26px -6px rgba(22,163,74,.5),0 0 0 9px rgba(22,163,74,.14)}}
+  .fade-in{animation:fadeInUp .5s ease both}
+  @keyframes fadeInUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @media(max-width:640px){ .hero h1{font-size:24px} .hero-stats{gap:20px} }
+  @media (prefers-reduced-motion: reduce){ *{animation:none!important;transition:none!important} html{scroll-behavior:auto} }
 </style>
 </head>
 <body>
@@ -13994,6 +14035,7 @@ const PORTAIL_TEMPLATE = `<!DOCTYPE html>
 </header>
 <div id="app"></div>
 <footer class="site-footer" id="siteFooter"></footer>
+<a id="waFab" class="fab-wa" style="display:none" target="_blank" rel="noopener" title="Discuter sur WhatsApp">💬</a>
 
 <script>
 window.SB_CFG={ SUPABASE_URL:'__SB_URL__', SUPABASE_ANON_KEY:'__SB_KEY__' };
@@ -14009,6 +14051,8 @@ function fmtDate(d){ return d ? new Date(d).toLocaleDateString('fr-FR') : '—';
 const ETAPES=['en_attente','mesure_disponible','pret_fabrication','fabrication_en_cours','installation_en_cours','termine'];
 const ETAPE_LABELS={en_attente:'En attente',mesure_disponible:'Mesure disponible',pret_fabrication:'Prêt pour fabrication',fabrication_en_cours:'Fabrication en cours',installation_en_cours:'Installation en cours',termine:'Terminé',annule:'Annulé'};
 const STATUT_LABELS={en_attente:'En attente',en_cours:'En cours',accepte:'Accepté',refuse:'Refusé',annule:'Annulé',payee:'Payée',payee_partielle:'Payée partielle',annulee:'Annulée'};
+const STATUT_COLORS={en_attente:'#d97706',en_cours:'#2563eb',accepte:'#16a34a',refuse:'#dc2626',annule:'#6b7280',payee:'#16a34a',payee_partielle:'#2563eb',annulee:'#6b7280',termine:'#16a34a'};
+function badge(st){ const c=STATUT_COLORS[st]||'#6b7280'; return \`<span class="badge-status" style="background:color-mix(in srgb,\${c} 14%,white);color:\${c}">\${esc(STATUT_LABELS[st]||st)}</span>\`; }
 const TABS=[
   {key:'accueil',label:'🏠 Accueil'},
   {key:'realisations',label:'🛠️ Réalisations'},
@@ -14018,6 +14062,16 @@ const TABS=[
 ];
 const waLink=()=>window.BRAND.whatsapp?('https://wa.me/'+String(window.BRAND.whatsapp).replace(/[^0-9]/g,'')):'';
 
+function setFaviconEtTitre(){
+  const b=window.BRAND;
+  document.title=b.nom||'Portail client';
+  const desc=document.querySelector('meta[name="description"]'); if(desc) desc.setAttribute('content',(b.slogan||b.nom||'Portail client'));
+  const theme=document.querySelector('meta[name="theme-color"]'); if(theme) theme.setAttribute('content',b.couleur||'#1D3557');
+  const lettre=(b.nom||'?').trim().charAt(0).toUpperCase()||'?';
+  const svg=\`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="16" fill="\${b.couleur||'#1D3557'}"/><text x="32" y="43" font-family="Arial,sans-serif" font-size="30" font-weight="900" fill="#fff" text-anchor="middle">\${lettre}</text></svg>\`;
+  const link=document.createElement('link'); link.rel='icon'; link.href='data:image/svg+xml,'+encodeURIComponent(svg);
+  document.head.appendChild(link);
+}
 function renderHeader(){
   const b=window.BRAND;
   document.getElementById('brandLogo').innerHTML=b.logo
@@ -14025,14 +14079,17 @@ function renderHeader(){
     : \`<div style="font-weight:900;font-size:16px" class="brand-text">\${esc(b.nom)}</div>\`;
   document.getElementById('navTabs').innerHTML=TABS.map(t=>\`<button class="nav-pill" data-tab="\${t.key}" onclick="setTab('\${t.key}')">\${t.label}</button>\`).join('');
   document.getElementById('siteFooter').innerHTML=\`
-    <div style="font-weight:800;color:#fff;margin-bottom:4px">\${esc(b.nom)}</div>
-    <div>\${[b.adresse,b.telephone].filter(Boolean).map(esc).join(' · ')}</div>
+    <div style="font-weight:800;color:#fff;margin-bottom:6px;font-size:14px">\${esc(b.nom)}</div>
+    <div style="color:#94a3b8">\${[b.adresse,b.telephone].filter(Boolean).map(esc).join(' · ')}</div>
     \${(b.facebook||b.instagram)?\`<div class="social-row">
-      \${b.facebook?\`<a href="\${esc(b.facebook)}" target="_blank">f</a>\`:''}
-      \${b.instagram?\`<a href="\${esc(b.instagram)}" target="_blank">ig</a>\`:''}
+      \${b.facebook?\`<a href="\${esc(b.facebook)}" target="_blank" rel="noopener">f</a>\`:''}
+      \${b.instagram?\`<a href="\${esc(b.instagram)}" target="_blank" rel="noopener">ig</a>\`:''}
     </div>\`:''}
     <div style="margin-top:10px;font-size:11px;color:#94a3b8">\${[b.rccm?'RCCM '+esc(b.rccm):'',b.ncc?'NCC '+esc(b.ncc):''].filter(Boolean).join(' · ')}</div>
-    <div style="margin-top:10px;font-size:11px;color:#64748b">Propulsé par Sanix AluExpert ERP — Sanix Africa Division Technologies</div>\`;
+    <div style="margin-top:12px;font-size:11px;color:#64748b;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)">Propulsé par Sanix AluExpert ERP — Sanix Africa Division Technologies</div>\`;
+  const fab=document.getElementById('waFab');
+  if(waLink()){ fab.href=waLink(); fab.style.display='flex'; } else { fab.style.display='none'; }
+  setFaviconEtTitre();
 }
 function setTab(key){
   document.querySelectorAll('.nav-pill').forEach(b=>b.classList.toggle('active',b.dataset.tab===key));
@@ -14047,83 +14104,98 @@ function renderAccueil(){
   (b.produits||[]).forEach(p=>{ const f=p.famille||'Autre'; famillesMap[f]=(famillesMap[f]||0)+1; });
   const familles=Object.keys(famillesMap);
   const FAMILLE_ICONS={'Fenêtre coulissante':'🪟','Porte à la française':'🚪','Porte coulissante':'🚪','Coulissant galandage':'🚪','Fenêtre jalousie':'🪟','Moustiquaire fixe':'🦟','Moustiquaire coulissante':'🦟','Garde-corps inox':'🛡️','Verrière / mur rideau':'🏢','Autre':'📦'};
+  const nbReal=(b.realisations||[]).length;
   document.getElementById('app').innerHTML=\`
     <section class="hero">
-      <h1>\${esc(b.nom)}</h1>
-      <p>\${esc(b.slogan)}</p>
-      <div class="cta">
-        \${waLink()?\`<a class="btn-cta solid" href="\${waLink()}" target="_blank">💬 Discuter sur WhatsApp</a>\`:''}
-        <a class="btn-cta outline" href="#" onclick="setTab('client');return false;">👤 Suivre mon dossier</a>
+      <div class="hero-inner">
+        <div class="hero-badge">✨ \${esc(b.nom)}</div>
+        <h1>\${esc(b.slogan)}</h1>
+        <p>Devis gratuit, fabrication et pose assurées par nos équipes — de l'idée à l'installation.</p>
+        <div class="cta">
+          \${waLink()?\`<a class="btn-cta solid" href="\${waLink()}" target="_blank" rel="noopener">💬 Discuter sur WhatsApp</a>\`:''}
+          <a class="btn-cta outline" href="#" onclick="setTab('client');return false;">👤 Suivre mon dossier</a>
+        </div>
+        <div class="hero-stats">
+          \${nbReal?\`<div class="hero-stat"><b>\${nbReal}</b><span>Réalisations</span></div>\`:''}
+          <div class="hero-stat"><b>100%</b><span>Sur-mesure</span></div>
+          <div class="hero-stat"><b>24h</b><span>Réponse rapide</span></div>
+        </div>
       </div>
     </section>
-    <div class="section">
-      <div class="section-title">Nos savoir-faire</div>
-      <div class="section-sub">Menuiserie aluminium sur-mesure, fabriquée et posée par nos équipes.</div>
+    <div class="section fade-in">
+      <div class="eyebrow">Nos savoir-faire</div>
+      <div class="section-title">Une menuiserie qui vous ressemble</div>
+      <div class="section-sub">Fabriquée sur-mesure et posée par nos équipes, du premier relevé de côtes à la réception du chantier.</div>
       <div class="grid-auto">
-        \${familles.length?familles.map(f=>\`<div class="card service-card"><div class="ic">\${(b.familleIcones||{})[f]||FAMILLE_ICONS[f]||'🛠️'}</div><div style="font-weight:700;font-size:13px">\${esc(f)}</div></div>\`).join('')
-          :\`<div class="card service-card"><div class="ic">🛠️</div><div style="font-weight:700;font-size:13px">Menuiserie aluminium sur-mesure</div></div>\`}
+        \${familles.length?familles.map(f=>\`<div class="card service-card"><div class="ic">\${(b.familleIcones||{})[f]||FAMILLE_ICONS[f]||'🛠️'}</div><div class="lbl">\${esc(f)}</div></div>\`).join('')
+          :\`<div class="card service-card"><div class="ic">🛠️</div><div class="lbl">Menuiserie aluminium sur-mesure</div></div>\`}
       </div>
     </div>
-    \${(b.realisations||[]).length?\`<div class="section" style="padding-top:0">
+    \${(b.realisations||[]).length?\`<div class="section fade-in" style="padding-top:0">
+      <div class="eyebrow">Portfolio</div>
       <div class="section-title">Dernières réalisations</div>
       <div class="section-sub">Un aperçu de nos chantiers récents.</div>
       <div class="grid-auto">
-        \${b.realisations.slice(0,3).map(r=>\`<div class="gallery-item">\${r.photo_base64?\`<img src="\${r.photo_base64}">\`:''}<div class="gallery-cap">\${esc(r.titre)}</div></div>\`).join('')}
+        \${b.realisations.slice(0,3).map(r=>\`<div class="gallery-item">\${r.photo_base64?\`<img src="\${r.photo_base64}" loading="lazy">\`:''}<div class="gallery-cap">\${esc(r.titre)}</div></div>\`).join('')}
       </div>
-      <div style="text-align:center;margin-top:18px"><a href="#" onclick="setTab('realisations');return false;" class="btn-cta" style="background:var(--pc);color:#fff">Voir toutes nos réalisations →</a></div>
+      <div style="text-align:center;margin-top:22px"><a href="#" onclick="setTab('realisations');return false;" class="btn-cta" style="background:var(--pc);color:#fff">Voir toutes nos réalisations →</a></div>
     </div>\`:''}
   \`;
 }
 function renderGalerie(){
   const items=window.BRAND.realisations||[];
   document.getElementById('app').innerHTML=\`
-    <div class="section">
+    <div class="section fade-in">
+      <div class="eyebrow">Portfolio</div>
       <div class="section-title">🛠️ Nos réalisations</div>
       <div class="section-sub">\${items.length} chantier\${items.length>1?'s':''} réalisé\${items.length>1?'s':''}.</div>
       \${items.length?\`<div class="grid-auto">\${items.map(r=>\`
-        <div class="gallery-item">\${r.photo_base64?\`<img src="\${r.photo_base64}">\`:''}<div class="gallery-cap">\${esc(r.titre)}\${r.famille?' · '+esc(r.famille):''}</div></div>\`).join('')}</div>\`
+        <div class="gallery-item">\${r.photo_base64?\`<img src="\${r.photo_base64}" loading="lazy">\`:''}<div class="gallery-cap">\${esc(r.titre)}\${r.famille?' · '+esc(r.famille):''}</div></div>\`).join('')}</div>\`
         :'<div class="card text-center text-gray-400">Galerie en cours de constitution.</div>'}
     </div>\`;
 }
 function renderAPropos(){
   const b=window.BRAND;
   document.getElementById('app').innerHTML=\`
-    <div class="section">
+    <div class="section fade-in">
+      <div class="eyebrow">Qui sommes-nous</div>
       <div class="section-title">🏢 À propos de \${esc(b.nom)}</div>
-      <div class="card" style="white-space:pre-line;line-height:1.6;font-size:14px">\${esc(b.aPropos)||"Présentation à venir."}</div>
+      <div class="card" style="white-space:pre-line;line-height:1.7;font-size:14px">\${esc(b.aPropos)||"Présentation à venir."}</div>
     </div>\`;
 }
 function renderContact(){
   const b=window.BRAND;
   document.getElementById('app').innerHTML=\`
-    <div class="section">
+    <div class="section fade-in">
+      <div class="eyebrow">Parlons-en</div>
       <div class="section-title">✉️ Nous contacter</div>
+      <div class="section-sub">Une question, un projet ? Écrivez-nous ou passez-nous un appel.</div>
       <div class="grid-auto">
         <div class="card">
-          <div style="font-weight:700;margin-bottom:10px">Coordonnées</div>
-          \${b.adresse?\`<div style="margin-bottom:8px">📍 \${esc(b.adresse)}</div>\`:''}
-          \${b.telephone?\`<div style="margin-bottom:8px">📞 <a href="tel:\${esc(b.telephone)}" class="brand-text">\${esc(b.telephone)}</a></div>\`:''}
-          \${b.email?\`<div style="margin-bottom:8px">✉️ <a href="mailto:\${esc(b.email)}" class="brand-text">\${esc(b.email)}</a></div>\`:''}
+          <div style="font-weight:700;margin-bottom:12px;font-size:13px">Coordonnées</div>
+          \${b.adresse?\`<div style="margin-bottom:10px;font-size:13px">📍 \${esc(b.adresse)}</div>\`:''}
+          \${b.telephone?\`<div style="margin-bottom:10px;font-size:13px">📞 <a href="tel:\${esc(b.telephone)}" class="brand-text" style="font-weight:700">\${esc(b.telephone)}</a></div>\`:''}
+          \${b.email?\`<div style="margin-bottom:10px;font-size:13px">✉️ <a href="mailto:\${esc(b.email)}" class="brand-text" style="font-weight:700">\${esc(b.email)}</a></div>\`:''}
         </div>
         <div class="card" style="display:flex;flex-direction:column;gap:10px;justify-content:center">
-          \${waLink()?\`<a class="btn-cta solid" style="background:#16a34a;color:#fff;justify-content:center" href="\${waLink()}" target="_blank">💬 WhatsApp</a>\`:''}
+          \${waLink()?\`<a class="btn-cta solid" style="background:#16a34a;color:#fff;justify-content:center;box-shadow:none" href="\${waLink()}" target="_blank" rel="noopener">💬 WhatsApp</a>\`:''}
           \${b.telephone?\`<a class="btn-cta" style="background:var(--pc);color:#fff;justify-content:center" href="tel:\${esc(b.telephone)}">📞 Appeler</a>\`:''}
         </div>
       </div>
     </div>\`;
 }
 function renderLogin(msg){
-  const b=window.BRAND;
   document.getElementById('app').innerHTML=\`
-    <div class="section" style="max-width:480px">
-      <div class="card">
-        <h2 style="font-size:16px;font-weight:800;margin-bottom:4px">Mon dossier</h2>
-        <p style="font-size:12px;color:#6b7280;margin-bottom:16px">Saisissez votre code client et votre numéro de téléphone pour suivre l'avancement de votre chantier.</p>
-        \${msg?\`<div style="font-size:13px;background:#fef2f2;color:#b91c1c;border-radius:10px;padding:10px 12px;margin-bottom:12px">\${esc(msg)}</div>\`:''}
-        <form id="loginForm" style="display:flex;flex-direction:column;gap:10px">
-          <input id="fCode" placeholder="Code client (ex : C-42)" required style="width:100%;border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font-size:13px">
-          <input id="fTel" placeholder="Téléphone" required style="width:100%;border:1px solid #d1d5db;border-radius:10px;padding:10px 12px;font-size:13px">
-          <button type="submit" class="btn-cta" style="background:var(--pc);color:#fff;justify-content:center">Voir mon dossier</button>
+    <div class="section fade-in" style="max-width:480px">
+      <div class="card auth-card">
+        <div class="auth-avatar">👤</div>
+        <h2 style="font-size:17px;font-weight:800;margin-bottom:4px">Mon dossier</h2>
+        <p style="font-size:12px;color:#6b7280;margin-bottom:18px">Saisissez votre code client et votre numéro de téléphone pour suivre l'avancement de votre chantier.</p>
+        \${msg?\`<div style="font-size:13px;background:#fef2f2;color:#b91c1c;border-radius:10px;padding:10px 12px;margin-bottom:14px;text-align:left">\${esc(msg)}</div>\`:''}
+        <form id="loginForm" style="display:flex;flex-direction:column;gap:10px;text-align:left">
+          <input id="fCode" class="field-input" placeholder="Code client (ex : C-42)" required>
+          <input id="fTel" class="field-input" placeholder="Téléphone" required>
+          <button type="submit" class="btn-cta" style="background:var(--pc);color:#fff;justify-content:center;margin-top:4px">Voir mon dossier</button>
         </form>
       </div>
     </div>\`;
@@ -14148,29 +14220,29 @@ function renderDossier(data){
   const chantiersHtml=(data.projets||[]).map(p=>{
     const idx=ETAPES.indexOf(p.etape);
     return \`<div class="card" style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-        <div><div style="font-weight:700">\${esc(p.libelle)}</div><div style="font-size:11px;color:#9ca3af">\${esc(p.code)}\${p.commune?' · '+esc(p.commune):''}</div></div>
-        \${p.etape==='annule'?'<span style="font-size:11px;background:#f3f4f6;color:#6b7280;border-radius:999px;padding:3px 10px">Annulé</span>':''}
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div><div style="font-weight:700;font-size:14px">\${esc(p.libelle)}</div><div style="font-size:11px;color:#9ca3af">\${esc(p.code)}\${p.commune?' · '+esc(p.commune):''}</div></div>
+        \${p.etape==='annule'?badge('annule'):''}
       </div>
-      \${idx>=0?ETAPES.map((et,i)=>\`<div class="step \${i<=idx?'done':''}"><span style="font-size:13px" class="\${i<=idx?'font-bold':''}">\${esc(ETAPE_LABELS[et])}</span></div>\`).join(''):''}
+      \${idx>=0?\`<div class="timeline">\${ETAPES.map((et,i)=>\`<div class="tl-step \${i<idx?'done':i===idx?'current':''}"><div class="tl-dot">\${i<idx?'✓':(i+1)}</div><div class="tl-label">\${esc(ETAPE_LABELS[et])}</div></div>\`).join('')}</div>\`:''}
     </div>\`;
   }).join('')||'<div style="font-size:13px;color:#9ca3af;margin-bottom:14px">Aucun chantier enregistré.</div>';
-  const rowsTable=(arr,cols)=>arr.map(r=>\`<tr style="border-bottom:1px solid #f1f5f9">\${cols.map(c=>\`<td style="padding:8px 0;font-size:13px">\${c(r)}</td>\`).join('')}</tr>\`).join('')||\`<tr><td style="padding:10px 0;font-size:13px;color:#9ca3af" colspan="\${cols.length}">Aucun élément.</td></tr>\`;
+  const rowsTable=(arr,cols)=>arr.map(r=>\`<tr>\${cols.map(c=>\`<td>\${c(r)}</td>\`).join('')}</tr>\`).join('')||\`<tr><td style="padding:14px 0;font-size:13px;color:#9ca3af;border-top:1px solid #f1f5f9" colspan="\${cols.length}">Aucun élément.</td></tr>\`;
   document.getElementById('app').innerHTML=\`
-    <div class="section" style="max-width:640px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
-        <div><div style="font-size:18px;font-weight:800">\${esc(nomComplet)}</div><div style="font-size:11px;color:#9ca3af">\${esc(c.code)}</div></div>
-        <button onclick="renderLogin()" style="font-size:11px;color:#6b7280;background:none;border:0;cursor:pointer">← Autre dossier</button>
+    <div class="section fade-in" style="max-width:640px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div><div style="font-size:19px;font-weight:800">\${esc(nomComplet)}</div><div style="font-size:11px;color:#9ca3af">\${esc(c.code)}</div></div>
+        <button onclick="renderLogin()" style="font-size:11px;color:#6b7280;background:none;border:0;cursor:pointer;font-family:inherit">← Autre dossier</button>
       </div>
-      <h3 style="font-size:12px;font-weight:800;text-transform:uppercase;color:#6b7280;margin-bottom:8px">🏗️ Mes chantiers</h3>
+      <h3 style="font-size:12px;font-weight:800;text-transform:uppercase;color:#6b7280;margin-bottom:10px;letter-spacing:.3px">🏗️ Mes chantiers</h3>
       \${chantiersHtml}
-      <h3 style="font-size:12px;font-weight:800;text-transform:uppercase;color:#6b7280;margin-bottom:8px;margin-top:6px">📄 Mes devis</h3>
-      <div class="card" style="margin-bottom:14px;overflow-x:auto"><table style="width:100%"><thead><tr style="text-align:left;font-size:11px;color:#9ca3af"><th style="padding-bottom:8px">Code</th><th>Libellé</th><th>Statut</th><th style="text-align:right">Montant</th></tr></thead><tbody>
-        \${rowsTable(data.devis,[d=>esc(d.code),d=>esc(d.libelle||'—'),d=>esc(STATUT_LABELS[d.statut]||d.statut),d=>'<span style="display:block;text-align:right">'+money(d.total)+'</span>'])}
+      <h3 style="font-size:12px;font-weight:800;text-transform:uppercase;color:#6b7280;margin-bottom:10px;margin-top:8px;letter-spacing:.3px">📄 Mes devis</h3>
+      <div class="card" style="margin-bottom:14px;overflow-x:auto"><table class="data-table"><thead><tr><th>Code</th><th>Libellé</th><th>Statut</th><th style="text-align:right">Montant</th></tr></thead><tbody>
+        \${rowsTable(data.devis,[d=>esc(d.code),d=>esc(d.libelle||'—'),d=>badge(d.statut),d=>'<span style="display:block;text-align:right;font-weight:700">'+money(d.total)+'</span>'])}
       </tbody></table></div>
-      <h3 style="font-size:12px;font-weight:800;text-transform:uppercase;color:#6b7280;margin-bottom:8px">🧾 Mes factures</h3>
-      <div class="card" style="overflow-x:auto"><table style="width:100%"><thead><tr style="text-align:left;font-size:11px;color:#9ca3af"><th style="padding-bottom:8px">Code</th><th>Date</th><th>Statut</th><th style="text-align:right">Montant</th></tr></thead><tbody>
-        \${rowsTable(data.factures,[f=>esc(f.code),f=>fmtDate(f.date_facture),f=>esc(STATUT_LABELS[f.statut]||f.statut),f=>'<span style="display:block;text-align:right">'+money(f.total)+'</span>'])}
+      <h3 style="font-size:12px;font-weight:800;text-transform:uppercase;color:#6b7280;margin-bottom:10px;letter-spacing:.3px">🧾 Mes factures</h3>
+      <div class="card" style="overflow-x:auto"><table class="data-table"><thead><tr><th>Code</th><th>Date</th><th>Statut</th><th style="text-align:right">Montant</th></tr></thead><tbody>
+        \${rowsTable(data.factures,[f=>esc(f.code),f=>fmtDate(f.date_facture),f=>badge(f.statut),f=>'<span style="display:block;text-align:right;font-weight:700">'+money(f.total)+'</span>'])}
       </tbody></table></div>
     </div>\`;
 }

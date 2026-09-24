@@ -418,3 +418,12 @@ Menu **✅ Validations** (en haut du menu, badge = demandes que **vous** pouvez 
 - **Règle de décision** (contrôlée aussi dans la base, fonction `peut_valider`) : droit « valider » du module (Caisse ou Stock) **et** plafond du rôle couvrant le montant **et** niveau de rôle au moins égal au palier. L'administrateur (DG) passe tous les paliers.
 - Commandes fournisseur : bandeau de validation sur la fiche (soumise / validée / rejetée avec motif) et filtre « 🔐 En attente de validation » dans la liste.
 - Migration : `sql/validations_hierarchie.sql` (section 20 de `00_installation_complete.sql`).
+
+## Portail client — refonte visuelle
+Paramètres → 🌐 Portail client génère toujours un fichier HTML unique et autonome (aucune dépendance à héberger côté ERP), mais avec un design entièrement revu :
+- Typographie **Plus Jakarta Sans**, en-tête « verre dépoli » collant en haut de page, favicon et titre d'onglet générés dynamiquement (monogramme aux couleurs de l'entreprise).
+- **Section d'accueil** avec bandeau dégradé, badge, accroche et indicateurs (nombre de réalisations publiées, sur-mesure, délai de réponse).
+- **Cartes de savoir-faire et galerie de réalisations** avec effet de survol, zoom léger sur les photos.
+- **Bouton WhatsApp flottant** persistant (si un numéro est renseigné), pastille animée.
+- **Espace client** : formulaire de connexion repensé (avatar, champs modernisés), suivi de chantier en **frise verticale** (étapes franchies, étape en cours mise en évidence, étapes à venir), devis et factures avec **badges de statut colorés**.
+- Aucun changement de logique : mêmes champs de configuration (nom, slogan, couleur, coordonnées, réseaux sociaux, à propos), même RPC `portail_lookup`, même fichier généré côté client (pas de nouvelle table ni migration).
