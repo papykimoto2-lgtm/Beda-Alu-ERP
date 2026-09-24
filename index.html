@@ -223,6 +223,7 @@ window.SB_CFG = {
       <div class="sidebar-children" data-children="comptoir-g">
         <button class="nav-child" data-page="comptoir">→ 🛒 Nouvelle vente</button>
         <button class="nav-child" data-page="comptoir-ventes">→ Historique des ventes</button>
+        <button class="nav-child" data-page="comptoir-rapport">→ Rapport périodique (PDV & caisse)</button>
       </div>
 
       <div class="sidebar-group-title">Chantier</div>
@@ -418,9 +419,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'Rapport périodique — Point de vente & caisse',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g'};
 /* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
 const ALL_MODULES=[
   {code:'Clients',label:'Clients',groupe:'Clients'},
@@ -6977,6 +6978,247 @@ async function comptabiliserVenteComptoir(v,caisse){
   }catch(e){ toast('Vente non comptabilisée : '+e.message,'error'); return null; }
 }
 
+/* ---------- Rapport périodique point de vente & caisse ----------
+   Ventes (CA, marge, modes de paiement, articles, vendeurs, documents émis) + caisse(s) des points de vente
+   (séances, entrées/sorties, écarts de clôture, rapprochement ventes espèces ↔ encaissements en caisse). */
+function isoLocal(d){ return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+const RAPPORT_PERIODES={jour:"Aujourd'hui",hier:'Hier',semaine:'Cette semaine',semaine_prec:'Semaine dernière',mois:'Ce mois',mois_prec:'Mois dernier',perso:'Personnalisée'};
+function rapportBornes(code){
+  const t=new Date(); t.setHours(0,0,0,0);
+  const lundi=new Date(t); lundi.setDate(t.getDate()-((t.getDay()+6)%7));
+  switch(code){
+    case 'hier': { const h=new Date(t); h.setDate(t.getDate()-1); return [h,h]; }
+    case 'semaine': return [lundi,t];
+    case 'semaine_prec': { const a=new Date(lundi); a.setDate(lundi.getDate()-7); const b=new Date(lundi); b.setDate(lundi.getDate()-1); return [a,b]; }
+    case 'mois': return [new Date(t.getFullYear(),t.getMonth(),1),t];
+    case 'mois_prec': return [new Date(t.getFullYear(),t.getMonth()-1,1),new Date(t.getFullYear(),t.getMonth(),0)];
+    default: return [t,t];
+  }
+}
+window._rapPdv=window._rapPdv||(()=>{ const [a,b]=rapportBornes('jour'); return {periode:'jour',debut:isoLocal(a),fin:isoLocal(b),pdv:''}; })();
+function rapportChoisirPeriode(code){
+  const r=window._rapPdv; r.periode=code;
+  if(code!=='perso'){ const [a,b]=rapportBornes(code); r.debut=isoLocal(a); r.fin=isoLocal(b); }
+  showPage('comptoir-rapport');
+}
+async function chargerRapportPdv(){
+  const f=window._rapPdv;
+  if(!window.APP_PARAMS) await loadAppParams();
+  const {data:pdvs}=await sb.from('points_vente').select('*, depots(nom), caisses(nom,compte_code)').order('code');
+  let q=sb.from('ventes_comptoir').select('*, points_vente(nom), ventes_comptoir_lignes(composant_id,designation,unite,quantite,prix_unitaire,total,prix_achat)').gte('date_vente',f.debut).lte('date_vente',f.fin).order('created_at');
+  if(f.pdv) q=q.eq('point_vente_id',f.pdv);
+  const {data:ventes,error}=await q;
+  if(error) throw error;
+  const pdvSel=(pdvs||[]).find(p=>p.id===f.pdv);
+  const caisseIds=[...new Set((f.pdv?[pdvSel?.caisse_id]:(pdvs||[]).map(p=>p.caisse_id)).filter(Boolean))];
+  let sessions=[],mvts=[],caisses=[];
+  if(caisseIds.length){
+    const [rS,rM,rC]=await Promise.all([
+      sb.from('caisse_sessions').select('*').in('caisse_id',caisseIds).gte('date_session',f.debut).lte('date_session',f.fin).order('date_session'),
+      sb.from('caisse_mouvements').select('id,session_id,caisse_id,numero,date_mouvement,type,montant,motif').in('caisse_id',caisseIds).gte('date_mouvement',f.debut).lte('date_mouvement',f.fin),
+      sb.from('caisses').select('id,nom,compte_code').in('id',caisseIds)
+    ]);
+    sessions=rS.data||[]; mvts=rM.data||[]; caisses=rC.data||[];
+  }
+  return calculerRapportPdv({f,pdvs:pdvs||[],pdvSel,ventes:ventes||[],sessions,mvts,caisses});
+}
+function calculerRapportPdv(src){
+  const {ventes,sessions,mvts,caisses}=src;
+  const valides=ventes.filter(v=>v.statut==='validee'), annulees=ventes.filter(v=>v.statut==='annulee');
+  const somme=(arr,fn)=>arr.reduce((s,x)=>s+(+fn(x)||0),0);
+  const ca=somme(valides,v=>v.total), cout=somme(valides,v=>v.cout_total);
+  const fisc=valides.map(v=>venteTotauxFiscaux(v));
+  const k={nb:valides.length,ca,ht:somme(fisc,t=>t.ht),tva:somme(fisc,t=>t.tva),
+    // remises accordées : remise globale + remises de ligne (prix × qté − total de ligne)
+    remises:somme(valides,v=>(+v.remise||0)+somme(v.ventes_comptoir_lignes||[],l=>(+l.quantite||0)*(+l.prix_unitaire||0)-(+l.total||0))),
+    cout,marge:ca-cout,panier:valides.length?ca/valides.length:0,articles:somme(valides,v=>somme(v.ventes_comptoir_lignes||[],l=>l.quantite)),
+    nbAnnul:annulees.length,montantAnnul:somme(annulees,v=>v.total)};
+  const modes={}; valides.forEach(v=>{ const m=modes[v.mode_paiement]=modes[v.mode_paiement]||{nb:0,montant:0}; m.nb++; m.montant+=+v.total||0; });
+  const jours={}; for(let d=new Date(src.f.debut+'T00:00:00'); isoLocal(d)<=src.f.fin; d.setDate(d.getDate()+1)) jours[isoLocal(d)]={nb:0,ca:0,marge:0};
+  valides.forEach(v=>{ const j=jours[v.date_vente]||(jours[v.date_vente]={nb:0,ca:0,marge:0}); j.nb++; j.ca+=+v.total||0; j.marge+=(+v.total||0)-(+v.cout_total||0); });
+  const parPdv={}; valides.forEach(v=>{ const c=v.point_vente_id||'—'; const x=parPdv[c]=parPdv[c]||{nom:v.points_vente?.nom||'—',nb:0,ca:0,marge:0}; x.nb++; x.ca+=+v.total||0; x.marge+=(+v.total||0)-(+v.cout_total||0); });
+  const parVendeur={}; valides.forEach(v=>{ const c=v.vendeur||'—'; const x=parVendeur[c]=parVendeur[c]||{nb:0,ca:0}; x.nb++; x.ca+=+v.total||0; });
+  const articles={};
+  valides.forEach(v=>(v.ventes_comptoir_lignes||[]).forEach(l=>{
+    const c=l.composant_id||l.designation; const a=articles[c]=articles[c]||{designation:l.designation,unite:l.unite,qte:0,ca:0,cout:0};
+    a.qte+=+l.quantite||0; a.cout+=(+l.quantite||0)*(+l.prix_achat||0);
+    // part de la remise globale répartie au prorata des lignes
+    const part=(+v.sous_total||0)>0?(+l.total||0)/(+v.sous_total):0;
+    a.ca+=(+l.total||0)-part*(+v.remise||0);
+  }));
+  const docs={recus:0,simples:0,fne:0,fneProv:0,fneErr:0,avoirs:0};
+  ventes.forEach(v=>{
+    if(v.fne_statut==='certifiee') docs.fne++; else if(v.fne_statut==='provisoire') docs.fneProv++; else if(v.fne_statut==='erreur') docs.fneErr++;
+    else if(v.facture_imprimee_le) docs.simples++; else if(v.statut==='validee') docs.recus++;
+    if(v.fne_avoir_reference) docs.avoirs++;
+  });
+  // Caisse(s)
+  const caissesRap=caisses.map(c=>{
+    const ss=sessions.filter(s=>s.caisse_id===c.id).map(s=>{
+      const m=mvts.filter(x=>x.session_id===s.id);
+      const entrees=somme(m.filter(x=>x.type==='entree'),x=>x.montant), sorties=somme(m.filter(x=>x.type==='sortie'),x=>x.montant);
+      return {...s,entrees,sorties,theorique:s.statut==='cloturee'&&s.fond_cloture_theorique!=null?+s.fond_cloture_theorique:(+s.fond_ouverture||0)+entrees-sorties};
+    });
+    const m=mvts.filter(x=>x.caisse_id===c.id);
+    const estVente=x=>/^VC-\d{4}-\d+$/.test(x.numero||''), estRembours=x=>/^VC-\d{4}-\d+-AN$/.test(x.numero||'');
+    const ventesEsp=somme(valides.filter(v=>v.mode_paiement==='espece'&&v.caisse_id===c.id),v=>v.total);
+    const encVentes=somme(m.filter(x=>x.type==='entree'&&estVente(x)),x=>x.montant), rembours=somme(m.filter(x=>x.type==='sortie'&&estRembours(x)),x=>x.montant);
+    return {caisse:c,sessions:ss,
+      autresEntrees:somme(m.filter(x=>x.type==='entree'&&!estVente(x)),x=>x.montant),
+      autresSorties:somme(m.filter(x=>x.type==='sortie'&&!estRembours(x)),x=>x.montant),
+      // une vente annulée compte une entrée et un remboursement (-AN) : le net doit égaler les ventes espèces validées
+      ventesEsp,encVentes,rembours,ecartRappro:(encVentes-rembours)-ventesEsp,
+      ecartsCloture:somme(ss.filter(s=>s.statut==='cloturee'),s=>s.ecart),ouvertes:ss.filter(s=>s.statut==='ouverte').length};
+  });
+  return {...src,k,modes,jours,parPdv,parVendeur,articles:Object.values(articles).sort((a,b)=>b.ca-a.ca),docs,caissesRap};
+}
+function rapportTitre(r){
+  const f=r.f, per=f.debut===f.fin?new Date(f.debut+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):`du ${new Date(f.debut+'T00:00:00').toLocaleDateString('fr-FR')} au ${new Date(f.fin+'T00:00:00').toLocaleDateString('fr-FR')}`;
+  return {pdv:r.pdvSel?r.pdvSel.nom:'Tous les points de vente',periode:per};
+}
+/* Sections HTML autonomes (styles en ligne) : partagées par l'écran et l'impression */
+function rapportSectionsHtml(r,opts={}){
+  const {k,modes,jours,parPdv,parVendeur,articles,docs,caissesRap}=r;
+  const pct=(a,b)=>b?(a/b*100).toFixed(1)+' %':'—';
+  const kpi=(l,v,s,c)=>`<div class="rp-kpi"><div class="rp-kl">${l}</div><div class="rp-kv" style="${c?'color:'+c:''}">${v}</div>${s?`<div class="rp-ks">${s}</div>`:''}</div>`;
+  const h=(t)=>`<h3 class="rp-h">${t}</h3>`;
+  const barre=(part)=>`<div class="rp-bar"><div style="width:${Math.max(0,Math.min(100,part*100)).toFixed(1)}%"></div></div>`;
+  const listeJours=Object.entries(jours);
+  const sections=[];
+  sections.push(`<div class="rp-kpis">
+    ${kpi("Chiffre d'affaires TTC",money(k.ca),`${k.nb} vente(s) · HT ${money(k.ht)} · TVA ${money(k.tva)}`)}
+    ${kpi('Marge brute',money(k.marge),pct(k.marge,k.ca)+' du CA',k.marge<0?'#dc2626':'#047857')}
+    ${kpi('Panier moyen',money(k.panier),`${fmtQte(k.articles)} article(s) vendus · remises ${money(k.remises)}`)}
+    ${kpi('Annulations',String(k.nbAnnul),k.nbAnnul?money(k.montantAnnul)+' annulés':'aucune',k.nbAnnul?'#b45309':'')}
+  </div>`);
+  if(opts.graphique) sections.push(opts.graphique);
+  sections.push(`<div class="rp-grid">
+    <div>${h('💳 Encaissements par mode de paiement')}
+      <table><thead><tr><th>Mode</th><th class="rp-r">Ventes</th><th class="rp-r">Montant</th><th style="width:30%">Part</th></tr></thead><tbody>
+      ${Object.entries(COMPTOIR_MODES).map(([c,m])=>{ const x=modes[c]||{nb:0,montant:0}; return `<tr><td>${m.icon} ${m.label}</td><td class="rp-r">${x.nb}</td><td class="rp-r">${money(x.montant)}</td><td>${barre(k.ca?x.montant/k.ca:0)}</td></tr>`; }).join('')}
+      <tr class="rp-tot"><td>Total</td><td class="rp-r">${k.nb}</td><td class="rp-r">${money(k.ca)}</td><td></td></tr></tbody></table>
+    </div>
+    <div>${h('🧾 Documents émis')}
+      <table><tbody>
+        <tr><td>Reçus de caisse seuls</td><td class="rp-r">${docs.recus}</td></tr>
+        <tr><td>Factures simples</td><td class="rp-r">${docs.simples}</td></tr>
+        <tr><td>Factures normalisées FNE certifiées</td><td class="rp-r"><b>${docs.fne}</b></td></tr>
+        ${docs.fneProv?`<tr><td style="color:#b45309">FNE provisoires (à certifier)</td><td class="rp-r" style="color:#b45309"><b>${docs.fneProv}</b></td></tr>`:''}
+        ${docs.fneErr?`<tr><td style="color:#dc2626">FNE refusées par la DGI</td><td class="rp-r" style="color:#dc2626"><b>${docs.fneErr}</b></td></tr>`:''}
+        ${docs.avoirs?`<tr><td>Factures d'avoir FNE</td><td class="rp-r">${docs.avoirs}</td></tr>`:''}
+      </tbody></table>
+    </div>
+  </div>`);
+  if(!r.f.pdv && Object.keys(parPdv).length) sections.push(`<div>${h('🏪 Par point de vente')}
+    <table><thead><tr><th>Point de vente</th><th class="rp-r">Ventes</th><th class="rp-r">CA TTC</th><th class="rp-r">Part</th><th class="rp-r">Marge</th><th class="rp-r">Panier moyen</th></tr></thead><tbody>
+    ${Object.values(parPdv).sort((a,b)=>b.ca-a.ca).map(x=>`<tr><td>${escapeHtml(x.nom)}</td><td class="rp-r">${x.nb}</td><td class="rp-r">${money(x.ca)}</td><td class="rp-r">${pct(x.ca,k.ca)}</td><td class="rp-r">${money(x.marge)} <span class="rp-m">(${pct(x.marge,x.ca)})</span></td><td class="rp-r">${money(x.ca/x.nb)}</td></tr>`).join('')}</tbody></table></div>`);
+  if(listeJours.length>1) sections.push(`<div>${h('📅 Détail par jour')}
+    <table><thead><tr><th>Jour</th><th class="rp-r">Ventes</th><th class="rp-r">CA TTC</th><th class="rp-r">Marge</th></tr></thead><tbody>
+    ${listeJours.map(([d,x])=>`<tr style="${x.nb?'':'color:#9ca3af'}"><td>${new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit'})}</td><td class="rp-r">${x.nb}</td><td class="rp-r">${money(x.ca)}</td><td class="rp-r">${money(x.marge)}</td></tr>`).join('')}</tbody></table></div>`);
+  sections.push(`<div class="rp-grid">
+    <div>${h('🏆 Articles les plus vendus')}
+      <table><thead><tr><th>Article</th><th class="rp-r">Qté</th><th class="rp-r">CA TTC</th><th class="rp-r">Marge</th></tr></thead><tbody>
+      ${articles.slice(0,opts.tousArticles?500:12).map(a=>`<tr><td>${escapeHtml(a.designation)}</td><td class="rp-r">${fmtQte(a.qte)} <span class="rp-m">${escapeHtml(a.unite||'')}</span></td><td class="rp-r">${money(a.ca)}</td><td class="rp-r" style="color:${a.ca-a.cout<0?'#dc2626':'inherit'}">${money(a.ca-a.cout)}</td></tr>`).join('')||'<tr><td colspan="4" class="rp-vide">Aucune vente.</td></tr>'}
+      </tbody></table>${!opts.tousArticles&&articles.length>12?`<div class="rp-m" style="margin-top:4px">+ ${articles.length-12} autre(s) article(s) — voir l'export CSV ou l'impression.</div>`:''}
+    </div>
+    <div>${h('👤 Par vendeur')}
+      <table><thead><tr><th>Vendeur</th><th class="rp-r">Ventes</th><th class="rp-r">CA TTC</th></tr></thead><tbody>
+      ${Object.entries(parVendeur).sort((a,b)=>b[1].ca-a[1].ca).map(([n,x])=>`<tr><td>${escapeHtml(n)}</td><td class="rp-r">${x.nb}</td><td class="rp-r">${money(x.ca)}</td></tr>`).join('')||'<tr><td colspan="3" class="rp-vide">—</td></tr>'}
+      </tbody></table>
+    </div>
+  </div>`);
+  // Caisse
+  if(!caissesRap.length) sections.push(`<div>${h('💰 Caisse')}<div class="rp-vide">${r.f.pdv?"Aucune caisse n'est rattachée à ce point de vente.":"Aucune caisse n'est rattachée aux points de vente."}</div></div>`);
+  caissesRap.forEach(c=>{
+    sections.push(`<div>${h('💰 Caisse — '+escapeHtml(c.caisse.nom))}
+      <div class="rp-kpis">
+        ${kpi('Ventes comptoir en espèces',money(c.ventesEsp))}
+        ${kpi('Encaissées en caisse (net des remboursements)',money(c.encVentes-c.rembours),Math.abs(c.ecartRappro)>=1?`<b style="color:#dc2626">⚠ Écart ventes ↔ caisse : ${money(c.ecartRappro)}</b>`:'✔ Rapprochement OK')}
+        ${kpi('Autres entrées / sorties',`+${money(c.autresEntrees)} / −${money(c.autresSorties)}`,'Bons de caisse, transferts, autres encaissements')}
+        ${kpi('Écarts de clôture',money(c.ecartsCloture),c.ouvertes?`${c.ouvertes} séance(s) encore ouverte(s)`:'',Math.abs(c.ecartsCloture)>=1?(c.ecartsCloture<0?'#dc2626':'#b45309'):'')}
+      </div>
+      <table><thead><tr><th>Séance</th><th>Statut</th><th class="rp-r">Fond d'ouverture</th><th class="rp-r">Entrées</th><th class="rp-r">Sorties</th><th class="rp-r">Solde théorique</th><th class="rp-r">Compté</th><th class="rp-r">Écart</th></tr></thead><tbody>
+      ${c.sessions.map(s=>`<tr><td>${new Date(s.date_session+'T00:00:00').toLocaleDateString('fr-FR')}<div class="rp-m">${escapeHtml([s.ouverte_par,s.cloturee_par&&s.cloturee_par!==s.ouverte_par?'→ '+s.cloturee_par:''].filter(Boolean).join(' '))}</div></td>
+        <td>${s.statut==='cloturee'?'Clôturée':'<b style="color:#b45309">Ouverte</b>'}</td><td class="rp-r">${money(s.fond_ouverture)}</td><td class="rp-r">${money(s.entrees)}</td><td class="rp-r">${money(s.sorties)}</td><td class="rp-r">${money(s.theorique)}</td>
+        <td class="rp-r">${s.statut==='cloturee'?money(s.fond_cloture_reel):'—'}</td><td class="rp-r" style="color:${Math.abs(+s.ecart||0)>=1?(+s.ecart<0?'#dc2626':'#b45309'):'inherit'};font-weight:${Math.abs(+s.ecart||0)>=1?700:400}">${s.statut==='cloturee'?money(s.ecart):'—'}</td></tr>`).join('')||'<tr><td colspan="8" class="rp-vide">Aucune séance sur la période.</td></tr>'}
+      </tbody></table></div>`);
+  });
+  return sections.join('');
+}
+const RAPPORT_CSS=`.rp-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:0 0 14px}
+  .rp-kpi{border:1px solid #e5e7eb;border-radius:12px;padding:10px 12px;background:#fff}.rp-kl{font-size:11.5px;color:#6b7280}.rp-kv{font-size:19px;font-weight:800;margin-top:2px;color:#111827}.rp-ks{font-size:11px;color:#6b7280;margin-top:2px}
+  .rp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px}
+  .rp-h{font-size:13px;font-weight:800;margin:16px 0 6px;color:#111827}.rp-r{text-align:right;white-space:nowrap}.rp-m{font-size:11px;color:#6b7280}.rp-vide{color:#9ca3af;padding:8px 0}
+  .rp-tot td{font-weight:800;border-top:2px solid #111827}.rp-bar{height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden}.rp-bar div{height:100%;background:#6d28d9;border-radius:4px}`;
+async function renderComptoirRapport(el){
+  const f=window._rapPdv;
+  let r;
+  try{ r=await chargerRapportPdv(); }catch(e){ el.innerHTML=`<div class="card p-4 text-red-600">${escapeHtml(e.message||String(e))}</div>`; return; }
+  window._rapportPdvData=r;
+  const t=rapportTitre(r);
+  el.innerHTML=`<style>${RAPPORT_CSS}</style>
+    <div class="card p-4 mb-4">
+      <div class="flex flex-wrap gap-2 mb-3">${Object.entries(RAPPORT_PERIODES).map(([c,l])=>`<button class="fam-chip ${f.periode===c?'active':''}" onclick="rapportChoisirPeriode('${c}')">${l}</button>`).join('')}</div>
+      <div class="flex flex-wrap gap-2 items-end">
+        <div class="field"><label>Point de vente</label>${fieldWrap('🏪',`<select id="rpPdv" onchange="window._rapPdv.pdv=this.value;showPage('comptoir-rapport')"><option value="">Tous les points de vente</option>${r.pdvs.map(p=>`<option value="${p.id}" ${p.id===f.pdv?'selected':''}>${escapeHtml(p.nom)}${p.caisses?' — '+escapeHtml(p.caisses.nom):''}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Du</label>${fieldWrap('📅',`<input type="date" id="rpDebut" value="${f.debut}">`)}</div>
+        <div class="field"><label>Au</label>${fieldWrap('📅',`<input type="date" id="rpFin" value="${f.fin}">`)}</div>
+        <button class="btn btn-outline" onclick="const d=val('rpDebut'),e=val('rpFin');if(!d||!e||d>e){toast('Période invalide.','error');return;}Object.assign(window._rapPdv,{periode:'perso',debut:d,fin:e});showPage('comptoir-rapport')">Appliquer</button>
+        <div class="flex gap-2 ml-auto">
+          <button class="btn btn-outline" onclick="exporterRapportPdvCsv()">⬇ Export CSV</button>
+          <button class="btn btn-primary" onclick="imprimerRapportPdv()">🖨 Imprimer le rapport</button>
+        </div>
+      </div>
+    </div>
+    <div class="mb-3"><div class="text-lg font-extrabold">${escapeHtml(t.pdv)}</div><div class="text-sm text-gray-500">${escapeHtml(t.periode)}</div></div>
+    ${rapportSectionsHtml(r,{graphique:Object.keys(r.jours).length>1?`<div class="card p-4 mb-2"><div class="rp-h" style="margin-top:0">Chiffre d'affaires TTC par jour</div><div style="height:220px"><canvas id="rpChart" role="img" aria-label="Chiffre d'affaires TTC par jour"></canvas></div></div>`:''})}`;
+  const jours=Object.entries(r.jours);
+  if(jours.length>1 && window.Chart){
+    window._stockCharts=window._stockCharts||{};
+    renderStockChart('rpChart','bar',{labels:jours.map(([d])=>new Date(d+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})),
+      datasets:[{label:'CA TTC',data:jours.map(([,x])=>Math.round(x.ca)),backgroundColor:'#6d28d9',hoverBackgroundColor:'#5b21b6',borderRadius:{topLeft:4,topRight:4},maxBarThickness:36}]},
+      {plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>`${money(c.raw)} · ${jours[c.dataIndex][1].nb} vente(s)`}}},scales:{x:{grid:{display:false}},y:{beginAtZero:true,grid:{color:'#f1f5f9'},ticks:{callback:v=>new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}});
+  }
+}
+function imprimerRapportPdv(){
+  const r=window._rapportPdvData; if(!r) return;
+  const win=window.open('','_blank','width=1000,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const t=rapportTitre(r);
+  const canvas=document.getElementById('rpChart');
+  const img=canvas?`<div class="rp-h">Chiffre d'affaires TTC par jour</div><img src="${canvas.toDataURL('image/png')}" style="width:100%;max-height:230px;object-fit:contain">`:'';
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rapport ${escapeHtml(t.pdv)} — ${escapeHtml(t.periode)}</title>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:28px;color:#111827;font-size:12px}
+    table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #e5e7eb;padding:5px 6px;text-align:left}th{background:#f8fafc;font-size:10.5px;text-transform:uppercase;color:#475569}
+    ${RAPPORT_CSS}.rp-kpi{break-inside:avoid}table,.rp-grid>div{break-inside:avoid}
+    @media print{body{padding:0}.noprint{display:none}}</style></head><body>
+    <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+    ${printCompanyHeaderHtml()}
+    <h1 style="font-size:18px;margin:0">RAPPORT DE POINT DE VENTE ET DE CAISSE</h1>
+    <div style="font-size:14px;font-weight:700;margin-top:4px">${escapeHtml(t.pdv)}</div>
+    <div style="color:#6b7280;margin-bottom:14px">Période : ${escapeHtml(t.periode)} · édité le ${new Date().toLocaleString('fr-FR')} par ${escapeHtml(CURRENT_USER?.email||'')}</div>
+    ${rapportSectionsHtml(r,{graphique:img,tousArticles:true})}
+    <div style="display:flex;gap:40px;margin-top:40px"><div style="flex:1;border-top:1px solid #111827;padding-top:6px;text-align:center">Caissier(ère)</div><div style="flex:1;border-top:1px solid #111827;padding-top:6px;text-align:center">Responsable du point de vente</div></div>
+    <script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`);
+  win.document.close(); win.focus();
+}
+function exporterRapportPdvCsv(){
+  const r=window._rapportPdvData; if(!r) return;
+  const esc=x=>{ const s=String(x??''); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const n=x=>String(Math.round((+x||0)*100)/100).replace('.',',');
+  const lignes=[['N° vente','Date','Heure','Point de vente','Vendeur','Client','Mode de paiement','Sous-total','Remise','Total TTC','Coût','Marge','Statut','Document','Réf. FNE']];
+  r.ventes.forEach(v=>{
+    const d=new Date(v.created_at);
+    lignes.push([v.code,v.date_vente,d.toLocaleTimeString('fr-FR'),v.points_vente?.nom||'',v.vendeur||'',v.fne_client_nom||v.client_nom||'',COMPTOIR_MODES[v.mode_paiement]?.label||v.mode_paiement,n(v.sous_total),n(v.remise),n(v.total),n(v.cout_total),n((+v.total||0)-(+v.cout_total||0)),v.statut==='annulee'?'Annulée':'Validée',
+      v.fne_statut==='certifiee'?'FNE':v.fne_statut==='provisoire'?'FNE provisoire':v.fne_statut==='erreur'?'FNE refusée':v.facture_imprimee_le?'Facture simple':'Reçu',v.fne_reference||'']);
+  });
+  lignes.push([]); lignes.push(['Article','Quantité','Unité','CA TTC','Coût','Marge']);
+  r.articles.forEach(a=>lignes.push([a.designation,n(a.qte),a.unite||'',n(a.ca),n(a.cout),n(a.ca-a.cout)]));
+  const csv='﻿'+lignes.map(l=>l.map(esc).join(';')).join('\r\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  const a=document.createElement('a'); a.href=url; a.download=`rapport-pdv-${(r.pdvSel?.code||'tous')}-${r.f.debut}_${r.f.fin}.csv`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
 /* ---------- Historique des ventes au comptoir ---------- */
 window._comptoirFiltre=window._comptoirFiltre||{debut:new Date().toISOString().slice(0,10),fin:new Date().toISOString().slice(0,10),statut:'',pdv:''};
 async function renderComptoirVentes(el){
@@ -7000,7 +7242,7 @@ async function renderComptoirVentes(el){
         <div class="field"><label>Point de vente</label>${fieldWrap('🏪',`<select id="vcPdv"><option value="">Tous</option>${(pdvs||[]).map(p=>`<option value="${p.id}" ${f.pdv===p.id?'selected':''}>${escapeHtml(p.nom)}</option>`).join('')}</select>`)}</div>
         <button class="btn btn-outline" onclick="window._comptoirFiltre={debut:val('vcDebut'),fin:val('vcFin'),statut:val('vcStatut'),pdv:val('vcPdv')};showPage('comptoir-ventes')">Filtrer</button>
       </div>
-      <button class="btn btn-primary" onclick="showPage('comptoir')">🛒 Nouvelle vente</button>
+      <div class="flex gap-2"><button class="btn btn-outline" onclick="Object.assign(window._rapPdv,{periode:'perso',debut:window._comptoirFiltre.debut,fin:window._comptoirFiltre.fin,pdv:window._comptoirFiltre.pdv||''});showPage('comptoir-rapport')">📊 Rapport</button><button class="btn btn-primary" onclick="showPage('comptoir')">🛒 Nouvelle vente</button></div>
     </div>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
       ${kpi("Chiffre d'affaires",money(ca),valides.length+' vente(s)')}
