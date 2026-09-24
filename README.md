@@ -338,3 +338,19 @@ L'accueil reprend la structure du tableau de bord de Menko Immo, adaptée à la 
   - **Excel (CSV)** ;
   - **📤 WhatsApp / e-mail** : le document est généré en **PDF**. Sur téléphone, il est joint directement via le partage de l'appareil. Sur ordinateur, il est téléchargé et WhatsApp Web ou la messagerie s'ouvrent avec un message résumé prérempli ; le PDF est à joindre. Le dernier numéro et la dernière adresse utilisés sont mémorisés.
 - **Réutilisable** : la génération PDF et l'envoi (`impGenererPdf`, `impOuvrirEnvoi`) font partie du moteur d'impression et pourront servir aux autres documents.
+
+## Application installable — PC, smartphone et tablette
+L'ERP est une **application web progressive (PWA)** : elle s'installe comme un logiciel, sans magasin d'applications.
+- Une fois installée, elle a son icône et sa fenêtre propre, s'ouvre en plein écran, **fonctionne hors ligne** et se met à jour automatiquement.
+- **Bouton 📲 « Installer l'application »** : sur l'écran de connexion, dans le bandeau et en bas du menu. Il est masqué si l'application est déjà installée.
+  - **PC Windows / Mac / Linux** (Chrome, Edge) et **Android** (Chrome, Edge, Samsung Internet) : le bouton ouvre l'invite d'installation du navigateur. On peut aussi passer par l'icône d'installation de la barre d'adresse ou le menu ⋮ → « Installer l'application ».
+  - **iPhone / iPad** (Safari ; Chrome et Edge depuis iOS 16.4) : le bouton affiche la marche à suivre, Partager ⬆️ → « Sur l'écran d'accueil ». Mac avec Safari 17+ : Fichier → « Ajouter au Dock ».
+  - **Firefox** ne permet pas l'installation : utilisez Chrome ou Edge.
+- **Raccourcis** (appui long ou clic droit sur l'icône) : Vente au comptoir, Nouveau devis, Inventaire, Valorisation du stock. Ils s'appuient sur l'adresse `?page=…`, qui ouvre la page demandée après la connexion.
+- **Mises à jour** : l'application vérifie chaque heure s'il existe une nouvelle version. Un bandeau propose alors « Recharger », sans jamais recharger de force pendant une saisie.
+- **Fichiers** :
+  - `manifest.webmanifest` : identifiant, icônes PNG 192/512 standard et « maskable » (Android), raccourcis, `display_override`, `launch_handler` ;
+  - `icons/` : `apple-touch-icon.png` 180 px pour iOS, favicon ;
+  - balises iOS et Android dans `index.html` ;
+  - `sw.js` : met les icônes en cache.
+- **Petits écrans** : les icônes secondaires du bandeau (impression, messages) sont masquées sur téléphone pour garder le titre de la page visible.
