@@ -451,3 +451,10 @@ Constat : `portail_lookup(code, téléphone)` est appelable par n'importe qui (p
 - **Corrigé** : limite globale anti-parcours (30 appels/minute, tous codes confondus) + verrou par code (5 échecs en 15 min → blocage 30 min, y compris avec le bon numéro tant que le verrou tient). Un autre code client n'est jamais affecté par le verrou d'un autre.
 - Aucun changement du format de réponse ni de la tolérance de saisie pour un utilisateur légitime (message dédié « Trop de tentatives » uniquement en cas de blocage).
 - Migration : `sql/portail_securite.sql` (table `portail_tentatives`, fonction `portail_lookup` durcie), section 23 de `00_installation_complete.sql`.
+
+## Envoyer le code d'accès au portail (WhatsApp / e-mail)
+Fiche client (bouton dans le formulaire) et liste des clients (menu ⚙) : **📲 Envoyer le code d'accès**.
+- Compose un message prêt à l'emploi (lien du portail, code client, rappel du numéro enregistré) et ouvre WhatsApp et/ou l'e-mail du client — jamais de mot de passe envoyé, seulement le rappel des deux informations déjà exigées par `portail_lookup` (durci par le verrou anti-énumération).
+- Nécessite l'**URL du portail** (Paramètres → Portail client → « URL du portail en ligne ») ; sinon le bouton redirige vers ce réglage.
+- Avertit avant l'envoi si le portail n'est pas encore **activé**.
+- Migration : `sql/portail_url.sql` (colonne `portail_url` sur `parametres`), section 24 de `00_installation_complete.sql`.
