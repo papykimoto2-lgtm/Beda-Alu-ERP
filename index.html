@@ -282,6 +282,7 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
         <button class="nav-child" data-page="stock-mouvements">→ Mouvements</button>
         <button class="nav-child" data-page="stock-alertes">→ Alertes <span class="nav-badge nav-badge-red" id="badgeStockAlertes">0</span></button>
         <button class="nav-child" data-page="stock-inventaire">→ Inventaire</button>
+        <button class="nav-child" data-page="stock-inventaires">→ États d'inventaire</button>
         <button class="nav-child" data-page="stock-par-depot">→ Stock par dépôt</button>
         <button class="nav-child" data-page="stock-transferts">→ Transferts <span class="nav-badge nav-badge-amber hidden" id="badgeTransferts">0</span></button>
         <button class="nav-child" data-page="stock-depots">→ Dépôts & points de vente</button>
@@ -893,9 +894,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'État périodique — Point de vente & caisse','comptoir-z':'Ticket Z — Clôture du point de vente','caisse-brouillard':'Brouillard de caisse',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,'caisse-validations':renderCaisseValidations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,'comptoir-z':renderComptoirZ,'caisse-brouillard':renderCaisseBrouillard,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g','caisse-validations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g','comptoir-z':'comptoir-g','caisse-brouillard':'caisse-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-inventaires':"Stock — États d'inventaire",'stock-inventaire-view':"État d'inventaire",'stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'État périodique — Point de vente & caisse','comptoir-z':'Ticket Z — Clôture du point de vente','caisse-brouillard':'Brouillard de caisse',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-inventaires':renderStockInventaires,'stock-inventaire-view':renderInventaireDetail,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,'caisse-validations':renderCaisseValidations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,'comptoir-z':renderComptoirZ,'caisse-brouillard':renderCaisseBrouillard,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-inventaires':'stock-g','stock-inventaire-view':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g','caisse-validations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g','comptoir-z':'comptoir-g','caisse-brouillard':'caisse-g'};
 /* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
 const ALL_MODULES=[
   {code:'Clients',label:'Clients',groupe:'Clients'},
@@ -3211,6 +3212,42 @@ async function renderStockAlertes(el){
     </div>`;
 }
 
+/* ============================== INVENTAIRE PHYSIQUE : saisie, justification des écarts, états ==============================
+   Saisie par dépôt (recherche, filtres, brouillon conservé sur l'appareil) → chaque écart DOIT être justifié
+   (motif normalisé + commentaire) → validation atomique par le serveur (inventaire_valider : session INV-AAAA-NNNN,
+   lignes figées, mouvements de stock « inventaire ») → état d'inventaire imprimable (Stock → États d'inventaire). */
+const INV_MOTIFS={
+  casse:{label:'Casse / détérioration',sens:-1},
+  vol:{label:'Vol',sens:-1},
+  perte:{label:'Perte / disparition',sens:-1},
+  peremption:{label:'Péremption',sens:-1},
+  chute_decoupe:{label:'Chutes de découpe non déclarées',sens:-1},
+  consommation_non_saisie:{label:'Consommation chantier / atelier non saisie',sens:-1},
+  sortie_non_saisie:{label:'Sortie / livraison non saisie',sens:-1},
+  reception_non_saisie:{label:'Réception fournisseur non saisie',sens:1},
+  transfert_non_saisi:{label:'Transfert entre dépôts non saisi',sens:0},
+  erreur_saisie:{label:'Erreur de saisie antérieure',sens:0},
+  erreur_comptage:{label:'Erreur de comptage (inventaire précédent)',sens:0},
+  erreur_unite:{label:"Erreur d'unité / de conditionnement",sens:0},
+  autre:{label:'Autre (à préciser)',sens:0}
+};
+function invMotifLabel(m){ return m==='autre'?'Autre':m?(INV_MOTIFS[m]?.label||m):''; }
+function invMotifOptions(ecart,choisi){
+  const s=Math.sign(ecart);
+  return `<option value="">— Motif de l'écart —</option>`+Object.entries(INV_MOTIFS).filter(([k,m])=>!m.sens||m.sens===s||k===choisi)
+    .map(([k,m])=>`<option value="${k}" ${k===choisi?'selected':''}>${escapeHtml(m.label)}</option>`).join('');
+}
+const fmtQ=n=>{ const v=Math.round((+n||0)*100)/100; return new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(v); };
+function invCleBrouillon(){ return 'aluexpert-inventaire-'+(window._inventaireDepot||''); }
+function invLireBrouillon(){ try{ return JSON.parse(localStorage.getItem(invCleBrouillon())||'null'); }catch(e){ return null; } }
+function invSauverBrouillon(){
+  const data=window._inventaireCache||[]; const b={q:{},m:{},j:{},t:Date.now()};
+  data.forEach(c=>{ const v=document.getElementById('inv_'+c.id)?.value; if(v!==undefined && v!==(+c.stock_actuel).toFixed(2)) b.q[c.id]=v;
+    const m=document.getElementById('invM_'+c.id)?.value, j=document.getElementById('invJ_'+c.id)?.value; if(m) b.m[c.id]=m; if(j) b.j[c.id]=j; });
+  ['invResp','invCtrl','invObs','invDate'].forEach(id=>{ b[id]=document.getElementById(id)?.value||''; });
+  try{ localStorage.setItem(invCleBrouillon(),JSON.stringify(b)); }catch(e){}
+}
+function invEffacerBrouillon(recharger){ try{ localStorage.removeItem(invCleBrouillon()); }catch(e){} if(recharger) showPage('stock-inventaire'); }
 async function renderStockInventaire(el){
   const depots=await chargerDepots(true);
   if(!window._inventaireDepot||!depots.some(d=>d.id===window._inventaireDepot)) window._inventaireDepot=depotPrincipalId();
@@ -3220,76 +3257,288 @@ async function renderStockInventaire(el){
   ]);
   const qDepot=Object.fromEntries((stocks||[]).map(s=>[s.composant_id,+s.quantite||0]));
   // stock_actuel est remplacé ici par le stock DU DÉPÔT inventorié
-  const data=(composants||[]).map(c=>({...c,stock_actuel:qDepot[c.id]||0}));
+  const data=(composants||[]).map(c=>({...c,stock_actuel:qDepot[c.id]||0,cmup_calc:+c.cmup||+c.prix_unitaire||0}));
   window._inventaireCache=data;
+  const br=invLireBrouillon(), nbBr=br?Object.keys(br.q||{}).length+Object.keys(br.m||{}).length:0;
+  const auj=new Date().toISOString().slice(0,10);
   el.innerHTML=`
     <div class="flex flex-wrap items-end gap-3 mb-3">
       <div class="field"><label>Dépôt inventorié</label>${fieldWrap('🏭',`<select onchange="window._inventaireDepot=this.value;showPage('stock-inventaire')">${depotOptionsHtml(window._inventaireDepot)}</select>`)}</div>
+      <div class="field"><label>Date de l'inventaire</label>${fieldWrap('📅',`<input type="date" id="invDate" max="${auj}" value="${escapeHtml(br?.invDate||auj)}" onchange="invSauverBrouillon()">`)}</div>
+      <div class="field"><label>Responsable du comptage</label>${fieldWrap('👷',`<input id="invResp" value="${escapeHtml(br?.invResp||'')}" placeholder="Magasinier / équipe" oninput="invSauverBrouillon()">`)}</div>
+      <div class="field"><label>Contrôleur</label>${fieldWrap('🔍',`<input id="invCtrl" value="${escapeHtml(br?.invCtrl||'')}" placeholder="Contrôleur / témoin" oninput="invSauverBrouillon()">`)}</div>
+      <div class="ml-auto flex gap-2 flex-wrap">
+        <button class="btn btn-outline" onclick="imprimerFeuilleComptage()" title="Liste à compter, sans le stock système (comptage à l'aveugle)">🖨 Feuille de comptage</button>
+        <button class="btn btn-outline" onclick="showPage('stock-inventaires')">📚 États d'inventaire</button>
+      </div>
     </div>
-    <div class="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-3 py-2 mb-3">🧮 Saisissez la quantité réellement comptée dans <b>${escapeHtml(depotNom(window._inventaireDepot))}</b>. Seuls les écarts génèrent un mouvement d'inventaire — le reste n'est pas touché.</div>
+    ${nbBr?`<div class="text-xs bg-amber-50 text-amber-800 border border-amber-200 rounded-lg px-3 py-2 mb-3 flex items-center gap-2">💾 Brouillon restauré (${nbBr} saisie(s) du ${new Date(br.t).toLocaleString('fr-FR')}) — les saisies sont conservées sur cet appareil jusqu'à la validation.<button class="btn btn-outline text-xs ml-auto" onclick="if(confirm('Effacer le brouillon et repartir du stock système ?'))invEffacerBrouillon(true)">Effacer le brouillon</button></div>`:''}
+    <div class="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-3 py-2 mb-3">🧮 Saisissez la quantité réellement comptée dans <b>${escapeHtml(depotNom(window._inventaireDepot))}</b>. <b>Chaque écart doit être justifié</b> (motif + commentaire, obligatoire pour « Autre ») avant la validation. Seuls les écarts génèrent un mouvement de stock ; l'état d'inventaire est ensuite imprimable.</div>
     <div class="card p-3 mb-3 flex flex-wrap gap-2 items-center" style="position:sticky;top:64px;z-index:5">
       <div class="flex-1 min-w-[220px]">${fieldWrap('🔎',`<input id="invQ" placeholder="Rechercher un article : nom, code, référence, emplacement…" oninput="filtrerInventaire()" onkeydown="if(event.key==='Enter'){event.preventDefault();inventaireAllerPremier();}" autofocus>`)}</div>
       <select id="invFam" style="width:auto;min-width:170px" onchange="filtrerInventaire()"><option value="">Toutes les familles</option>${[...new Set(data.map(c=>c.famille||'Autre'))].sort().map(f=>`<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}</select>
-      <select id="invVue" style="width:auto;min-width:170px" onchange="filtrerInventaire()"><option value="">Tous les articles</option><option value="ecarts">Écarts seulement</option><option value="stock">En stock (système ≠ 0)</option><option value="vide">Stock système à 0</option></select>
+      <select id="invVue" style="width:auto;min-width:170px" onchange="filtrerInventaire()"><option value="">Tous les articles</option><option value="ecarts">Écarts seulement</option><option value="nonjust">Écarts non justifiés</option><option value="stock">En stock (système ≠ 0)</option><option value="vide">Stock système à 0</option></select>
       <span id="invCompteur" class="text-xs text-gray-500 ml-auto whitespace-nowrap"></span>
     </div>
     <div class="card overflow-x-auto">
-      <table><thead><tr><th>Composant</th><th>Famille</th><th class="text-right">Stock système</th><th class="text-right">Quantité comptée</th><th class="text-right">Écart</th></tr></thead>
+      <table><thead><tr><th>Composant</th><th>Famille</th><th class="text-right">Stock système</th><th class="text-right">Quantité comptée</th><th class="text-right">Écart</th><th class="text-right">Valeur écart</th><th style="min-width:250px">Justification de l'écart</th></tr></thead>
       <tbody>${data.map(c=>`<tr data-comp="${c.id}" data-fam="${escapeHtml(c.famille||'Autre')}" data-txt="${escapeHtml([c.nom,c.code,c.reference,c.famille,c.emplacement].filter(Boolean).join(' ').toLowerCase())}">
         <td><div class="flex items-center gap-2">${c.photo?`<img src="${c.photo}" alt="" style="width:30px;height:30px;object-fit:cover;border-radius:7px">`:''}<div>${escapeHtml(c.nom)}${c.code||c.reference?`<div class="text-[10px] text-gray-400">${escapeHtml([c.code,c.reference].filter(Boolean).join(' · '))}</div>`:''}</div></div></td><td>${escapeHtml(c.famille||'—')}${c.emplacement?`<div class="text-[10px] text-gray-400">📍 ${escapeHtml(c.emplacement)}</div>`:''}</td>
-        <td class="text-right">${(+c.stock_actuel).toFixed(2)} ${escapeHtml(c.unite)}</td>
-        <td class="text-right"><input type="number" step="0.01" style="width:100px;text-align:right" value="${(+c.stock_actuel).toFixed(2)}" id="inv_${c.id}" oninput="updateEcartInventaire('${c.id}');if(document.getElementById('invVue')?.value==='ecarts')filtrerInventaire(true)" onkeydown="if(event.key==='Enter'){event.preventDefault();const q=document.getElementById('invQ');q.focus();q.select();}" onfocus="this.select()"></td>
-        <td class="text-right font-semibold" id="ecart_${c.id}">0</td>
+        <td class="text-right whitespace-nowrap">${(+c.stock_actuel).toFixed(2)} ${escapeHtml(c.unite)}</td>
+        <td class="text-right"><input type="number" step="0.01" min="0" style="width:100px;text-align:right" value="${escapeHtml(br?.q?.[c.id]??(+c.stock_actuel).toFixed(2))}" id="inv_${c.id}" oninput="updateEcartInventaire('${c.id}');invSauverBrouillon();if(['ecarts','nonjust'].includes(document.getElementById('invVue')?.value))filtrerInventaire(true)" onkeydown="if(event.key==='Enter'){event.preventDefault();const s=document.getElementById('invM_${c.id}');if(s&&!s.closest('.hidden')&&!s.value){s.focus();}else{const q=document.getElementById('invQ');q.focus();q.select();}}" onfocus="this.select()"></td>
+        <td class="text-right font-semibold whitespace-nowrap" id="ecart_${c.id}">0</td>
+        <td class="text-right whitespace-nowrap text-xs" id="valEcart_${c.id}"></td>
+        <td><div id="just_${c.id}" class="hidden flex flex-col gap-1">
+          <select id="invM_${c.id}" class="border rounded-lg px-2 py-1 text-xs" onchange="invJustMaj('${c.id}')" data-choisi="${escapeHtml(br?.m?.[c.id]||'')}"></select>
+          <input id="invJ_${c.id}" class="border rounded-lg px-2 py-1 text-xs" placeholder="Commentaire (obligatoire si « Autre »)" value="${escapeHtml(br?.j?.[c.id]||'')}" oninput="invJustMaj('${c.id}')" onkeydown="if(event.key==='Enter'){event.preventDefault();const q=document.getElementById('invQ');q.focus();q.select();}"></div>
+          <span id="justVide_${c.id}" class="text-gray-300 text-xs">—</span></td>
       </tr>`).join('')}</tbody></table>
       <div id="invVide" class="hidden text-center text-gray-400 p-6">Aucun article ne correspond à la recherche.</div>
     </div>
-    <div class="flex justify-end mt-4"><button class="btn btn-primary px-8 py-2.5" onclick="validerInventaire()">✔ Valider l'inventaire</button></div>`;
+    <div class="card p-3 mt-3"><label class="text-xs font-semibold text-gray-500">Observations générales</label>
+      <textarea id="invObs" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="Conditions du comptage, zones non inventoriées, remarques…" oninput="invSauverBrouillon()">${escapeHtml(br?.invObs||'')}</textarea></div>
+    <div class="flex justify-end items-center gap-3 mt-4"><span id="invBilan" class="text-sm text-gray-500"></span><button class="btn btn-primary px-8 py-2.5" id="invValiderBtn" onclick="validerInventaire()">✔ Valider l'inventaire</button></div>`;
+  data.forEach(c=>updateEcartInventaire(c.id,true));
   filtrerInventaire();
 }
+function invEtatLigne(c){
+  const compte=+document.getElementById('inv_'+c.id)?.value||0, ecart=compte-(+c.stock_actuel||0), avecEcart=Math.abs(ecart)>0.0001;
+  const m=document.getElementById('invM_'+c.id)?.value||'', j=(document.getElementById('invJ_'+c.id)?.value||'').trim();
+  return {compte,ecart:avecEcart?ecart:0,avecEcart,motif:m,justification:j,justifie:!avecEcart||(!!m&&(m!=='autre'||!!j)),valeur:avecEcart?ecart*c.cmup_calc:0};
+}
 /* Recherche dans l'inventaire : masque les lignes sans effacer les quantités déjà saisies.
-   Entrée dans la recherche → saisie de la quantité du 1er article trouvé ; Entrée dans la quantité → retour à la recherche. */
+   Entrée dans la recherche → saisie de la quantité du 1er article trouvé ; Entrée dans la quantité → motif (si écart) ou retour à la recherche. */
 function filtrerInventaire(garderFocus){
-  const q=(document.getElementById('invQ')?.value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const q=(document.getElementById('invQ')?.value||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
   const mots=q.split(/\s+/).filter(Boolean);
   const fam=document.getElementById('invFam')?.value||'', vue=document.getElementById('invVue')?.value||'';
-  let vis=0, ecarts=0; const data=window._inventaireCache||[];
+  let vis=0, ecarts=0, nonJust=0, plus=0, moins=0; const data=window._inventaireCache||[];
   data.forEach(c=>{
     const tr=document.querySelector(`tr[data-comp="${c.id}"]`); if(!tr) return;
-    const inp=document.getElementById('inv_'+c.id), ecart=Math.abs((+inp.value||0)-(+c.stock_actuel||0))>0.0001;
-    if(ecart) ecarts++;
-    const txt=tr.dataset.txt.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const e=invEtatLigne(c), actif=tr.contains(document.activeElement);
+    if(e.avecEcart){ ecarts++; if(e.valeur>0) plus+=e.valeur; else moins+=e.valeur; } if(!e.justifie) nonJust++;
+    const txt=tr.dataset.txt.normalize('NFD').replace(/[̀-ͯ]/g,'');
     const ok=mots.every(m=>txt.includes(m)) && (!fam||tr.dataset.fam===fam)
-      && (vue!=='ecarts'||ecart||(garderFocus&&document.activeElement===inp)) && (vue!=='stock'||Math.abs(+c.stock_actuel)>0.0001) && (vue!=='vide'||Math.abs(+c.stock_actuel)<=0.0001);
+      && (vue!=='ecarts'||e.avecEcart||(garderFocus&&actif)) && (vue!=='nonjust'||!e.justifie||(garderFocus&&actif))
+      && (vue!=='stock'||Math.abs(+c.stock_actuel)>0.0001) && (vue!=='vide'||Math.abs(+c.stock_actuel)<=0.0001);
     tr.style.display=ok?'':'none'; if(ok) vis++;
   });
-  const cpt=document.getElementById('invCompteur'); if(cpt) cpt.innerHTML=`${vis} / ${data.length} article(s) affiché(s) · <b class="${ecarts?'text-amber-700':''}">${ecarts} écart(s)</b>`;
+  const cpt=document.getElementById('invCompteur'); if(cpt) cpt.innerHTML=`${vis} / ${data.length} article(s) · <b class="${ecarts?'text-amber-700':''}">${ecarts} écart(s)</b>${nonJust?` · <b class="text-red-600">${nonJust} non justifié(s)</b>`:ecarts?' · <span class="text-emerald-600">✔ tous justifiés</span>':''}`;
+  const bil=document.getElementById('invBilan'); if(bil) bil.innerHTML=ecarts?`Excédents <b class="text-emerald-600">+${money(plus)}</b> · Manquants <b class="text-red-600">${money(moins)}</b> · Net <b>${money(plus+moins)}</b>`:'Aucun écart saisi';
   document.getElementById('invVide')?.classList.toggle('hidden',vis>0);
 }
 function inventaireAllerPremier(){
   const tr=[...document.querySelectorAll('tr[data-comp]')].find(t=>t.style.display!=='none'); if(!tr) return;
   const inp=document.getElementById('inv_'+tr.dataset.comp); inp.focus(); inp.select(); tr.scrollIntoView({block:'center'});
 }
-function updateEcartInventaire(compId){
+function updateEcartInventaire(compId,init){
   const c=(window._inventaireCache||[]).find(x=>x.id===compId); if(!c) return;
-  const compte=+document.getElementById('inv_'+compId).value||0;
-  const ecart=compte-(+c.stock_actuel||0);
+  const e=invEtatLigne(c);
   const elE=document.getElementById('ecart_'+compId);
-  elE.textContent=(ecart>0?'+':'')+ecart.toFixed(2);
-  elE.style.color=ecart===0?'#9ca3af':ecart>0?'#059669':'#dc2626';
-  const cpt=document.getElementById('invCompteur'); if(cpt && !document.getElementById('invVue')?.value) filtrerInventaire();
+  elE.textContent=e.avecEcart?(e.ecart>0?'+':'')+fmtQ(e.ecart):'0';
+  elE.style.color=!e.avecEcart?'#9ca3af':e.ecart>0?'#059669':'#dc2626';
+  document.getElementById('valEcart_'+compId).innerHTML=e.avecEcart?`<span style="color:${e.valeur>=0?'#059669':'#dc2626'}">${e.valeur>0?'+':''}${money(e.valeur)}</span>`:'';
+  const zone=document.getElementById('just_'+compId), sel=document.getElementById('invM_'+compId);
+  zone.classList.toggle('hidden',!e.avecEcart); document.getElementById('justVide_'+compId).classList.toggle('hidden',e.avecEcart);
+  if(e.avecEcart){ const choisi=sel.value||sel.dataset.choisi||''; const sig=String(Math.sign(e.ecart)); if(sel.dataset.sens!==sig||!sel.options.length){ sel.innerHTML=invMotifOptions(e.ecart,choisi); sel.dataset.sens=sig; } }
+  invJustMaj(compId,true);
+  if(!init){ const cpt=document.getElementById('invCompteur'); if(cpt && !document.getElementById('invVue')?.value) filtrerInventaire(); }
+}
+function invJustMaj(compId,sansFiltre){
+  const c=(window._inventaireCache||[]).find(x=>x.id===compId); if(!c) return;
+  const e=invEtatLigne(c), tr=document.querySelector(`tr[data-comp="${compId}"]`);
+  if(tr) tr.style.background=e.avecEcart&&!e.justifie?'#fffbeb':'';
+  const j=document.getElementById('invJ_'+compId); if(j) j.style.borderColor=e.motif==='autre'&&!e.justification?'#f87171':'';
+  const s=document.getElementById('invM_'+compId); if(s) s.style.borderColor=e.avecEcart&&!e.motif?'#f59e0b':'';
+  if(!sansFiltre){ invSauverBrouillon(); filtrerInventaire(true); }
 }
 async function validerInventaire(){
   const data=window._inventaireCache||[];
-  const aTraiter=data.filter(c=>{ const compte=+document.getElementById('inv_'+c.id).value; return Math.abs(compte-(+c.stock_actuel||0))>0.0001; });
-  if(!aTraiter.length){ toast('Aucun écart à enregistrer.'); return; }
-  if(!confirm(`${aTraiter.length} écart(s) détecté(s). Enregistrer l'inventaire ?`)) return;
-  for(const c of aTraiter){
-    const compte=+document.getElementById('inv_'+c.id).value;
-    await sb.rpc('stock_mouvement',{p_composant_id:c.id,p_type:'inventaire',p_quantite:compte,p_motif:'Inventaire physique',p_reference:null,p_prix_unitaire:null,p_depot_id:window._inventaireDepot});
+  const etats=data.map(c=>({c,e:invEtatLigne(c)}));
+  const neg=etats.find(x=>x.e.compte<0); if(neg){ toast(`Quantité négative sur « ${neg.c.nom} ».`,'error'); return; }
+  const ecarts=etats.filter(x=>x.e.avecEcart);
+  const manquant=ecarts.find(x=>!x.e.justifie);
+  if(manquant){
+    document.getElementById('invVue').value='nonjust'; document.getElementById('invQ').value=''; document.getElementById('invFam').value=''; filtrerInventaire();
+    const cible=manquant.e.motif?document.getElementById('invJ_'+manquant.c.id):document.getElementById('invM_'+manquant.c.id);
+    cible?.focus(); cible?.scrollIntoView({block:'center'});
+    toast(`${ecarts.filter(x=>!x.e.justifie).length} écart(s) non justifié(s) : choisissez un motif${manquant.e.motif==='autre'?' et précisez « Autre »':''} (ex. « ${manquant.c.nom} »).`,'error'); return;
   }
-  toast(`Inventaire enregistré : ${aTraiter.length} écart(s).`);
+  if(!navigator.onLine){ toast("📴 Connexion requise pour valider l'inventaire. Vos saisies sont conservées sur cet appareil.",'error'); return; }
+  const plus=ecarts.reduce((s,x)=>s+Math.max(0,x.e.valeur),0), moins=ecarts.reduce((s,x)=>s+Math.min(0,x.e.valeur),0);
+  if(!confirm(`Valider l'inventaire de ${depotNom(window._inventaireDepot)} ?\n\n${data.length} article(s) comptés · ${ecarts.length} écart(s) justifiés\nExcédents : +${money(plus)} · Manquants : ${money(moins)} · Net : ${money(plus+moins)}\n\nLes stocks seront ajustés et l'état d'inventaire sera enregistré (non modifiable, sauf justification par un responsable).`)) return;
+  const btn=document.getElementById('invValiderBtn'); if(btn){ btn.disabled=true; btn.textContent='Validation…'; }
+  const lignes=etats.map(({c,e})=>({composant_id:c.id,quantite_comptee:e.compte,motif:e.avecEcart?e.motif:null,justification:e.avecEcart?e.justification||null:null}));
+  const {data:inv,error}=await sb.rpc('inventaire_valider',{p_depot:window._inventaireDepot,p_date:val('invDate')||null,p_responsable:val('invResp')||null,p_controleur:val('invCtrl')||null,p_observations:document.getElementById('invObs').value.trim()||null,p_lignes:lignes});
+  if(error){
+    if(btn){ btn.disabled=false; btn.textContent="✔ Valider l'inventaire"; }
+    toast(/inventaire_valider|function/.test(error.message)&&/not find|exist/i.test(error.message)?'Fonction inventaire_valider absente : exécutez sql/inventaires.sql dans Supabase.':error.message,'error'); return;
+  }
+  const r=Array.isArray(inv)?inv[0]:inv;
+  invEffacerBrouillon(false);
+  toast(`Inventaire ${r.code} validé : ${r.nb_ecarts} écart(s) ajusté(s).`);
   refreshStockAlertesBadge();
-  showPage('stock-inventaire');
+  window._inventaireVoir=r.id; showPage('stock-inventaire-view');
+}
+/* ---------- Feuille de comptage (comptage à l'aveugle : sans le stock système) ---------- */
+async function imprimerFeuilleComptage(){
+  const win=window.open('','_blank','width=1000,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const fam=document.getElementById('invFam')?.value||'';
+  const data=(window._inventaireCache||[]).filter(c=>!fam||(c.famille||'Autre')===fam);
+  const groupes={}; data.forEach(c=>(groupes[c.famille||'Autre']=groupes[c.famille||'Autre']||[]).push(c));
+  let n=0;
+  const corps=Object.entries(groupes).map(([f,l])=>`<tr class="grp"><td colspan="7">${escapeHtml(f)} (${l.length})</td></tr>`+l.map(c=>`<tr><td>${++n}</td><td>${escapeHtml(c.code||c.reference||'')}</td><td>${escapeHtml(c.nom)}</td><td>${escapeHtml(c.emplacement||'')}</td><td>${escapeHtml(c.unite||'')}</td><td class="blanc"></td><td class="blanc"></td></tr>`).join('')).join('');
+  await impEcrire(win,{type:'FEUILLE_COMPTAGE',titre:'Feuille de comptage',niveau:'Dépôt : '+depotNom(window._inventaireDepot),periode:val('invDate'),contenu:true},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Feuille de comptage — ${escapeHtml(depotNom(window._inventaireDepot))}</title>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:26px;color:#111827;font-size:11.5px}table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border:1px solid #94a3b8;padding:5px 6px;text-align:left}th{background:#f1f5f9;font-size:10px;text-transform:uppercase}.grp td{background:#e2e8f0;font-weight:700}.blanc{width:110px}
+    thead{display:table-header-group}tr{break-inside:avoid}@page{size:A4;margin:12mm}@media print{body{padding:0}}</style></head><body>
+    <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+    <h1 style="font-size:18px;margin:0">FEUILLE DE COMPTAGE — INVENTAIRE PHYSIQUE</h1>
+    <div style="color:#475569;margin:3px 0 4px">Dépôt : <b>${escapeHtml(depotNom(window._inventaireDepot))}</b>${fam?' · Famille : <b>'+escapeHtml(fam)+'</b>':''} · Date : ${val('invDate')?new Date(val('invDate')+'T00:00:00').toLocaleDateString('fr-FR'):'……/……/……'} · ${data.length} article(s)</div>
+    <div style="font-size:10.5px;color:#64748b">Comptage à l'aveugle : le stock système n'est pas indiqué. Compter chaque article, noter la quantité et toute anomalie (casse, article non référencé…).</div>
+    <table><thead><tr><th>#</th><th>Code</th><th>Désignation</th><th>Emplacement</th><th>Unité</th><th>Qté comptée</th><th>Observations</th></tr></thead><tbody>${corps}</tbody></table>
+    <div style="display:flex;gap:30px;margin-top:36px">${['Compteur','Contrôleur','Responsable du dépôt'].map(x=>`<div style="flex:1;border-top:1px solid #111827;padding-top:6px;text-align:center">${x}<br><span style="font-size:10px;color:#64748b">Nom, date et signature</span></div>`).join('')}</div>
+    <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`);
+}
+/* ---------- États d'inventaire : liste des sessions ---------- */
+async function renderStockInventaires(el){
+  await chargerDepots(true);
+  const {data,error}=await sb.from('inventaires').select('*').order('date_inventaire',{ascending:false}).order('created_at',{ascending:false}).limit(300);
+  if(error){ el.innerHTML=`<div class="card p-6 text-sm text-amber-700">États d'inventaire indisponibles : ${escapeHtml(error.message)}<br>Exécutez <b>sql/inventaires.sql</b> dans Supabase.</div>`; return; }
+  const l=data||[];
+  const tot=(k)=>l.reduce((s,i)=>s+(+i[k]||0),0);
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
+      <p class="text-xs text-gray-500">Chaque inventaire validé est figé : stock système, quantité comptée, écart valorisé au CMUP et justification de chaque écart.</p>
+      <button class="btn btn-primary" onclick="showPage('stock-inventaire')">🧮 Nouvel inventaire</button>
+    </div>
+    <div class="grid sm:grid-cols-4 gap-3 mb-4">
+      <div class="card p-4"><div class="text-xs text-gray-400 font-semibold uppercase">Inventaires validés</div><div class="text-2xl font-black mt-1">${l.length}</div></div>
+      <div class="card p-4"><div class="text-xs text-gray-400 font-semibold uppercase">Écarts justifiés</div><div class="text-2xl font-black mt-1" style="color:#d97706">${tot('nb_ecarts')}</div></div>
+      <div class="card p-4"><div class="text-xs text-gray-400 font-semibold uppercase">Excédents cumulés</div><div class="text-xl font-black mt-1" style="color:#059669">+${money(tot('ecart_positif'))}</div></div>
+      <div class="card p-4"><div class="text-xs text-gray-400 font-semibold uppercase">Manquants cumulés</div><div class="text-xl font-black mt-1" style="color:#dc2626">${money(tot('ecart_negatif'))}</div></div>
+    </div>
+    <div class="card overflow-x-auto">${l.length?`<table><thead><tr><th>N°</th><th>Date</th><th>Dépôt</th><th>Comptage / contrôle</th><th class="text-right">Articles</th><th class="text-right">Écarts</th><th class="text-right">Valeur théorique</th><th class="text-right">Valeur réelle</th><th class="text-right">Écart net</th><th></th></tr></thead><tbody>
+      ${l.map(i=>{ const net=(+i.ecart_positif||0)+(+i.ecart_negatif||0); return `<tr class="cursor-pointer hover:bg-gray-50" onclick="window._inventaireVoir='${i.id}';showPage('stock-inventaire-view')">
+        <td class="font-mono font-semibold">${escapeHtml(i.code)}</td><td>${fmtDate(i.date_inventaire)}</td><td>${escapeHtml(i.depot_nom||depotNom(i.depot_id))}</td>
+        <td class="text-xs">${escapeHtml(i.responsable||'—')}${i.controleur?`<div class="text-gray-400">Contrôle : ${escapeHtml(i.controleur)}</div>`:''}</td>
+        <td class="text-right">${i.nb_articles}</td><td class="text-right">${i.nb_ecarts}</td>
+        <td class="text-right">${money(i.valeur_theorique)}</td><td class="text-right">${money(i.valeur_reelle)}</td>
+        <td class="text-right font-semibold" style="color:${net>0?'#059669':net<0?'#dc2626':'#6b7280'}">${net>0?'+':''}${money(net)}</td>
+        <td class="whitespace-nowrap" onclick="event.stopPropagation()"><button class="btn btn-outline text-xs" onclick="imprimerEtatInventaire('${i.id}',false)" title="État des écarts">🖨</button></td></tr>`; }).join('')}
+      </tbody></table>`:'<div class="p-8 text-center text-gray-400">Aucun inventaire validé.</div>'}</div>`;
+}
+async function chargerInventaire(id){
+  const [{data:inv},{data:lignes}]=await Promise.all([
+    sb.from('inventaires').select('*').eq('id',id).maybeSingle(),
+    sb.from('inventaire_lignes').select('*').eq('inventaire_id',id).order('famille').order('designation')
+  ]);
+  return {inv,lignes:lignes||[]};
+}
+function invSyntheses(lignes){
+  const parMotif={}, parFamille={};
+  lignes.forEach(l=>{
+    const f=parFamille[l.famille||'Autre']=parFamille[l.famille||'Autre']||{n:0,ne:0,vt:0,vr:0,ep:0,en:0};
+    f.n++; f.vt+=(+l.stock_systeme||0)*(+l.cmup||0); f.vr+=(+l.quantite_comptee||0)*(+l.cmup||0);
+    if(+l.ecart){ f.ne++; if(+l.valeur_ecart>0) f.ep+=+l.valeur_ecart; else f.en+=+l.valeur_ecart;
+      const m=parMotif[l.motif||'—']=parMotif[l.motif||'—']||{n:0,ep:0,en:0}; m.n++; if(+l.valeur_ecart>0) m.ep+=+l.valeur_ecart; else m.en+=+l.valeur_ecart; }
+  });
+  return {parMotif,parFamille};
+}
+/* ---------- État d'inventaire (détail d'une session) ---------- */
+async function renderInventaireDetail(el){
+  const id=window._inventaireVoir; if(!id){ showPage('stock-inventaires'); return; }
+  const {inv,lignes}=await chargerInventaire(id);
+  if(!inv){ el.innerHTML='<div class="card p-6 text-gray-400">Inventaire introuvable.</div>'; return; }
+  window._inventaireDetail={inv,lignes};
+  const {parMotif,parFamille}=invSyntheses(lignes);
+  const net=(+inv.ecart_positif||0)+(+inv.ecart_negatif||0);
+  const fiab=inv.nb_articles?Math.round(100*(inv.nb_articles-inv.nb_ecarts)/inv.nb_articles):100;
+  const gest=['admin','manager'].includes(monRole()?.code);
+  const ecarts=lignes.filter(l=>+l.ecart);
+  const tuile=(t,v,c)=>`<div class="card p-3"><div class="text-[11px] text-gray-400 font-semibold uppercase">${t}</div><div class="text-lg font-black mt-0.5" style="color:${c||'inherit'}">${v}</div></div>`;
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-start gap-3 mb-3">
+      <div><div class="text-xl font-black font-mono">${escapeHtml(inv.code)}</div>
+        <div class="text-sm text-gray-500">${escapeHtml(inv.depot_nom||depotNom(inv.depot_id))} · inventaire du ${fmtDate(inv.date_inventaire)} · validé le ${new Date(inv.created_at).toLocaleString('fr-FR')} par ${escapeHtml(inv.valide_par_nom||'—')}</div>
+        <div class="text-xs text-gray-500">Comptage : <b>${escapeHtml(inv.responsable||'—')}</b> · Contrôle : <b>${escapeHtml(inv.controleur||'—')}</b></div></div>
+      <div class="flex gap-2 flex-wrap"><button class="btn btn-outline" onclick="showPage('stock-inventaires')">← États d'inventaire</button>
+        <button class="btn btn-outline" onclick="imprimerEtatInventaire('${inv.id}',true)">🖨 État complet</button>
+        <button class="btn btn-primary" onclick="imprimerEtatInventaire('${inv.id}',false)">🖨 État des écarts et justifications</button></div>
+    </div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-4">
+      ${tuile('Articles comptés',inv.nb_articles)}${tuile('Écarts',inv.nb_ecarts,inv.nb_ecarts?'#d97706':'')}${tuile('Fiabilité',fiab+' %',fiab>=95?'#059669':fiab>=85?'#d97706':'#dc2626')}
+      ${tuile('Valeur théorique',money(inv.valeur_theorique))}${tuile('Valeur réelle',money(inv.valeur_reelle))}
+      ${tuile('Excédents','+'+money(inv.ecart_positif),'#059669')}${tuile('Manquants',money(inv.ecart_negatif),'#dc2626')}${tuile('Écart net',(net>0?'+':'')+money(net),net>0?'#059669':net<0?'#dc2626':'')}
+    </div>
+    ${inv.observations?`<div class="card p-3 mb-4 text-sm"><b>Observations :</b> ${escapeHtml(inv.observations)}</div>`:''}
+    <div class="grid lg:grid-cols-2 gap-4 mb-4">
+      <div class="card overflow-x-auto"><div class="p-3 font-bold">Justification des écarts — synthèse par motif</div>
+        ${Object.keys(parMotif).length?`<table><thead><tr><th>Motif</th><th class="text-right">Lignes</th><th class="text-right">Excédents</th><th class="text-right">Manquants</th></tr></thead><tbody>
+        ${Object.entries(parMotif).sort((a,b)=>(a[1].en+a[1].ep)-(b[1].en+b[1].ep)).map(([m,v])=>`<tr><td>${escapeHtml(invMotifLabel(m))}</td><td class="text-right">${v.n}</td><td class="text-right text-emerald-600">${v.ep?'+'+money(v.ep):''}</td><td class="text-right text-red-600">${v.en?money(v.en):''}</td></tr>`).join('')}</tbody></table>`:'<div class="px-3 pb-3 text-sm text-gray-400">Aucun écart : stock conforme.</div>'}</div>
+      <div class="card overflow-x-auto"><div class="p-3 font-bold">Synthèse par famille</div>
+        <table><thead><tr><th>Famille</th><th class="text-right">Articles</th><th class="text-right">Écarts</th><th class="text-right">Val. théorique</th><th class="text-right">Val. réelle</th><th class="text-right">Écart net</th></tr></thead><tbody>
+        ${Object.entries(parFamille).map(([f,v])=>`<tr><td>${escapeHtml(f)}</td><td class="text-right">${v.n}</td><td class="text-right">${v.ne}</td><td class="text-right">${money(v.vt)}</td><td class="text-right">${money(v.vr)}</td><td class="text-right" style="color:${v.ep+v.en>0?'#059669':v.ep+v.en<0?'#dc2626':''}">${money(v.ep+v.en)}</td></tr>`).join('')}</tbody></table></div>
+    </div>
+    <div class="card overflow-x-auto">
+      <div class="p-3 flex flex-wrap justify-between items-center gap-2"><b>Détail ${window._invDetailTout?'de tous les articles':'des écarts et justifications'}</b>
+        <label class="text-xs flex items-center gap-2"><input type="checkbox" ${window._invDetailTout?'checked':''} onchange="window._invDetailTout=this.checked;showPage('stock-inventaire-view')"> Afficher tous les articles</label></div>
+      <table><thead><tr><th>Article</th><th>Famille</th><th class="text-right">Stock système</th><th class="text-right">Compté</th><th class="text-right">Écart</th><th class="text-right">CMUP</th><th class="text-right">Valeur écart</th><th>Justification</th></tr></thead><tbody>
+      ${(window._invDetailTout?lignes:ecarts).map(l=>`<tr><td>${escapeHtml(l.designation)}${l.code_article?`<div class="text-[10px] text-gray-400">${escapeHtml(l.code_article)}</div>`:''}</td><td>${escapeHtml(l.famille||'')}</td>
+        <td class="text-right whitespace-nowrap">${fmtQ(l.stock_systeme)} ${escapeHtml(l.unite||'')}</td><td class="text-right">${fmtQ(l.quantite_comptee)}</td>
+        <td class="text-right font-semibold" style="color:${+l.ecart>0?'#059669':+l.ecart<0?'#dc2626':'#9ca3af'}">${+l.ecart>0?'+':''}${fmtQ(l.ecart)}</td>
+        <td class="text-right text-xs">${money(l.cmup)}</td><td class="text-right" style="color:${+l.valeur_ecart>0?'#059669':+l.valeur_ecart<0?'#dc2626':''}">${+l.ecart?(+l.valeur_ecart>0?'+':'')+money(l.valeur_ecart):''}</td>
+        <td class="text-xs">${+l.ecart?`<b>${escapeHtml(invMotifLabel(l.motif))}</b>${l.justification?`<div>${escapeHtml(l.justification)}</div>`:''}<div class="text-gray-400">${escapeHtml(l.justifie_par||'')}${l.justifie_le?' · '+new Date(l.justifie_le).toLocaleString('fr-FR'):''}</div>${gest?`<button class="text-indigo-600 underline" onclick="invModifierJustification('${l.id}')">Modifier</button>`:''}`:''}</td></tr>`).join('')||'<tr><td colspan="8" class="text-center text-gray-400 p-4">Aucun écart.</td></tr>'}
+      </tbody></table></div>`;
+}
+function invModifierJustification(ligneId){
+  const l=(window._inventaireDetail?.lignes||[]).find(x=>x.id===ligneId); if(!l) return;
+  openModal(`<h3 class="font-bold text-lg mb-1">Justification de l'écart</h3>
+    <p class="text-sm text-gray-500 mb-3">${escapeHtml(l.designation)} : ${fmtQ(l.stock_systeme)} → ${fmtQ(l.quantite_comptee)} (${+l.ecart>0?'+':''}${fmtQ(l.ecart)} ${escapeHtml(l.unite||'')}, ${money(l.valeur_ecart)})</p>
+    <div class="field mb-2"><label>Motif</label><select id="ijMotif" class="border rounded-lg px-3 py-2 w-full">${invMotifOptions(+l.ecart,l.motif)}</select></div>
+    <div class="field"><label>Commentaire / pièce justificative</label><textarea id="ijTexte" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Ex : BL n° … du …, PV de casse n° …">${escapeHtml(l.justification||'')}</textarea></div>
+    <p class="text-xs text-gray-400 mt-2">La modification est tracée (auteur et date). Elle ne change pas le stock.</p>
+    <div class="flex justify-end gap-2 mt-4"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="invEnregistrerJustification('${l.id}')">Enregistrer</button></div>`);
+}
+async function invEnregistrerJustification(ligneId){
+  const {error}=await sb.rpc('inventaire_justifier',{p_ligne:ligneId,p_motif:val('ijMotif'),p_justification:document.getElementById('ijTexte').value.trim()||null});
+  if(error){ toast(error.message,'error'); return; }
+  closeModal(); toast('Justification enregistrée.'); showPage('stock-inventaire-view');
+}
+/* ---------- Impression de l'état d'inventaire ---------- */
+async function imprimerEtatInventaire(id,complet){
+  const win=window.open('','_blank','width=1000,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const {inv,lignes}=await chargerInventaire(id); if(!inv){ win.close(); return; }
+  const {parMotif,parFamille}=invSyntheses(lignes);
+  const m=n=>money(n), net=(+inv.ecart_positif||0)+(+inv.ecart_negatif||0);
+  const fiab=inv.nb_articles?Math.round(100*(inv.nb_articles-inv.nb_ecarts)/inv.nb_articles):100;
+  const col=v=>+v>0?'color:#047857':+v<0?'color:#b91c1c':'';
+  const ligne=l=>`<tr><td>${escapeHtml(l.code_article||'')}</td><td>${escapeHtml(l.designation)}</td><td class="r">${fmtQ(l.stock_systeme)}</td><td class="r">${fmtQ(l.quantite_comptee)}</td><td class="r" style="${col(l.ecart)}">${+l.ecart?(+l.ecart>0?'+':'')+fmtQ(l.ecart):'—'}</td><td>${escapeHtml(l.unite||'')}</td><td class="r">${m(l.cmup)}</td><td class="r" style="${col(l.valeur_ecart)}">${+l.ecart?(+l.valeur_ecart>0?'+':'')+m(l.valeur_ecart):''}</td>${+l.ecart?`<td><b>${escapeHtml(invMotifLabel(l.motif))}</b>${l.justification?' — '+escapeHtml(l.justification):''}</td>`:'<td></td>'}</tr>`;
+  const groupes={}; (complet?lignes:lignes.filter(l=>+l.ecart)).forEach(l=>(groupes[l.famille||'Autre']=groupes[l.famille||'Autre']||[]).push(l));
+  const detail=Object.entries(groupes).map(([f,l])=>{ const s=l.reduce((a,x)=>a+(+x.valeur_ecart||0),0);
+    return `<tr class="grp"><td colspan="9">${escapeHtml(f)}</td></tr>${l.map(ligne).join('')}<tr class="st"><td colspan="7">Sous-total ${escapeHtml(f)}</td><td class="r" style="${col(s)}">${m(s)}</td><td></td></tr>`; }).join('');
+  await impEcrire(win,{type:'ETAT_INVENTAIRE',titre:complet?"État d'inventaire complet":"État d'inventaire — écarts et justifications",numero:inv.code,montant:net,periode:fmtDate(inv.date_inventaire),niveau:'Dépôt : '+(inv.depot_nom||depotNom(inv.depot_id)),contenu:true},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>État d'inventaire ${escapeHtml(inv.code)}</title>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:26px;color:#0f172a;font-size:11px}h2{font-size:12.5px;margin:16px 0 5px;border-bottom:2px solid #1d3557;padding-bottom:3px}
+    table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd5e1;padding:4px 5px;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9.5px;text-transform:uppercase}.r{text-align:right;white-space:nowrap}
+    .grp td{background:#e2e8f0;font-weight:700}.st td{font-weight:700;background:#f8fafc}.k{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.k div{border:1px solid #cbd5e1;border-radius:6px;padding:6px}.k b{display:block;font-size:13px;margin-top:2px}
+    thead{display:table-header-group}tr{break-inside:avoid}@page{size:A4;margin:11mm}@media print{body{padding:0}}</style></head><body>
+    <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+    <h1 style="font-size:17px;margin:0">ÉTAT D'INVENTAIRE ${complet?'COMPLET':'— ÉCARTS ET JUSTIFICATIONS'}</h1>
+    <div style="font-size:13px;font-weight:700;margin-top:3px">N° ${escapeHtml(inv.code)} — ${escapeHtml(inv.depot_nom||depotNom(inv.depot_id))}</div>
+    <div style="color:#475569;margin:2px 0 10px">Inventaire du ${fmtDate(inv.date_inventaire)} · comptage : ${escapeHtml(inv.responsable||'—')} · contrôle : ${escapeHtml(inv.controleur||'—')} · validé le ${new Date(inv.created_at).toLocaleString('fr-FR')} par ${escapeHtml(inv.valide_par_nom||'—')} · valorisation au CMUP</div>
+    <div class="k"><div>Articles comptés<b>${inv.nb_articles}</b></div><div>Articles en écart<b>${inv.nb_ecarts}</b></div><div>Fiabilité du stock<b>${fiab} %</b></div><div>Valeur théorique<b>${m(inv.valeur_theorique)}</b></div>
+      <div>Valeur réelle (comptée)<b>${m(inv.valeur_reelle)}</b></div><div>Excédents<b style="color:#047857">+${m(inv.ecart_positif)}</b></div><div>Manquants<b style="color:#b91c1c">${m(inv.ecart_negatif)}</b></div><div>Écart net<b style="${col(net)}">${net>0?'+':''}${m(net)}</b></div></div>
+    <h2>Justification des écarts — synthèse par motif</h2>
+    ${Object.keys(parMotif).length?`<table><thead><tr><th>Motif</th><th class="r">Lignes</th><th class="r">Excédents</th><th class="r">Manquants</th><th class="r">Net</th></tr></thead><tbody>${Object.entries(parMotif).map(([k,v])=>`<tr><td>${escapeHtml(invMotifLabel(k))}</td><td class="r">${v.n}</td><td class="r">${v.ep?'+'+m(v.ep):''}</td><td class="r">${v.en?m(v.en):''}</td><td class="r" style="${col(v.ep+v.en)}">${m(v.ep+v.en)}</td></tr>`).join('')}</tbody></table>`:'<p>Aucun écart constaté : le stock physique est conforme au stock système.</p>'}
+    <h2>Synthèse par famille</h2>
+    <table><thead><tr><th>Famille</th><th class="r">Articles</th><th class="r">Écarts</th><th class="r">Valeur théorique</th><th class="r">Valeur réelle</th><th class="r">Écart net</th></tr></thead><tbody>
+    ${Object.entries(parFamille).map(([f,v])=>`<tr><td>${escapeHtml(f)}</td><td class="r">${v.n}</td><td class="r">${v.ne}</td><td class="r">${m(v.vt)}</td><td class="r">${m(v.vr)}</td><td class="r" style="${col(v.ep+v.en)}">${m(v.ep+v.en)}</td></tr>`).join('')}
+    <tr class="st"><td>TOTAL</td><td class="r">${inv.nb_articles}</td><td class="r">${inv.nb_ecarts}</td><td class="r">${m(inv.valeur_theorique)}</td><td class="r">${m(inv.valeur_reelle)}</td><td class="r" style="${col(net)}">${m(net)}</td></tr></tbody></table>
+    ${detail?`<h2>${complet?'Détail de tous les articles':'Détail des écarts et justifications'}</h2>
+    <table><thead><tr><th>Code</th><th>Désignation</th><th class="r">Stock système</th><th class="r">Compté</th><th class="r">Écart</th><th>Unité</th><th class="r">CMUP</th><th class="r">Valeur écart</th><th>Justification</th></tr></thead><tbody>${detail}</tbody></table>`:''}
+    ${inv.observations?`<h2>Observations</h2><p>${escapeHtml(inv.observations)}</p>`:''}
+    <div style="display:flex;gap:26px;margin-top:34px">${['Responsable du comptage','Contrôleur','Responsable des stocks','Visa du DG'].map(x=>`<div style="flex:1;border-top:1px solid #0f172a;padding-top:6px;text-align:center">${x}</div>`).join('')}</div>
+    <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`);
 }
 
 /* ---------- Décharge de stock depuis une Fiche d'exécution terminée ---------- */
@@ -6655,7 +6904,7 @@ async function imprimerPageCourante(){
     <script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body></html>`);
 }
 /* ---------- Vérification d'un document (scan du QR de sécurité, sans compte) ---------- */
-const IMP_TYPES={DEVIS:'Devis',FACTURE:'Facture',FACTURE_FNE:'Facture normalisée (FNE)',RECU:'Reçu de caisse',BON_CAISSE:'Bon de caisse',BON_TRANSFERT:'Bon de transfert',FICHE_CLIENT:'Fiche client',FICHE_FOURNISSEUR:'Fiche fournisseur',FICHE_EXECUTION:"Fiche d'exécution",ESTIMATION:'Estimation financière',ETAT_PDV:'État périodique point de vente',BROUILLARD:'Brouillard de caisse',TICKET_Z:'Ticket Z',LECTURE_X:'Lecture X',ETAT_COMPTABLE:'État comptable SYSCOHADA',BULLETIN:'Bulletin de pilotage',PAGE:'Page imprimée'};
+const IMP_TYPES={DEVIS:'Devis',FACTURE:'Facture',FACTURE_FNE:'Facture normalisée (FNE)',RECU:'Reçu de caisse',BON_CAISSE:'Bon de caisse',BON_TRANSFERT:'Bon de transfert',FICHE_CLIENT:'Fiche client',FICHE_FOURNISSEUR:'Fiche fournisseur',FICHE_EXECUTION:"Fiche d'exécution",ESTIMATION:'Estimation financière',ETAT_PDV:'État périodique point de vente',BROUILLARD:'Brouillard de caisse',TICKET_Z:'Ticket Z',LECTURE_X:'Lecture X',ETAT_COMPTABLE:'État comptable SYSCOHADA',BULLETIN:'Bulletin de pilotage',PAGE:'Page imprimée',ETAT_INVENTAIRE:"État d'inventaire",FEUILLE_COMPTAGE:'Feuille de comptage'};
 function impVerificationResultatHtml(r){
   if(!r) return `<div style="color:#b91c1c;font-weight:700">⚠ Vérification impossible (serveur injoignable). Réessayez avec une connexion Internet.</div>`;
   if(!r.trouve) return `<div style="text-align:center"><div style="font-size:44px">❌</div><div style="font-size:18px;font-weight:800;color:#b91c1c">Code inconnu</div><p style="color:#475569">Aucun document n'a été émis par le logiciel avec ce code. Le document présenté n'est pas authentique ou le code a été mal saisi.</p></div>`;
