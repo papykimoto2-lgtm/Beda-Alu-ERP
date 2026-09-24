@@ -255,6 +255,9 @@ window.SB_CFG = {
         <button class="nav-child" data-page="stock-mouvements">→ Mouvements</button>
         <button class="nav-child" data-page="stock-alertes">→ Alertes <span class="nav-badge nav-badge-red" id="badgeStockAlertes">0</span></button>
         <button class="nav-child" data-page="stock-inventaire">→ Inventaire</button>
+        <button class="nav-child" data-page="stock-par-depot">→ Stock par dépôt</button>
+        <button class="nav-child" data-page="stock-transferts">→ Transferts <span class="nav-badge nav-badge-amber hidden" id="badgeTransferts">0</span></button>
+        <button class="nav-child" data-page="stock-depots">→ Dépôts & points de vente</button>
       </div>
 
       <div class="sidebar-group-title">Finance</div>
@@ -403,6 +406,7 @@ async function enterApp(){
   refreshDevisBadges();
   refreshProjetsBadges();
   refreshStockAlertesBadge();
+  refreshTransfertsBadge();
   loadAppParams();
   await rbacCharger();
   rbacAppliquerSidebar();
@@ -414,9 +418,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant','stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Mouvements','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique',parametres:'Paramètres'};
+const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,parametres:renderParametres};
+const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g'};
 /* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
 const ALL_MODULES=[
   {code:'Clients',label:'Clients',groupe:'Clients'},
@@ -1650,7 +1654,8 @@ async function renderComposantForm(el){
         </div>
         ${c.id?`<div class="field"><label>Stock actuel</label>${fieldWrap('📦',`<input value="${(+c.stock_actuel||0).toFixed(2)} ${escapeHtml(c.unite)}" readonly style="background:#f9fafb;color:#6b7280;font-weight:700">`)}</div>
         <div class="field"><label>CMUP (coût moyen pondéré)</label>${fieldWrap('💰',`<input value="${money(c.cmup||0)}" readonly style="background:#f9fafb;color:#6b7280">`)}</div>
-        <div class="sm:col-span-2 text-xs text-gray-400">Le stock ne se modifie pas ici — passez par Stock → Mouvements (entrée/sortie/ajustement) ou Inventaire.</div>`:''}
+        <div class="sm:col-span-2 text-xs text-gray-600" id="coRepartition"></div>
+        <div class="sm:col-span-2 text-xs text-gray-400">Le stock ne se modifie pas ici — passez par Stock → Mouvements (entrée/sortie/ajustement), Inventaire ou Transferts.</div>`:''}
         <div class="field"><label>Stock minimum (seuil rupture)</label>${fieldWrap('⚠️',`<input id="coStockMin" type="number" min="0" step="0.1" value="${c.stock_min??0}">`)}</div>
         <div class="field"><label>Stock maximum (seuil surstock)</label>${fieldWrap('📈',`<input id="coStockMax" type="number" min="0" step="0.1" value="${c.stock_max??''}" placeholder="Optionnel">`)}</div>
         <div class="field sm:col-span-2"><label>Emplacement</label>${fieldWrap('📍',`<input id="coEmplacement" placeholder="Ex : Atelier A - Rayon 3" value="${escapeHtml(c.emplacement||'')}">`)}</div>
@@ -1658,6 +1663,12 @@ async function renderComposantForm(el){
       </form>
     </div>`;
   updateComposantMarge();
+  if(c.id){
+    Promise.all([chargerDepots(),sb.from('stocks_depot').select('depot_id,quantite').eq('composant_id',c.id).neq('quantite',0)]).then(([,{data}])=>{
+      const host=document.getElementById('coRepartition'); if(!host) return;
+      host.innerHTML=(data||[]).length?'🏭 Répartition : '+data.map(s=>`${escapeHtml(depotNom(s.depot_id))} <b>${fmtQte(s.quantite)}</b>`).join(' · '):'';
+    });
+  }
   document.getElementById('composantForm').onsubmit=async (e)=>{
     e.preventDefault();
     const rec={nom:val('coNom'),type:val('coType'),famille:val('coFamille'),unite:val('coUnite'),standing:val('coStanding'),prix_unitaire:+val('coPrix')||0,prix_vente:val('coPrixVente')!==''?+val('coPrixVente'):null,reference:val('coRef')||null,stock_min:+val('coStockMin')||0,stock_max:val('coStockMax')?+val('coStockMax'):null,emplacement:val('coEmplacement')||null};
@@ -1694,7 +1705,7 @@ function applyComposantCoef(){
 }
 
 /* ============================== STOCK ============================== */
-const STOCK_TYPE_LABELS={entree:{label:'Entrée',color:'#059669',icon:'⬇️'},sortie:{label:'Sortie',color:'#dc2626',icon:'⬆️'},ajustement:{label:'Ajustement',color:'#7c3aed',icon:'⚖️'},inventaire:{label:'Inventaire',color:'#2563eb',icon:'🧮'}};
+const STOCK_TYPE_LABELS={entree:{label:'Entrée',color:'#059669',icon:'⬇️'},sortie:{label:'Sortie',color:'#dc2626',icon:'⬆️'},ajustement:{label:'Ajustement',color:'#7c3aed',icon:'⚖️'},inventaire:{label:'Inventaire',color:'#2563eb',icon:'🧮'},transfert:{label:'Transfert',color:'#0891b2',icon:'⇄'}};
 async function refreshStockAlertesBadge(){
   const {data}=await sb.from('composants').select('stock_actuel,stock_min,stock_max');
   const n=(data||[]).filter(c=>(+c.stock_actuel||0)<(+c.stock_min||0)||(c.stock_max!=null&&(+c.stock_actuel||0)>(+c.stock_max))).length;
@@ -1782,18 +1793,19 @@ function renderStockChart(canvasId,type,data,extraOptions){
 }
 
 async function renderStockMouvements(el){
-  const {data:composants}=await sb.from('composants').select('id,nom').order('nom');
+  const [{data:composants},depots]=await Promise.all([sb.from('composants').select('id,nom').order('nom'),chargerDepots(true)]);
   window._stockComposantsCache=composants||[];
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
       <div class="flex flex-wrap gap-2">
-        <select id="smFilterComposant" onchange="filterStockMouvements()"><option value="">Tous les composants</option>${composants.map(c=>`<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('')}</select>
-        <select id="smFilterType" onchange="filterStockMouvements()"><option value="">Tous types</option>${Object.entries(STOCK_TYPE_LABELS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select>
+        <select id="smFilterComposant" onchange="filterStockMouvements()" style="width:auto"><option value="">Tous les composants</option>${composants.map(c=>`<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('')}</select>
+        <select id="smFilterDepot" onchange="filterStockMouvements()" style="width:auto"><option value="">Tous les dépôts</option>${depots.map(d=>`<option value="${d.id}">${escapeHtml(d.nom)}</option>`).join('')}</select>
+        <select id="smFilterType" onchange="filterStockMouvements()" style="width:auto"><option value="">Tous types</option>${Object.entries(STOCK_TYPE_LABELS).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}</select>
       </div>
       <button class="btn btn-primary" onclick="openMouvementModal()">+ Nouveau mouvement</button>
     </div>
     <div class="card overflow-x-auto">
-      <table><thead><tr><th>Date</th><th>Composant</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Stock après</th><th>Motif</th><th>Référence</th></tr></thead>
+      <table><thead><tr><th>Date</th><th>Composant</th><th>Dépôt</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Stock dépôt après</th><th class="text-right">Stock total après</th><th>Motif</th><th>Référence</th></tr></thead>
       <tbody id="smTbody"></tbody></table>
     </div>`;
   const {data:mouvements}=await sb.from('mouvements_stock').select('*, composants(nom,unite)').order('created_at',{ascending:false}).limit(500);
@@ -1803,18 +1815,22 @@ async function renderStockMouvements(el){
 function filterStockMouvements(){
   const compId=document.getElementById('smFilterComposant')?.value||'';
   const type=document.getElementById('smFilterType')?.value||'';
-  const filtered=(window._stockMouvementsCache||[]).filter(m=>(!compId||m.composant_id===compId)&&(!type||m.type===type));
+  const depot=document.getElementById('smFilterDepot')?.value||'';
+  const filtered=(window._stockMouvementsCache||[]).filter(m=>(!compId||m.composant_id===compId)&&(!type||m.type===type)&&(!depot||m.depot_id===depot));
   const tbody=document.getElementById('smTbody'); if(!tbody) return;
   tbody.innerHTML=filtered.map(m=>{
     const t=STOCK_TYPE_LABELS[m.type];
     return `<tr><td class="text-xs">${new Date(m.created_at).toLocaleString('fr-FR')}</td><td>${escapeHtml(m.composants?.nom||'—')}</td>
+    <td class="text-xs whitespace-nowrap">${depotNom(m.depot_id)}</td>
     <td><span class="pill" style="color:${t.color};border-color:${t.color}">${t.icon} ${t.label}</span></td>
     <td class="text-right" style="color:${m.quantite<0?'#dc2626':'#059669'}">${m.quantite>0?'+':''}${(+m.quantite).toFixed(2)} ${escapeHtml(m.composants?.unite||'')}</td>
-    <td class="text-right">${(+m.stock_apres).toFixed(2)}</td>
+    <td class="text-right">${m.stock_depot_apres!=null?(+m.stock_depot_apres).toFixed(2):'—'}</td>
+    <td class="text-right text-gray-500">${(+m.stock_apres).toFixed(2)}</td>
     <td>${escapeHtml(m.motif||'—')}</td><td>${escapeHtml(m.reference||'—')}</td></tr>`;
-  }).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun mouvement.</td></tr>';
+  }).join('')||'<tr><td colspan="9" class="text-gray-400 p-4">Aucun mouvement.</td></tr>';
 }
-async function openMouvementModal(presetType,presetComposantId){
+async function openMouvementModal(presetType,presetComposantId,presetDepotId){
+  await chargerDepots();
   let composants=window._stockComposantsCache;
   if(!composants){ const {data}=await sb.from('composants').select('id,nom').order('nom'); composants=data||[]; }
   openModal(`
@@ -1822,7 +1838,8 @@ async function openMouvementModal(presetType,presetComposantId){
     <div class="divider"></div>
     <form id="mouvementForm" class="grid sm:grid-cols-2 gap-4">
       <div class="field sm:col-span-2"><label>Composant</label>${fieldWrap('🔩',smartSelect('mvComposant',composants.map(c=>({id:c.id,label:c.nom})),presetComposantId,{placeholder:'Rechercher un composant…'}))}</div>
-      <div class="field"><label>Type</label>${fieldWrap('🗂️',`<select id="mvType" onchange="updateMouvementFormFields()">${Object.entries(STOCK_TYPE_LABELS).map(([k,v])=>`<option value="${k}" ${k===presetType?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select>`)}</div>
+      <div class="field sm:col-span-2"><label>Dépôt</label>${fieldWrap('🏭',`<select id="mvDepot">${depotOptionsHtml(presetDepotId||window._stockDepotFocus||depotPrincipalId())}</select>`)}</div>
+      <div class="field"><label>Type</label>${fieldWrap('🗂️',`<select id="mvType" onchange="updateMouvementFormFields()">${Object.entries(STOCK_TYPE_LABELS).filter(([k])=>k!=='transfert').map(([k,v])=>`<option value="${k}" ${k===presetType?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select>`)}</div>
       <div class="field"><label id="mvQtyLabel">Quantité</label>${fieldWrap('#️⃣',`<input id="mvQuantite" type="number" step="0.01" required>`)}</div>
       <div class="field sm:col-span-2" id="mvPrixField"><label>Prix unitaire d'achat (FCFA)</label>${fieldWrap('💰',`<input id="mvPrix" type="number" step="0.01" min="0">`)}</div>
       <div class="field sm:col-span-2"><label>Motif</label>${fieldWrap('📝',`<input id="mvMotif" placeholder="Ex : Achat fournisseur, casse, correction…">`)}</div>
@@ -1841,7 +1858,7 @@ async function openMouvementModal(presetType,presetComposantId){
     const prix=val('mvPrix')?+val('mvPrix'):null;
     if(!composantId){ toast('Sélectionnez un composant.','error'); return; }
     if(!quantite && type!=='inventaire'){ toast('Quantité requise.','error'); return; }
-    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:val('mvRef')||null,p_prix_unitaire:prix});
+    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:val('mvRef')||null,p_prix_unitaire:prix,p_depot_id:val('mvDepot')||null});
     if(error){ toast(error.message,'error'); return; }
     if(type==='entree' && prix>0){
       const composantNom=(composants||[]).find(c=>c.id===composantId)?.nom;
@@ -1858,7 +1875,7 @@ function currentPageKey(){
 function updateMouvementFormFields(){
   const type=val('mvType');
   document.getElementById('mvPrixField').style.display=type==='entree'?'':'none';
-  document.getElementById('mvQtyLabel').textContent=type==='inventaire'?'Quantité comptée (valeur totale)':type==='ajustement'?'Écart (+/-)':'Quantité';
+  document.getElementById('mvQtyLabel').textContent=type==='inventaire'?'Quantité comptée dans ce dépôt':type==='ajustement'?'Écart (+/-)':'Quantité';
 }
 
 async function renderStockAlertes(el){
@@ -1884,10 +1901,21 @@ async function renderStockAlertes(el){
 }
 
 async function renderStockInventaire(el){
-  const {data}=await sb.from('composants').select('*').order('famille,nom');
-  window._inventaireCache=data||[];
+  const depots=await chargerDepots(true);
+  if(!window._inventaireDepot||!depots.some(d=>d.id===window._inventaireDepot)) window._inventaireDepot=depotPrincipalId();
+  const [{data:composants},{data:stocks}]=await Promise.all([
+    sb.from('composants').select('*').order('famille,nom'),
+    sb.from('stocks_depot').select('composant_id,quantite').eq('depot_id',window._inventaireDepot)
+  ]);
+  const qDepot=Object.fromEntries((stocks||[]).map(s=>[s.composant_id,+s.quantite||0]));
+  // stock_actuel est remplacé ici par le stock DU DÉPÔT inventorié
+  const data=(composants||[]).map(c=>({...c,stock_actuel:qDepot[c.id]||0}));
+  window._inventaireCache=data;
   el.innerHTML=`
-    <div class="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-3 py-2 mb-4">🧮 Saisissez la quantité réellement comptée pour chaque composant. Seuls les écarts génèrent un mouvement d'inventaire — le reste n'est pas touché.</div>
+    <div class="flex flex-wrap items-end gap-3 mb-3">
+      <div class="field"><label>Dépôt inventorié</label>${fieldWrap('🏭',`<select onchange="window._inventaireDepot=this.value;showPage('stock-inventaire')">${depotOptionsHtml(window._inventaireDepot)}</select>`)}</div>
+    </div>
+    <div class="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-lg px-3 py-2 mb-4">🧮 Saisissez la quantité réellement comptée dans <b>${escapeHtml(depotNom(window._inventaireDepot))}</b>. Seuls les écarts génèrent un mouvement d'inventaire — le reste n'est pas touché.</div>
     <div class="card overflow-x-auto">
       <table><thead><tr><th>Composant</th><th>Famille</th><th class="text-right">Stock système</th><th class="text-right">Quantité comptée</th><th class="text-right">Écart</th></tr></thead>
       <tbody>${data.map(c=>`<tr data-comp="${c.id}">
@@ -1914,7 +1942,7 @@ async function validerInventaire(){
   if(!confirm(`${aTraiter.length} écart(s) détecté(s). Enregistrer l'inventaire ?`)) return;
   for(const c of aTraiter){
     const compte=+document.getElementById('inv_'+c.id).value;
-    await sb.rpc('stock_mouvement',{p_composant_id:c.id,p_type:'inventaire',p_quantite:compte,p_motif:'Inventaire physique',p_reference:null,p_prix_unitaire:null});
+    await sb.rpc('stock_mouvement',{p_composant_id:c.id,p_type:'inventaire',p_quantite:compte,p_motif:'Inventaire physique',p_reference:null,p_prix_unitaire:null,p_depot_id:window._inventaireDepot});
   }
   toast(`Inventaire enregistré : ${aTraiter.length} écart(s).`);
   refreshStockAlertesBadge();
@@ -1963,11 +1991,13 @@ async function proposerDechargeStock(ficheId){
   });
   const items=Object.values(besoins).filter(b=>b.qty>0);
   if(!items.length) return;
+  await chargerDepots();
 
   openModal(`
     <h2 class="text-lg font-bold mb-1">📦 Décharger le stock — Fiche ${escapeHtml(fiche.code)}</h2>
     <div class="divider"></div>
     <p class="text-xs text-gray-500 mb-3">${nbMesures===nbTotal?'📏 Calculé à partir des <b>mesures réelles</b> relevées sur chantier.':`⚠️ ${nbTotal-nbMesures} ligne(s) sans mesure réelle — calculé sur les dimensions du devis pour ces lignes.`} Décochez ce qui ne doit pas être décompté.</p>
+    <div class="field mb-3"><label>Dépôt de sortie</label>${fieldWrap('🏭',`<select id="dcDepot">${depotOptionsHtml(depotPrincipalId())}</select>`)}</div>
     <div class="overflow-x-auto mb-4"><table><thead><tr><th></th><th>Composant</th><th class="text-right">Quantité à sortir</th></tr></thead>
     <tbody>${items.map((it,i)=>`<tr>
       <td><input type="checkbox" checked id="dc_${i}"></td>
@@ -1981,10 +2011,10 @@ async function proposerDechargeStock(ficheId){
   window._dechargeItems=items;
 }
 async function confirmerDechargeStock(items,ficheCode){
-  let n=0;
+  let n=0; const depotId=document.getElementById('dcDepot')?.value||null;
   for(let i=0;i<items.length;i++){
     if(!document.getElementById('dc_'+i)?.checked) continue;
-    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:items[i].id,p_type:'sortie',p_quantite:items[i].qty,p_motif:"Fiche d'exécution",p_reference:ficheCode,p_prix_unitaire:null});
+    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:items[i].id,p_type:'sortie',p_quantite:items[i].qty,p_motif:"Fiche d'exécution",p_reference:ficheCode,p_prix_unitaire:null,p_depot_id:depotId});
     if(!error) n++;
   }
   toast(`Stock déchargé (${n} composant(s)).`);
@@ -4685,7 +4715,7 @@ function printEstimation(){
 }
 
 /* ============================== PARAMÉTRAGE : SOCIÉTÉ / LOGO / SUPABASE / SYNCHRO / SAUVEGARDE ============================== */
-const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','paiements','ventes_comptoir','ventes_comptoir_lignes','roles','role_permissions','invitations'];
+const BACKUP_TABLES=['clients','client_categories','prospects','fournisseurs','projets','produits','composants','depots','stocks_depot','transferts_stock','transferts_stock_lignes','mouvements_stock','devis','devis_categories','devis_lignes','factures','fiches_execution','fiche_execution_lignes','realisations','parametres','compta_comptes','compta_journaux','compta_exercices','compta_ecritures','compta_lignes','caisses','caisse_sessions','caisse_mouvements','caisse_regles_ventilation','points_vente','paiements','ventes_comptoir','ventes_comptoir_lignes','roles','role_permissions','invitations'];
 async function loadAppParams(){
   let {data}=await sb.from('parametres').select('*').limit(1).maybeSingle();
   if(!data){ const res=await sb.from('parametres').insert({}).select().single(); data=res.data; }
@@ -6285,14 +6315,455 @@ async function comptabiliserAchatMouvementStock(composantNom,quantite,prixUnitai
   return ecr;
 }
 
+/* ============================== DÉPÔTS, POINTS DE VENTE & TRANSFERTS ==============================
+   Stock par dépôt (table stocks_depot) ; composants.stock_actuel = total tous dépôts.
+   Chaque point de vente est affilié à un dépôt (source du stock vendu) et à une caisse.
+   Transfert en 2 temps : expédition (sortie du dépôt source → en transit) puis réception (entrée au dépôt destination).
+   Voir sql/depots_points_vente_transferts.sql. */
+const DEPOT_TYPES={depot:{label:'Dépôt',icon:'🏭'},magasin:{label:'Magasin',icon:'🏪'},atelier:{label:'Atelier',icon:'🛠️'},chantier:{label:'Chantier',icon:'🏗️'}};
+const TRANSFERT_STATUTS={brouillon:{label:'Brouillon',color:'#6b7280',icon:'📝'},en_transit:{label:'En transit',color:'#d97706',icon:'🚚'},recu:{label:'Reçu',color:'#059669',icon:'✅'},annule:{label:'Annulé',color:'#dc2626',icon:'✕'}};
+async function chargerDepots(force){
+  if(window._depotsCache && !force) return window._depotsCache;
+  const {data}=await sb.from('depots').select('*').order('est_principal',{ascending:false}).order('nom');
+  window._depotsCache=data||[];
+  return window._depotsCache;
+}
+function depotPrincipalId(){ return (window._depotsCache||[]).find(d=>d.est_principal)?.id||''; }
+function depotNom(id){ const d=(window._depotsCache||[]).find(x=>x.id===id); return d?(DEPOT_TYPES[d.type]?.icon||'🏭')+' '+d.nom:'—'; }
+function depotOptionsHtml(selected,opts={}){
+  return (window._depotsCache||[]).filter(d=>d.actif||d.id===selected).filter(d=>!opts.exclure||d.id!==opts.exclure)
+    .map(d=>`<option value="${d.id}" ${d.id===selected?'selected':''}>${DEPOT_TYPES[d.type]?.icon||'🏭'} ${escapeHtml(d.nom)}${d.est_principal?' (principal)':''}</option>`).join('');
+}
+function fmtQte(n){ n=+n||0; return n.toLocaleString('fr-FR',{maximumFractionDigits:2}); }
+function prochainCode(prefixe,codes){
+  const max=Math.max(0,...(codes||[]).map(c=>parseInt(String(c||'').replace(prefixe+'-',''),10)||0));
+  return prefixe+'-'+String(max+1).padStart(2,'0');
+}
+
+/* ---------- Dépôts & points de vente ---------- */
+async function renderStockDepots(el){
+  const [depots,{data:pdvs},{data:stocks},{data:caisses},{data:transit}]=await Promise.all([
+    chargerDepots(true),
+    sb.from('points_vente').select('*, depots(nom), caisses(nom)').order('code'),
+    sb.from('stocks_depot').select('depot_id,quantite,composants(cmup)'),
+    sb.from('caisses').select('id,nom').eq('actif',true).order('created_at'),
+    sb.from('transferts_stock').select('depot_destination_id').eq('statut','en_transit')
+  ]);
+  window._pdvCache=pdvs||[]; window._caissesCache=caisses||[];
+  const stat={};
+  (stocks||[]).forEach(s=>{ const x=stat[s.depot_id]=stat[s.depot_id]||{articles:0,valeur:0}; if(+s.quantite>0){ x.articles++; x.valeur+=(+s.quantite)*(+s.composants?.cmup||0); } });
+  const valeurTotale=Object.values(stat).reduce((s,x)=>s+x.valeur,0);
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <p class="text-sm text-gray-500 max-w-2xl">Chaque dépôt a son propre stock. Chaque point de vente est affilié à un dépôt : c'est de là que sort la marchandise vendue au comptoir.</p>
+      <div class="flex gap-2">
+        <button class="btn btn-outline" onclick="showPage('stock-transferts')">⇄ Transferts</button>
+        <button class="btn btn-outline" onclick="openDepotModal()">+ Dépôt</button>
+        <button class="btn btn-primary" onclick="openPointVenteModal()">+ Point de vente</button>
+      </div>
+    </div>
+    <h3 class="text-sm font-bold uppercase text-gray-500 mb-2">🏭 Dépôts (${depots.length}) · valeur totale ${money(valeurTotale)}</h3>
+    <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
+      ${depots.map(d=>{
+        const s=stat[d.id]||{articles:0,valeur:0};
+        const nbPdv=(pdvs||[]).filter(p=>p.depot_id===d.id).length;
+        const nbTransit=(transit||[]).filter(t=>t.depot_destination_id===d.id).length;
+        return `<div class="card p-4" style="${d.actif?'':'opacity:.55'}">
+          <div class="flex justify-between items-start gap-2">
+            <div>
+              <div class="font-bold">${DEPOT_TYPES[d.type]?.icon||'🏭'} ${escapeHtml(d.nom)}</div>
+              <div class="text-xs text-gray-400">${escapeHtml(d.code)} · ${DEPOT_TYPES[d.type]?.label||d.type}${d.commune?' · '+escapeHtml(d.commune):''}</div>
+            </div>
+            <div class="flex gap-1 flex-wrap justify-end">
+              ${d.est_principal?'<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">⭐ Principal</span>':''}
+              ${d.actif?'':'<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">Inactif</span>'}
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-2 mt-3 text-center">
+            <div class="bg-gray-50 rounded-lg py-2"><div class="text-[11px] text-gray-500">Articles</div><div class="font-bold">${s.articles}</div></div>
+            <div class="bg-gray-50 rounded-lg py-2"><div class="text-[11px] text-gray-500">Valeur</div><div class="font-bold text-sm">${money(s.valeur)}</div></div>
+            <div class="bg-gray-50 rounded-lg py-2"><div class="text-[11px] text-gray-500">Pts de vente</div><div class="font-bold">${nbPdv}</div></div>
+          </div>
+          ${nbTransit?`<div class="text-xs text-amber-700 mt-2">🚚 ${nbTransit} transfert(s) en route vers ce dépôt</div>`:''}
+          ${d.responsable||d.telephone?`<div class="text-xs text-gray-500 mt-2">👤 ${escapeHtml([d.responsable,d.telephone].filter(Boolean).join(' · '))}</div>`:''}
+          <div class="flex flex-wrap gap-3 mt-3 text-xs font-semibold">
+            <button class="text-violet-700" onclick="window._stockDepotFocus='${d.id}';showPage('stock-par-depot')">📦 Voir le stock</button>
+            <button class="text-gray-600" onclick="openDepotModal('${d.id}')">✏️ Modifier</button>
+            ${!d.est_principal&&d.actif?`<button class="text-amber-700" onclick="definirDepotPrincipal('${d.id}')">⭐ Principal</button>`:''}
+            ${!d.est_principal?`<button class="${d.actif?'text-red-600':'text-emerald-600'}" onclick="basculerDepotActif('${d.id}')">${d.actif?'⏸ Désactiver':'▶ Réactiver'}</button>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <h3 class="text-sm font-bold uppercase text-gray-500 mb-2">🏪 Points de vente (${(pdvs||[]).length})</h3>
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>Code</th><th>Point de vente</th><th>Dépôt affilié</th><th>Caisse</th><th>Responsable</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${(pdvs||[]).map(p=>`<tr style="${p.actif?'':'opacity:.55'}">
+        <td class="font-semibold">${escapeHtml(p.code)}</td>
+        <td>${escapeHtml(p.nom)}${p.adresse?`<div class="text-xs text-gray-400">${escapeHtml(p.adresse)}</div>`:''}</td>
+        <td>${depotNom(p.depot_id)}</td>
+        <td>${p.caisses?'💰 '+escapeHtml(p.caisses.nom):'<span class="text-gray-400">—</span>'}</td>
+        <td class="text-xs">${escapeHtml([p.responsable,p.telephone].filter(Boolean).join(' · ')||'—')}</td>
+        <td>${p.actif?'<span class="text-xs font-semibold text-emerald-600">Actif</span>':'<span class="text-xs font-semibold text-gray-500">Inactif</span>'}</td>
+        <td class="text-right whitespace-nowrap text-xs font-semibold">
+          <button class="text-violet-700 mr-2" onclick="window._pos.pointVenteId='${p.id}';showPage('comptoir')">🛒 Vendre</button>
+          <button class="text-gray-600" onclick="openPointVenteModal('${p.id}')">✏️ Modifier</button>
+        </td></tr>`).join('')||'<tr><td colspan="7" class="text-center text-gray-400 p-4">Aucun point de vente.</td></tr>'}</tbody></table>
+    </div>`;
+}
+function openDepotModal(id){
+  const d=(window._depotsCache||[]).find(x=>x.id===id)||{type:'depot',actif:true,code:prochainCode('DEP',(window._depotsCache||[]).map(x=>x.code))};
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">🏭 ${d.id?'Modifier le dépôt':'Nouveau dépôt'}</h2>
+    <div class="divider"></div>
+    <form id="depotForm" class="grid sm:grid-cols-2 gap-4">
+      <div class="field"><label>Code</label>${fieldWrap('#',`<input id="dpCode" required value="${escapeHtml(d.code||'')}">`)}</div>
+      <div class="field"><label>Type</label>${fieldWrap('🗂️',`<select id="dpType">${Object.entries(DEPOT_TYPES).map(([k,v])=>`<option value="${k}" ${d.type===k?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select>`)}</div>
+      <div class="field sm:col-span-2"><label>Nom</label>${fieldWrap('🏭',`<input id="dpNom" required value="${escapeHtml(d.nom||'')}" placeholder="Ex : Magasin Yopougon">`)}</div>
+      <div class="field"><label>Commune / Ville</label>${fieldWrap('🏙️',`<input id="dpCommune" value="${escapeHtml(d.commune||'')}">`)}</div>
+      <div class="field"><label>Adresse</label>${fieldWrap('📍',`<input id="dpAdresse" value="${escapeHtml(d.adresse||'')}">`)}</div>
+      <div class="field"><label>Responsable</label>${fieldWrap('👤',`<input id="dpResponsable" value="${escapeHtml(d.responsable||'')}">`)}</div>
+      <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input id="dpTel" value="${escapeHtml(d.telephone||'')}">`)}</div>
+      <div class="sm:col-span-2 flex justify-end gap-2 pt-2">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button>
+        <button type="submit" class="btn btn-primary px-8">Enregistrer</button>
+      </div>
+    </form>`);
+  document.getElementById('depotForm').onsubmit=async(e)=>{
+    e.preventDefault();
+    if(!exigerDroit('Stock',d.id?'modifier':'creer','un dépôt')) return;
+    const rec={code:val('dpCode'),nom:val('dpNom'),type:val('dpType'),commune:val('dpCommune')||null,adresse:val('dpAdresse')||null,responsable:val('dpResponsable')||null,telephone:val('dpTel')||null};
+    const {error}=d.id?await sb.from('depots').update(rec).eq('id',d.id):await sb.from('depots').insert(rec);
+    if(error){ toast(error.message.includes('duplicate')?'Ce code est déjà utilisé.':error.message,'error'); return; }
+    toast('Dépôt enregistré.'); closeModal(); await chargerDepots(true); showPage('stock-depots');
+  };
+}
+async function definirDepotPrincipal(id){
+  if(!exigerDroit('Stock','modifier','le dépôt principal')) return;
+  if(!confirm("Définir ce dépôt comme principal ?\nLes mouvements sans dépôt précisé (décharges de fiches, anciens écrans) s'y imputeront.")) return;
+  const ancien=depotPrincipalId();
+  if(ancien){ const {error}=await sb.from('depots').update({est_principal:false}).eq('id',ancien); if(error){ toast(error.message,'error'); return; } }
+  const {error}=await sb.from('depots').update({est_principal:true}).eq('id',id);
+  if(error){ toast(error.message,'error'); if(ancien) await sb.from('depots').update({est_principal:true}).eq('id',ancien); return; }
+  toast('Dépôt principal mis à jour.'); await chargerDepots(true); showPage('stock-depots');
+}
+async function basculerDepotActif(id){
+  const d=(window._depotsCache||[]).find(x=>x.id===id); if(!d) return;
+  if(!exigerDroit('Stock','modifier','un dépôt')) return;
+  if(d.actif){
+    const [{data:st},{data:pdv},{data:tr}]=await Promise.all([
+      sb.from('stocks_depot').select('quantite').eq('depot_id',id).neq('quantite',0),
+      sb.from('points_vente').select('nom').eq('depot_id',id).eq('actif',true),
+      sb.from('transferts_stock').select('code').eq('statut','en_transit').or(`depot_source_id.eq.${id},depot_destination_id.eq.${id}`)
+    ]);
+    if((st||[]).length){ toast(`Ce dépôt contient encore ${(st||[]).length} article(s) : transférez ou inventoriez-les à zéro avant de le désactiver.`,'error'); return; }
+    if((pdv||[]).length){ toast(`Points de vente encore affiliés : ${(pdv||[]).map(p=>p.nom).join(', ')}. Réaffiliez-les d'abord.`,'error'); return; }
+    if((tr||[]).length){ toast(`Transferts en transit : ${(tr||[]).map(t=>t.code).join(', ')}.`,'error'); return; }
+  }
+  const {error}=await sb.from('depots').update({actif:!d.actif}).eq('id',id);
+  if(error){ toast(error.message,'error'); return; }
+  toast(d.actif?'Dépôt désactivé.':'Dépôt réactivé.'); await chargerDepots(true); showPage('stock-depots');
+}
+function openPointVenteModal(id){
+  const p=(window._pdvCache||[]).find(x=>x.id===id)||{actif:true,depot_id:depotPrincipalId(),code:prochainCode('PDV',(window._pdvCache||[]).map(x=>x.code))};
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">🏪 ${p.id?'Modifier le point de vente':'Nouveau point de vente'}</h2>
+    <div class="divider"></div>
+    <form id="pdvForm" class="grid sm:grid-cols-2 gap-4">
+      <div class="field"><label>Code</label>${fieldWrap('#',`<input id="pvCode" required value="${escapeHtml(p.code||'')}">`)}</div>
+      <div class="field"><label>Nom</label>${fieldWrap('🏪',`<input id="pvNom" required value="${escapeHtml(p.nom||'')}" placeholder="Ex : Comptoir Cocody">`)}</div>
+      <div class="field"><label>Dépôt affilié (source du stock)</label>${fieldWrap('🏭',`<select id="pvDepot" required>${depotOptionsHtml(p.depot_id)}</select>`)}</div>
+      <div class="field"><label>Caisse d'encaissement</label>${fieldWrap('💰',`<select id="pvCaisse"><option value="">— Aucune —</option>${(window._caissesCache||[]).map(c=>`<option value="${c.id}" ${c.id===p.caisse_id?'selected':''}>${escapeHtml(c.nom)}</option>`).join('')}</select>`)}</div>
+      <div class="field sm:col-span-2"><label>Adresse</label>${fieldWrap('📍',`<input id="pvAdresse" value="${escapeHtml(p.adresse||'')}">`)}</div>
+      <div class="field"><label>Responsable</label>${fieldWrap('👤',`<input id="pvResponsable" value="${escapeHtml(p.responsable||'')}">`)}</div>
+      <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input id="pvTel" value="${escapeHtml(p.telephone||'')}">`)}</div>
+      <label class="sm:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" id="pvActif" ${p.actif?'checked':''} style="width:auto"> Point de vente actif</label>
+      <div class="sm:col-span-2 flex justify-end gap-2 pt-2">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button>
+        <button type="submit" class="btn btn-primary px-8">Enregistrer</button>
+      </div>
+    </form>`);
+  document.getElementById('pdvForm').onsubmit=async(e)=>{
+    e.preventDefault();
+    if(!exigerDroit('Stock',p.id?'modifier':'creer','un point de vente')) return;
+    const rec={code:val('pvCode'),nom:val('pvNom'),depot_id:val('pvDepot'),caisse_id:val('pvCaisse')||null,adresse:val('pvAdresse')||null,responsable:val('pvResponsable')||null,telephone:val('pvTel')||null,actif:document.getElementById('pvActif').checked};
+    if(!rec.depot_id){ toast('Choisissez le dépôt affilié.','error'); return; }
+    const {error}=p.id?await sb.from('points_vente').update(rec).eq('id',p.id):await sb.from('points_vente').insert(rec);
+    if(error){ toast(error.message.includes('duplicate')?'Ce code est déjà utilisé.':error.message,'error'); return; }
+    toast('Point de vente enregistré.'); closeModal(); showPage('stock-depots');
+  };
+}
+
+/* ---------- Stock par dépôt (matrice composants × dépôts) ---------- */
+window._stockDepotFocus=window._stockDepotFocus||'';
+async function renderStockParDepot(el){
+  const [depots,{data:composants},{data:stocks}]=await Promise.all([
+    chargerDepots(true),
+    sb.from('composants').select('id,nom,famille,unite,cmup,stock_actuel,stock_min').order('famille').order('nom'),
+    sb.from('stocks_depot').select('depot_id,composant_id,quantite')
+  ]);
+  const map={}; (stocks||[]).forEach(s=>{ map[s.composant_id+'|'+s.depot_id]=+s.quantite||0; });
+  window._spdData={depots,composants:composants||[],map};
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-end gap-2 mb-4">
+      <div class="flex flex-wrap gap-2 items-end">
+        <div class="field"><label>Dépôt</label>${fieldWrap('🏭',`<select id="spdDepot" onchange="window._stockDepotFocus=this.value;filtrerStockParDepot()"><option value="">Tous les dépôts</option>${depots.map(d=>`<option value="${d.id}" ${d.id===window._stockDepotFocus?'selected':''}>${DEPOT_TYPES[d.type]?.icon||'🏭'} ${escapeHtml(d.nom)}</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Recherche</label>${fieldWrap('🔎',`<input id="spdQ" placeholder="Composant…" oninput="filtrerStockParDepot()">`)}</div>
+        <label class="flex items-center gap-2 text-sm pb-2"><input type="checkbox" id="spdZero" checked onchange="filtrerStockParDepot()" style="width:auto"> Masquer les articles à zéro</label>
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-outline" onclick="showPage('stock-depots')">🏭 Dépôts</button>
+        <button class="btn btn-primary" onclick="window._editId=null;showPage('stock-transfert-edit')">⇄ Nouveau transfert</button>
+      </div>
+    </div>
+    <div class="card overflow-x-auto" id="spdTable"></div>`;
+  filtrerStockParDepot();
+}
+function filtrerStockParDepot(){
+  const {depots,composants,map}=window._spdData||{}; const host=document.getElementById('spdTable'); if(!host) return;
+  const focus=window._stockDepotFocus, q=(document.getElementById('spdQ')?.value||'').trim().toLowerCase(), sansZero=document.getElementById('spdZero')?.checked;
+  const cols=focus?depots.filter(d=>d.id===focus):depots.filter(d=>d.actif||composants.some(c=>map[c.id+'|'+d.id]));
+  const qte=(c,d)=>map[c.id+'|'+d.id]||0;
+  const rows=composants.filter(c=>(!q||c.nom.toLowerCase().includes(q))&&(!sansZero||cols.some(d=>qte(c,d)!==0)));
+  const cell=n=>`<td class="text-right" style="color:${n<0?'#dc2626':n===0?'#d1d5db':'#111827'};font-weight:${n?600:400}">${fmtQte(n)}</td>`;
+  const valeurCol=d=>rows.reduce((s,c)=>s+Math.max(0,qte(c,d))*(+c.cmup||0),0);
+  host.innerHTML=`<table><thead><tr><th>Composant</th><th>Unité</th>${cols.map(d=>`<th class="text-right">${DEPOT_TYPES[d.type]?.icon||'🏭'} ${escapeHtml(d.nom)}</th>`).join('')}${focus?'':'<th class="text-right">Total</th>'}<th class="text-right">Valeur</th></tr></thead>
+    <tbody>${rows.map(c=>{
+      const tot=cols.reduce((s,d)=>s+qte(c,d),0);
+      return `<tr><td>${escapeHtml(c.nom)}<div class="text-xs text-gray-400">${escapeHtml(c.famille||'')}</div></td><td class="text-xs">${escapeHtml(c.unite||'')}</td>${cols.map(d=>cell(qte(c,d))).join('')}${focus?'':cell(tot)}<td class="text-right text-xs">${money(Math.max(0,tot)*(+c.cmup||0))}</td></tr>`;
+    }).join('')||`<tr><td colspan="${cols.length+4}" class="text-center text-gray-400 p-6">Aucun article.</td></tr>`}</tbody>
+    <tfoot><tr class="font-bold"><td colspan="2">Valeur (CMUP)</td>${cols.map(d=>`<td class="text-right">${money(valeurCol(d))}</td>`).join('')}${focus?'':`<td></td>`}<td class="text-right">${money(cols.reduce((s,d)=>s+valeurCol(d),0))}</td></tr></tfoot></table>`;
+}
+
+/* ---------- Transferts dépôt → dépôt ---------- */
+window._transfertsFiltre=window._transfertsFiltre||'';
+async function renderStockTransferts(el){
+  await chargerDepots();
+  let q=sb.from('transferts_stock').select('*, transferts_stock_lignes(quantite_envoyee,quantite_recue,cmup)').order('created_at',{ascending:false}).limit(300);
+  if(window._transfertsFiltre) q=q.eq('statut',window._transfertsFiltre);
+  const {data:trs,error}=await q;
+  if(error){ el.innerHTML=`<div class="card text-red-600 p-4">${escapeHtml(error.message)}</div>`; return; }
+  const {data:enTransit}=await sb.from('transferts_stock').select('id, transferts_stock_lignes(quantite_envoyee,cmup)').eq('statut','en_transit');
+  const valTransit=(enTransit||[]).reduce((s,t)=>s+(t.transferts_stock_lignes||[]).reduce((a,l)=>a+(+l.quantite_envoyee||0)*(+l.cmup||0),0),0);
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div class="flex flex-wrap gap-2">
+        <button class="fam-chip ${!window._transfertsFiltre?'active':''}" onclick="window._transfertsFiltre='';showPage('stock-transferts')">Tous</button>
+        ${Object.entries(TRANSFERT_STATUTS).map(([k,s])=>`<button class="fam-chip ${window._transfertsFiltre===k?'active':''}" style="--fc:${s.color}" onclick="window._transfertsFiltre='${k}';showPage('stock-transferts')">${s.icon} ${s.label}</button>`).join('')}
+      </div>
+      <button class="btn btn-primary" onclick="window._editId=null;showPage('stock-transfert-edit')">⇄ Nouveau transfert</button>
+    </div>
+    ${(enTransit||[]).length?`<div class="text-sm bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 mb-4">🚚 <b>${enTransit.length}</b> transfert(s) en transit — marchandise sortie du dépôt source, pas encore réceptionnée : <b>${money(valTransit)}</b> (au CMUP).</div>`:''}
+    <div class="card overflow-x-auto">
+      <table><thead><tr><th>N°</th><th>Créé le</th><th>Départ</th><th></th><th>Arrivée</th><th class="text-right">Lignes</th><th class="text-right">Valeur</th><th>Statut</th><th></th></tr></thead>
+      <tbody>${(trs||[]).map(t=>{
+        const lignes=t.transferts_stock_lignes||[], st=TRANSFERT_STATUTS[t.statut];
+        const valeur=lignes.reduce((s,l)=>s+(+l.quantite_envoyee||0)*(+l.cmup||0),0);
+        const ecart=t.statut==='recu'&&lignes.some(l=>+l.quantite_recue!==+l.quantite_envoyee);
+        return `<tr>
+          <td class="font-semibold whitespace-nowrap">${escapeHtml(t.code||'')}</td>
+          <td class="text-xs whitespace-nowrap">${new Date(t.created_at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'})}</td>
+          <td>${depotNom(t.depot_source_id)}</td><td class="text-gray-400">→</td><td>${depotNom(t.depot_destination_id)}</td>
+          <td class="text-right">${lignes.length}</td>
+          <td class="text-right text-xs">${t.statut==='brouillon'?'—':money(valeur)}</td>
+          <td><span class="pill" style="color:${st.color};border-color:${st.color}">${st.icon} ${st.label}</span>${ecart?' <span class="text-xs text-red-600" title="Quantité reçue différente de la quantité envoyée">⚠ écart</span>':''}</td>
+          <td class="text-right whitespace-nowrap text-xs font-semibold">
+            <button class="text-gray-600 mr-2" onclick="imprimerBonTransfert('${t.id}')">🖨 Bon</button>
+            ${t.statut==='brouillon'?`<button class="text-violet-700 mr-2" onclick="window._editId='${t.id}';showPage('stock-transfert-edit')">✏️ Modifier</button><button class="text-amber-700 mr-2" onclick="expedierTransfert('${t.id}')">🚚 Expédier</button>`:''}
+            ${t.statut==='en_transit'?`<button class="text-emerald-700 mr-2" onclick="openReceptionTransfert('${t.id}')">📥 Réceptionner</button>`:''}
+            ${['brouillon','en_transit'].includes(t.statut)?`<button class="text-red-600" onclick="annulerTransfert('${t.id}','${t.statut}')">✕ Annuler</button>`:''}
+          </td></tr>`;
+      }).join('')||'<tr><td colspan="9" class="text-center text-gray-400 p-6">Aucun transfert.</td></tr>'}</tbody></table>
+    </div>`;
+}
+async function renderTransfertEdit(el){
+  const [depots,{data:composants},{data:stocks}]=await Promise.all([
+    chargerDepots(true),
+    sb.from('composants').select('id,nom,unite,cmup').order('nom'),
+    sb.from('stocks_depot').select('depot_id,composant_id,quantite')
+  ]);
+  const map={}; (stocks||[]).forEach(s=>{ map[s.composant_id+'|'+s.depot_id]=+s.quantite||0; });
+  let t={depot_source_id:window._stockDepotFocus||depotPrincipalId(),depot_destination_id:'',motif:''}, lignes=[];
+  if(window._editId){
+    const [{data:tt},{data:ll}]=await Promise.all([
+      sb.from('transferts_stock').select('*').eq('id',window._editId).single(),
+      sb.from('transferts_stock_lignes').select('*').eq('transfert_id',window._editId).order('ordre')
+    ]);
+    if(tt?.statut!=='brouillon'){ toast('Seul un transfert en brouillon est modifiable.','error'); showPage('stock-transferts'); return; }
+    t=tt; lignes=(ll||[]).map(l=>({composant_id:l.composant_id,quantite:+l.quantite_envoyee}));
+  }
+  if(!t.depot_destination_id) t.depot_destination_id=(depots.find(d=>d.actif&&d.id!==t.depot_source_id)||{}).id||'';
+  if(!lignes.length) lignes=[{composant_id:'',quantite:1}];
+  window._trEdit={t,lignes,composants:composants||[],map,el};
+  renderTransfertEditBody();
+}
+function renderTransfertEditBody(){
+  const {t,lignes,composants,map,el}=window._trEdit;
+  const dispo=id=>map[id+'|'+t.depot_source_id]||0;
+  const items=composants.map(c=>({id:c.id,label:`${c.nom} — dispo ${fmtQte(dispo(c.id))} ${c.unite||''}`}));
+  el.innerHTML=`
+    <div class="page-card max-w-4xl">
+      <h2>⇄ ${t.id?'Modifier le transfert '+escapeHtml(t.code):'Nouveau transfert de stock'}</h2>
+      <div class="divider"></div>
+      <div class="grid sm:grid-cols-[1fr_auto_1fr] gap-3 items-end mb-4">
+        <div class="field"><label>Dépôt de départ</label>${fieldWrap('📤',`<select onchange="window._trEdit.t.depot_source_id=this.value;renderTransfertEditBody()">${depotOptionsHtml(t.depot_source_id)}</select>`)}</div>
+        <button type="button" class="btn btn-outline mb-0.5" title="Inverser" onclick="const x=window._trEdit.t;[x.depot_source_id,x.depot_destination_id]=[x.depot_destination_id,x.depot_source_id];renderTransfertEditBody()">⇄</button>
+        <div class="field"><label>Dépôt d'arrivée</label>${fieldWrap('📥',`<select onchange="window._trEdit.t.depot_destination_id=this.value;renderTransfertEditBody()"><option value="">— Choisir —</option>${depotOptionsHtml(t.depot_destination_id,{exclure:t.depot_source_id})}</select>`)}</div>
+        <div class="field sm:col-span-3"><label>Motif / commentaire</label>${fieldWrap('📝',`<input value="${escapeHtml(t.motif||'')}" oninput="window._trEdit.t.motif=this.value" placeholder="Ex : Réassort magasin Cocody">`)}</div>
+      </div>
+      <div class="overflow-x-auto mb-3"><table><thead><tr><th>Article</th><th class="text-right">Disponible au départ</th><th class="text-right">Quantité à transférer</th><th></th></tr></thead>
+      <tbody>${lignes.map((l,i)=>{
+        const c=composants.find(x=>x.id===l.composant_id), d=l.composant_id?dispo(l.composant_id):null, trop=d!=null&&(+l.quantite>d);
+        return `<tr>
+          <td style="min-width:260px">${smartSelect('trComp'+i,items,l.composant_id,{placeholder:'Rechercher un article…',onChange:`window._trEdit.lignes[${i}].composant_id=this.value;renderTransfertEditBody()`})}</td>
+          <td class="text-right" style="color:${d!=null&&d<=0?'#dc2626':'#374151'}">${d==null?'—':fmtQte(d)+' '+escapeHtml(c?.unite||'')}</td>
+          <td class="text-right"><input type="number" min="0" step="0.01" value="${l.quantite}" oninput="window._trEdit.lignes[${i}].quantite=+this.value;this.style.borderColor=(+this.value>${d??'Infinity'})?'#dc2626':''" style="width:110px;text-align:right;${trop?'border-color:#dc2626':''}"></td>
+          <td class="text-right"><button type="button" class="text-red-500 text-xs font-semibold" onclick="window._trEdit.lignes.splice(${i},1);renderTransfertEditBody()">✕</button></td>
+        </tr>`;
+      }).join('')}</tbody></table></div>
+      <button type="button" class="btn btn-outline text-xs mb-5" onclick="window._trEdit.lignes.push({composant_id:'',quantite:1});renderTransfertEditBody()">+ Ajouter un article</button>
+      <label class="flex items-center gap-2 text-sm mb-4"><input type="checkbox" id="trRecepImmediate" style="width:auto"> Réception immédiate (dépôts sur le même site : le transfert passe directement à « Reçu »)</label>
+      <div class="flex flex-wrap justify-end gap-2">
+        <button class="btn btn-outline" onclick="showPage('stock-transferts')">Annuler</button>
+        <button class="btn btn-outline" onclick="enregistrerTransfert(false)">💾 Enregistrer en brouillon</button>
+        <button class="btn btn-primary px-6" onclick="enregistrerTransfert(true)">🚚 Enregistrer et expédier</button>
+      </div>
+    </div>`;
+}
+async function enregistrerTransfert(expedier){
+  if(!exigerDroit('Stock','creer','un transfert de stock')) return;
+  const {t,lignes}=window._trEdit;
+  const valides=lignes.filter(l=>l.composant_id&&+l.quantite>0);
+  if(!t.depot_source_id||!t.depot_destination_id){ toast('Choisissez les dépôts de départ et d\'arrivée.','error'); return; }
+  if(t.depot_source_id===t.depot_destination_id){ toast('Les dépôts de départ et d\'arrivée doivent être différents.','error'); return; }
+  if(!valides.length){ toast('Ajoutez au moins un article avec une quantité.','error'); return; }
+  const ids=valides.map(l=>l.composant_id); if(new Set(ids).size!==ids.length){ toast('Un même article apparaît deux fois : regroupez les quantités.','error'); return; }
+  if(expedier){
+    const {map}=window._trEdit;
+    const manque=valides.filter(l=>+l.quantite>(map[l.composant_id+'|'+t.depot_source_id]||0));
+    if(manque.length){ toast(`Stock insuffisant au dépôt de départ pour : ${manque.map(l=>(window._trEdit.composants.find(c=>c.id===l.composant_id)||{}).nom).join(', ')}.`,'error'); return; }
+  }
+  const immediate=document.getElementById('trRecepImmediate')?.checked;
+  const header={depot_source_id:t.depot_source_id,depot_destination_id:t.depot_destination_id,motif:t.motif||null};
+  let id=t.id, error;
+  if(id){ ({error}=await sb.from('transferts_stock').update(header).eq('id',id)); }
+  else { const r=await sb.from('transferts_stock').insert({...header,created_by:CURRENT_USER.id}).select().single(); error=r.error; id=r.data?.id; }
+  if(error){ toast(error.message,'error'); return; }
+  await sb.from('transferts_stock_lignes').delete().eq('transfert_id',id);
+  const {error:e2}=await sb.from('transferts_stock_lignes').insert(valides.map((l,i)=>({transfert_id:id,composant_id:l.composant_id,quantite_envoyee:+l.quantite,ordre:i})));
+  if(e2){ toast(e2.message,'error'); return; }
+  window._editId=null;
+  if(!expedier){ toast('Transfert enregistré en brouillon.'); showPage('stock-transferts'); return; }
+  const {data:tr,error:e3}=await sb.rpc('transfert_expedier',{p_transfert_id:id,p_par:CURRENT_USER.email});
+  if(e3){ toast(e3.message+' — le transfert reste en brouillon.','error'); showPage('stock-transferts'); return; }
+  if(immediate){
+    const {error:e4}=await sb.rpc('transfert_receptionner',{p_transfert_id:id,p_lignes:[],p_notes:'Réception immédiate',p_par:CURRENT_USER.email});
+    if(e4){ toast(e4.message,'error'); showPage('stock-transferts'); return; }
+    toast(`Transfert ${tr.code} effectué.`);
+  } else toast(`Transfert ${tr.code} expédié — en attente de réception.`);
+  refreshTransfertsBadge(); showPage('stock-transferts');
+}
+async function expedierTransfert(id){
+  if(!exigerDroit('Stock','modifier','un transfert de stock')) return;
+  if(!confirm('Expédier ce transfert ? Les quantités sortent du dépôt de départ.')) return;
+  const {data,error}=await sb.rpc('transfert_expedier',{p_transfert_id:id,p_par:CURRENT_USER.email});
+  if(error){ toast(error.message,'error'); return; }
+  toast(`Transfert ${data.code} expédié.`); refreshTransfertsBadge(); showPage('stock-transferts');
+}
+async function openReceptionTransfert(id){
+  const [{data:t},{data:lignes}]=await Promise.all([
+    sb.from('transferts_stock').select('*').eq('id',id).single(),
+    sb.from('transferts_stock_lignes').select('*, composants(nom,unite)').eq('transfert_id',id).order('ordre')
+  ]);
+  if(!t) return;
+  window._recepLignes=lignes||[];
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">📥 Réception — ${escapeHtml(t.code)}</h2>
+    <p class="text-sm text-gray-500">${depotNom(t.depot_source_id)} → <b>${depotNom(t.depot_destination_id)}</b></p>
+    <div class="divider"></div>
+    <p class="text-xs text-gray-500 mb-2">Saisissez la quantité réellement reçue. Un écart (casse, manquant) est tracé sur le transfert et ne rentre pas en stock.</p>
+    <div class="overflow-x-auto mb-3"><table><thead><tr><th>Article</th><th class="text-right">Envoyé</th><th class="text-right">Reçu</th><th class="text-right">Écart</th></tr></thead>
+    <tbody>${(lignes||[]).map((l,i)=>`<tr>
+      <td>${escapeHtml(l.composants?.nom||'—')}</td>
+      <td class="text-right">${fmtQte(l.quantite_envoyee)} ${escapeHtml(l.composants?.unite||'')}</td>
+      <td class="text-right"><input type="number" min="0" step="0.01" id="rc_${i}" value="${l.quantite_envoyee}" style="width:100px;text-align:right" oninput="const e=+this.value-${+l.quantite_envoyee};const c=document.getElementById('rcE_${i}');c.textContent=e?(e>0?'+':'')+e.toLocaleString('fr-FR'):'—';c.style.color=e<0?'#dc2626':e>0?'#d97706':'#9ca3af'"></td>
+      <td class="text-right font-semibold" id="rcE_${i}" style="color:#9ca3af">—</td></tr>`).join('')}</tbody></table></div>
+    <div class="field mb-4"><label>Observations</label>${fieldWrap('📝',`<input id="rcNotes" placeholder="Ex : 1 cartouche percée">`)}</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="confirmerReceptionTransfert('${id}')">✔ Valider la réception</button></div>`);
+}
+async function confirmerReceptionTransfert(id){
+  if(!exigerDroit('Stock','modifier','un transfert de stock')) return;
+  const lignes=(window._recepLignes||[]).map((l,i)=>({id:l.id,quantite_recue:+document.getElementById('rc_'+i).value||0}));
+  if(lignes.some((l,i)=>l.quantite_recue>+window._recepLignes[i].quantite_envoyee) && !confirm('Une quantité reçue dépasse la quantité envoyée. Continuer ?')) return;
+  const {data,error}=await sb.rpc('transfert_receptionner',{p_transfert_id:id,p_lignes:lignes,p_notes:val('rcNotes')||null,p_par:CURRENT_USER.email});
+  if(error){ toast(error.message,'error'); return; }
+  closeModal(); toast(`Transfert ${data.code} réceptionné.`); refreshTransfertsBadge(); showPage('stock-transferts');
+}
+async function annulerTransfert(id,statut){
+  if(!exigerDroit('Stock',statut==='brouillon'?'modifier':'supprimer','un transfert en transit')) return;
+  if(!confirm(statut==='en_transit'?'Annuler ce transfert en transit ?\nLa marchandise est remise en stock au dépôt de départ.':'Annuler ce brouillon de transfert ?')) return;
+  const {data,error}=await sb.rpc('transfert_annuler',{p_transfert_id:id,p_par:CURRENT_USER.email});
+  if(error){ toast(error.message,'error'); return; }
+  toast(`Transfert ${data.code} annulé.`); refreshTransfertsBadge(); showPage('stock-transferts');
+}
+async function refreshTransfertsBadge(){
+  const {count}=await sb.from('transferts_stock').select('id',{count:'exact',head:true}).eq('statut','en_transit');
+  const el=document.getElementById('badgeTransferts'); if(el){ el.textContent=count||0; el.classList.toggle('hidden',!count); }
+}
+async function imprimerBonTransfert(id){
+  const win=window.open('','_blank','width=800,height=1000'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  await chargerDepots();
+  const [{data:t},{data:lignes}]=await Promise.all([
+    sb.from('transferts_stock').select('*').eq('id',id).single(),
+    sb.from('transferts_stock_lignes').select('*, composants(nom,unite,reference)').eq('transfert_id',id).order('ordre')
+  ]);
+  if(!t){ win.close(); return; }
+  if(!window.APP_PARAMS) await loadAppParams();
+  const dep=idD=>(window._depotsCache||[]).find(d=>d.id===idD)||{};
+  const bloc=(titre,d)=>`<div style="flex:1;border:1px solid #d1d5db;border-radius:8px;padding:10px"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700">${titre}</div><div style="font-weight:700;font-size:14px;margin-top:2px">${escapeHtml(d.nom||'—')}</div><div style="font-size:11.5px;color:#4b5563">${escapeHtml([d.code,d.adresse,d.commune].filter(Boolean).join(' · '))}</div>${d.responsable?`<div style="font-size:11.5px;color:#4b5563">Resp. : ${escapeHtml(d.responsable)}${d.telephone?' · '+escapeHtml(d.telephone):''}</div>`:''}</div>`;
+  const recu=t.statut==='recu';
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bon de transfert ${escapeHtml(t.code)}</title>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:34px;color:#111827;font-size:13px}table{width:100%;border-collapse:collapse;margin-top:14px}
+    th,td{border:1px solid #d1d5db;padding:7px 9px}th{background:#f1f5f9;text-align:left;font-size:12px}.r{text-align:right}.sig{flex:1;border-top:1px solid #111827;padding-top:6px;font-size:11.5px;text-align:center;margin-top:60px}
+    @media print{body{padding:0}.noprint{display:none}}</style></head><body>
+    <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+    ${printCompanyHeaderHtml()}
+    <h1 style="font-size:19px;margin:0">BON DE TRANSFERT — ${escapeHtml(t.code)}</h1>
+    <div style="color:#6b7280;font-size:12px;margin:2px 0 14px">Statut : ${TRANSFERT_STATUTS[t.statut]?.label||t.statut}${t.date_expedition?' · Expédié le '+new Date(t.date_expedition).toLocaleString('fr-FR'):''}${t.date_reception?' · Reçu le '+new Date(t.date_reception).toLocaleString('fr-FR'):''}</div>
+    <div style="display:flex;gap:12px">${bloc('Dépôt de départ',dep(t.depot_source_id))}${bloc("Dépôt d'arrivée",dep(t.depot_destination_id))}</div>
+    ${t.motif?`<div style="margin-top:10px"><b>Motif :</b> ${escapeHtml(t.motif)}</div>`:''}
+    <table><thead><tr><th>#</th><th>Article</th><th>Réf.</th><th class="r">Qté envoyée</th><th class="r">Qté reçue</th><th class="r">Écart</th></tr></thead>
+    <tbody>${(lignes||[]).map((l,i)=>{ const e=recu?(+l.quantite_recue)-(+l.quantite_envoyee):null; return `<tr><td>${i+1}</td><td>${escapeHtml(l.composants?.nom||'—')}</td><td>${escapeHtml(l.composants?.reference||'')}</td><td class="r">${fmtQte(l.quantite_envoyee)} ${escapeHtml(l.composants?.unite||'')}</td><td class="r">${recu?fmtQte(l.quantite_recue):''}</td><td class="r" style="color:${e<0?'#dc2626':'inherit'}">${recu&&e?fmtQte(e):''}</td></tr>`; }).join('')}</tbody></table>
+    ${t.notes_reception?`<div style="margin-top:10px"><b>Observations à la réception :</b> ${escapeHtml(t.notes_reception)}</div>`:''}
+    <div style="display:flex;gap:30px"><div class="sig">Expéditeur${t.expedie_par?'<br>'+escapeHtml(t.expedie_par):''}</div><div class="sig">Transporteur</div><div class="sig">Réceptionnaire${t.recu_par?'<br>'+escapeHtml(t.recu_par):''}</div></div>
+    <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+  win.document.close(); win.focus();
+}
+
 /* ============================== VENTE AU COMPTOIR ==============================
    Caisse enregistreuse pour la revente directe des composants & consommables.
    Validation : RPC vente_comptoir_valider (en-tête + lignes + sorties de stock, une transaction — voir sql/vente_comptoir.sql),
    puis écriture comptable (trésorerie / ventes / TVA) et, en espèces, mouvement dans la séance de caisse ouverte. */
 const COMPTOIR_MODES={espece:{label:'Espèces',icon:'💵',journal:'CA'},mobile_money:{label:'Mobile Money',icon:'📱',journal:'MM'},banque:{label:'Carte / Virement',icon:'💳',journal:'BQ'},cheque:{label:'Chèque',icon:'🧾',journal:'BQ'}};
-window._pos=window._pos||{panier:[],clientId:'',clientNom:'',clientTel:'',remise:0,mode:'espece',caisseId:'',recu:'',refPaiement:'',famille:''};
+window._pos=window._pos||{pointVenteId:'',panier:[],clientId:'',clientNom:'',clientTel:'',remise:0,mode:'espece',caisseId:'',recu:'',refPaiement:'',famille:''};
 function posPrixVente(c){ return c.prix_vente!=null?+c.prix_vente:(+c.prix_unitaire||0); }
+function posStockDe(id){ return (window._posStock||{})[id]||0; }
+function posChangerPointVente(id){
+  const pos=window._pos, pdv=(window._posPdvs||[]).find(p=>p.id===id); if(!pdv) return;
+  pos.pointVenteId=id; if(pdv.caisse_id) pos.caisseId=pdv.caisse_id;
+  try{ localStorage.setItem('beda_pos_pdv',id); }catch(e){}
+  showPage('comptoir');
+}
 async function renderComptoir(el){
+  const {data:pdvs}=await sb.from('points_vente').select('*, depots(nom,type)').eq('actif',true).order('code');
+  window._posPdvs=pdvs||[];
+  const pos0=window._pos;
+  if(!pos0.pointVenteId){ try{ pos0.pointVenteId=localStorage.getItem('beda_pos_pdv')||''; }catch(e){} }
+  if(!window._posPdvs.some(p=>p.id===pos0.pointVenteId)){ pos0.pointVenteId=(window._posPdvs[0]||{}).id||''; pos0.caisseId=(window._posPdvs[0]||{}).caisse_id||pos0.caisseId; }
+  const pdv=window._posPdvs.find(p=>p.id===pos0.pointVenteId);
+  if(!pdv){ el.innerHTML=`<div class="card p-8 text-center"><div class="text-4xl mb-2">🏪</div><p class="mb-4">Aucun point de vente actif. Créez-en un et affiliez-le à un dépôt.</p><button class="btn btn-primary" onclick="showPage('stock-depots')">Dépôts & points de vente</button></div>`; return; }
+  const {data:stocksPdv}=await sb.from('stocks_depot').select('composant_id,quantite').eq('depot_id',pdv.depot_id);
+  window._posStock=Object.fromEntries((stocksPdv||[]).map(s=>[s.composant_id,+s.quantite||0]));
   const [{data:composants,error},{data:clients},{data:caisses},{data:sessions}]=await Promise.all([
     sb.from('composants').select('id,nom,code,type,famille,unite,standing,prix_unitaire,prix_vente,stock_actuel,reference').order('nom'),
     sb.from('clients').select('id,nom,prenoms,telephone').order('nom'),
@@ -6305,12 +6776,17 @@ async function renderComptoir(el){
   window._posCaisses=(caisses||[]).map(c=>({...c,sessionId:(sessions||[]).find(s=>s.caisse_id===c.id)?.id||null}));
   const pos=window._pos;
   if(!pos.caisseId){ const ouverte=window._posCaisses.find(c=>c.sessionId); pos.caisseId=(ouverte||window._posCaisses[0]||{}).id||''; }
+  pos.panier.forEach(l=>{ l.stock=posStockDe(l.composant_id); });
   const familles=COMPOSANT_FAMILLES.filter(f=>window._posComposants.some(c=>(c.famille||'Autre')===f));
   const sansPrix=window._posComposants.filter(c=>c.prix_vente==null).length;
   el.innerHTML=`
     <div class="grid lg:grid-cols-5 gap-4 items-start">
       <div class="lg:col-span-3">
         <div class="card p-4 mb-3">
+          <div class="flex flex-wrap gap-2 items-center mb-3 pb-3 border-b border-gray-200">
+            <div class="min-w-[220px]">${fieldWrap('🏪',`<select onchange="posChangerPointVente(this.value)">${window._posPdvs.map(p=>`<option value="${p.id}" ${p.id===pdv.id?'selected':''}>${escapeHtml(p.nom)}</option>`).join('')}</select>`)}</div>
+            <div class="text-xs text-gray-500">Dépôt affilié : <b>${escapeHtml((DEPOT_TYPES[pdv.depots?.type]?.icon||'🏭')+' '+(pdv.depots?.nom||''))}</b></div>
+          </div>
           <div class="flex flex-wrap gap-2 items-center mb-3">
             <div class="flex-1 min-w-[200px]">${fieldWrap('🔎',`<input id="posQ" placeholder="Rechercher un article (nom, référence)…" oninput="posRenderCatalogue()" onkeydown="if(event.key==='Enter'){posAjouterPremier();event.preventDefault();}" autofocus>`)}</div>
             <button class="btn btn-outline text-xs" onclick="showPage('comptoir-ventes')">📜 Ventes du jour</button>
@@ -6341,7 +6817,7 @@ function posRenderCatalogue(){
   const items=posFiltrer();
   if(!items.length){ host.innerHTML='<div class="card text-center text-gray-400 p-8 col-span-full">Aucun article.</div>'; return; }
   host.innerHTML=items.slice(0,120).map(c=>{
-    const fc=COMPOSANT_FAM_COLORS[c.famille]||'#6b7280', stock=+c.stock_actuel||0;
+    const fc=COMPOSANT_FAM_COLORS[c.famille]||'#6b7280', stock=posStockDe(c.id);
     return `<button type="button" onclick="posAjouter('${c.id}')" class="text-left bg-white border rounded-xl p-3 hover:shadow-md transition" style="border-left:4px solid ${fc}">
       <div class="text-sm font-semibold leading-tight line-clamp-2">${COMPOSANT_FAM_ICONS[c.famille]||'📦'} ${escapeHtml(c.nom)}</div>
       <div class="mt-1 text-base font-bold" style="color:${c.prix_vente!=null?'#111827':'#b45309'}">${money(posPrixVente(c))}<span class="text-xs font-normal text-gray-500"> /${escapeHtml(c.unite||'u')}</span></div>
@@ -6354,7 +6830,7 @@ function posAjouter(id){
   const c=(window._posComposants||[]).find(x=>x.id===id); if(!c) return;
   const pan=window._pos.panier, ex=pan.find(l=>l.composant_id===id);
   if(ex) ex.quantite=(+ex.quantite||0)+1;
-  else pan.push({composant_id:c.id,designation:c.nom,unite:c.unite,quantite:1,prix_unitaire:posPrixVente(c),prix_achat:+c.prix_unitaire||0,remise_pct:0,stock:+c.stock_actuel||0});
+  else pan.push({composant_id:c.id,designation:c.nom,unite:c.unite,quantite:1,prix_unitaire:posPrixVente(c),prix_achat:+c.prix_unitaire||0,remise_pct:0,stock:posStockDe(c.id)});
   posRenderPanier();
 }
 function posLigneTotal(l){ return Math.round((+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100)); }
@@ -6453,7 +6929,9 @@ async function posEncaisser(){
     if(t.recu!=null && t.monnaie<0){ toast('Montant reçu insuffisant.','error'); return; }
   }
   const ruptures=pos.panier.filter(l=>(+l.quantite)>(+l.stock));
-  if(ruptures.length && !confirm(`Stock insuffisant pour : ${ruptures.map(l=>l.designation).join(', ')}.\nLe stock deviendra négatif. Continuer la vente ?`)) return;
+  if(ruptures.length && !confirm(`Stock insuffisant dans le dépôt de ce point de vente pour : ${ruptures.map(l=>l.designation).join(', ')}.\nLe stock du dépôt deviendra négatif (pensez à un transfert). Continuer la vente ?`)) return;
+  const pdv=(window._posPdvs||[]).find(p=>p.id===pos.pointVenteId);
+  if(!pdv){ toast('Choisissez le point de vente.','error'); return; }
   const perte=pos.panier.filter(l=>(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100)<(+l.prix_achat||0));
   if(perte.length && !confirm(`Vente à perte (sous le prix d'achat) pour : ${perte.map(l=>l.designation).join(', ')}.\nContinuer ?`)) return;
   await comptaChargerReferentiel();
@@ -6461,7 +6939,7 @@ async function posEncaisser(){
   const vente={date_vente:today,client_id:pos.clientId||null,client_nom:pos.clientNom||null,client_telephone:pos.clientTel||null,
     sous_total:t.sousTotal,remise:t.remise,total:t.total,cout_total:t.cout,mode_paiement:pos.mode,
     montant_recu:pos.mode==='espece'?(t.recu??t.total):t.total,monnaie_rendue:pos.mode==='espece'?Math.max(0,t.monnaie??0):0,
-    reference_paiement:pos.refPaiement||null,caisse_id:pos.mode==='espece'?pos.caisseId:null,vendeur:CURRENT_USER.email};
+    reference_paiement:pos.refPaiement||null,caisse_id:pos.mode==='espece'?pos.caisseId:null,vendeur:CURRENT_USER.email,point_vente_id:pdv.id,depot_id:pdv.depot_id};
   const lignes=pos.panier.map(l=>({composant_id:l.composant_id,designation:l.designation,unite:l.unite,quantite:+l.quantite,prix_unitaire:+l.prix_unitaire||0,prix_achat:+l.prix_achat||0,remise_pct:+l.remise_pct||0,total:posLigneTotal(l)}));
   const {data:v,error}=await sb.rpc('vente_comptoir_valider',{p_vente:vente,p_lignes:lignes});
   if(error){ toast(error.message,'error'); return; }
@@ -6508,11 +6986,13 @@ async function comptabiliserVenteComptoir(v,caisse){
 }
 
 /* ---------- Historique des ventes au comptoir ---------- */
-window._comptoirFiltre=window._comptoirFiltre||{debut:new Date().toISOString().slice(0,10),fin:new Date().toISOString().slice(0,10),statut:''};
+window._comptoirFiltre=window._comptoirFiltre||{debut:new Date().toISOString().slice(0,10),fin:new Date().toISOString().slice(0,10),statut:'',pdv:''};
 async function renderComptoirVentes(el){
   const f=window._comptoirFiltre;
-  let q=sb.from('ventes_comptoir').select('*, clients(nom,prenoms), caisses(nom), ventes_comptoir_lignes(quantite)').gte('date_vente',f.debut).lte('date_vente',f.fin).order('created_at',{ascending:false});
+  let q=sb.from('ventes_comptoir').select('*, clients(nom,prenoms), caisses(nom), points_vente(nom), ventes_comptoir_lignes(quantite)').gte('date_vente',f.debut).lte('date_vente',f.fin).order('created_at',{ascending:false});
   if(f.statut) q=q.eq('statut',f.statut);
+  if(f.pdv) q=q.eq('point_vente_id',f.pdv);
+  const {data:pdvs}=await sb.from('points_vente').select('id,nom').order('code');
   const {data:ventes,error}=await q;
   if(error){ el.innerHTML=`<div class="card text-red-600">${escapeHtml(error.message)}</div>`; return; }
   const valides=(ventes||[]).filter(v=>v.statut==='validee');
@@ -6525,7 +7005,8 @@ async function renderComptoirVentes(el){
         <div class="field"><label>Du</label>${fieldWrap('📅',`<input type="date" id="vcDebut" value="${f.debut}">`)}</div>
         <div class="field"><label>Au</label>${fieldWrap('📅',`<input type="date" id="vcFin" value="${f.fin}">`)}</div>
         <div class="field"><label>Statut</label>${fieldWrap('🏷️',`<select id="vcStatut"><option value="">Tous</option><option value="validee" ${f.statut==='validee'?'selected':''}>Validées</option><option value="annulee" ${f.statut==='annulee'?'selected':''}>Annulées</option></select>`)}</div>
-        <button class="btn btn-outline" onclick="window._comptoirFiltre={debut:val('vcDebut'),fin:val('vcFin'),statut:val('vcStatut')};showPage('comptoir-ventes')">Filtrer</button>
+        <div class="field"><label>Point de vente</label>${fieldWrap('🏪',`<select id="vcPdv"><option value="">Tous</option>${(pdvs||[]).map(p=>`<option value="${p.id}" ${f.pdv===p.id?'selected':''}>${escapeHtml(p.nom)}</option>`).join('')}</select>`)}</div>
+        <button class="btn btn-outline" onclick="window._comptoirFiltre={debut:val('vcDebut'),fin:val('vcFin'),statut:val('vcStatut'),pdv:val('vcPdv')};showPage('comptoir-ventes')">Filtrer</button>
       </div>
       <button class="btn btn-primary" onclick="showPage('comptoir')">🛒 Nouvelle vente</button>
     </div>
@@ -6536,7 +7017,7 @@ async function renderComptoirVentes(el){
       ${kpi('Encaissements',Object.entries(parMode).map(([m,s])=>`<div class="text-sm font-semibold">${COMPTOIR_MODES[m]?.icon||''} ${money(s)}</div>`).join('')||'—')}
     </div>
     <div class="card overflow-x-auto">
-      <table><thead><tr><th>N°</th><th>Date</th><th>Client</th><th class="text-right">Articles</th><th>Paiement</th><th class="text-right">Total</th><th class="text-right">Marge</th><th>Statut</th><th></th></tr></thead>
+      <table><thead><tr><th>N°</th><th>Date</th><th>Point de vente</th><th>Client</th><th class="text-right">Articles</th><th>Paiement</th><th class="text-right">Total</th><th class="text-right">Marge</th><th>Statut</th><th></th></tr></thead>
       <tbody>${(ventes||[]).map(v=>{
         const client=v.clients?[v.clients.nom,v.clients.prenoms].filter(Boolean).join(' '):(v.client_nom||'Client comptoir');
         const nb=(v.ventes_comptoir_lignes||[]).reduce((s,l)=>s+(+l.quantite||0),0);
@@ -6544,6 +7025,7 @@ async function renderComptoirVentes(el){
         return `<tr style="${v.statut==='annulee'?'opacity:.55':''}">
           <td class="font-semibold whitespace-nowrap">${escapeHtml(v.code||'')}</td>
           <td class="text-xs whitespace-nowrap">${new Date(v.created_at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'})}</td>
+          <td class="text-xs">${escapeHtml(v.points_vente?.nom||'—')}</td>
           <td>${escapeHtml(client)}</td>
           <td class="text-right">${nb}</td>
           <td class="whitespace-nowrap">${COMPTOIR_MODES[v.mode_paiement]?.icon||''} ${COMPTOIR_MODES[v.mode_paiement]?.label||escapeHtml(v.mode_paiement)}${v.caisses?`<div class="text-xs text-gray-400">${escapeHtml(v.caisses.nom)}</div>`:''}</td>
@@ -6554,7 +7036,7 @@ async function renderComptoirVentes(el){
             <button class="text-xs font-semibold text-violet-700 mr-2" onclick="imprimerTicketComptoir('${v.id}')">🧾 Ticket</button>
             ${v.statut==='validee'?`<button class="text-xs font-semibold text-red-600" onclick="annulerVenteComptoir('${v.id}')">✕ Annuler</button>`:''}
           </td></tr>`;
-      }).join('')||'<tr><td colspan="9" class="text-center text-gray-400 p-6">Aucune vente sur la période.</td></tr>'}</tbody></table>
+      }).join('')||'<tr><td colspan="10" class="text-center text-gray-400 p-6">Aucune vente sur la période.</td></tr>'}</tbody></table>
     </div>`;
 }
 async function annulerVenteComptoir(id){
@@ -6588,7 +7070,7 @@ async function annulerVenteComptoir(id){
 async function imprimerTicketComptoir(id){
   const win=window.open('','_blank','width=420,height=760'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
   const [{data:v},{data:lignes}]=await Promise.all([
-    sb.from('ventes_comptoir').select('*, clients(nom,prenoms,telephone), caisses(nom)').eq('id',id).single(),
+    sb.from('ventes_comptoir').select('*, clients(nom,prenoms,telephone), caisses(nom), points_vente(nom,adresse,telephone)').eq('id',id).single(),
     sb.from('ventes_comptoir_lignes').select('*').eq('vente_id',id).order('ordre')
   ]);
   if(!v){ win.close(); return; }
@@ -6605,6 +7087,7 @@ async function imprimerTicketComptoir(id){
     <div class="c" style="font-weight:bold;font-size:14px">${escapeHtml(p.raison_sociale||'BEDA ALU')}</div>
     ${[p.adresse,p.telephone,p.ncc?'NCC '+p.ncc:'',p.rccm?'RCCM '+p.rccm:''].filter(Boolean).map(x=>`<div class="c">${escapeHtml(x)}</div>`).join('')}
     <hr><div class="c" style="font-weight:bold">TICKET DE VENTE ${v.statut==='annulee'?'— ANNULÉ':''}</div>
+    ${v.points_vente?`<div class="c">${escapeHtml([v.points_vente.nom,v.points_vente.adresse,v.points_vente.telephone].filter(Boolean).join(' · '))}</div>`:''}
     <div>N° : ${escapeHtml(v.code)}</div><div>Date : ${new Date(v.created_at).toLocaleString('fr-FR')}</div>
     ${client?`<div>Client : ${escapeHtml(client)}</div>`:''}${v.vendeur?`<div>Vendeur : ${escapeHtml(v.vendeur)}</div>`:''}
     <hr><table>${(lignes||[]).map(l=>`<tr><td colspan="2">${escapeHtml(l.designation)}</td></tr>
@@ -7354,7 +7837,7 @@ async function importerSauvegarde(e){
     for(const table of BACKUP_TABLES){
       const rows=backup.tables?.[table];
       if(!rows || !rows.length) continue;
-      const {error}=await sb.from(table).upsert(rows,{onConflict:'id'});
+      const {error}=await sb.from(table).upsert(rows,{onConflict:table==='stocks_depot'?'depot_id,composant_id':'id'});
       if(error) throw new Error(table+' : '+error.message);
     }
     resEl.textContent='✅ Import terminé.'; resEl.className='text-sm mt-3 text-emerald-600';
