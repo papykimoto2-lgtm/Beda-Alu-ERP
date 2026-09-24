@@ -4797,6 +4797,8 @@ async function renderParametres(el){
           <div class="field sm:col-span-2"><label>Clé API (Bearer)</label>${fieldWrap('🔑',`<input id="fneApiKey" type="password" placeholder="Fournie par la DGI" value="${escapeHtml(p.fne_api_key||'')}">`)}</div>
           <div class="field"><label>Point de vente</label>${fieldWrap('🏬',`<input id="fnePointVente" value="${escapeHtml(p.fne_point_vente||'1')}">`)}</div>
           <div class="field"><label>Établissement</label>${fieldWrap('🏢',`<input id="fneEtablissement" value="${escapeHtml(p.fne_etablissement||'Principal')}">`)}</div>
+          <div class="field sm:col-span-2"><label>Code TVA FNE appliqué aux articles</label>${fieldWrap('🧮',`<select id="fneTaxe">${Object.entries(FNE_TAXES).map(([k,t])=>`<option value="${k}" ${(p.fne_taxe_defaut||'TVA')===k?'selected':''}>${k} — ${t.label}</option>`).join('')}</select>`)}</div>
+          <div class="sm:col-span-2 text-xs text-gray-500 -mt-2">Les prix du comptoir sont TTC ; ils sont convertis en HT avec ce taux pour la DGI. Gardez-le cohérent avec le « Taux de TVA » de l'onglet Entreprise (utilisé en comptabilité).</div>
           <div class="sm:col-span-2 flex items-center gap-2">
             <input type="checkbox" id="fneActif" ${p.fne_actif?'checked':''} style="width:16px;height:16px">
             <label style="font-size:12px;color:#374151" for="fneActif">Certification DGI active (sinon référence provisoire locale)</label>
@@ -4905,7 +4907,7 @@ async function renderParametres(el){
   };
   document.getElementById('fneForm').onsubmit=async(e)=>{
     e.preventDefault();
-    const rec={fne_environnement:val('fneEnvironnement'),fne_url_test:val('fneUrlTest'),fne_url_prod:val('fneUrlProd'),fne_api_key:val('fneApiKey'),fne_point_vente:val('fnePointVente'),fne_etablissement:val('fneEtablissement'),fne_actif:document.getElementById('fneActif').checked};
+    const rec={fne_environnement:val('fneEnvironnement'),fne_url_test:val('fneUrlTest'),fne_url_prod:val('fneUrlProd'),fne_api_key:val('fneApiKey'),fne_point_vente:val('fnePointVente'),fne_etablissement:val('fneEtablissement'),fne_taxe_defaut:val('fneTaxe'),fne_actif:document.getElementById('fneActif').checked};
     const {error}=await sb.from('parametres').update(rec).eq('id',p.id);
     if(error){ toast(error.message,'error'); return; }
     toast('Paramètres FNE enregistrés.'); await loadAppParams();
@@ -6950,18 +6952,8 @@ async function posEncaisser(){
     if(eC) toast('Vente enregistrée, mais mouvement de caisse non créé : '+eC.message,'error');
   }
   Object.assign(pos,{panier:[],clientId:'',clientNom:'',clientTel:'',remise:0,recu:'',refPaiement:''});
-  showPage('comptoir');
-  openModal(`
-    <div class="text-center">
-      <div class="text-4xl mb-2">✅</div>
-      <h3 class="font-bold text-lg">Vente ${escapeHtml(v.code)} enregistrée</h3>
-      <div class="text-2xl font-extrabold my-2">${money(v.total)}</div>
-      ${+v.monnaie_rendue?`<div class="text-emerald-700 font-semibold mb-2">Monnaie à rendre : ${money(v.monnaie_rendue)}</div>`:''}
-      <div class="flex justify-center gap-2 mt-4">
-        <button class="btn btn-outline" onclick="closeModal()">Nouvelle vente</button>
-        <button class="btn btn-primary" onclick="closeModal();imprimerTicketComptoir('${v.id}')">🧾 Imprimer le ticket</button>
-      </div>
-    </div>`);
+  await showPage('comptoir');
+  openDocumentsVente(v.id,v.code,v.total,v.monnaie_rendue);
 }
 /* Écriture de vente au comptant : D trésorerie (caisse / banque) — C ventes HT — C TVA collectée */
 async function comptabiliserVenteComptoir(v,caisse){
@@ -7017,7 +7009,7 @@ async function renderComptoirVentes(el){
       ${kpi('Encaissements',Object.entries(parMode).map(([m,s])=>`<div class="text-sm font-semibold">${COMPTOIR_MODES[m]?.icon||''} ${money(s)}</div>`).join('')||'—')}
     </div>
     <div class="card overflow-x-auto">
-      <table><thead><tr><th>N°</th><th>Date</th><th>Point de vente</th><th>Client</th><th class="text-right">Articles</th><th>Paiement</th><th class="text-right">Total</th><th class="text-right">Marge</th><th>Statut</th><th></th></tr></thead>
+      <table><thead><tr><th>N°</th><th>Date</th><th>Point de vente</th><th>Client</th><th class="text-right">Articles</th><th>Paiement</th><th class="text-right">Total</th><th class="text-right">Marge</th><th>Statut</th><th>Facture</th><th></th></tr></thead>
       <tbody>${(ventes||[]).map(v=>{
         const client=v.clients?[v.clients.nom,v.clients.prenoms].filter(Boolean).join(' '):(v.client_nom||'Client comptoir');
         const nb=(v.ventes_comptoir_lignes||[]).reduce((s,l)=>s+(+l.quantite||0),0);
@@ -7032,16 +7024,22 @@ async function renderComptoirVentes(el){
           <td class="text-right font-semibold">${money(v.total)}</td>
           <td class="text-right" style="color:${marge<0?'#dc2626':'#059669'}">${money(marge)}</td>
           <td>${v.statut==='annulee'?`<span class="text-xs font-semibold text-red-600" title="${escapeHtml(v.motif_annulation||'')}">Annulée</span>`:'<span class="text-xs font-semibold text-emerald-600">Validée</span>'}</td>
+          <td class="text-xs whitespace-nowrap">${v.fne_statut==='certifiee'?`<span class="font-semibold text-emerald-700" title="Facture normalisée certifiée DGI">🏛️ ${escapeHtml(v.fne_reference)}</span>${v.fne_avoir_reference?`<div class="text-red-600">Avoir ${escapeHtml(v.fne_avoir_reference)}</div>`:''}`
+            :v.fne_statut==='provisoire'?'<span class="font-semibold text-amber-700">FNE provisoire</span>'
+            :v.fne_statut==='erreur'?`<span class="font-semibold text-red-600" title="${escapeHtml(v.fne_erreur||'')}">FNE refusée</span>`
+            :v.facture_imprimee_le?'<span class="text-gray-600">Facture simple</span>':'<span class="text-gray-400">Reçu</span>'}</td>
           <td class="text-right whitespace-nowrap">
-            <button class="text-xs font-semibold text-violet-700 mr-2" onclick="imprimerTicketComptoir('${v.id}')">🧾 Ticket</button>
+            <button class="text-xs font-semibold text-violet-700 mr-2" onclick="openDocumentsVente('${v.id}')">🖨 Documents</button>
+            ${v.statut==='validee'&&v.fne_statut!=='certifiee'?`<button class="text-xs font-semibold text-amber-700 mr-2" onclick="openFneModal('${v.id}')">🏛️ ${v.fne_statut?'Certifier':'FNE'}</button>`:''}
             ${v.statut==='validee'?`<button class="text-xs font-semibold text-red-600" onclick="annulerVenteComptoir('${v.id}')">✕ Annuler</button>`:''}
           </td></tr>`;
-      }).join('')||'<tr><td colspan="10" class="text-center text-gray-400 p-6">Aucune vente sur la période.</td></tr>'}</tbody></table>
+      }).join('')||'<tr><td colspan="11" class="text-center text-gray-400 p-6">Aucune vente sur la période.</td></tr>'}</tbody></table>
     </div>`;
 }
 async function annulerVenteComptoir(id){
   if(!exigerDroit('Comptoir','supprimer','une vente au comptoir')) return;
-  const motif=prompt("Motif de l'annulation (obligatoire) :");
+  const {data:avant}=await sb.from('ventes_comptoir').select('fne_statut,fne_reference').eq('id',id).single();
+  const motif=prompt((avant?.fne_statut==='certifiee'?`Cette vente a une facture FNE certifiée (${avant.fne_reference}) : une facture d'avoir FNE sera émise auprès de la DGI.\n\n`:'')+"Motif de l'annulation (obligatoire) :");
   if(motif===null) return;
   if(!motif.trim()){ toast("Le motif d'annulation est obligatoire.",'error'); return; }
   const {data:v,error}=await sb.rpc('vente_comptoir_annuler',{p_vente_id:id,p_motif:motif.trim(),p_par:CURRENT_USER.email});
@@ -7064,46 +7062,342 @@ async function annulerVenteComptoir(id){
     if(s){ await sb.from('caisse_mouvements').insert({session_id:s.id,caisse_id:v.caisse_id,numero:v.code+'-AN',date_mouvement:today,type:'sortie',montant:v.total,motif:'Remboursement — annulation vente '+v.code,beneficiaire:v.client_nom||null,statut:ecrAnnul?'ventile':'a_ventiler',compte_ventile:ecrAnnul?requireCompteDefaut('ventes'):null,ecriture_id:ecrAnnul?.id||null,created_by:CURRENT_USER.id}); }
     else toast("Aucune séance ouverte sur la caisse : enregistrez le remboursement manuellement.",'error');
   }
+  if(v.fne_statut==='certifiee'){
+    const av=await fneEmettreAvoir(v);
+    if(av.ok) toast(`Facture d'avoir FNE émise : ${av.reference}`);
+    else toast(`Vente annulée, mais l'avoir FNE n'a pas pu être émis (${av.message}). Émettez-le depuis votre espace FNE.`,'error');
+  }
   toast(`Vente ${v.code} annulée — articles remis en stock.`);
   showPage('comptoir-ventes');
 }
-async function imprimerTicketComptoir(id){
-  const win=window.open('','_blank','width=420,height=760'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+/* ---------- Documents de la vente au comptoir : reçu de caisse, facture simple, facture normalisée FNE ----------
+   FNE : certification via l'Edge Function `fne-proxy` (supabase/functions/fne-proxy), qui relaie vers
+   $url/external/invoices/sign (vente) et $url/external/invoices/{id}/refund (avoir) — procédure DGI mai 2025.
+   Les prix du comptoir sont TTC ; la FNE attend des prix unitaires HT : HT = TTC / (1 + taux du code TVA FNE). */
+const FNE_PAIEMENT={espece:'cash',mobile_money:'mobile-money',banque:'card',cheque:'check'};
+const FNE_TEMPLATES={B2C:'Particulier (B2C)',B2B:'Entreprise avec NCC (B2B)',B2G:'Administration publique (B2G)'};
+const FNE_TAXES={TVA:{taux:18,label:'TVA normale 18 %'},TVAB:{taux:9,label:'TVA réduite 9 %'},TVAC:{taux:0,label:'Exonération conventionnelle 0 %'},TVAD:{taux:0,label:'Exonération légale 0 % (TEE / RME)'}};
+async function fneAppel(action,extra){
+  try{
+    const {data,error}=await sb.functions.invoke('fne-proxy',{body:{action,...(extra||{})}});
+    if(error){
+      let detail=null; try{ detail=await error.context?.json(); }catch(e){}
+      return detail||{ok:false,message:error.message};
+    }
+    return data||{ok:false,message:'Réponse vide'};
+  }catch(e){ return {ok:false,message:e.message}; }
+}
+function fneMessageErreur(r){
+  const d=r?.data;
+  const msg=(d&&typeof d==='object')?(d.message||d.error):(typeof d==='string'?d.slice(0,200):null);
+  return [r?.status?('HTTP '+r.status):'',Array.isArray(msg)?msg.join(', '):(msg||r?.message||'Erreur inconnue')].filter(Boolean).join(' — ');
+}
+function fneTaxeCode(){ return (window.APP_PARAMS||{}).fne_taxe_defaut||'TVA'; }
+function fnePayloadVente(v,lignes,info){
+  const p=window.APP_PARAMS||{}, code=fneTaxeCode(), taux=FNE_TAXES[code]?.taux||0;
+  const ht=x=>Math.round((+x||0)/(1+taux/100)*100)/100;
+  return {
+    invoiceType:'sale',
+    paymentMethod:FNE_PAIEMENT[v.mode_paiement]||'cash',
+    template:info.template,
+    isRne:false,
+    clientNcc:info.template==='B2C'?'':(info.ncc||''),
+    clientCompanyName:info.nom,
+    clientPhone:info.telephone,
+    clientEmail:info.email||'',
+    clientSellerName:v.vendeur||'',
+    pointOfSale:p.fne_point_vente||'1',
+    establishment:p.fne_etablissement||'Principal',
+    commercialMessage:'',
+    footer:'Merci de votre confiance',
+    foreignCurrency:'',
+    foreignCurrencyRate:0,
+    items:(lignes||[]).map(l=>({taxes:[code],customTaxes:[],reference:l.code_article||'',description:l.designation,quantity:+l.quantite,amount:ht(l.prix_unitaire),discount:+l.remise_pct||0,measurementUnit:l.unite||''})),
+    customTaxes:[],
+    discount:(+v.sous_total>0&&+v.remise>0)?Math.round((+v.remise)/(+v.sous_total)*10000)/100:0
+  };
+}
+async function chargerVenteDoc(id){
   const [{data:v},{data:lignes}]=await Promise.all([
-    sb.from('ventes_comptoir').select('*, clients(nom,prenoms,telephone), caisses(nom), points_vente(nom,adresse,telephone)').eq('id',id).single(),
-    sb.from('ventes_comptoir_lignes').select('*').eq('vente_id',id).order('ordre')
+    sb.from('ventes_comptoir').select('*, clients(nom,prenoms,telephone,email,ncc,rccm,adresse,commune,regime_fiscal), caisses(nom), points_vente(nom,adresse,telephone)').eq('id',id).single(),
+    sb.from('ventes_comptoir_lignes').select('*, composants(reference)').eq('vente_id',id).order('ordre')
   ]);
+  if(!window.APP_PARAMS) await loadAppParams();
+  (lignes||[]).forEach(l=>{ l.code_article=l.composants?.reference||''; });
+  return {v,lignes:lignes||[]};
+}
+function venteDestinataire(v){
+  const c=v.clients;
+  return {
+    nom:v.fne_client_nom||(c?[c.nom,c.prenoms].filter(Boolean).join(' '):v.client_nom)||'',
+    ncc:v.fne_client_ncc||v.client_ncc||c?.ncc||'',
+    telephone:v.fne_client_telephone||v.client_telephone||c?.telephone||'',
+    email:v.fne_client_email||c?.email||'',
+    adresse:v.client_adresse||[c?.adresse,c?.commune].filter(Boolean).join(', ')||'',
+    rccm:c?.rccm||''
+  };
+}
+
+/* Choix du document après une vente (ou depuis l'historique) */
+function openDocumentsVente(id,code,total,monnaie){
+  openModal(`
+    <div class="text-center">
+      ${code?`<div class="text-4xl mb-2">✅</div><h3 class="font-bold text-lg">Vente ${escapeHtml(code)} enregistrée</h3>
+      <div class="text-2xl font-extrabold my-2">${money(total)}</div>
+      ${+monnaie?`<div class="text-emerald-700 font-semibold mb-2">Monnaie à rendre : ${money(monnaie)}</div>`:''}`:'<h3 class="font-bold text-lg mb-2">Documents de la vente</h3>'}
+      <p class="text-sm text-gray-500 mb-4">Quel document remettre au client ?</p>
+      <div class="grid sm:grid-cols-3 gap-2 text-left">
+        <button class="border rounded-xl p-3 hover:shadow-md bg-white" onclick="closeModal();imprimerTicketComptoir('${id}')"><div class="text-2xl">🧾</div><div class="font-bold text-sm mt-1">Reçu de caisse</div><div class="text-xs text-gray-500">Ticket 80 mm</div></button>
+        <button class="border rounded-xl p-3 hover:shadow-md bg-white" onclick="openFactureSimpleModal('${id}')"><div class="text-2xl">📄</div><div class="font-bold text-sm mt-1">Facture simple</div><div class="text-xs text-gray-500">A4, au nom du client</div></button>
+        <button class="border rounded-xl p-3 hover:shadow-md bg-white" style="border-color:#f59e0b" onclick="openFneModal('${id}')"><div class="text-2xl">🏛️</div><div class="font-bold text-sm mt-1">Facture normalisée FNE</div><div class="text-xs text-gray-500">Certifiée DGI, QR code</div></button>
+      </div>
+      <button class="btn btn-outline mt-4" onclick="closeModal()">${code?'Nouvelle vente':'Fermer'}</button>
+    </div>`);
+}
+
+/* Facture simple : saisie / confirmation du destinataire, puis impression A4 */
+async function openFactureSimpleModal(id){
+  const {v}=await chargerVenteDoc(id); if(!v) return;
+  const d=venteDestinataire(v);
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">📄 Facture simple — ${escapeHtml(v.code)}</h2>
+    <p class="text-xs text-gray-500">Facture commerciale non certifiée. Si le client exige une facture fiscale, utilisez la facture normalisée FNE.</p>
+    <div class="divider"></div>
+    <div class="grid sm:grid-cols-2 gap-3">
+      <div class="field sm:col-span-2"><label>Client / raison sociale</label>${fieldWrap('👤',`<input id="fsNom" value="${escapeHtml(d.nom)}" placeholder="Client comptoir">`)}</div>
+      <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input id="fsTel" value="${escapeHtml(d.telephone)}">`)}</div>
+      <div class="field"><label>NCC (optionnel)</label>${fieldWrap('🧾',`<input id="fsNcc" value="${escapeHtml(d.ncc)}">`)}</div>
+      <div class="field sm:col-span-2"><label>Adresse (optionnel)</label>${fieldWrap('📍',`<input id="fsAdresse" value="${escapeHtml(d.adresse)}">`)}</div>
+    </div>
+    <div class="flex justify-end gap-2 mt-4"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="confirmerFactureSimple('${id}')">🖨 Imprimer la facture</button></div>`);
+}
+async function confirmerFactureSimple(id){
+  const win=window.open('','_blank','width=900,height=1100'); // ouvert dans le clic (anti pop-up)
+  if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const rec={client_nom:val('fsNom')||null,client_telephone:val('fsTel')||null,client_ncc:val('fsNcc')||null,client_adresse:val('fsAdresse')||null,facture_imprimee_le:new Date().toISOString()};
+  closeModal();
+  await sb.from('ventes_comptoir').update(rec).eq('id',id);
+  imprimerFactureComptoir(id,win);
+}
+
+/* Facture normalisée FNE : informations exigées par la DGI puis certification */
+async function openFneModal(id){
+  const {v}=await chargerVenteDoc(id); if(!v) return;
+  if(v.fne_statut==='certifiee'){ openFneResultat(v); return; }
+  if(v.statut==='annulee'){ toast('Vente annulée : pas de facture FNE.','error'); return; }
+  const d=venteDestinataire(v), p=window.APP_PARAMS||{};
+  const template=v.fne_template||(v.clients?.regime_fiscal==='administration'?'B2G':(d.ncc?'B2B':'B2C'));
+  const actif=p.fne_actif&&p.fne_api_key&&(p.fne_environnement==='production'?p.fne_url_prod:p.fne_url_test);
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">🏛️ Facture normalisée FNE — ${escapeHtml(v.code)}</h2>
+    <p class="text-sm text-gray-500">${money(v.total)} · ${COMPTOIR_MODES[v.mode_paiement]?.label||''} · TVA FNE : <b>${escapeHtml(FNE_TAXES[fneTaxeCode()]?.label||fneTaxeCode())}</b></p>
+    ${!actif?`<div class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-3 py-2 mt-2">⚠️ Certification DGI non configurée ou désactivée (Paramètres → FNE). La facture sera marquée <b>PROVISOIRE — non valable fiscalement</b> ; vous pourrez la certifier plus tard depuis l'historique.</div>`
+      :`<div class="text-xs text-gray-500 mt-1">Environnement : <b>${p.fne_environnement==='production'?'Production':'Test DGI'}</b></div>`}
+    ${v.fne_statut==='erreur'?`<div class="text-xs bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 mt-2">Dernière tentative refusée : ${escapeHtml(v.fne_erreur||'')}</div>`:''}
+    <div class="divider"></div>
+    <div class="grid sm:grid-cols-2 gap-3">
+      <div class="field sm:col-span-2"><label>Type de client</label>${fieldWrap('🗂️',`<select id="fneTpl" onchange="document.getElementById('fneNccWrap').style.display=this.value==='B2C'?'none':''">${Object.entries(FNE_TEMPLATES).map(([k,l])=>`<option value="${k}" ${k===template?'selected':''}>${l}</option>`).join('')}</select>`)}</div>
+      <div class="field sm:col-span-2"><label>Nom du client / raison sociale *</label>${fieldWrap('👤',`<input id="fneNom" value="${escapeHtml(d.nom)}">`)}</div>
+      <div class="field sm:col-span-2" id="fneNccWrap" style="${template==='B2C'?'display:none':''}"><label>NCC du client * (obligatoire en B2B)</label>${fieldWrap('🧾',`<input id="fneNcc" value="${escapeHtml(d.ncc)}" placeholder="Ex : 9502363N">`)}</div>
+      <div class="field"><label>Téléphone *</label>${fieldWrap('📞',`<input id="fneTel" value="${escapeHtml(d.telephone)}">`)}</div>
+      <div class="field"><label>E-mail</label>${fieldWrap('✉️',`<input id="fneEmail" type="email" value="${escapeHtml(d.email)}" placeholder="Demandé par la DGI">`)}</div>
+    </div>
+    <div class="flex justify-end gap-2 mt-4"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" id="fneBtn" onclick="certifierVenteFne('${id}')">${actif?'🏛️ Certifier auprès de la DGI':'Enregistrer en provisoire'}</button></div>`);
+}
+async function certifierVenteFne(id){
+  if(!exigerDroit('Comptoir','creer','une facture FNE')) return;
+  const info={template:val('fneTpl'),nom:val('fneNom'),ncc:val('fneNcc').toUpperCase(),telephone:val('fneTel').replace(/\s+/g,''),email:val('fneEmail')};
+  if(!info.nom){ toast('Le nom du client est obligatoire.','error'); return; }
+  if(!info.telephone){ toast('Le téléphone du client est obligatoire (exigé par la DGI).','error'); return; }
+  if(info.template!=='B2C' && !info.ncc){ toast('Le NCC du client est obligatoire pour une facture B2B / B2G.','error'); return; }
+  if(info.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(info.email)){ toast('E-mail invalide.','error'); return; }
+  const btn=document.getElementById('fneBtn'); if(btn){ btn.disabled=true; btn.textContent='Certification en cours…'; }
+  const {v,lignes}=await chargerVenteDoc(id);
+  if(v.fne_statut==='certifiee'){ openFneResultat(v); return; }
+  const base={fne_template:info.template,fne_client_nom:info.nom,fne_client_ncc:info.ncc||null,fne_client_telephone:info.telephone,fne_client_email:info.email||null};
+  const payload=fnePayloadVente(v,lignes,info);
+  const r=await fneAppel('sign',{payload});
+  let maj;
+  if(r.ok && r.data?.reference){
+    maj={...base,fne_statut:'certifiee',fne_reference:r.data.reference,fne_token:r.data.token||null,fne_invoice_id:r.data.invoice?.id||null,fne_certifiee_le:new Date().toISOString(),fne_reponse:r.data,fne_erreur:null};
+    if(r.data.warning) toast(`Attention : stock de stickers FNE bas (${r.data.balance_sticker??'?'} restants).`,'error');
+  } else if(r.inactif){
+    maj={...base,fne_statut:'provisoire',fne_reference:v.fne_reference||('PROV-'+v.code),fne_erreur:r.message||null};
+  } else {
+    maj={...base,fne_statut:'erreur',fne_erreur:fneMessageErreur(r),fne_reponse:r.data&&typeof r.data==='object'?r.data:null};
+  }
+  const {error}=await sb.from('ventes_comptoir').update(maj).eq('id',id);
+  if(error){ toast(error.message,'error'); }
+  if(maj.fne_statut==='erreur'){
+    toast('Certification refusée : '+maj.fne_erreur,'error');
+    if(btn){ btn.disabled=false; btn.textContent='🏛️ Réessayer'; }
+    return;
+  }
+  toast(maj.fne_statut==='certifiee'?`Facture FNE certifiée : ${maj.fne_reference}`:'Facture enregistrée en provisoire (non certifiée).', maj.fne_statut==='certifiee'?undefined:'error');
+  openFneResultat({...v,...maj});
+  if(document.getElementById('vcDebut')) showPage('comptoir-ventes');
+}
+function openFneResultat(v){
+  const ok=v.fne_statut==='certifiee';
+  openModal(`
+    <div class="text-center">
+      <div class="text-4xl mb-2">${ok?'🏛️':'⚠️'}</div>
+      <h3 class="font-bold text-lg">${ok?'Facture normalisée certifiée':'Facture FNE provisoire'}</h3>
+      <div class="text-xl font-extrabold my-2 font-mono">${escapeHtml(v.fne_reference||'')}</div>
+      ${ok?'':'<p class="text-sm text-amber-700">Non valable fiscalement tant qu\'elle n\'est pas certifiée par la DGI.</p>'}
+      <div class="flex flex-wrap justify-center gap-2 mt-4">
+        <button class="btn btn-outline" onclick="closeModal()">Fermer</button>
+        <button class="btn btn-outline" onclick="closeModal();imprimerTicketComptoir('${v.id}')">🧾 Format ticket</button>
+        <button class="btn btn-primary" onclick="closeModal();imprimerFactureComptoir('${v.id}')">📄 Facture A4</button>
+      </div>
+    </div>`);
+}
+/* Avoir FNE (annulation d'une vente certifiée) : toutes les lignes pour leur quantité totale */
+async function fneEmettreAvoir(v){
+  const items=(v.fne_reponse?.invoice?.items||[]).map(it=>({id:it.id,quantity:+it.quantity}));
+  if(!v.fne_invoice_id||!items.length) return {ok:false,message:"Identifiants FNE de la facture d'origine introuvables"};
+  const r=await fneAppel('refund',{invoice_id:v.fne_invoice_id,payload:{items}});
+  if(r.ok && r.data?.reference){
+    await sb.from('ventes_comptoir').update({fne_avoir_reference:r.data.reference,fne_avoir_token:r.data.token||null}).eq('id',v.id);
+    return {ok:true,reference:r.data.reference};
+  }
+  return {ok:false,message:fneMessageErreur(r)};
+}
+
+/* ---------- Impressions ---------- */
+function montantEnLettres(n){
+  n=Math.round(Math.abs(+n||0));
+  const u=['zéro','un','deux','trois','quatre','cinq','six','sept','huit','neuf','dix','onze','douze','treize','quatorze','quinze','seize','dix-sept','dix-huit','dix-neuf'];
+  const d=['','','vingt','trente','quarante','cinquante','soixante','soixante','quatre-vingt','quatre-vingt'];
+  const moinsDeCent=x=>{
+    if(x<20) return u[x];
+    const dz=Math.floor(x/10), un=x%10;
+    if(dz===7||dz===9) return d[dz]+(dz===7&&un===1?'-et-':'-')+u[10+un];
+    if(dz===8) return un?d[8]+'-'+u[un]:'quatre-vingts';
+    return d[dz]+(un===1?'-et-un':un?'-'+u[un]:'');
+  };
+  const moinsDeMille=x=>{
+    const c=Math.floor(x/100), r=x%100;
+    const tc=c===0?'':(c===1?'cent':u[c]+'-cent'+(r===0?'s':''));
+    return [tc,r?moinsDeCent(r):''].filter(Boolean).join('-');
+  };
+  if(n===0) return 'zéro';
+  const parts=[];
+  const mds=Math.floor(n/1e9), mns=Math.floor(n%1e9/1e6), mls=Math.floor(n%1e6/1000), rs=n%1000;
+  if(mds) parts.push(moinsDeMille(mds)+'-milliard'+(mds>1?'s':''));
+  if(mns) parts.push(moinsDeMille(mns)+'-million'+(mns>1?'s':''));
+  if(mls) parts.push(mls===1?'mille':moinsDeMille(mls).replace(/(cent|vingt)s$/,'$1')+'-mille');
+  if(rs) parts.push(moinsDeMille(rs));
+  return parts.join('-');
+}
+function fneQrHtml(token,taille){
+  // Simple emplacement : le QR est dessiné par fneQrScriptFin(), placé en fin de document pour que
+  // le chargement de la librairie ne bloque jamais l'affichage du reste de la facture.
+  return token?`<div data-qr="${escapeHtml(token)}" data-size="${taille}" style="display:inline-block;min-width:${taille}px;min-height:${taille}px"></div>`:'';
+}
+function fneQrScriptFin(){
+  return `<script>function dessinerQr(){ document.querySelectorAll('[data-qr]').forEach(function(el){ try{ new QRCode(el,{text:el.getAttribute('data-qr'),width:+el.getAttribute('data-size'),height:+el.getAttribute('data-size'),correctLevel:QRCode.CorrectLevel.M}); }catch(e){ el.textContent='QR indisponible'; } }); }<\/script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" onload="dessinerQr()" onerror="document.querySelectorAll('[data-qr]').forEach(function(el){el.textContent='QR indisponible (hors ligne)';})"><\/script>`;
+}
+function venteTotauxFiscaux(v){
+  const code=fneTaxeCode(), taux=v.fne_statut?(FNE_TAXES[code]?.taux||0):(+(window.APP_PARAMS||{}).tva_pct||0);
+  const ttc=+v.total||0, ht=taux>0?Math.round(ttc/(1+taux/100)):ttc;
+  return {taux,ht,tva:ttc-ht,ttc};
+}
+async function imprimerTicketComptoir(id,winExistante){
+  const win=winExistante||window.open('','_blank','width=420,height=760'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const {v,lignes}=await chargerVenteDoc(id);
   if(!v){ win.close(); return; }
-  const p=window.APP_PARAMS||await loadAppParams()||{};
-  const tvaPct=+p.tva_pct||0, ht=tvaPct>0?Math.round(v.total/(1+tvaPct/100)):v.total;
-  const client=v.clients?[v.clients.nom,v.clients.prenoms].filter(Boolean).join(' '):v.client_nom;
+  const p=window.APP_PARAMS||{};
+  const t=venteTotauxFiscaux(v), d=venteDestinataire(v);
+  const fne=v.fne_statut==='certifiee', prov=v.fne_statut==='provisoire';
   const m=n=>new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ticket ${escapeHtml(v.code)}</title>
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${fne?'FNE '+escapeHtml(v.fne_reference):'Reçu '+escapeHtml(v.code)}</title>
     <style>*{box-sizing:border-box}body{font-family:'Courier New',monospace;font-size:12px;width:76mm;margin:0 auto;padding:8px;color:#000}
     .c{text-align:center}.r{text-align:right}hr{border:0;border-top:1px dashed #000;margin:6px 0}table{width:100%;border-collapse:collapse}td{padding:1px 0;vertical-align:top}
-    .tot td{font-size:15px;font-weight:bold}.noprint{margin-bottom:8px;text-align:center}@media print{.noprint{display:none}@page{size:80mm auto;margin:0}}</style></head><body>
+    .tot td{font-size:15px;font-weight:bold}.noprint{margin-bottom:8px;text-align:center}.titre{font-weight:bold;font-size:13px;border:1px solid #000;padding:3px;margin:4px 0}
+    @media print{.noprint{display:none}@page{size:80mm auto;margin:0}}</style></head><body>
     <div class="noprint"><button onclick="window.print()">🖨 Imprimer</button></div>
     ${p.logo_base64?`<div class="c"><img src="${p.logo_base64}" style="max-width:50mm;max-height:22mm"></div>`:''}
     <div class="c" style="font-weight:bold;font-size:14px">${escapeHtml(p.raison_sociale||'BEDA ALU')}</div>
-    ${[p.adresse,p.telephone,p.ncc?'NCC '+p.ncc:'',p.rccm?'RCCM '+p.rccm:''].filter(Boolean).map(x=>`<div class="c">${escapeHtml(x)}</div>`).join('')}
-    <hr><div class="c" style="font-weight:bold">TICKET DE VENTE ${v.statut==='annulee'?'— ANNULÉ':''}</div>
+    ${[p.adresse,p.telephone,p.ncc?'NCC '+p.ncc:'',p.rccm?'RCCM '+p.rccm:'',p.regime_fiscal?'Régime : '+p.regime_fiscal:''].filter(Boolean).map(x=>`<div class="c">${escapeHtml(x)}</div>`).join('')}
     ${v.points_vente?`<div class="c">${escapeHtml([v.points_vente.nom,v.points_vente.adresse,v.points_vente.telephone].filter(Boolean).join(' · '))}</div>`:''}
-    <div>N° : ${escapeHtml(v.code)}</div><div>Date : ${new Date(v.created_at).toLocaleString('fr-FR')}</div>
-    ${client?`<div>Client : ${escapeHtml(client)}</div>`:''}${v.vendeur?`<div>Vendeur : ${escapeHtml(v.vendeur)}</div>`:''}
-    <hr><table>${(lignes||[]).map(l=>`<tr><td colspan="2">${escapeHtml(l.designation)}</td></tr>
+    <div class="c titre">${fne?'FACTURE NORMALISÉE ÉLECTRONIQUE':prov?'FACTURE FNE PROVISOIRE':'REÇU DE CAISSE'}${v.statut==='annulee'?' — ANNULÉ':''}</div>
+    ${fne?`<div>N° FNE : <b>${escapeHtml(v.fne_reference)}</b></div>`:''}
+    ${prov?'<div class="c" style="font-weight:bold">NON CERTIFIÉE — SANS VALEUR FISCALE</div>':''}
+    <div>${fne||prov?'Réf. vente':'N°'} : ${escapeHtml(v.code)}</div><div>Date : ${new Date(v.created_at).toLocaleString('fr-FR')}</div>
+    ${d.nom?`<div>Client : ${escapeHtml(d.nom)}</div>`:''}${(fne||prov)&&v.fne_client_ncc?`<div>NCC client : ${escapeHtml(v.fne_client_ncc)}</div>`:''}
+    ${v.vendeur?`<div>Vendeur : ${escapeHtml(v.vendeur)}</div>`:''}
+    <hr><table>${lignes.map(l=>`<tr><td colspan="2">${escapeHtml(l.designation)}</td></tr>
       <tr><td>&nbsp;&nbsp;${+l.quantite} ${escapeHtml(l.unite||'')} × ${m(l.prix_unitaire)}${+l.remise_pct?' −'+(+l.remise_pct)+'%':''}</td><td class="r">${m(l.total)}</td></tr>`).join('')}</table>
     <hr><table>
       <tr><td>Sous-total</td><td class="r">${m(v.sous_total)}</td></tr>
       ${+v.remise?`<tr><td>Remise</td><td class="r">-${m(v.remise)}</td></tr>`:''}
-      ${tvaPct>0?`<tr><td>dont HT</td><td class="r">${m(ht)}</td></tr><tr><td>dont TVA ${tvaPct}%</td><td class="r">${m(v.total-ht)}</td></tr>`:''}
-      <tr class="tot"><td>TOTAL FCFA</td><td class="r">${m(v.total)}</td></tr>
+      ${t.taux>0||fne?`<tr><td>Total HT</td><td class="r">${m(t.ht)}</td></tr><tr><td>TVA ${t.taux}%</td><td class="r">${m(t.tva)}</td></tr>`:''}
+      <tr class="tot"><td>TOTAL TTC FCFA</td><td class="r">${m(v.total)}</td></tr>
       <tr><td>${COMPTOIR_MODES[v.mode_paiement]?.label||escapeHtml(v.mode_paiement)}</td><td class="r">${m(v.montant_recu??v.total)}</td></tr>
       ${+v.monnaie_rendue?`<tr><td>Monnaie rendue</td><td class="r">${m(v.monnaie_rendue)}</td></tr>`:''}
       ${v.reference_paiement?`<tr><td>Réf.</td><td class="r">${escapeHtml(v.reference_paiement)}</td></tr>`:''}
     </table>
-    ${v.statut==='annulee'?`<hr><div class="c">Annulée le ${new Date(v.annulee_le).toLocaleString('fr-FR')}<br>${escapeHtml(v.motif_annulation||'')}</div>`:''}
-    <hr><div class="c">Merci de votre visite !</div><div class="c" style="font-size:10px">Marchandises vendues ni reprises ni échangées sans ce ticket.</div>
-    <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+    ${fne?`<hr><div class="c">${fneQrHtml(v.fne_token,130)}</div><div class="c" style="font-size:10px">Facture certifiée par la DGI.<br>Scannez le QR code pour vérifier son authenticité.</div>`:''}
+    ${v.statut==='annulee'?`<hr><div class="c">Annulée le ${new Date(v.annulee_le).toLocaleString('fr-FR')}<br>${escapeHtml(v.motif_annulation||'')}${v.fne_avoir_reference?'<br>Avoir FNE : '+escapeHtml(v.fne_avoir_reference):''}</div>`:''}
+    <hr><div class="c">Merci de votre visite !</div><div class="c" style="font-size:10px">Marchandises vendues ni reprises ni échangées sans ce document.</div>
+    ${fne?fneQrScriptFin():''}
+    <script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body></html>`);
+  win.document.close(); win.focus();
+}
+async function imprimerFactureComptoir(id,winExistante){
+  const win=winExistante||window.open('','_blank','width=900,height=1100'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const {v,lignes}=await chargerVenteDoc(id);
+  if(!v){ win.close(); return; }
+  const t=venteTotauxFiscaux(v), d=venteDestinataire(v);
+  const fne=v.fne_statut==='certifiee', prov=v.fne_statut==='provisoire';
+  const titre=fne?'FACTURE NORMALISÉE ÉLECTRONIQUE (FNE)':prov?'FACTURE FNE PROVISOIRE':'FACTURE';
+  const numero=fne||prov?v.fne_reference:v.code;
+  const bloc=(label,val)=>val?`<div><span style="color:#6b7280">${label} :</span> ${escapeHtml(val)}</div>`:'';
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(titre)} ${escapeHtml(numero||'')}</title>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:34px;color:#111827;font-size:12.5px}
+    table{width:100%;border-collapse:collapse;margin-top:14px}th,td{border:1px solid #d1d5db;padding:7px 9px}th{background:#f1f5f9;text-align:left;font-size:11.5px}.r{text-align:right}
+    .box{border:1px solid #d1d5db;border-radius:8px;padding:10px 12px;line-height:1.6}.tot td{border:0;padding:3px 9px}.tot tr:last-child td{font-size:15px;font-weight:800;border-top:2px solid #111827}
+    .filigrane{position:fixed;top:40%;left:0;right:0;text-align:center;font-size:70px;color:rgba(220,38,38,.12);transform:rotate(-25deg);font-weight:900;pointer-events:none}
+    @media print{body{padding:0}.noprint{display:none}}</style></head><body>
+    ${prov?'<div class="filigrane">NON CERTIFIÉE</div>':''}${v.statut==='annulee'?'<div class="filigrane">ANNULÉE</div>':''}
+    <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
+    ${printCompanyHeaderHtml()}
+    <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start">
+      <div>
+        <h1 style="font-size:18px;margin:0">${escapeHtml(titre)}</h1>
+        <div style="font-size:14px;font-weight:700;margin-top:4px">N° ${escapeHtml(numero||'')}</div>
+        <div style="color:#6b7280;margin-top:2px">Date : ${new Date(fne&&v.fne_certifiee_le?v.fne_certifiee_le:v.created_at).toLocaleString('fr-FR')}${fne||prov?' · Réf. vente '+escapeHtml(v.code):''}</div>
+        ${v.points_vente?`<div style="color:#6b7280">Point de vente : ${escapeHtml(v.points_vente.nom)}</div>`:''}
+        ${prov?'<div style="color:#dc2626;font-weight:700;margin-top:4px">Document provisoire non certifié par la DGI — sans valeur fiscale.</div>':''}
+      </div>
+      <div class="box" style="min-width:260px">
+        <div style="font-size:10.5px;color:#6b7280;text-transform:uppercase;font-weight:700">Facturé à</div>
+        <div style="font-weight:700;font-size:13.5px">${escapeHtml(d.nom||'Client comptoir')}</div>
+        ${bloc('NCC',d.ncc)}${bloc('RCCM',d.rccm)}${bloc('Tél.',d.telephone)}${bloc('E-mail',d.email)}${bloc('Adresse',d.adresse)}
+        ${fne||prov?bloc('Type',FNE_TEMPLATES[v.fne_template]||v.fne_template):''}
+      </div>
+    </div>
+    <table><thead><tr><th>#</th><th>Désignation</th><th>Réf.</th><th class="r">Qté</th><th class="r">P.U. TTC</th><th class="r">Remise</th><th class="r">Montant TTC</th></tr></thead>
+    <tbody>${lignes.map((l,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(l.designation)}</td><td>${escapeHtml(l.code_article||'')}</td><td class="r">${fmtQte(l.quantite)} ${escapeHtml(l.unite||'')}</td><td class="r">${money(l.prix_unitaire)}</td><td class="r">${+l.remise_pct?(+l.remise_pct)+' %':''}</td><td class="r">${money(l.total)}</td></tr>`).join('')}</tbody></table>
+    <div style="display:flex;justify-content:space-between;gap:20px;margin-top:14px;align-items:flex-start">
+      <div style="flex:1">
+        <div><b>Arrêtée la présente facture à la somme de :</b><br><i>${escapeHtml(montantEnLettres(v.total))} francs CFA</i></div>
+        <div style="margin-top:8px">Règlement : <b>${COMPTOIR_MODES[v.mode_paiement]?.label||escapeHtml(v.mode_paiement)}</b>${v.reference_paiement?' — réf. '+escapeHtml(v.reference_paiement):''} · <span style="color:#059669;font-weight:700">${v.statut==='annulee'?'':'PAYÉE'}</span></div>
+        ${fne?`<div style="display:flex;gap:12px;align-items:center;margin-top:14px">${fneQrHtml(v.fne_token,110)}<div style="font-size:11px;color:#374151">Facture certifiée par la Direction Générale des Impôts.<br>Scannez le QR code pour vérifier son authenticité.<br><span style="color:#6b7280;word-break:break-all">${escapeHtml(v.fne_token||'')}</span></div></div>`:''}
+        ${v.statut==='annulee'?`<div style="margin-top:10px;color:#dc2626">Annulée le ${new Date(v.annulee_le).toLocaleString('fr-FR')} — ${escapeHtml(v.motif_annulation||'')}${v.fne_avoir_reference?' — Facture d\'avoir FNE : '+escapeHtml(v.fne_avoir_reference):''}</div>`:''}
+      </div>
+      <table class="tot" style="width:300px;margin-top:0">
+        <tr><td>Sous-total TTC</td><td class="r">${money(v.sous_total)}</td></tr>
+        ${+v.remise?`<tr><td>Remise</td><td class="r">− ${money(v.remise)}</td></tr>`:''}
+        <tr><td>Total HT</td><td class="r">${money(t.ht)}</td></tr>
+        <tr><td>TVA ${t.taux} %</td><td class="r">${money(t.tva)}</td></tr>
+        <tr><td>TOTAL TTC</td><td class="r">${money(t.ttc)}</td></tr>
+      </table>
+    </div>
+    ${fne?fneQrScriptFin():printFooterQrHtml('FACTURE',numero,v.total)}
+    <script>window.onload=()=>setTimeout(()=>window.print(),700)<\/script></body></html>`);
   win.document.close(); win.focus();
 }
 
@@ -7742,19 +8036,14 @@ async function genererPortailClient(){
   }
 }
 async function fneTesterConnexion(){
+  // Passe par le relais serveur fne-proxy : il utilise les paramètres ENREGISTRÉS (enregistrez avant de tester).
   const el=document.getElementById('fneTestResult');
-  el.textContent='Test en cours…'; el.className='text-sm mt-3 text-gray-500';
-  const p=window.APP_PARAMS||{};
-  const url=(val('fneEnvironnement')==='production'?val('fneUrlProd'):val('fneUrlTest'))||p.fne_url_test;
-  const key=val('fneApiKey')||p.fne_api_key;
-  if(!url||!key){ el.textContent='⚠️ Renseignez URL et clé API avant de tester.'; el.className='text-sm mt-3 text-amber-600'; return; }
-  try{
-    const res=await fetch(url,{method:'GET',headers:{'Authorization':'Bearer '+key}});
-    el.textContent=`✅ Réponse reçue (HTTP ${res.status}).`; el.className='text-sm mt-3 text-emerald-600';
-  }catch(err){
-    el.textContent='❌ Appel navigateur bloqué (CORS/mixed-content) — normal en direct : prévoir un relais Supabase Edge Function pour la production.';
-    el.className='text-sm mt-3 text-red-600';
-  }
+  el.textContent='Test en cours (via le relais serveur, paramètres enregistrés)…'; el.className='text-sm mt-3 text-gray-500';
+  const r=await fneAppel('ping');
+  if(r.inactif){ el.textContent='⚠️ '+r.message+' — cochez « Certification DGI active », renseignez URL et clé, enregistrez puis testez.'; el.className='text-sm mt-3 text-amber-600'; return; }
+  if(r.status===401){ el.textContent='❌ Clé API refusée par la DGI (401). Vérifiez la clé dans votre espace FNE → Paramétrage.'; el.className='text-sm mt-3 text-red-600'; return; }
+  if(r.status===400||r.ok){ el.textContent=`✅ Connexion à l'API FNE (${r.environnement==='production'?'production':'test'}) établie et clé acceptée (requête de test vide refusée comme prévu : ${fneMessageErreur(r)}).`; el.className='text-sm mt-3 text-emerald-600'; return; }
+  el.textContent='❌ '+fneMessageErreur(r); el.className='text-sm mt-3 text-red-600';
 }
 function switchParamTab(tab){
   document.querySelectorAll('.param-tab-btn').forEach(b=>{ const on=b.dataset.paramtab===tab; b.classList.toggle('bg-indigo-600',on); b.classList.toggle('text-white',on); });
