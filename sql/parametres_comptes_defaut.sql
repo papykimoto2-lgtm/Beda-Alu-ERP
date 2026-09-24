@@ -1,5 +1,5 @@
 -- ============================================================================
--- BEDA ALU ERP — Comptes comptables par défaut (Paramétrage → Comptabilité)
+-- Sanix AluExpert ERP — Comptes comptables par défaut (Paramétrage → Comptabilité)
 -- ============================================================================
 -- À exécuter dans l'éditeur SQL Supabase, APRÈS sql/comptabilite_syscohada.sql.
 -- Additif : ajoute une seule colonne à la table `parametres` existante.

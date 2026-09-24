@@ -1,9 +1,9 @@
 -- ============================================================================
--- BEDA ALU ERP — Module Comptabilité SYSCOHADA + Caisse (multi-caisses)
+-- Sanix AluExpert ERP — Module Comptabilité SYSCOHADA + Caisse (multi-caisses)
 -- ============================================================================
 -- À exécuter une seule fois dans l'éditeur SQL de votre projet Supabase
 -- (https://supabase.com/dashboard/project/snphfuygvllbioaoyfkm/sql/new).
--- Ce script est additif : il ne touche à aucune table existante de Beda Alu
+-- Ce script est additif : il ne touche à aucune table existante de l'application
 -- (clients, devis, factures, projets...). Il crée uniquement les nouvelles
 -- tables nécessaires à la Comptabilité SYSCOHADA et à la Caisse, plus les
 -- données de départ (plan comptable, journaux, exercice en cours).
@@ -159,7 +159,7 @@ create table if not exists caisse_regles_ventilation (
 );
 
 -- ---------------------------------------------------------------------------
--- 10. Paiements / encaissements sur factures (n'existait pas dans Beda Alu :
+-- 10. Paiements / encaissements sur factures (n'existait pas dans l'application :
 --     le statut de facture était une simple étiquette manuelle jusqu'ici)
 -- ---------------------------------------------------------------------------
 create table if not exists paiements (

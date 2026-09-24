@@ -1,4 +1,4 @@
-// BEDA ALU ERP — Relais vers l'API FNE de la DGI (Côte d'Ivoire).
+// Sanix AluExpert ERP — Relais vers l'API FNE de la DGI (Côte d'Ivoire).
 // Le navigateur ne peut pas appeler l'API FNE directement (CORS, URL http) : l'application
 // appelle cette fonction, qui lit l'URL et la clé API dans `parametres` et relaie l'appel.
 // Actions : "sign" (certification d'une facture de vente), "refund" (facture d'avoir), "ping".

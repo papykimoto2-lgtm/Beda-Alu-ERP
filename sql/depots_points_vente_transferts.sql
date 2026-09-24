@@ -1,5 +1,5 @@
 -- ============================================================================
--- BEDA ALU ERP — Multi-dépôts, points de vente affiliés, transferts dépôt → dépôt
+-- Sanix AluExpert ERP — Multi-dépôts, points de vente affiliés, transferts dépôt → dépôt
 -- ============================================================================
 -- À exécuter APRÈS sql/vente_comptoir.sql. Additif et idempotent.
 --

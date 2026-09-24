@@ -1,16 +1,24 @@
-# BEDA ALU ERP
+# Sanix AluExpert ERP
 
-ERP menuiserie aluminium (Clients, Projets/Chantiers, Devis, Factures, Fiches d'exécution, Estimation financière).
+ERP de menuiserie aluminium — Clients, Projets/Chantiers, Devis, Factures (dont FNE), Fiches d'exécution, Configurateur, Stock multi-dépôts, Vente au comptoir, Caisse, Comptabilité SYSCOHADA.
+
+Développé par **Sanix Africa Division Technologies**.
+
+Le logiciel n'est lié à aucune entreprise : le nom, le logo, les coordonnées légales (RCCM, NCC), la TVA et les conditions imprimées sur les devis / factures de la structure utilisatrice se règlent dans **Paramètres → Entreprise**. Chaque structure a sa propre installation et sa propre base de données.
 
 ## Stack
 - Frontend : `index.html` (Tailwind CDN + Supabase JS + Chart.js), aucun build.
-- Backend : Supabase (Postgres + Auth + RLS), projet `beda-alu-erp` (org vosgeycwzrixylyhmzlv).
+- Backend : Supabase (Postgres + Auth + RLS + Edge Function `fne-proxy`).
 
-## Déploiement
-Fichier statique unique — déployable sur Vercel/Netlify/GitHub Pages sans configuration.
+## Installer pour une nouvelle structure
+1. Créer un projet Supabase dédié à la structure.
+2. Copier `config.example.js` en `config.js` et y mettre l'URL et la clé publique (anon) du projet.
+3. Créer le schéma de base, puis exécuter les scripts de `sql/` dans cet ordre : `comptabilite_syscohada.sql`, `parametres_comptes_defaut.sql`, `utilisateurs_roles.sql` (optionnel), `composants_prix_achat_vente.sql`, `vente_comptoir.sql`, `depots_points_vente_transferts.sql`, `vente_comptoir_fne.sql`, `affectations_caisse_pdv.sql`, `parametres_conditions_documents.sql`.
+4. Déployer l'Edge Function `supabase/functions/fne-proxy` (certification FNE).
+5. Publier le dossier (Vercel / Netlify / GitHub Pages), ouvrir l'application, « Première connexion ? Créer un compte administrateur », puis renseigner **Paramètres → Entreprise**.
 
-## Première connexion
-Ouvrir `index.html`, cliquer sur « Première connexion ? Créer un compte administrateur », créer le compte, se connecter.
+## Installation actuelle
+Ce dépôt est déployé pour Beda Alu : `config.js` pointe vers le projet Supabase `beda-alu-erp` (org vosgeycwzrixylyhmzlv).
 
 ## Schéma
 Tables : `profiles`, `clients`, `projets`, `produits`, `devis`, `devis_lignes`, `factures`, `fiches_execution`, `fiche_execution_lignes`. RLS activée (accès complet aux utilisateurs authentifiés).

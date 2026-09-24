@@ -1,5 +1,5 @@
 -- ============================================================================
--- BEDA ALU ERP — Affectation des utilisateurs aux caisses et points de vente + code PIN de caisse
+-- Sanix AluExpert ERP — Affectation des utilisateurs aux caisses et points de vente + code PIN de caisse
 -- ============================================================================
 -- Inspiré de la caisse Menko Immo (ImmoSuite) :
 --   • chaque caisse / point de vente a sa liste d'utilisateurs affectés ; une caisse ou un point de vente

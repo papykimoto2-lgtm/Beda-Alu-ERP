@@ -1,5 +1,5 @@
 -- ============================================================================
--- BEDA ALU ERP — Module Utilisateurs, Rôles & Accès (à l'image de ImmoSuite)
+-- Sanix AluExpert ERP — Module Utilisateurs, Rôles & Accès (à l'image de ImmoSuite)
 -- ============================================================================
 -- À exécuter dans l'éditeur SQL Supabase, APRÈS sql/comptabilite_syscohada.sql
 -- et sql/parametres_comptes_defaut.sql. Additif : crée 3 nouvelles tables
@@ -47,7 +47,7 @@ create table if not exists role_permissions (
 );
 
 -- ----------------------------------------------------------------------------
--- 3. Invitations (Beda Alu n'a pas d'API admin Supabase côté client : on ne
+-- 3. Invitations (l'application n'a pas d'API admin Supabase côté client : on ne
 --    peut pas créer un compte auth pour quelqu'un d'autre. Une invitation
 --    pré-attribue un rôle à un email ; quand cette personne s'inscrit via
 --    l'écran de connexion existant, le rôle lui est attribué automatiquement)
