@@ -2227,9 +2227,26 @@ function smartSelectRenderList(id,q){
   const query=(q||'').trim().toLowerCase();
   const filtered=query?items.filter(it=>it.label.toLowerCase().includes(query)):items;
   const list=document.getElementById(id+'_list'); if(!list) return;
-  list.innerHTML=filtered.length?filtered.slice(0,60).map((it,i)=>`<div class="smart-select-opt${i===0?' active':''}" data-val="${escapeHtml(String(it.id))}" onmousedown="smartSelectPick('${id}','${String(it.id).replace(/'/g,"\\'")}')">${escapeHtml(it.label)}</div>`).join(''):'<div class="smart-select-empty">Aucun résultat</div>';
+  list.innerHTML=filtered.length?filtered.slice(0,60).map((it,i)=>`<div class="smart-select-opt${i===0?' active':''}" data-val="${escapeHtml(String(it.id))}" onmousedown="smartSelectPick('${id}','${String(it.id).replace(/'/g,"\\'")}')">${escapeHtml(it.label)}</div>`).join('')+(filtered.length>60?`<div class="smart-select-empty">${filtered.length-60} autre(s) — tapez pour affiner (nom, code, famille)</div>`:''):'<div class="smart-select-empty">Aucun résultat</div>';
   list.classList.remove('hidden');
+  smartSelectPlacer(id);
 }
+/* La liste est positionnée par rapport à la fenêtre : elle n'est plus coupée par les tableaux à défilement
+   (lignes d'articles des commandes, réceptions, transferts…) */
+function smartSelectPlacer(id){
+  const list=document.getElementById(id+'_list'), q=document.getElementById(id+'_q'); if(!list||!q) return;
+  const r=q.getBoundingClientRect(), H=window.innerHeight, W=window.innerWidth;
+  const largeur=Math.min(Math.max(r.width,280),W-16);
+  Object.assign(list.style,{position:'fixed',right:'auto',width:largeur+'px',left:Math.max(8,Math.min(r.left,W-largeur-8))+'px',zIndex:1000});
+  const dessous=H-r.bottom-12, dessus=r.top-12;
+  if(dessous<180 && dessus>dessous){ Object.assign(list.style,{top:'auto',bottom:(H-r.top+6)+'px',maxHeight:Math.min(280,dessus)+'px'}); }
+  else { Object.assign(list.style,{bottom:'auto',top:(r.bottom+6)+'px',maxHeight:Math.min(280,Math.max(dessous,120))+'px'}); }
+}
+window.addEventListener('scroll',e=>{
+  if(e.target?.classList?.contains('smart-select-list')) return;
+  document.querySelectorAll('.smart-select-list:not(.hidden)').forEach(l=>smartSelectPlacer(l.id.replace(/_list$/,'')));
+},true);
+window.addEventListener('resize',()=>document.querySelectorAll('.smart-select-list:not(.hidden)').forEach(l=>smartSelectPlacer(l.id.replace(/_list$/,''))));
 function smartSelectOpen(id){ smartSelectRenderList(id,document.getElementById(id+'_q').value); }
 function smartSelectFilter(id){ document.getElementById(id).value=''; smartSelectRenderList(id,document.getElementById(id+'_q').value); }
 function smartSelectBlur(id){
@@ -3735,7 +3752,7 @@ const achComp=id=>(window._achRef?.composants||[]).find(c=>c.id===id);
 const achFourn=id=>(window._achRef?.fournisseurs||[]).find(f=>f.id===id);
 const achDispo=(compId,depotId)=>window._achRef?.dispo?.[compId+'|'+depotId]||0;
 const depNomCourt=id=>depotNom(id).replace(/^\S+\s/,'');
-function achArticlesItems(depotId){ return (window._achRef?.composants||[]).map(c=>({id:c.id,label:`${c.nom}${c.code||c.reference?' · '+(c.code||c.reference):''}${depotId?' — stock '+fmtQte(achDispo(c.id,depotId))+' '+(c.unite||''):''}`})); }
+function achArticlesItems(depotId){ return (window._achRef?.composants||[]).map(c=>({id:c.id,label:`${c.nom}${c.code||c.reference?' · '+(c.code||c.reference):''}${c.famille?' · '+c.famille:''}${depotId?' — stock '+fmtQte(achDispo(c.id,depotId))+' '+(c.unite||''):''}`})); }
 
 /* ---------- Commandes fournisseur : liste ---------- */
 window._bcFiltre=window._bcFiltre||{statut:'',fournisseur:'',depot:''};
