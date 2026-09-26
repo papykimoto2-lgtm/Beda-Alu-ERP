@@ -2211,8 +2211,10 @@ function entityCardHtml({color,icon,badge,title,subtitle,lines,actionsHtml}){
   </div>`;
 }
 window._smartSelectData=window._smartSelectData||{};
+window._smartSelectCreate=window._smartSelectCreate||{};
 function smartSelect(id,items,selectedId,opts={}){
   window._smartSelectData[id]=items||[];
+  if(opts.onCreate) window._smartSelectCreate[id]={fn:opts.onCreate,label:opts.createLabel||'Créer'}; else delete window._smartSelectCreate[id];
   const sel=(items||[]).find(it=>String(it.id)===String(selectedId||''));
   const label=sel?sel.label:'';
   const changeAttr=opts.onChange?` onchange="${opts.onChange}"`:'';
@@ -2228,6 +2230,12 @@ function smartSelectRenderList(id,q){
   const filtered=query?items.filter(it=>it.label.toLowerCase().includes(query)):items;
   const list=document.getElementById(id+'_list'); if(!list) return;
   list.innerHTML=filtered.length?filtered.slice(0,60).map((it,i)=>`<div class="smart-select-opt${i===0?' active':''}" data-val="${escapeHtml(String(it.id))}" onmousedown="smartSelectPick('${id}','${String(it.id).replace(/'/g,"\\'")}')">${escapeHtml(it.label)}</div>`).join('')+(filtered.length>60?`<div class="smart-select-empty">${filtered.length-60} autre(s) — tapez pour affiner (nom, code, famille)</div>`:''):'<div class="smart-select-empty">Aucun résultat</div>';
+  const creer=window._smartSelectCreate[id];
+  if(creer){
+    const q2=(q||'').trim();
+    const opt=`<div class="smart-select-opt${filtered.length?'':' active'}" data-val="__creer__" onmousedown="smartSelectPick('${id}','__creer__')" style="font-weight:600;color:var(--accent);border-top:1px solid #f3f4f6">➕ ${escapeHtml(creer.label)}${q2?' « '+escapeHtml(q2)+' »':''}</div>`;
+    list.innerHTML=(filtered.length?list.innerHTML:'')+opt;
+  }
   list.classList.remove('hidden');
   smartSelectPlacer(id);
 }
@@ -2259,6 +2267,14 @@ function smartSelectBlur(id){
   },180);
 }
 function smartSelectPick(id,valId){
+  if(valId==='__creer__'){
+    const creer=window._smartSelectCreate[id], q=document.getElementById(id+'_q');
+    const texte=(q?.value||'').trim();
+    const list=document.getElementById(id+'_list'); if(list) list.classList.add('hidden');
+    if(q) q.blur();
+    if(creer && typeof window[creer.fn]==='function') window[creer.fn](texte,id);
+    return;
+  }
   const items=window._smartSelectData[id]||[];
   const it=items.find(x=>String(x.id)===String(valId));
   const hidden=document.getElementById(id),q=document.getElementById(id+'_q');
@@ -12272,19 +12288,44 @@ function posSetClient(id){
   posRenderPanier();
 }
 /* Création rapide d'un client (nom + téléphone) pendant la vente au comptoir */
-async function posCreerClient(){
+/* Fenêtre « Nouveau client » ouverte depuis le champ Client (optionnel) : nom + téléphone */
+function posOuvrirCreationClient(texte){
+  const t=String(texte||'').trim(), estTel=/^[+\d\s().-]{6,}$/.test(t);
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">👤 Nouveau client</h2>
+    <div class="text-xs text-gray-500">Enregistré dans le répertoire Clients et associé à cette vente.</div>
+    <div class="divider"></div>
+    <form id="posClientForm" class="grid sm:grid-cols-2 gap-4">
+      <div class="field sm:col-span-2"><label>Nom *</label>${fieldWrap('👤',`<input id="pcNom" required value="${escapeHtml(estTel?'':t)}" placeholder="Nom et prénoms / raison sociale">`)}</div>
+      <div class="field sm:col-span-2"><label>Téléphone</label>${fieldWrap('📞',`<input id="pcTel" type="tel" value="${escapeHtml(estTel?t:'')}" placeholder="Ex : 07 00 00 00 00">`)}</div>
+      <div class="sm:col-span-2 flex justify-end gap-2 pt-2">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button>
+        <button type="submit" class="btn btn-primary px-8">✔ Créer le client</button>
+      </div>
+    </form>`);
+  const f=document.getElementById('posClientForm');
+  document.getElementById(estTel||!t?'pcNom':'pcTel')?.focus();
+  f.onsubmit=async(e)=>{
+    e.preventDefault();
+    const btn=f.querySelector('button[type=submit]'); btn.disabled=true;
+    const ok=await posCreerClient(val('pcNom'),val('pcTel'));
+    if(ok) closeModal(); else btn.disabled=false;
+  };
+}
+async function posCreerClient(nomSaisi,telSaisi){
   const pos=window._pos;
-  const nom=(pos.clientNom||'').trim(), tel=(pos.clientTel||'').trim();
-  if(!nom){ toast('Saisissez le nom du client.','error'); return; }
+  const nom=String(nomSaisi??pos.clientNom??'').trim(), tel=String(telSaisi??pos.clientTel??'').trim();
+  if(!nom){ toast('Saisissez le nom du client.','error'); return false; }
   const norm=(t)=>String(t||'').replace(/\D/g,'');
   const existant=(window._clientsCache||[]).find(c=>(tel&&norm(c.telephone)&&norm(c.telephone)===norm(tel)) || (!tel&&[c.nom,c.prenoms].filter(Boolean).join(' ').toLowerCase()===nom.toLowerCase()));
-  if(existant && confirm(`Un client existe déjà : ${[existant.nom,existant.prenoms].filter(Boolean).join(' ')}${existant.telephone?' ('+existant.telephone+')':''}.\nL'utiliser pour cette vente ?`)){ posSetClient(existant.id); return; }
+  if(existant && confirm(`Un client existe déjà : ${[existant.nom,existant.prenoms].filter(Boolean).join(' ')}${existant.telephone?' ('+existant.telephone+')':''}.\nL'utiliser pour cette vente ?`)){ posSetClient(existant.id); return true; }
   const rec={nom,telephone:tel||null,source:'Vente au comptoir',created_by:CURRENT_USER.id};
   const {data:c,error}=await sb.from('clients').insert(rec).select('id,nom,prenoms,telephone').single();
-  if(error){ toast(error.message,'error'); return; }
+  if(error){ toast(error.message,'error'); return false; }
   window._clientsCache=[...(window._clientsCache||[]),c].sort((a,b)=>String(a.nom||'').localeCompare(String(b.nom||'')));
   toast('Client créé : '+nom);
   posSetClient(c.id);
+  return true;
 }
 function posRenderPanier(){
   const host=document.getElementById('posPanier'); if(!host) return;
@@ -12315,7 +12356,7 @@ function posRenderPanier(){
         </div>
       </div>`).join('')}</div>`:'<div class="text-center text-gray-400 text-sm py-8 border border-dashed rounded-lg mb-3">Cliquez sur un article pour l\'ajouter.<br><span class="text-xs">Astuce : tapez un nom puis Entrée.</span></div>'}
     <div class="grid grid-cols-2 gap-2 mb-2">
-      <div class="field col-span-2"><label>Client (optionnel)</label>${fieldWrap('👤',smartSelect('posClient',clientItems(),pos.clientId,{placeholder:'Client comptoir (passage)',onChange:'posSetClient(this.value)'}))}</div>
+      <div class="field col-span-2"><label>Client (optionnel)</label>${fieldWrap('👤',smartSelect('posClient',clientItems(),pos.clientId,{placeholder:'Client comptoir (passage) — ou créer un client',onChange:'posSetClient(this.value)',onCreate:'posOuvrirCreationClient',createLabel:'Nouveau client'}))}</div>
       ${pos.clientId?'':`<div class="field"><label>Nom (passage)</label>${fieldWrap('✍️',`<input value="${escapeHtml(pos.clientNom)}" oninput="window._pos.clientNom=this.value" placeholder="Facultatif">`)}</div>
       <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input value="${escapeHtml(pos.clientTel)}" oninput="window._pos.clientTel=this.value" placeholder="Facultatif">`)}</div>
       <div class="col-span-2 -mt-1"><button type="button" class="btn btn-outline w-full text-xs py-1.5" onclick="posCreerClient()" title="Enregistre ce client (nom + téléphone) dans le répertoire Clients et l'associe à la vente">➕ Créer ce client (nom + téléphone)</button></div>`}
