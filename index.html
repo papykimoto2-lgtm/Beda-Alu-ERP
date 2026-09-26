@@ -210,23 +210,47 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
       <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="carte">🗺️ <span>Carte</span></button>
       <button class="nav-item w-full text-left px-3 py-2.5 rounded-lg" data-page="validations">✅ <span>Validations</span> <span class="badge-validations dash-tab-badge hidden">0</span></button>
 
-      <div class="sidebar-group-title">Clients</div>
+
+      <div class="sidebar-group-title">1 · Catalogue & référentiels</div>
+      <button class="nav-parent" data-toggle="produits-g">🏠 <span>Produits</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="produits-g">
+        <button class="nav-child" data-page="produits-add">→ Ajouter un produit</button>
+        <button class="nav-child" data-page="produits-config" onclick="window._configEditId=null">→ Configurateur d'ouvrage</button>
+        <button class="nav-child" data-page="produits">→ Liste des produits</button>
+      </div>
+      <button class="nav-parent" data-toggle="composants-g">🏠 <span>Composants</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="composants-g">
+        <button class="nav-child" data-page="composants-add">→ Ajouter un composant</button>
+        <button class="nav-child" data-page="composants">→ Catalogue composants & consommables</button>
+        <button class="nav-child" data-page="referentiels">→ Familles & unités</button>
+      </div>
+
+      <div class="sidebar-group-title">2 · Prospection & clients</div>
+      <button class="nav-parent" data-toggle="prospects-g">🏠 <span>Prospects</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="prospects-g">
+        <button class="nav-child" data-page="prospects-add">→ Ajouter un prospect</button>
+        <button class="nav-child" data-page="prospects">→ Liste des prospects</button>
+      </div>
       <button class="nav-parent" data-toggle="clients-g">🏠 <span>Clients</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="clients-g">
         <button class="nav-child" data-page="clients-add">→ Ajouter un client</button>
         <button class="nav-child" data-page="clients">→ Liste des clients</button>
         <button class="nav-child" data-page="clients-categories">→ Catégorie clients</button>
       </div>
-      <button class="nav-parent" data-toggle="prospects-g">🏠 <span>Prospects</span><span class="chev">▸</span></button>
-      <div class="sidebar-children" data-children="prospects-g">
-        <button class="nav-child" data-page="prospects-add">→ Ajouter un prospect</button>
-        <button class="nav-child" data-page="prospects">→ Liste des prospects</button>
+
+      <div class="sidebar-group-title">3 · Offre commerciale</div>
+      <button class="nav-parent" data-toggle="devis-g">🏠 <span>Devis</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="devis-g">
+        <button class="nav-child" data-page="devis-add">→ Ajouter un Devis</button>
+        <button class="nav-child" data-page="devis-pipeline">→ Pipeline (Kanban)</button>
+        <button class="nav-child" data-page="devis">→ Tout afficher <span class="nav-badge nav-badge-gray" id="badgeDevisTotal">0</span></button>
+        <button class="nav-child" data-page="devis-attente">→ Devis en attente <span class="nav-badge nav-badge-blue" id="badgeDevisAttente">0</span></button>
+        <button class="nav-child" data-page="devis-cours">→ Devis en cours <span class="nav-badge nav-badge-amber" id="badgeDevisCours">0</span></button>
+        <button class="nav-child" data-page="devis-annules">→ Devis annulés <span class="nav-badge nav-badge-red" id="badgeDevisAnnules">0</span></button>
+        <button class="nav-child" data-page="devis-categories">→ Catégorie</button>
       </div>
-      <button class="nav-parent" data-toggle="fournisseurs-g">🏠 <span>Fournisseurs</span><span class="chev">▸</span></button>
-      <div class="sidebar-children" data-children="fournisseurs-g">
-        <button class="nav-child" data-page="fournisseurs-add">→ Ajouter un fournisseur</button>
-        <button class="nav-child" data-page="fournisseurs">→ Liste des fournisseurs</button>
-      </div>
+
+      <div class="sidebar-group-title">4 · Projets & chantiers</div>
       <button class="nav-parent" data-toggle="projets-g">🏠 <span>Projet(s)</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="projets-g">
         <button class="nav-child" data-page="projets-add">→ Ajouter un Projet</button>
@@ -241,18 +265,44 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
         <button class="nav-child" data-page="projets-annule">→ Projet Annulé <span class="nav-badge nav-badge-red" id="badgeProjAnnule">0</span></button>
         <button class="nav-child" data-page="carte-chantiers">→ 🗺️ Carte des chantiers</button>
       </div>
-
-      <div class="sidebar-group-title">Commercial</div>
-      <button class="nav-parent" data-toggle="devis-g">🏠 <span>Devis</span><span class="chev">▸</span></button>
-      <div class="sidebar-children" data-children="devis-g">
-        <button class="nav-child" data-page="devis-add">→ Ajouter un Devis</button>
-        <button class="nav-child" data-page="devis-pipeline">→ Pipeline (Kanban)</button>
-        <button class="nav-child" data-page="devis">→ Tout afficher <span class="nav-badge nav-badge-gray" id="badgeDevisTotal">0</span></button>
-        <button class="nav-child" data-page="devis-attente">→ Devis en attente <span class="nav-badge nav-badge-blue" id="badgeDevisAttente">0</span></button>
-        <button class="nav-child" data-page="devis-cours">→ Devis en cours <span class="nav-badge nav-badge-amber" id="badgeDevisCours">0</span></button>
-        <button class="nav-child" data-page="devis-annules">→ Devis annulés <span class="nav-badge nav-badge-red" id="badgeDevisAnnules">0</span></button>
-        <button class="nav-child" data-page="devis-categories">→ Catégorie</button>
+      <button class="nav-parent" data-toggle="fiches-g">🏠 <span>Fiches d'exécution</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="fiches-g">
+        <button class="nav-child" data-page="fiches">→ Liste des fiches</button>
       </div>
+      <button class="nav-parent" data-toggle="simulateur-g">🏠 <span>Simulateur multi-chantiers</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="simulateur-g">
+        <button class="nav-child" data-page="stock-simulateur">→ Simulateur multi-chantiers</button>
+      </div>
+
+      <div class="sidebar-group-title">5 · Approvisionnement</div>
+      <button class="nav-parent" data-toggle="fournisseurs-g">🏠 <span>Fournisseurs</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="fournisseurs-g">
+        <button class="nav-child" data-page="fournisseurs-add">→ Ajouter un fournisseur</button>
+        <button class="nav-child" data-page="fournisseurs">→ Liste des fournisseurs</button>
+      </div>
+      <button class="nav-parent" data-toggle="achats-g">🏠 <span>Achats & commandes</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="achats-g">
+        <button class="nav-child" data-page="commandes-internes">→ Commandes internes</button>
+        <button class="nav-child" data-page="achats-commande-edit">→ Nouvelle commande fournisseur</button>
+        <button class="nav-child" data-page="achats-commandes">→ Commandes fournisseurs</button>
+        <button class="nav-child" data-page="achats-receptions">→ Réceptions fournisseurs</button>
+      </div>
+
+      <div class="sidebar-group-title">6 · Stock & dépôts</div>
+      <button class="nav-parent" data-toggle="stock-g">🏠 <span>Stock</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="stock-g">
+        <button class="nav-child" data-page="stock-depots">→ Dépôts & points de vente</button>
+        <button class="nav-child" data-page="stock-dashboard">→ Tableau de bord</button>
+        <button class="nav-child" data-page="stock-par-depot">→ Stock par dépôt</button>
+        <button class="nav-child" data-page="stock-mouvements">→ Journal des mouvements</button>
+        <button class="nav-child" data-page="stock-transferts">→ Transferts <span class="nav-badge nav-badge-amber hidden" id="badgeTransferts">0</span></button>
+        <button class="nav-child" data-page="stock-alertes">→ Alertes <span class="nav-badge nav-badge-red" id="badgeStockAlertes">0</span></button>
+        <button class="nav-child" data-page="stock-inventaire">→ Inventaire</button>
+        <button class="nav-child" data-page="stock-inventaires">→ États d'inventaire</button>
+        <button class="nav-child" data-page="stock-valorisation">→ Valorisation du stock</button>
+      </div>
+
+      <div class="sidebar-group-title">7 · Ventes & encaissements</div>
       <button class="nav-parent" data-toggle="factures-g">🏠 <span>Factures</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="factures-g">
         <button class="nav-child" data-page="factures">→ Liste des factures</button>
@@ -264,59 +314,6 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
         <button class="nav-child" data-page="comptoir-z">→ Ticket Z (clôture PDV)</button>
         <button class="nav-child" data-page="comptoir-rapport">→ État périodique (PDV & caisse)</button>
       </div>
-
-      <div class="sidebar-group-title">Chantier</div>
-      <button class="nav-parent" data-toggle="fiches-g">🏠 <span>Fiches d'exécution</span><span class="chev">▸</span></button>
-      <div class="sidebar-children" data-children="fiches-g">
-        <button class="nav-child" data-page="fiches">→ Liste des fiches</button>
-      </div>
-      <button class="nav-parent" data-toggle="simulateur-g">🏠 <span>Simulateur multi-chantiers</span><span class="chev">▸</span></button>
-      <div class="sidebar-children" data-children="simulateur-g">
-        <button class="nav-child" data-page="stock-simulateur">→ Simulateur multi-chantiers</button>
-      </div>
-
-      <div class="sidebar-group-title">Produits</div>
-      <button class="nav-parent" data-toggle="produits-g">🏠 <span>Produits</span><span class="chev">▸</span></button>
-      <div class="sidebar-children" data-children="produits-g">
-        <button class="nav-child" data-page="produits-add">→ Ajouter un produit</button>
-        <button class="nav-child" data-page="produits-config" onclick="window._configEditId=null">→ Configurateur d'ouvrage</button>
-        <button class="nav-child" data-page="produits">→ Liste des produits</button>
-      </div>
-      <button class="nav-parent" data-toggle="composants-g">🏠 <span>Composants</span><span class="chev">▸</span></button>
-      <div class="sidebar-children" data-children="composants-g">
-        <button class="nav-child" data-page="composants-add">→ Ajouter un composant</button>
-        <button class="nav-child" data-page="composants">→ Catalogue composants & consommables</button>
-        <button class="nav-child" data-page="referentiels">→ Familles & unités</button>
-      </div>
-
-      <div class="sidebar-group-title">Approvisionnement</div>
-      <button class="nav-parent" data-toggle="achats-g">🏠 <span>Achats & commandes</span><span class="chev">▸</span></button>
-      <div class="sidebar-children" data-children="achats-g">
-        <button class="nav-child" data-page="achats-commande-edit">→ Nouvelle commande fournisseur</button>
-        <button class="nav-child" data-page="achats-commandes">→ Commandes fournisseurs</button>
-        <button class="nav-child" data-page="achats-receptions">→ Réceptions fournisseurs</button>
-        <button class="nav-child" data-page="commandes-internes">→ Commandes internes</button>
-      </div>
-
-      <div class="sidebar-group-title">Stock</div>
-      <button class="nav-parent" data-toggle="stock-g">🏠 <span>Stock</span><span class="chev">▸</span></button>
-      <div class="sidebar-children" data-children="stock-g">
-        <button class="nav-child" data-page="stock-dashboard">→ Tableau de bord</button>
-        <button class="nav-child" data-page="stock-mouvements">→ Journal des mouvements</button>
-        <button class="nav-child" data-page="stock-alertes">→ Alertes <span class="nav-badge nav-badge-red" id="badgeStockAlertes">0</span></button>
-        <button class="nav-child" data-page="stock-inventaire">→ Inventaire</button>
-        <button class="nav-child" data-page="stock-inventaires">→ États d'inventaire</button>
-        <button class="nav-child" data-page="stock-valorisation">→ Valorisation du stock</button>
-        <button class="nav-child" data-page="stock-par-depot">→ Stock par dépôt</button>
-        <button class="nav-child" data-page="stock-transferts">→ Transferts <span class="nav-badge nav-badge-amber hidden" id="badgeTransferts">0</span></button>
-        <button class="nav-child" data-page="stock-depots">→ Dépôts & points de vente</button>
-      </div>
-
-      <div class="sidebar-group-title">Finance</div>
-      <button class="nav-parent" data-toggle="comptabilite-g">🏠 <span>Comptabilité</span><span class="chev">▸</span></button>
-      <div class="sidebar-children" data-children="comptabilite-g">
-        <button class="nav-child" data-page="comptabilite">→ Comptabilité SYSCOHADA</button>
-      </div>
       <button class="nav-parent" data-toggle="caisse-g">🏠 <span>Caisse</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="caisse-g">
         <button class="nav-child" data-page="caisse">→ Tableau de bord</button>
@@ -325,7 +322,13 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
         <button class="nav-child" data-page="caisse-affectations">→ Affectations & codes PIN</button>
       </div>
 
-      <div class="sidebar-group-title">Site web</div>
+      <div class="sidebar-group-title">8 · Comptabilité</div>
+      <button class="nav-parent" data-toggle="comptabilite-g">🏠 <span>Comptabilité</span><span class="chev">▸</span></button>
+      <div class="sidebar-children" data-children="comptabilite-g">
+        <button class="nav-child" data-page="comptabilite">→ Comptabilité SYSCOHADA</button>
+      </div>
+
+      <div class="sidebar-group-title">9 · Vitrine (site web)</div>
       <button class="nav-parent" data-toggle="realisations-g">🏠 <span>Réalisations</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="realisations-g">
         <button class="nav-child" data-page="realisations-add">→ Ajouter une réalisation</button>
