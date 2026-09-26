@@ -9866,7 +9866,11 @@ async function comptaEcritureAuto(entete,lignes){
   if(exerciceEstClos(date)) throw new Error(`exercice ${new Date(date).getFullYear()} clôturé`);
   const annee=new Date(date).getFullYear();
   const ref=await genererRefEcriture(annee);
-  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,source:'auto',created_by:CURRENT_USER?.id,...entete}).select().single();
+  // Écriture générée par un événement de gestion réel (vente, achat, caisse, contre-passation…) : validée
+  // dès sa création — le Visa (④) ne porte que sur les écritures manuelles, seules à affecter les états
+  // financiers tant qu'elles n'ont pas été relues (comptaCalculerBalance / comptaRenderGrandLivre ne comptent
+  // que les écritures validées ; voir comptaChargerEcritures pour le Journal, qui liste tout sans filtrer).
+  const {data:ecr,error}=await sb.from('compta_ecritures').insert({ref,exercice_annee:annee,source:'auto',created_by:CURRENT_USER?.id,valide_le:new Date().toISOString(),valide_par:'Automatique',...entete}).select().single();
   if(error) throw error;
   const {error:e2}=await sb.from('compta_lignes').insert(lignes.filter(l=>(+l.montant||0)>0).map(l=>({...l,ecriture_id:ecr.id})));
   if(e2){ await sb.from('compta_ecritures').delete().eq('id',ecr.id); throw e2; }
@@ -10293,14 +10297,15 @@ async function comptaSupprimerCompte(code){
 async function comptaRenderGrandLivre(host){
   const C=window._compta, compteSel=C.grandLivreCompte||'';
   const inclure=C.glSous!==false;
-  const ecritures=compteSel?await comptaChargerEcritures({}):[];
+  // Grand livre officiel : seules les écritures validées (visées) sont définitives et y figurent.
+  const ecritures=compteSel?(await comptaChargerEcritures({})).filter(ecrEstValidee):[];
   const lignes=[];
   ecritures.forEach(e=>(e.compta_lignes||[]).forEach(l=>{ if(l.compte_code===compteSel||(inclure&&l.compte_code.startsWith(compteSel))) lignes.push({...l,ref:e.ref,date:e.date_ecriture,journal:e.journal_code,piece:e.piece,ecrLibelle:e.libelle}); }));
   lignes.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:String(a.ref).localeCompare(String(b.ref)));
   let solde=0; const rows=lignes.map(l=>{ solde+=(l.sens==='D'?1:-1)*(+l.montant||0); return {...l,solde}; });
   const totD=lignes.filter(l=>l.sens==='D').reduce((s,l)=>s+(+l.montant||0),0), totC=lignes.filter(l=>l.sens==='C').reduce((s,l)=>s+(+l.montant||0),0);
   const grp=compteSel&&compteEstRegroupement(compteSel);
-  host.innerHTML=`
+  host.innerHTML=`${await comptaBrouillonsAlerteHtml()}
     <div class="flex flex-wrap gap-2 items-center mb-3">
       <select onchange="window._compta.grandLivreCompte=this.value;comptaRenderCycleView()" style="min-width:320px"><option value="">— Choisir un compte ou un regroupement —</option>${compteOptionsHtml(compteSel,{groupes:true})}</select>
       <label class="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" ${inclure?'checked':''} onchange="window._compta.glSous=this.checked;comptaRenderCycleView()" style="width:15px;height:15px"> Inclure les sous-comptes${compteSel?` (${escapeHtml(compteSel)}…)`:''}</label>
@@ -10314,7 +10319,9 @@ async function comptaRenderGrandLivre(host){
 
 /* ---------- Balance générale arborescente (classe → compte principal → divisionnaire → comptes) ---------- */
 async function comptaCalculerBalance(){
-  const ecritures=await comptaChargerEcritures({});
+  // Balance, Bilan, Compte de résultat et Clôture (qui la réutilisent tous) ne comptent que les écritures
+  // validées : une écriture manuelle encore en brouillard ne doit pas fausser les états officiels avant Visa.
+  const ecritures=(await comptaChargerEcritures({})).filter(ecrEstValidee);
   const map={};
   ecritures.forEach(e=>(e.compta_lignes||[]).forEach(l=>{
     map[l.compte_code]=map[l.compte_code]||{debit:0,credit:0};
@@ -10323,6 +10330,11 @@ async function comptaCalculerBalance(){
   return Object.entries(map).map(([code,v])=>({code,debit:v.debit,credit:v.credit,solde:v.debit-v.credit})).sort((a,b)=>a.code.localeCompare(b.code));
 }
 function comptaSoldePrefixes(balance,prefixes){ return balance.filter(b=>prefixes.some(p=>b.code.startsWith(p))).reduce((s,b)=>s+b.solde,0); }
+/* Bandeau rappelant que les écritures manuelles non visées n'entrent pas dans l'état affiché */
+async function comptaBrouillonsAlerteHtml(){
+  const n=(await comptaChargerEcritures({})).filter(e=>!ecrEstValidee(e)).length;
+  return n?`<div class="text-xs bg-amber-50 text-amber-800 border border-amber-200 rounded-lg px-3 py-2 mb-3">⏳ ${n} écriture(s) manuelle(s) en brouillard (non visée${n>1?'s':''}) sur ${window._compta.annee} — non comptées ici tant qu'elles ne sont pas validées dans <b>④ VISA</b>.</div>`:'';
+}
 async function comptaRenderBalance(host){
   const C=window._compta, niv=C.balNiveau||'detail';
   const bal=await comptaCalculerBalance(), A=pcArbre();
@@ -10343,7 +10355,7 @@ async function comptaRenderBalance(host){
     const d=(A.prof[k]||0);
     return `<tr class="${grp?'font-semibold text-indigo-900':''}"><td style="padding-left:${10+d*16}px" class="whitespace-nowrap">${escapeHtml(k)}</td><td>${escapeHtml(c?.libelle||'⚠️ Compte hors plan')}</td><td class="text-right">${money(n.debit)}</td><td class="text-right">${money(n.credit)}</td><td class="text-right">${sd(n)?money(sd(n)):''}</td><td class="text-right">${sc(n)?money(sc(n)):''}</td></tr>`;
   }).join('');
-  host.innerHTML=`
+  host.innerHTML=`${await comptaBrouillonsAlerteHtml()}
     <div class="flex flex-wrap gap-2 items-center justify-between mb-3">
       <div class="text-sm text-gray-500">Balance générale ${C.annee} — sous-totaux par classe, compte principal et divisionnaire.</div>
       <div class="flex rounded-lg border overflow-hidden text-xs">${[['2','Comptes principaux'],['3','Divisionnaires'],['detail','Détail']].map(([v,l])=>`<button class="px-3 py-1.5 font-semibold ${niv===v?'bg-indigo-600 text-white':''}" onclick="window._compta.balNiveau='${v}';comptaRenderCycleView()">${l}</button>`).join('')}</div>
@@ -10427,14 +10439,14 @@ async function comptaRenderBilan(host){
   const bal=await comptaCalculerBalance(), {B}=syscoCalculs(bal);
   const ecart=B.BZ-B.DZ;
   window._syscoEtat={titre:'BILAN',html:()=>`<div class="grid md:grid-cols-2 gap-4">${syscoTable('ACTIF',SYSCO_BILAN_ACTIF,B,'#1e3a8a')}${syscoTable('PASSIF',SYSCO_BILAN_PASSIF,B,'#7c2d12')}</div>`};
-  host.innerHTML=`<div class="flex flex-wrap justify-between items-center gap-2 mb-3"><div><h3 class="font-bold">Bilan SYSCOHADA révisé — exercice ${window._compta.annee}</h3><p class="text-xs text-gray-500">Système normal. Les comptes de tiers et de trésorerie sont classés à l’actif ou au passif selon le sens de leur solde ; le résultat de l’exercice non clôturé est calculé à partir des classes 6, 7 et 8.</p></div><button class="btn btn-outline btn-sm" onclick="comptaImprimerEtat()">🖨 Imprimer</button></div>
+  host.innerHTML=`${await comptaBrouillonsAlerteHtml()}<div class="flex flex-wrap justify-between items-center gap-2 mb-3"><div><h3 class="font-bold">Bilan SYSCOHADA révisé — exercice ${window._compta.annee}</h3><p class="text-xs text-gray-500">Système normal. Les comptes de tiers et de trésorerie sont classés à l’actif ou au passif selon le sens de leur solde ; le résultat de l’exercice non clôturé est calculé à partir des classes 6, 7 et 8.</p></div><button class="btn btn-outline btn-sm" onclick="comptaImprimerEtat()">🖨 Imprimer</button></div>
     ${window._syscoEtat.html()}
     <div class="mt-3 text-center text-sm font-semibold ${Math.abs(ecart)<1?'text-emerald-600':'text-red-600'}">${Math.abs(ecart)<1?'✔ Bilan équilibré (Actif = Passif)':'✕ Écart actif − passif : '+money(ecart)+' — vérifiez les écritures non équilibrées ou les comptes hors plan'}</div>`;
 }
 async function comptaRenderCompteResultat(host){
   const bal=await comptaCalculerBalance(), {R}=syscoCalculs(bal);
   window._syscoEtat={titre:'COMPTE DE RÉSULTAT',html:()=>syscoTable('COMPTE DE RÉSULTAT — en FCFA',SYSCO_RESULTAT,R,'#065f46')};
-  host.innerHTML=`<div class="flex flex-wrap justify-between items-center gap-2 mb-3"><div><h3 class="font-bold">Compte de résultat SYSCOHADA révisé — exercice ${window._compta.annee}</h3><p class="text-xs text-gray-500">Présentation en liste avec les soldes significatifs de gestion (marge commerciale, valeur ajoutée, EBE, résultats d’exploitation, financier, HAO et net).</p></div><button class="btn btn-outline btn-sm" onclick="comptaImprimerEtat()">🖨 Imprimer</button></div>
+  host.innerHTML=`${await comptaBrouillonsAlerteHtml()}<div class="flex flex-wrap justify-between items-center gap-2 mb-3"><div><h3 class="font-bold">Compte de résultat SYSCOHADA révisé — exercice ${window._compta.annee}</h3><p class="text-xs text-gray-500">Présentation en liste avec les soldes significatifs de gestion (marge commerciale, valeur ajoutée, EBE, résultats d’exploitation, financier, HAO et net).</p></div><button class="btn btn-outline btn-sm" onclick="comptaImprimerEtat()">🖨 Imprimer</button></div>
     <div class="grid lg:grid-cols-[minmax(0,1fr)_300px] gap-4">${window._syscoEtat.html()}
       <div class="space-y-2">${Math.abs(R._ecart)>=1?`<div class="card p-3 border-amber-300 bg-amber-50 text-xs text-amber-800">⚠ ${money(R._ecart)} proviennent de comptes 6/7/8 hors des rubriques SYSCOHADA (compte créé hors nomenclature) : ils sont inclus dans le résultat net.</div>`:''}${[['XB',"Chiffre d'affaires"],['XC','Valeur ajoutée'],['XD','EBE'],['XE',"Résultat d'exploitation"],['XI','Résultat net']].map(([k,l])=>`<div class="card p-3"><div class="text-xs text-gray-400">${l}</div><div class="text-lg font-black ${R[k]<0?'text-red-600':''}">${money(R[k])}</div></div>`).join('')}</div></div>`;
 }
