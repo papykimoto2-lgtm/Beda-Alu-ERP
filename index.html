@@ -12254,6 +12254,21 @@ function posSetClient(id){
   if(c){ pos.clientNom=[c.nom,c.prenoms].filter(Boolean).join(' '); pos.clientTel=c.telephone||''; }
   posRenderPanier();
 }
+/* Création rapide d'un client (nom + téléphone) pendant la vente au comptoir */
+async function posCreerClient(){
+  const pos=window._pos;
+  const nom=(pos.clientNom||'').trim(), tel=(pos.clientTel||'').trim();
+  if(!nom){ toast('Saisissez le nom du client.','error'); return; }
+  const norm=(t)=>String(t||'').replace(/\D/g,'');
+  const existant=(window._clientsCache||[]).find(c=>(tel&&norm(c.telephone)&&norm(c.telephone)===norm(tel)) || (!tel&&[c.nom,c.prenoms].filter(Boolean).join(' ').toLowerCase()===nom.toLowerCase()));
+  if(existant && confirm(`Un client existe déjà : ${[existant.nom,existant.prenoms].filter(Boolean).join(' ')}${existant.telephone?' ('+existant.telephone+')':''}.\nL'utiliser pour cette vente ?`)){ posSetClient(existant.id); return; }
+  const rec={nom,telephone:tel||null,source:'Vente au comptoir',created_by:CURRENT_USER.id};
+  const {data:c,error}=await sb.from('clients').insert(rec).select('id,nom,prenoms,telephone').single();
+  if(error){ toast(error.message,'error'); return; }
+  window._clientsCache=[...(window._clientsCache||[]),c].sort((a,b)=>String(a.nom||'').localeCompare(String(b.nom||'')));
+  toast('Client créé : '+nom);
+  posSetClient(c.id);
+}
 function posRenderPanier(){
   const host=document.getElementById('posPanier'); if(!host) return;
   const pos=window._pos;
@@ -12285,7 +12300,8 @@ function posRenderPanier(){
     <div class="grid grid-cols-2 gap-2 mb-2">
       <div class="field col-span-2"><label>Client (optionnel)</label>${fieldWrap('👤',smartSelect('posClient',clientItems(),pos.clientId,{placeholder:'Client comptoir (passage)',onChange:'posSetClient(this.value)'}))}</div>
       ${pos.clientId?'':`<div class="field"><label>Nom (passage)</label>${fieldWrap('✍️',`<input value="${escapeHtml(pos.clientNom)}" oninput="window._pos.clientNom=this.value" placeholder="Facultatif">`)}</div>
-      <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input value="${escapeHtml(pos.clientTel)}" oninput="window._pos.clientTel=this.value" placeholder="Facultatif">`)}</div>`}
+      <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input value="${escapeHtml(pos.clientTel)}" oninput="window._pos.clientTel=this.value" placeholder="Facultatif">`)}</div>
+      <div class="col-span-2 -mt-1"><button type="button" class="btn btn-outline w-full text-xs py-1.5" onclick="posCreerClient()" title="Enregistre ce client (nom + téléphone) dans le répertoire Clients et l'associe à la vente">➕ Créer ce client (nom + téléphone)</button></div>`}
     </div>
     <div class="grid grid-cols-4 gap-1 mb-2">${Object.entries(COMPTOIR_MODES).map(([k,m])=>`<button type="button" onclick="window._pos.mode='${k}';posRenderPanier()" class="border rounded-lg py-2 text-xs font-semibold ${pos.mode===k?'bg-violet-600 text-white border-violet-600':'bg-white'}">${m.icon}<br>${m.label}</button>`).join('')}</div>
     <div class="grid grid-cols-2 gap-2 mb-2">
