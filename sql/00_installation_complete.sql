@@ -4040,9 +4040,15 @@ create table if not exists public.receptions_fournisseur_lignes (
   unite text,
   quantite numeric not null check (quantite > 0),
   prix_unitaire numeric not null default 0,
-  montant numeric(16,2) not null default 0
+  montant numeric(16,2) not null default 0,
+  statut_paiement text check (statut_paiement in ('paye','impaye')),
+  mode_paiement text check (mode_paiement in ('cheque','espece')),
+  livraison_statut text check (livraison_statut in ('livre','en_stock','non_livre'))
 );
 create index if not exists idx_rf_lignes on public.receptions_fournisseur_lignes (reception_id);
+alter table public.receptions_fournisseur_lignes add column if not exists statut_paiement text check (statut_paiement in ('paye','impaye'));
+alter table public.receptions_fournisseur_lignes add column if not exists mode_paiement text check (mode_paiement in ('cheque','espece'));
+alter table public.receptions_fournisseur_lignes add column if not exists livraison_statut text check (livraison_statut in ('livre','en_stock','non_livre'));
 
 create table if not exists public.commandes_internes (
   id uuid primary key default gen_random_uuid(),
