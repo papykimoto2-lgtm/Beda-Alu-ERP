@@ -2856,8 +2856,21 @@ function chantierBadgeHtml(projetId){
 function chantierOptionsHtml(clientId,projetId){
   if(!clientId) return `<option value="">— Choisissez d'abord le client —</option>`;
   const liste=(window._chantiersRef?.projets||[]).filter(p=>p.client_id===clientId);
-  if(!liste.length) return `<option value="">Aucun chantier pour ce client</option>`;
-  return `<option value="">— Aucun chantier —</option>`+liste.map(p=>`<option value="${p.id}" ${p.id===projetId?'selected':''}>${escapeHtml((p.code?p.code+' — ':'')+p.libelle)}${p.etape==='termine'?' (terminé)':p.etape==='annule'?' (annulé)':''}</option>`).join('');
+  const nouveau=`<option value="__nouveau__">➕ Nouveau chantier pour ce client…</option>`;
+  if(!liste.length) return `<option value="">Aucun chantier pour ce client</option>`+nouveau;
+  return `<option value="">— Aucun chantier —</option>`+liste.map(p=>`<option value="${p.id}" ${p.id===projetId?'selected':''}>${escapeHtml((p.code?p.code+' — ':'')+p.libelle)}${p.etape==='termine'?' (terminé)':p.etape==='annule'?' (annulé)':''}</option>`).join('')+nouveau;
+}
+// Création rapide d'un chantier rattaché au client choisi (depuis un bon de caisse, un mouvement de stock…)
+async function chantierSelectChange(prefixe){
+  const sel=document.getElementById(prefixe+'Projet'); if(!sel||sel.value!=='__nouveau__') return;
+  const clientId=document.getElementById(prefixe+'Client')?.value||'';
+  const libelle=(prompt('Nom du nouveau chantier de '+(chantierNomClient(clientId)||'ce client')+' :')||'').trim();
+  if(!libelle){ sel.value=''; return; }
+  const {data,error}=await sb.from('projets').insert({libelle,client_id:clientId,created_by:CURRENT_USER?.id||null}).select('id,code,libelle,client_id,etape').single();
+  if(error){ toast(error.message,'error'); sel.value=''; return; }
+  window._chantiersRef.projets.unshift(data);
+  sel.innerHTML=chantierOptionsHtml(clientId,data.id);
+  toast('Chantier '+(data.code||'')+' créé et rattaché au client.');
 }
 // Deux champs : client (recherche) puis un de ses chantiers. `prefixe` identifie les champs (<prefixe>Client, <prefixe>Projet).
 function chantierPickerHtml(prefixe,projetId,opts={}){
@@ -2867,7 +2880,7 @@ function chantierPickerHtml(prefixe,projetId,opts={}){
   const items=R.clients.filter(c=>opts.tousClients||R.projets.some(p=>p.client_id===c.id)).map(c=>({id:c.id,label:[c.nom,c.prenoms].filter(Boolean).join(' ')}));
   const cls=opts.cls||'';
   return `<div class="field ${cls}"><label>Client du chantier (facultatif)</label>${fieldWrap('👤',smartSelect(prefixe+'Client',items,clientId,{placeholder:'Rechercher un client…',onChange:`chantierMajListe('${prefixe}')`}))}</div>
-    <div class="field ${cls}"><label>Chantier rattaché</label>${fieldWrap('🏗️',`<select id="${prefixe}Projet">${chantierOptionsHtml(clientId,projetId)}</select>`)}</div>`;
+    <div class="field ${cls}"><label>Chantier rattaché</label>${fieldWrap('🏗️',`<select id="${prefixe}Projet" onchange="chantierSelectChange('${prefixe}')">${chantierOptionsHtml(clientId,projetId)}</select>`)}</div>`;
 }
 function chantierMajListe(prefixe){
   const clientId=document.getElementById(prefixe+'Client')?.value||'';
@@ -2878,7 +2891,8 @@ function chantierMajListe(prefixe){
 }
 function chantierValeur(prefixe){
   const clientId=document.getElementById(prefixe+'Client')?.value||'';
-  return clientId?(document.getElementById(prefixe+'Projet')?.value||null):null;
+  const v=clientId?(document.getElementById(prefixe+'Projet')?.value||null):null;
+  return v==='__nouveau__'?null:v;
 }
 function clientItems(){
   return (window._clientsCache||[]).map(c=>({id:c.id,label:[c.nom,c.prenoms].filter(Boolean).join(' ')}));
@@ -4423,7 +4437,7 @@ function jmExporterCsv(){
 }
 
 async function openMouvementModal(presetType,presetComposantId,presetDepotId,presetProjetId){
-  await Promise.all([chargerDepots(),chargerChantiersRef()]);
+  await Promise.all([chargerDepots(),chargerChantiersRef(true)]);
   let composants=window._stockComposantsCache;
   if(!composants){ const {data}=await sb.from('composants').select('id,nom').order('nom'); composants=data||[]; }
   openModal(`
@@ -10957,7 +10971,7 @@ async function caisseConfirmerOuverture(caisseId){
 }
 async function caisseOuvrirBonModal(type){
   const {session,caisse}=window._caisseDetailCache;
-  await chargerChantiersRef(); await comptaChargerReferentiel();
+  await chargerChantiersRef(true); await comptaChargerReferentiel();
   openModal(`
     <h3 class="font-bold text-lg mb-4">${type==='entree'?"+ Bon d'entrée":'− Bon de sortie'}</h3>
     <div class="grid sm:grid-cols-2 gap-3 mb-3">
@@ -11085,7 +11099,7 @@ async function caisseOuvrirModifierModal(mvtId){
   const {mvt,legs,ecrs}=ctl;
   const estTrf=!!mvt.transfert_id;
   const ventiles=legs.filter(l=>l.statut==='ventile'&&l.ecriture_id);
-  if(!estTrf) await chargerChantiersRef();
+  if(!estTrf) await chargerChantiersRef(true);
   openModal(`
     <h3 class="font-bold text-lg mb-1">✏️ Modifier ${escapeHtml(mvt.numero||'le mouvement')}</h3>
     <p class="text-xs text-gray-500 mb-4">${estTrf?'Transfert lié entre deux caisses : la date et le montant sont modifiés des deux côtés.':(mvt.type==='entree'?"Bon d'entrée":'Bon de sortie')+' — le type ne peut pas être changé (supprimez puis recréez le bon).'}</p>
