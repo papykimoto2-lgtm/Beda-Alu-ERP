@@ -8298,7 +8298,8 @@ function renderDevisEditorBody(){
       <tbody>${lignes.map((l,i)=>ligneRowHtml(l,i)).join('')}</tbody></table></div>
       <div class="grid sm:grid-cols-2 gap-4 mb-5 max-w-md ml-auto">
         <div class="field"><label>Réduction (montant)</label>${fieldWrap('➖',`<input id="dvReduction" type="number" step="1" value="${d.reduction||0}">`)}</div>
-        <div class="field"><label>Autre frais</label>${fieldWrap('➕',`<input id="dvAutreFrais" type="number" step="1" value="${d.autre_frais||0}">`)}</div>
+        <div class="field"><label>Main-d'œuvre facturée</label>${fieldWrap('👷',`<input id="dvMainOeuvre" type="number" step="1" value="${d.main_oeuvre||0}">`)}</div>
+        <div class="field"><label>Autres charges facturées</label>${fieldWrap('➕',`<input id="dvAutreFrais" type="number" step="1" value="${d.autre_frais||0}">`)}</div>
       </div>
       <div class="flex justify-end gap-6 text-sm mb-5">
         <div>Total sans remise : <b>${money(total)}</b></div>
@@ -8359,11 +8360,11 @@ function onProduitSelect(i,produitId){
   renderDevisEditorBody();
 }
 async function saveDevis(){
-  const header={libelle:val('dvLibelle'),client_id:val('dvClient'),projet_id:val('dvProjet')||null,statut:val('dvStatut'),categorie:val('dvCategorie')||null,date_creation:val('dvDate')||null,date_echeance:val('dvEcheance')||null,commercial:val('dvCommercial'),lieu_affaire:val('dvLieuAffaire'),commune:val('dvCommune'),quartier:val('dvQuartier'),reduction:+val('dvReduction')||0,autre_frais:+val('dvAutreFrais')||0};
+  const header={libelle:val('dvLibelle'),client_id:val('dvClient'),projet_id:val('dvProjet')||null,statut:val('dvStatut'),categorie:val('dvCategorie')||null,date_creation:val('dvDate')||null,date_echeance:val('dvEcheance')||null,commercial:val('dvCommercial'),lieu_affaire:val('dvLieuAffaire'),commune:val('dvCommune'),quartier:val('dvQuartier'),reduction:+val('dvReduction')||0,autre_frais:+val('dvAutreFrais')||0,main_oeuvre:+val('dvMainOeuvre')||0};
   if(!header.client_id){ toast('Sélectionnez un client.','error'); return; }
   const lignes=devisEditorState.lignes;
   const sousTotal=lignes.reduce((s,l)=>s+ligneTotal(l),0);
-  header.total=sousTotal-header.reduction+header.autre_frais;
+  header.total=sousTotal-header.reduction+header.autre_frais+header.main_oeuvre;
   let devisId=devisEditorState.devis.id;
   let error;
   if(devisId){ ({error}=await sb.from('devis').update(header).eq('id',devisId)); }
@@ -8394,9 +8395,11 @@ function docLignesRows(lignes){
   let num=0, html='';
   Object.entries(groupes).forEach(([piece,rows])=>{
     if(piece) html+=`<tr><td colspan="9" style="font-style:italic;font-weight:700;padding:8px 4px 4px;border:0">${escapeHtml(piece)}</td></tr>`;
+    let sousTotalGroupe=0;
     rows.forEach(l=>{
       num++;
       const pub=+l.prix_unitaire||0, remise=+l.remise_pct||0, pur=pub*(1-remise/100), mt=(+l.quantite||0)*pur;
+      sousTotalGroupe+=mt;
       html+=`<tr>
         <td><span class="doc-num">${num}</span></td>
         <td>${escapeHtml(l.titre)}</td>
@@ -8409,17 +8412,21 @@ function docLignesRows(lignes){
         <td class="tr doc-mt">${money(mt)}</td>
       </tr>`;
     });
+    if(piece) html+=`<tr><td colspan="8" class="tr" style="font-weight:800;text-transform:uppercase;font-size:11px;background:#f5f3ff;border-bottom:1px solid #ddd6fe">Sous-total ${escapeHtml(piece)}</td><td class="tr doc-mt" style="background:#f5f3ff;border-bottom:1px solid #ddd6fe">${money(sousTotalGroupe)}</td></tr>`;
   });
   return html;
 }
-function docTotalsHtml(sousTotal,reduction,autreFrais){
-  const total=sousTotal-reduction+autreFrais;
+function docTotalsHtml(sousTotal,reduction,autreFrais,mainOeuvre,type){
+  mainOeuvre=+mainOeuvre||0;
+  const total=sousTotal-reduction+autreFrais+mainOeuvre;
   return `<div class="doc-totals">
     <div><span>Total sans remise</span><b>${money(sousTotal)}</b></div>
     <div><span>Réduction</span><b>${money(reduction)}</b></div>
-    <div><span>Autre frais</span><b>${money(autreFrais)}</b></div>
+    ${mainOeuvre?`<div><span>Main-d'œuvre</span><b>${money(mainOeuvre)}</b></div>`:''}
+    <div><span>Autres charges</span><b>${money(autreFrais)}</b></div>
     <div class="doc-total-final"><span>Montant total à payer</span><b>${money(total)}</b></div>
-  </div>`;
+  </div>
+  <div style="margin-top:12px;font-size:12.5px"><b>Arrêté ${type==='FACTURE'?'la présente facture':type==='DEVIS'?'le présent devis':'le présent document'} à la somme de :</b> <i>${escapeHtml(montantEnLettres(total))} francs CFA</i></div>`;
 }
 /* ============================== MOTEUR D'IMPRESSION (tous les documents imprimés) ==============================
    Un seul moteur pour TOUT ce qui sort sur papier : devis, factures, reçus et tickets, bons (caisse, transfert),
@@ -8456,14 +8463,14 @@ function printCompanyHeaderHtml(opts){
   opts=opts||{};
   const P=impParams(), I=impIdentite(), c=P.couleur||'#1d3557';
   const nomHtml=`<div style="font-size:18px;font-weight:800;color:${c};line-height:1.2">${escapeHtml(I.nom)}</div>`;
-  const logo=I.logo?`<img src="${I.logo}" style="max-height:62px;max-width:220px;object-fit:contain;display:block">`:'';
+  const logo=I.logo?`<img src="${I.logo}" style="max-height:220px;max-width:420px;object-fit:contain;display:block">`:'';
   const slogan=I.slogan?`<div style="font-size:10.5px;font-style:italic;color:#475569">${escapeHtml(I.slogan)}</div>`:'';
   const infos=[I.juridique,I.fiscal,I.regime,I.adresse,I.contact,I.site].filter(Boolean);
   const niveau=opts.niveau?`<div style="display:flex;gap:6px;align-items:center;background:${c}10;border-left:3px solid ${c};padding:4px 10px;margin:-8px 0 14px;font-size:10.5px;color:#334155">🏢 <b>${escapeHtml(I.nom||'Entreprise')}</b> › ${escapeHtml(opts.niveau)}</div>`:'';
   if(!I.nom && !I.logo && !infos.length) return '<div data-imp-entete></div>'+niveau;
   let corps;
   if(P.style==='compact'){
-    corps=`<div style="display:flex;align-items:center;gap:12px">${I.logo?`<img src="${I.logo}" style="max-height:34px;max-width:120px;object-fit:contain">`:''}<b style="color:${c}">${escapeHtml(I.nom)}</b><span style="font-size:10px;color:#475569">${infos.map(escapeHtml).join(' · ')}</span></div>`;
+    corps=`<div style="display:flex;align-items:center;gap:12px">${I.logo?`<img src="${I.logo}" style="max-height:120px;max-width:300px;object-fit:contain">`:''}<b style="color:${c}">${escapeHtml(I.nom)}</b><span style="font-size:10px;color:#475569">${infos.map(escapeHtml).join(' · ')}</span></div>`;
   } else if(P.style==='centre'){
     corps=`<div style="text-align:center">${logo?`<div style="display:flex;justify-content:center">${logo}</div>`:''}${nomHtml}${slogan}<div style="font-size:10px;color:#374151;line-height:1.6;margin-top:3px">${infos.map(escapeHtml).join(' · ')}</div></div>`;
   } else {
@@ -8476,7 +8483,7 @@ function printCompanyHeaderHtml(opts){
 function impEnteteTicketHtml(niveau){
   const I=impIdentite();
   return `<div data-imp-entete style="text-align:center;font-family:'Courier New',monospace;font-size:11px;line-height:1.35">
-    ${I.logo?`<div><img src="${I.logo}" style="max-width:50mm;max-height:22mm"></div>`:''}
+    ${I.logo?`<div><img src="${I.logo}" style="max-width:56mm;max-height:60mm"></div>`:''}
     ${I.nom?`<div style="font-weight:bold;font-size:14px">${escapeHtml(I.nom)}</div>`:''}
     ${I.slogan?`<div style="font-size:10px;font-style:italic">${escapeHtml(I.slogan)}</div>`:''}
     ${[I.adresse,I.contact,I.fiscal,I.regime].filter(Boolean).map(x=>`<div>${escapeHtml(x)}</div>`).join('')}
@@ -8876,7 +8883,7 @@ async function renderDevisDetail(el){
         <thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
         <tbody>${docLignesRows(lignes)||'<tr><td colspan="9" class="text-gray-400 p-3">Aucune ligne.</td></tr>'}</tbody>
       </table></div>
-      <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0)}</div>
+      <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0,+d.main_oeuvre||0,'DEVIS')}</div>
       ${docNotesHtml()}
     </div>
     ${await fichesExecutionSectionHtml(d.id)}`;
@@ -8973,11 +8980,11 @@ async function printDevis(devisId){
   const {data:lignes}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
   const sousTotal=(lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100),0);
   const win=window.open('','_blank','width=950,height=1150'); if(!win) return;
-  await impEcrire(win,{type:'DEVIS',titre:d.libelle||'Devis',numero:d.code,montant:sousTotal-(+d.reduction||0)+(+d.autre_frais||0),tiers:nomTiers(d.clients)},printDocHtml('DEVIS',d.code,d.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune,dateCreation:d.date_creation,dateEcheance:d.date_echeance},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0));
+  await impEcrire(win,{type:'DEVIS',titre:d.libelle||'Devis',numero:d.code,montant:sousTotal-(+d.reduction||0)+(+d.autre_frais||0)+(+d.main_oeuvre||0),tiers:nomTiers(d.clients)},printDocHtml('DEVIS',d.code,d.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune,dateCreation:d.date_creation,dateEcheance:d.date_echeance},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0,+d.main_oeuvre||0));
   win.document.close(); win.focus();
 }
 function nomTiers(c){ return c?([c.civilite,c.nom,c.prenoms].filter(Boolean).join(' ')||c.entreprise||''):''; }
-function printDocHtml(type,code,client,meta,libelle,lignes,sousTotal,reduction,autreFrais){
+function printDocHtml(type,code,client,meta,libelle,lignes,sousTotal,reduction,autreFrais,mainOeuvre){
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${type} ${escapeHtml(code)}</title>
     <style>
       *{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:34px;color:#111827;font-size:13px}
@@ -9004,7 +9011,7 @@ function printDocHtml(type,code,client,meta,libelle,lignes,sousTotal,reduction,a
     <h3>${type} : ${escapeHtml(libelle||'—')}</h3>
     <table><thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
     <tbody>${docLignesRows(lignes)}</tbody></table>
-    ${docTotalsHtml(sousTotal,reduction,autreFrais)}
+    ${docTotalsHtml(sousTotal,reduction,autreFrais,mainOeuvre,type)}
     ${docNotesHtml()}
     </body></html>`;
 }
@@ -9133,7 +9140,7 @@ async function renderFactureDetail(el){
         <thead><tr><th>#</th><th>Désignation</th><th class="tc">Larg</th><th class="tc">Haut</th><th class="tc">Qté</th><th class="tr">P.U.B</th><th class="tc">R%</th><th class="tr">P.U.R</th><th class="tr">M.T</th></tr></thead>
         <tbody>${docLignesRows(lignes)||'<tr><td colspan="9" class="text-gray-400 p-3">Aucune ligne.</td></tr>'}</tbody>
       </table></div>
-      <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0)}</div>
+      <div class="mt-4">${docTotalsHtml(sousTotal,+d.reduction||0,+d.autre_frais||0,+d.main_oeuvre||0,'FACTURE')}</div>
       ${docNotesHtml()}
     </div>
     <div class="page-card mt-4">
@@ -9152,7 +9159,7 @@ async function printFacture(factureId){
   const {data:lignes}=d.id ? await sb.from('devis_lignes').select('*').eq('devis_id',d.id).order('ordre') : {data:[]};
   const sousTotal=(lignes||[]).reduce((s,l)=>s+(+l.quantite||0)*(+l.prix_unitaire||0)*(1-(+l.remise_pct||0)/100),0);
   const win=window.open('','_blank','width=950,height=1150'); if(!win) return;
-  await impEcrire(win,{type:'FACTURE',titre:d.libelle||'Facture',numero:f.code,montant:sousTotal-(+d.reduction||0)+(+d.autre_frais||0),tiers:nomTiers(f.clients)},printDocHtml('FACTURE',f.code,f.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0));
+  await impEcrire(win,{type:'FACTURE',titre:d.libelle||'Facture',numero:f.code,montant:sousTotal-(+d.reduction||0)+(+d.autre_frais||0)+(+d.main_oeuvre||0),tiers:nomTiers(f.clients)},printDocHtml('FACTURE',f.code,f.clients,{lieuAffaire:d.lieu_affaire,projet:d.projets?.libelle,categorie:d.categorie,pays:d.pays,commune:d.commune},d.libelle,lignes,sousTotal,+d.reduction||0,+d.autre_frais||0,+d.main_oeuvre||0));
   win.document.close(); win.focus();
 }
 

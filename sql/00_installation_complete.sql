@@ -231,6 +231,7 @@ create table if not exists public.devis (
   quartier text,
   reduction numeric default 0 not null,
   autre_frais numeric default 0 not null,
+  main_oeuvre numeric default 0 not null,
   total numeric default 0 not null,
   created_at timestamp with time zone default now() not null,
   created_by uuid,
