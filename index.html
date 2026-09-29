@@ -4323,9 +4323,9 @@ async function renderStockMouvements(el){
 async function jmCharger(){
   const J=window._jm; if(!document.getElementById('jmResultats')) return;
   document.getElementById('jmResultats').innerHTML='<div class="text-sm text-gray-400">Chargement…</div>';
-  let q=sb.from('mouvements_stock').select('*, composants(nom,unite,famille,code,reference,cmup)').order('created_at',{ascending:false}).limit(5000);
-  if(J.du) q=q.gte('created_at',new Date(J.du+'T00:00:00').toISOString());
-  if(J.au) q=q.lte('created_at',new Date(J.au+'T23:59:59.999').toISOString());
+  let q=sb.from('mouvements_stock').select('*, composants(nom,unite,famille,code,reference,cmup)').order('date_mouvement',{ascending:false}).order('created_at',{ascending:false}).limit(5000);
+  if(J.du) q=q.gte('date_mouvement',J.du);
+  if(J.au) q=q.lte('date_mouvement',J.au);
   if(J.depot) q=q.eq('depot_id',J.depot); if(J.type) q=q.eq('type',J.type); if(J.composant) q=q.eq('composant_id',J.composant); if(J.user) q=q.eq('created_by',J.user);
   if(J.chantier&&J.chantier!=='-') q=q.eq('projet_id',J.chantier);
   const {data,error}=await q;
@@ -4347,6 +4347,7 @@ function jmCalc(){
     const dk=depNomCourt(m.depot_id), d=parDepot[dk]=parDepot[dk]||{n:0,ve:0,vs:0}; d.n++; if(e) d.ve+=m.valeur; else d.vs+=m.valeur; });
   return {l,ve,vs,ne,ns,parType,parDepot};
 }
+function jmDate(m){ return m.date_mouvement?fmtDate(m.date_mouvement):new Date(m.created_at).toLocaleDateString('fr-FR'); }
 function jmNomUser(id){ const p=(window._jmProfils||[]).find(x=>x.id===id); return p?(p.nom_complet||p.email||''):''; }
 function jmPieceHtml(ref){
   if(!ref) return '—';
@@ -4376,7 +4377,7 @@ function jmAfficher(){
     <div class="grid lg:grid-cols-2 gap-3 mb-3">${jmSynthese('Par type',r.parType)}${jmSynthese('Par dépôt',r.parDepot)}</div>
     <div class="card overflow-x-auto"><table class="text-sm"><thead><tr><th>Date</th><th>Pièce</th><th>Article</th><th>Dépôt</th><th>Type</th><th class="text-right">Entrée</th><th class="text-right">Sortie</th><th class="text-right">P.U.</th><th class="text-right">Valeur</th><th class="text-right">Stock dépôt après</th><th>Motif</th><th>Par</th></tr></thead><tbody>
       ${r.l.slice(0,1500).map(m=>{ const t=STOCK_TYPE_LABELS[m.type]||{icon:'',label:m.type,color:'#6b7280'}, e=+m.quantite>0; return `<tr>
-        <td class="text-xs whitespace-nowrap">${new Date(m.created_at).toLocaleString('fr-FR')}</td><td class="text-xs whitespace-nowrap">${jmPieceHtml(m.reference)}</td>
+        <td class="text-xs whitespace-nowrap">${jmDate(m)}</td><td class="text-xs whitespace-nowrap">${jmPieceHtml(m.reference)}</td>
         <td>${escapeHtml(m.composants?.nom||'—')}<div class="text-[10px] text-gray-400">${escapeHtml(m.composants?.famille||'')}${m.projet_id?' · 🏗️ '+escapeHtml(chantierLabel(m.projet_id,false)):''}</div></td>
         <td class="text-xs whitespace-nowrap">${escapeHtml(depNomCourt(m.depot_id))}</td><td><span class="pill" style="color:${t.color};border-color:${t.color}">${t.icon} ${t.label}</span></td>
         <td class="text-right text-emerald-700 whitespace-nowrap">${e?'+'+fmtQte(m.quantite)+' '+escapeHtml(m.composants?.unite||''):''}</td><td class="text-right text-red-600 whitespace-nowrap">${e?'':fmtQte(-m.quantite)+' '+escapeHtml(m.composants?.unite||'')}</td>
@@ -4402,7 +4403,7 @@ function jmRapportHtml(){
     <div class="k"><div>Mouvements<b>${r.l.length}</b>${r.ne} entrée(s) · ${r.ns} sortie(s)</div><div>Entrées (valeur)<b style="color:#047857">${money(r.ve)}</b></div><div>Sorties (valeur)<b style="color:#b91c1c">${money(r.vs)}</b></div><div>Variation nette<b>${money(r.ve-r.vs)}</b></div></div>
     <div class="g2"><div>${synth('Par type',r.parType)}</div><div>${synth('Par dépôt',r.parDepot)}</div></div>
     <h2>Détail des mouvements</h2><table><thead><tr><th>Date</th><th>Pièce</th><th>Article</th><th>Famille</th><th>Dépôt</th><th>Type</th><th class="r">Entrée</th><th class="r">Sortie</th><th class="r">P.U.</th><th class="r">Valeur</th><th class="r">Stock après</th><th>Motif</th><th>Par</th></tr></thead><tbody>
-    ${r.l.map(m=>{ const e=+m.quantite>0; return `<tr><td>${new Date(m.created_at).toLocaleString('fr-FR')}</td><td>${escapeHtml(m.reference||'')}</td><td>${escapeHtml(m.composants?.nom||'')}</td><td>${escapeHtml(m.composants?.famille||'')}</td><td>${escapeHtml(depNomCourt(m.depot_id))}</td><td>${escapeHtml(STOCK_TYPE_LABELS[m.type]?.label||m.type)}</td>
+    ${r.l.map(m=>{ const e=+m.quantite>0; return `<tr><td>${jmDate(m)}</td><td>${escapeHtml(m.reference||'')}</td><td>${escapeHtml(m.composants?.nom||'')}</td><td>${escapeHtml(m.composants?.famille||'')}</td><td>${escapeHtml(depNomCourt(m.depot_id))}</td><td>${escapeHtml(STOCK_TYPE_LABELS[m.type]?.label||m.type)}</td>
       <td class="r">${e?fmtQte(m.quantite):''}</td><td class="r">${e?'':fmtQte(-m.quantite)}</td><td class="r">${m.pu?money(m.pu):''}</td><td class="r">${m.valeur?money(m.valeur):''}</td><td class="r">${m.stock_depot_apres!=null?fmtQte(m.stock_depot_apres):''}</td><td>${escapeHtml(m.motif||'')}</td><td>${escapeHtml(jmNomUser(m.created_by))}</td></tr>`; }).join('')}</tbody></table>
     <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`;
 }
@@ -4416,7 +4417,7 @@ function jmEnvoyer(){
 function jmExporterCsv(){
   const r=window._jmCalc||jmCalc(), n=x=>x==null||x===''?'':String(Math.round(+x*100)/100).replace('.',',');
   const lignes=[['Date','Pièce','Article','Code','Famille','Dépôt','Type','Entrée','Sortie','Unité','P.U.','Valeur','Stock dépôt après','Motif','Chantier','Par']];
-  r.l.forEach(m=>{ const e=+m.quantite>0; lignes.push([new Date(m.created_at).toLocaleString('fr-FR'),m.reference||'',m.composants?.nom||'',m.composants?.code||m.composants?.reference||'',m.composants?.famille||'',depNomCourt(m.depot_id),STOCK_TYPE_LABELS[m.type]?.label||m.type,e?n(m.quantite):'',e?'':n(-m.quantite),m.composants?.unite||'',n(m.pu),n(m.valeur),n(m.stock_depot_apres),m.motif||'',m.projet_id?chantierLabel(m.projet_id,false):'',jmNomUser(m.created_by)]); });
+  r.l.forEach(m=>{ const e=+m.quantite>0; lignes.push([jmDate(m),m.reference||'',m.composants?.nom||'',m.composants?.code||m.composants?.reference||'',m.composants?.famille||'',depNomCourt(m.depot_id),STOCK_TYPE_LABELS[m.type]?.label||m.type,e?n(m.quantite):'',e?'':n(-m.quantite),m.composants?.unite||'',n(m.pu),n(m.valeur),n(m.stock_depot_apres),m.motif||'',m.projet_id?chantierLabel(m.projet_id,false):'',jmNomUser(m.created_by)]); });
   const csv='﻿'+lignes.map(l=>l.map(x=>{ const s=String(x??''); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(';')).join('\r\n');
   telechargerFichier(new File([csv],`${slugEntreprise()}-journal-stock-${window._jm.du}_${window._jm.au}.csv`,{type:'text/csv;charset=utf-8'}));
 }
@@ -4434,6 +4435,7 @@ async function openMouvementModal(presetType,presetComposantId,presetDepotId,pre
       <div class="field"><label>Type</label>${fieldWrap('🗂️',`<select id="mvType" onchange="updateMouvementFormFields()">${Object.entries(STOCK_TYPE_LABELS).filter(([k])=>k!=='transfert').map(([k,v])=>`<option value="${k}" ${k===presetType?'selected':''}>${v.icon} ${v.label}</option>`).join('')}</select>`)}</div>
       <div class="field"><label id="mvQtyLabel">Quantité</label>${fieldWrap('#️⃣',`<input id="mvQuantite" type="number" step="0.01" required>`)}</div>
       <div class="field sm:col-span-2" id="mvPrixField"><label>Prix unitaire d'achat (FCFA)</label>${fieldWrap('💰',`<input id="mvPrix" type="number" step="0.01" min="0">`)}</div>
+      <div class="field sm:col-span-2"><label>Date de mouvement</label>${fieldWrap('📅',`<input id="mvDate" type="date" value="${new Date().toLocaleDateString('sv-SE')}" required>`)}</div>
       <div class="field sm:col-span-2"><label>Motif</label>${fieldWrap('📝',`<input id="mvMotif" placeholder="Ex : Achat fournisseur, casse, correction…">`)}</div>
       <div class="field sm:col-span-2"><label>Référence (optionnel)</label>${fieldWrap('🔗',`<input id="mvRef" placeholder="N° BL, bon de livraison…">`)}</div>
       ${chantierPickerHtml('mv',presetProjetId||'')}
@@ -4453,7 +4455,7 @@ async function openMouvementModal(presetType,presetComposantId,presetDepotId,pre
     if(!composantId){ toast('Sélectionnez un composant.','error'); return; }
     if(!quantite && type!=='inventaire'){ toast('Quantité requise.','error'); return; }
     const projetId=chantierValeur('mv');
-    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:val('mvRef')||null,p_prix_unitaire:prix,p_depot_id:val('mvDepot')||null,...(projetId?{p_projet_id:projetId}:{})});
+    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:val('mvRef')||null,p_prix_unitaire:prix,p_depot_id:val('mvDepot')||null,p_date_mouvement:val('mvDate')||null,...(projetId?{p_projet_id:projetId}:{})});
     if(error){ toast(error.message,'error'); return; }
     if(type==='entree' && prix>0){
       const composant=(composants||[]).find(c=>c.id===composantId);
