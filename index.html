@@ -862,7 +862,7 @@ function toast(msg, kind){
 function openSidebar(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('overlay').classList.add('open'); }
 function closeSidebar(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('open'); }
 function closeModal(){ document.getElementById('modalRoot').innerHTML=''; }
-function openModal(html){ document.getElementById('modalRoot').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal-box">${html}</div></div>`; }
+function openModal(html){ document.getElementById('modalRoot').innerHTML = `<div class="modal-overlay" onmousedown="this._dn=event.target===this" onclick="if(event.target===this&&this._dn)closeModal()"><div class="modal-box">${html}</div></div>`; }
 
 const STATUT_DEVIS = {en_attente:{label:'En attente',color:'bg-blue-50 text-blue-700'},en_cours:{label:'En cours',color:'bg-amber-50 text-amber-700'},accepte:{label:'Accepté',color:'bg-emerald-50 text-emerald-700'},refuse:{label:'Refusé',color:'bg-red-50 text-red-700'},annule:{label:'Annulé',color:'bg-gray-100 text-gray-500'}};
 const STATUT_FACTURE = {en_attente:{label:'En attente',color:'bg-blue-50 text-blue-700'},payee_partielle:{label:'Payée partielle',color:'bg-amber-50 text-amber-700'},payee:{label:'Payée',color:'bg-emerald-50 text-emerald-700'},annulee:{label:'Annulée',color:'bg-gray-100 text-gray-500'}};
