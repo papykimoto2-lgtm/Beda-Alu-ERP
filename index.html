@@ -2864,7 +2864,7 @@ function chantierPickerHtml(prefixe,projetId,opts={}){
   const R=window._chantiersRef||{clients:[],projets:[]};
   const pj=R.projets.find(p=>p.id===projetId);
   const clientId=pj?.client_id||'';
-  const items=R.clients.filter(c=>R.projets.some(p=>p.client_id===c.id)).map(c=>({id:c.id,label:[c.nom,c.prenoms].filter(Boolean).join(' ')}));
+  const items=R.clients.filter(c=>opts.tousClients||R.projets.some(p=>p.client_id===c.id)).map(c=>({id:c.id,label:[c.nom,c.prenoms].filter(Boolean).join(' ')}));
   const cls=opts.cls||'';
   return `<div class="field ${cls}"><label>Client du chantier (facultatif)</label>${fieldWrap('👤',smartSelect(prefixe+'Client',items,clientId,{placeholder:'Rechercher un client…',onChange:`chantierMajListe('${prefixe}')`}))}</div>
     <div class="field ${cls}"><label>Chantier rattaché</label>${fieldWrap('🏗️',`<select id="${prefixe}Projet">${chantierOptionsHtml(clientId,projetId)}</select>`)}</div>`;
@@ -8358,7 +8358,14 @@ function updateLigne(i,field,value){
 function onProduitSelect(i,produitId){
   const p=(window._produitsCache||[]).find(x=>x.id===produitId);
   devisEditorState.lignes[i].produit_id=produitId||null;
-  if(p){ devisEditorState.lignes[i].titre=p.nom; devisEditorState.lignes[i].cout_materiel_pct=p.cout_materiel_pct; }
+  if(p){
+    const l=devisEditorState.lignes[i], c=p.config_json||{};
+    l.titre=p.nom; l.cout_materiel_pct=p.cout_materiel_pct;
+    l.prix_unitaire=+p.prix_vente||0;
+    // Dimensions du produit configuré (saisies en mm dans le configurateur) → cm dans le devis
+    if(+c.w>0) l.largeur=Math.round(+c.w/10*10)/10;
+    if(+c.h>0) l.hauteur=Math.round(+c.h/10*10)/10;
+  }
   renderDevisEditorBody();
 }
 async function saveDevis(){
@@ -10959,7 +10966,7 @@ async function caisseOuvrirBonModal(type){
     </div>
     <div class="field mb-3"><label>Motif</label>${fieldWrap('📝',`<input id="bonMotif" placeholder="ex: Achat quincaillerie chantier X">`)}</div>
     <div class="field mb-3"><label>${type==='entree'?'Provenance':'Bénéficiaire'}</label>${fieldWrap('👤',`<input id="bonBeneficiaire">`)}</div>
-    <div class="grid sm:grid-cols-2 gap-3 mb-1">${chantierPickerHtml('bon',caisse?.projet_id||'')}</div>
+    <div class="grid sm:grid-cols-2 gap-3 mb-1">${chantierPickerHtml('bon',caisse?.projet_id||'',{tousClients:true})}</div>
     <div class="text-xs text-gray-400 mb-3">Rattachez le bon au chantier d'un client pour suivre ses dépenses (fiche du projet) ; l'écriture de ventilation portera ce chantier.</div>
     <div class="field mb-1"><label>Compte d'imputation SYSCOHADA (comptabilité automatique)</label>${fieldWrap('📗',`<select id="bonCompte"><option value="">— Déterminé par les règles, sinon à ventiler —</option>${compteOptionsHtml('')}</select>`)}</div>
     <div class="text-xs text-gray-400 mb-4">${type==='entree'?'Ex. 4111 client, 4191 avance reçue, 758 produits divers':'Ex. 6042 carburant, 6181 déplacements, 604 fournitures, 622 locations, 4011 règlement fournisseur, 421 avance au personnel'} — l'écriture est générée dès que le bon est enregistré (ou validé par le DG).</div>
