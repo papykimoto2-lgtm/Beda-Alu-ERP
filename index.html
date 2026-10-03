@@ -854,6 +854,9 @@ const sb = createClient(window.SB_CFG.SUPABASE_URL, window.SB_CFG.SUPABASE_ANON_
 });
 let CURRENT_USER = null;
 function money(n){ return new Intl.NumberFormat('fr-FR').format(Math.round(n||0)) + ' FCFA'; }
+/* Cellule d'export CSV : un texte qui commence par = + - @ (hors nombre) est préfixé d'une apostrophe pour qu'Excel
+   ne l'exécute pas comme une formule (injection de formules via un nom de client, un motif…). */
+function csvCellule(x){ let s=String(x??''); if(/^[=+@\t\r]/.test(s)||(/^-/.test(s)&&!/^-[\d\s\u00a0\u202f.,]+$/.test(s))) s="'"+s; return /[;"\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
 function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtDate(d){ return d ? new Date(d).toLocaleDateString('fr-FR') : '—'; }
 function uid(){ return 'id_'+Date.now()+'_'+Math.random().toString(36).slice(2,8); }
@@ -1450,7 +1453,7 @@ function vcExporterCsv(){
   const n=x=>x==null||x===''?'':String(Math.round(+x*100)/100).replace('.',',');
   const lignes=[['Type','Référence','Objet','Lieu','Montant','Demandeur','Demandé le','Statut','Valideur','Décidé le','Délai (h)','Motif']];
   l.forEach(v=>lignes.push([VC_TYPES[v.type]||v.type,v.reference||'',v.libelle||'',v.lieu||'',n(v.montant),v.demandeur||'',new Date(v.date_demande).toLocaleString('fr-FR'),VC_STATUTS[v.statut]?.l||v.statut,v.valideur||'',v.date_decision?new Date(v.date_decision).toLocaleString('fr-FR'):'',n(vcDelaiH(v)),v.motif||'']));
-  const csv='﻿'+lignes.map(x=>x.map(y=>{ const s=String(y??''); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(';')).join('\r\n');
+  const csv='﻿'+lignes.map(x=>x.map(csvCellule).join(';')).join('\r\n');
   telechargerFichier(new File([csv],`${slugEntreprise()}-validations-${window._vc.du}_${window._vc.au}.csv`,{type:'text/csv;charset=utf-8'}));
 }
 function vcVoir(cat,id){
@@ -3092,7 +3095,7 @@ function ecExporterCsv(){
   r.lignes.forEach(l=>{ const base=[l.libelle,l.code,l.client,STATUT_PROJET[l.etape]?.label||''];
     l.caisse.filter(m=>!m.transfert_id).forEach(m=>L.push([...base,m.type==='entree'?'Encaissement caisse':'Dépense caisse',m.date_mouvement||'',m.numero||'',(m.motif||'')+(m.beneficiaire?' — '+m.beneficiaire:''),'','',n(m.type==='entree'?m.montant:-m.montant)]));
     l.stock.forEach(m=>L.push([...base,+m.quantite<0?'Matériel sorti':'Matériel retourné',m.date_mouvement||'',m.reference||'',m.composants?.nom||'',n(Math.abs(m.quantite)),m.composants?.unite||'',n(ecCout(m))])); });
-  const csv='﻿'+L.map(l=>l.map(x=>{ const s=String(x??''); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(';')).join('\r\n');
+  const csv='﻿'+L.map(l=>l.map(csvCellule).join(';')).join('\r\n');
   telechargerFichier(new File([csv],`${slugEntreprise()}-etat-chantiers.csv`,{type:'text/csv;charset=utf-8'}));
 }
 
@@ -4550,7 +4553,7 @@ function jmExporterCsv(){
   const r=window._jmCalc||jmCalc(), n=x=>x==null||x===''?'':String(Math.round(+x*100)/100).replace('.',',');
   const lignes=[['Date','Pièce','Article','Code','Famille','Dépôt','Type','Entrée','Sortie','Unité','P.U.','Valeur','Stock dépôt après','Motif','Chantier','Par']];
   r.l.forEach(m=>{ const e=+m.quantite>0; lignes.push([jmDate(m),m.reference||'',m.composants?.nom||'',m.composants?.code||m.composants?.reference||'',m.composants?.famille||'',depNomCourt(m.depot_id),STOCK_TYPE_LABELS[m.type]?.label||m.type,e?n(m.quantite):'',e?'':n(-m.quantite),m.composants?.unite||'',n(m.pu),n(m.valeur),n(m.stock_depot_apres),m.motif||'',m.projet_id?chantierLabel(m.projet_id,false):'',jmNomUser(m.created_by)]); });
-  const csv='﻿'+lignes.map(l=>l.map(x=>{ const s=String(x??''); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(';')).join('\r\n');
+  const csv='﻿'+lignes.map(l=>l.map(csvCellule).join(';')).join('\r\n');
   telechargerFichier(new File([csv],`${slugEntreprise()}-journal-stock-${window._jm.du}_${window._jm.au}.csv`,{type:'text/csv;charset=utf-8'}));
 }
 
@@ -4877,7 +4880,7 @@ function valoExporterCsv(){
   const lignes=[['Code','Désignation','Famille','Type','Standing',...(V.groupe==='depot'?['Lieu']:[]),'Quantité','Unité','Coût unitaire (CMUP)','Coût estimé','Valeur achat','Prix de vente '+(V.ttc?'TTC':'HT'),'CA prévisionnel','CA prévisionnel HT','Marge brute HT','Taux de marge %','Classe ABC','Dernière sortie','Dormant']];
   r.lignes.forEach(l=>{ const c=l.c; lignes.push([c.code||c.reference||'',c.nom,l.famille,c.type||'',COMPOSANT_STANDINGS[c.standing||'standard']?.label||'',...(V.groupe==='depot'?[l.depot?depotNom(l.depot).replace(/^\S+\s/,''):'']:[]),n(l.q),c.unite||'',n(l.cout),l.coutEstime?'oui':'',n(l.va),n(l.pv),l.pv!=null?n(l.ca):'',l.pv!=null?n(l.caHT):'',n(l.marge),l.taux!=null?n(l.taux*100):'',l.abc||'',l.derniereSortie?fmtDate(l.derniereSortie):'',l.dormant?'oui':'']); });
   lignes.push([],['TOTAL','','','','',...(V.groupe==='depot'?['']:[]),'','','','',n(r.T.va),'',n(r.T.ca),n(r.T.caHT),n(r.T.marge),r.T.taux!=null?n(r.T.taux*100):'','','','']);
-  const csv='﻿'+lignes.map(l=>l.map(x=>{ const s=String(x??''); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(';')).join('\r\n');
+  const csv='﻿'+lignes.map(l=>l.map(csvCellule).join(';')).join('\r\n');
   telechargerFichier(new File([csv],`${slugEntreprise()}-valorisation-stock-${new Date().toISOString().slice(0,10)}.csv`,{type:'text/csv;charset=utf-8'}));
 }
 
@@ -10297,8 +10300,8 @@ function parseCSVPlanComptable(text){
   const natures=['actif','passif','charge','produit','autre'];
   return lines.slice(1).map(line=>{
     const cols=line.split(delim).map(c=>c.trim().replace(/^"|"$/g,''));
-    const code=cols[idx.code], libelle=cols[idx.libelle];
-    if(!code||!libelle) return null;
+    const code=String(cols[idx.code]||'').replace(/\s+/g,''), libelle=cols[idx.libelle];
+    if(!code||!libelle||!/^[1-9]\d*$/.test(code)) return null;   // code numérique uniquement (arborescence, sécurité de l'affichage)
     const natureRaw=(idx.nature>=0?cols[idx.nature]:'').toLowerCase();
     const classeRaw=idx.classe>=0?+cols[idx.classe]:0;
     return {
@@ -10652,7 +10655,7 @@ async function pcExporterExcel(){
     const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Plan comptable');
     telechargerFichier(new File([XLSX.write(wb,{bookType:'xlsx',type:'array'})],nom+'.xlsx',{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
   }catch(e){   // sans connexion : CSV
-    const csv='﻿'+[ent,...rows].map(l=>l.map(x=>{ const v=String(x??''); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }).join(';')).join('\r\n');
+    const csv='﻿'+[ent,...rows].map(l=>l.map(csvCellule).join(';')).join('\r\n');
     telechargerFichier(new File([csv],nom+'.csv',{type:'text/csv;charset=utf-8'}));
   }
 }
@@ -10860,7 +10863,7 @@ async function tiersBalanceExcel(){
     const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Balance '+B.T.libs.toLowerCase());
     telechargerFichier(new File([XLSX.write(wb,{bookType:'xlsx',type:'array'})],nom+'.xlsx',{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
   }catch(e){
-    const csv='﻿'+[ent,...rows].map(l=>l.map(x=>{ const v=String(x??''); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }).join(';')).join('\r\n');
+    const csv='﻿'+[ent,...rows].map(l=>l.map(csvCellule).join(';')).join('\r\n');
     telechargerFichier(new File([csv],nom+'.csv',{type:'text/csv;charset=utf-8'}));
   }
 }
@@ -13269,7 +13272,7 @@ async function imprimerRapportPdv(){
 }
 function exporterRapportPdvCsv(){
   const r=window._rapportPdvData; if(!r) return;
-  const esc=x=>{ const s=String(x??''); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const esc=csvCellule;
   const n=x=>String(Math.round((+x||0)*100)/100).replace('.',',');
   const lignes=[['N° vente','Date','Heure','Point de vente','Vendeur','Client','Mode de paiement','Sous-total','Remise','Total TTC','Coût','Marge','Statut','Document','Réf. FNE']];
   r.ventes.forEach(v=>{
@@ -13455,7 +13458,7 @@ async function imprimerBrouillard(){
 }
 function exporterBrouillardCsv(){
   const b=window._brouillardData; if(!b?.caisse) return;
-  const esc=x=>{ const s=String(x??''); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const esc=csvCellule;
   const n=x=>String(Math.round((+x||0)*100)/100).replace('.',',');
   const L=[['Caisse','Séance','Heure','N° pièce','Libellé','Chantier','Entrée','Sortie','Solde','Comptabilisé']];
   b.seances.forEach(x=>{
@@ -14124,7 +14127,7 @@ async function appelFonctionServeur(nom,corps,avecSession){
    passe (jamais le mot de passe) et copie de la session, tenue à jour à chaque renouvellement du jeton. Hors ligne, ce
    compte peut se reconnecter avec son mot de passe : la session est restaurée localement (même niveau de protection que
    la session ouverte, déjà gardée sur l'appareil) et renouvelée auprès du serveur au retour du réseau. */
-const HL_COMPTES='aluexpert_hl_comptes';
+const HL_COMPTES='aluexpert_hl_comptes', HL_HORS_LIGNE_MAX_JOURS=30;   // au-delà, un compte désactivé entre-temps garderait l'accès
 function hlComptes(){ try{ return JSON.parse(localStorage.getItem(HL_COMPTES)||'{}')||{}; }catch(e){ return {}; } }
 function hlComptesEcrire(m){ try{ localStorage.setItem(HL_COMPTES,JSON.stringify(m)); }catch(e){} }
 async function hlMemoriserCompte(identifiant,mdp){
@@ -14143,6 +14146,7 @@ async function connecterHorsLigne(identifiant,motDePasse){
   if(!uid) throw new Error("📴 Pas de connexion internet. Ce compte ne s'est encore jamais connecté sur cet appareil : la toute première connexion nécessite internet (quelques minutes de partage de connexion d'un téléphone suffisent).");
   const c=m[uid];
   if(await empreinteMdp(motDePasse,c.sel)!==c.h) throw new Error('Mot de passe incorrect.');
+  if(Date.now()-(+c.t||0)>HL_HORS_LIGNE_MAX_JOURS*86400000) throw new Error(`📴 Ce compte n'a pas été vérifié par le serveur depuis plus de ${HL_HORS_LIGNE_MAX_JOURS} jours : reconnectez-vous une fois avec internet.`);
   localStorage.setItem(sb.auth.storageKey,JSON.stringify(c.session));
   localStorage.setItem('aluexpert_verrou',JSON.stringify({uid,sel:c.sel,h:c.h}));
   const {data}=await sb.auth.getSession();
@@ -15508,7 +15512,7 @@ function idnParamHtml(){
 }
 function idnChoisirType(t){ window._idn={...window._idn,type:t,noms:[],lignes:[],map:{},analyse:null}; const f=document.getElementById('idnFichier'); if(f) f.value=''; document.getElementById('idnZone').innerHTML=''; }
 function idnTelecharger(nom,texte){ telechargerFichier(new File(['﻿'+texte],nom,{type:'text/csv;charset=utf-8'})); }
-const idnCsv=l=>l.map(x=>{ const s=String(x??''); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(';');
+const idnCsv=l=>l.map(csvCellule).join(';');
 function idnModele(){
   const T=IDN_TYPES[window._idn.type];
   idnTelecharger(`modele-import-${window._idn.type}.csv`,[idnCsv(T.champs.map(c=>c[1].replace(' *',''))),idnCsv(T.exemple)].join('\r\n'));
@@ -15620,6 +15624,7 @@ async function idnAnalyser(){
       }
       if(I.type==='comptes'){
         rec.code=String(rec.code||'').replace(/\s+/g,'');
+        if(rec.code&&!/^[1-9]\d*$/.test(rec.code)) err.push(`N° de compte « ${rec.code} » invalide : chiffres uniquement, commençant par la classe (1 à 9)`);
         const cl=rec.classe!=null?Math.trunc(rec.classe):(+rec.code[0]||0);
         if(!(cl>=1&&cl<=9)) err.push('Classe introuvable (1 à 9) : précisez la colonne Classe'); else rec.classe=cl;
         const na=idnEnum(rec.nature,{actif:'actif',passif:'passif',charge:'charge',charges:'charge',produit:'produit',produits:'produit',autre:'autre'},null);

@@ -37,7 +37,8 @@ declare
   v_sql text;
   s record;
 begin
-  if not exists (select 1 from profiles p join roles r on r.id = p.role_id where p.id = auth.uid() and r.code = 'admin') then
+  if not exists (select 1 from profiles p join roles r on r.id = p.role_id where p.id = auth.uid() and r.code = 'admin')
+     or not public.est_utilisateur_autorise() then
     raise exception 'Réservé aux administrateurs.';
   end if;
   if p_mode not in ('operations','tout') then raise exception 'Mode invalide : %', p_mode; end if;

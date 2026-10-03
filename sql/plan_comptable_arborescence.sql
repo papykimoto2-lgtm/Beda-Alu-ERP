@@ -22,6 +22,10 @@
 alter table public.parametres add column if not exists plan_comptable jsonb not null default '{}'::jsonb;
 alter table public.clients add column if not exists compte_code text references public.compta_comptes(code) on delete set null;
 alter table public.fournisseurs add column if not exists compte_code text references public.compta_comptes(code) on delete set null;
+-- Codes de compte strictement numériques pour tout nouveau compte (les comptes existants ne sont pas vérifiés : NOT VALID)
+do $$ begin
+  alter table public.compta_comptes add constraint compta_comptes_code_numerique check (code ~ '^[1-9][0-9]*$') not valid;
+exception when duplicate_object then null; end $$;
 
 -- Droit de restructurer le plan : administrateur, ou droit « modifier » sur la Comptabilité
 create or replace function public.compta_peut_gerer_plan() returns boolean
@@ -31,7 +35,7 @@ language sql stable security definer set search_path = public as $$
     left join role_permissions rp on rp.role_id = r.id and rp.module_code = 'Comptabilite'
     where p.id = auth.uid() and coalesce(p.actif, true)
       and (r.code = 'admin' or coalesce(rp.peut_modifier, false))
-  );
+  ) and public.est_utilisateur_autorise();   -- compte actif, mot de passe provisoire changé, rôle attribué
 $$;
 
 -- Nature par défaut d'un compte selon sa classe (même règle que l'application)
@@ -46,7 +50,8 @@ $$;
 create or replace function public.compta_lignes_garde_imputable() returns trigger
 language plpgsql set search_path = public as $$
 begin
-  if coalesce(current_setting('compta.restructuration', true), '') = 'on' then return new; end if;
+  if coalesce(current_setting('compta.restructuration', true), '') = 'on'
+     and current_user not in ('authenticated', 'anon') then return new; end if;   -- seulement depuis les fonctions du plan
   if public.compta_compte_est_regroupement(new.compte_code) then
     raise exception 'Le compte % est un compte de regroupement (il a des sous-comptes) : imputez l''écriture sur l''un de ses sous-comptes.', new.compte_code
       using errcode = 'check_violation';
@@ -96,7 +101,7 @@ declare
   v_cle text; v_parent text; v_long integer; v_lg integer; v_code text; v_nom text; v_existant text; v_n bigint;
   v_p compta_comptes%rowtype; v_format text; v_codetiers text; v_cat text; v_base text; v_chiffre text; v_map jsonb; v_chiffres text;
 begin
-  if auth.uid() is null then raise exception 'Non authentifié.'; end if;
+  if auth.uid() is null or not public.est_utilisateur_autorise() then raise exception 'Accès refusé.'; end if;
   if p_type not in ('client','fournisseur') then raise exception 'Type de tiers invalide : %', p_type; end if;
   v_cle := case p_type when 'client' then 'clients' else 'fournisseurs' end;
   select nullif(comptes_defaut->>v_cle, ''), coalesce(nullif(plan_comptable->>'longueur', '')::integer, 0),
