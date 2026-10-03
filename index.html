@@ -787,11 +787,15 @@ const HL=(()=>{
     setInterval(()=>{ if(file.length) synchroniser(); },30000);
   }
   async function viderLectures(){ await tx('lectures','readwrite',s=>req(s.clear())).catch(()=>{}); }
+  async function viderTout(){
+    for(const s of ['lectures','file','erreurs']) await tx(s,'readwrite',st=>req(st.clear())).catch(()=>{});
+    file=[]; etat.attente=0; etat.erreurs=0; majIndicateur();
+  }
   const horsLigne=()=>!etat.enLigne||!navigator.onLine;
 
   demarrer();
   return {fetch:hlFetch,synchroniser,differer,enregistrerAction:(nom,fn)=>{ ACTIONS[nom]=fn; },ouvrirPanneau,reessayer,abandonner,
-    horsLigne,viderLectures,majIndicateur,etat,enAttente:()=>file.length,jetonLocal:()=>jetonLocal,uuid,
+    horsLigne,viderLectures,viderTout,majIndicateur,etat,enAttente:()=>file.length,jetonLocal:()=>jetonLocal,uuid,
     recevoir,recevoirTable,envoyer,miroirInfos,miroirLire,attenteParTable,nbErreurs:()=>etat.erreurs};
 })();
 if('serviceWorker' in navigator && location.protocol!=='file:') window.addEventListener('load',()=>{
@@ -9840,6 +9844,21 @@ async function renderParametres(el){
         <div class="text-xs text-gray-500">Dernière sauvegarde exportée : <b id="lastBackupLabel">${p.derniere_sauvegarde?fmtDate(p.derniere_sauvegarde):'—'}</b></div>
         <div id="backupResult" class="text-sm mt-3"></div>
       </div>
+
+      <div class="page-card max-w-2xl mt-4" style="border:1px solid #fecaca">
+        <h2 style="color:#b91c1c">⚠️ Vider la base de données</h2>
+        <div class="divider"></div>
+        ${monRole()?.code==='admin'?`
+        <p class="text-xs text-gray-500 mb-3">Supprime définitivement les données. Les comptes utilisateurs, rôles, droits, informations de la société, plan comptable et dépôts sont conservés. <b>Action irréversible : exportez d'abord une sauvegarde.</b></p>
+        <div class="field mb-3"><label>Quoi supprimer ?</label><select id="vdMode"><option value="operations">Activité seulement (clients, chantiers, devis, factures, stock, caisse, compta…) — catalogues conservés</option><option value="tout">Tout (activité + produits, composants, fournisseurs, caisses, points de vente)</option></select></div>
+        <label class="flex items-center gap-2 text-sm mb-1"><input type="checkbox" id="vdServeur" checked> ☁️ Base Supabase (serveur)</label>
+        <label class="flex items-center gap-2 text-sm mb-3"><input type="checkbox" id="vdLocal" checked> 💻 Données locales de cet appareil (cache hors-ligne, opérations en attente de synchro, brouillons)</label>
+        <label class="flex items-center gap-2 text-sm mb-3"><input type="checkbox" id="vdSauvegarde" onchange="vdMajBouton()"> J'ai exporté une sauvegarde ci-dessus <button class="btn btn-outline text-xs" onclick="exporterSauvegarde()">⬇ Exporter maintenant</button></label>
+        <div class="field mb-3"><label>Tapez <b>VIDER</b> pour confirmer</label><input id="vdConfirm" autocomplete="off" oninput="vdMajBouton()"></div>
+        <button id="vdBouton" class="btn" style="background:#dc2626;color:#fff" disabled onclick="viderBase()">🗑 Vider la base de données</button>
+        <div id="vdResult" class="text-sm mt-3"></div>`
+        :`<p class="text-sm text-gray-500">Réservé aux administrateurs.</p>`}
+      </div>
     </div>`;
   document.getElementById('societeForm').onsubmit=async(e)=>{
     e.preventDefault();
@@ -14927,6 +14946,34 @@ async function exporterSauvegarde(){
     document.getElementById('lastBackupLabel').textContent=fmtDate(window.APP_PARAMS.derniere_sauvegarde);
     resEl.textContent='✅ Export terminé.'; resEl.className='text-sm mt-3 text-emerald-600';
   }catch(err){ resEl.textContent='❌ '+(err.message||err); resEl.className='text-sm mt-3 text-red-600'; }
+}
+function vdMajBouton(){
+  const b=document.getElementById('vdBouton'); if(!b) return;
+  b.disabled=!(document.getElementById('vdSauvegarde').checked && document.getElementById('vdConfirm').value.trim()==='VIDER');
+}
+async function viderBase(){
+  const res=document.getElementById('vdResult'), mode=val('vdMode');
+  const srv=document.getElementById('vdServeur').checked, loc=document.getElementById('vdLocal').checked;
+  if(monRole()?.code!=='admin'){ toast('🔒 Réservé aux administrateurs.','error'); return; }
+  if(!srv&&!loc){ toast('Cochez au moins une base à vider.','error'); return; }
+  if(srv&&HL.horsLigne()){ toast('📴 Connexion requise pour vider la base Supabase.','error'); return; }
+  if(srv&&!loc&&HL.enAttente()>0){ toast(`${HL.enAttente()} opération(s) hors ligne en attente : synchronisez-les, ou cochez aussi les données locales.`,'error'); return; }
+  if(!confirm(`Dernière confirmation : supprimer DÉFINITIVEMENT les données (${mode==='tout'?'tout':'activité'}) — ${[srv&&'Supabase',loc&&'local'].filter(Boolean).join(' + ')} ?`)) return;
+  const b=document.getElementById('vdBouton'); b.disabled=true; res.className='text-sm mt-3 text-gray-500'; res.textContent='Suppression en cours…';
+  try{
+    if(srv){
+      const {error}=await sb.rpc('vider_donnees',{p_mode:mode});
+      if(error) throw new Error(/vider_donnees/.test(error.message||'')&&/(find|exist|schema cache)/i.test(error.message||'')?"Fonction absente : exécutez d'abord sql/vider_base.sql dans l'éditeur SQL Supabase.":error.message);
+    }
+    if(loc){
+      await HL.viderTout();
+      const garder=new Set([sb.auth.storageKey,'aluexpert_verrou','aluexpert_deco_exempt']);
+      Object.keys(localStorage).filter(k=>!garder.has(k)&&!k.startsWith('sb-')&&k!=='aluexpert_config').forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+      try{ sessionStorage.clear(); }catch(e){}
+    }
+    res.className='text-sm mt-3 text-emerald-600'; res.textContent='✅ Base vidée. Rechargement…';
+    setTimeout(()=>location.reload(),1500);
+  }catch(err){ res.className='text-sm mt-3 text-red-600'; res.textContent='❌ '+(err.message||err); b.disabled=false; }
 }
 async function importerSauvegarde(e){
   const file=e.target.files[0]; if(!file) return;
