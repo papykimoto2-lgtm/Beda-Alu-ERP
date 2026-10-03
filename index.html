@@ -15165,11 +15165,14 @@ async function idnAnalyser(){
     I.analyse={res,nouveauxClients:[...nouveauxClients]}; idnAfficher();
   }catch(err){ zone.innerHTML=`<div class="text-red-600">❌ ${escapeHtml(err.message||err)}</div>`; }
 }
+const IDN_BADGE={nouveau:['Nouveau','#059669'],doublon:['Existe déjà','#d97706'],doublon_fichier:['Doublon fichier','#d97706'],erreur:['Erreur','#dc2626']};
+const IDN_PAGE=50;
+function idnImportable(r){ const I=window._idn; return r.statut==='nouveau'||(r.statut==='doublon'&&I.mode==='maj'); }
+function idnSelection(){ return window._idn.analyse.res.filter(r=>idnImportable(r)&&!r.exclu); }
 function idnAfficher(){
   const I=window._idn, T=IDN_TYPES[I.type], A=I.analyse, zone=document.getElementById('idnZone');
   const nb=s=>A.res.filter(r=>r.statut===s).length, nNouv=nb('nouveau'), nDbl=nb('doublon'), nDblF=nb('doublon_fichier'), nErr=nb('erreur');
-  const aImporter=nNouv+(I.mode==='maj'?nDbl:0);
-  const badge={nouveau:['Nouveau','#059669'],doublon:['Existe déjà','#d97706'],doublon_fichier:['Doublon fichier','#d97706'],erreur:['Erreur','#dc2626']};
+  I.filtre=I.filtre||'tous'; I.page=0; I.recherche='';
   const feuilles=I.classeur.SheetNames.length>1?`<div class="field mb-3"><label>Feuille</label><select onchange="idnChoisirFeuille(this.value)">${I.classeur.SheetNames.map(n=>`<option ${n===I.feuille?'selected':''}>${escapeHtml(n)}</option>`).join('')}</select></div>`:'';
   const champsActifs=Object.values(I.map);
   zone.innerHTML=`${feuilles}
@@ -15184,7 +15187,7 @@ function idnAfficher(){
       <label class="flex items-center gap-2" style="font-weight:500;color:#111827"><span>Si l'enregistrement existe déjà :</span><select style="width:auto" onchange="window._idn.mode=this.value;idnAfficher()"><option value="ignorer" ${I.mode==='ignorer'?'selected':''}>l'ignorer</option><option value="maj" ${I.mode==='maj'?'selected':''}>le mettre à jour</option></select></label>
       ${I.type==='projets'?`<label class="flex items-center gap-2" style="font-weight:500;color:#111827"><input type="checkbox" style="width:auto;flex:none;margin:0" ${I.autoClient?'checked':''} onchange="window._idn.autoClient=this.checked;idnAnalyser()"> <span>Créer automatiquement les clients introuvables</span></label>`:''}
     </div>
-    <h3 class="font-semibold mb-1">3. Aperçu — ${A.res.length} ligne(s)</h3>
+    <h3 class="font-semibold mb-1">3. Vérification des données — ${A.res.length} ligne(s)</h3>
     <div class="grid sm:grid-cols-4 gap-2 mb-3">
       <div class="card p-2"><div class="text-xs text-gray-400">Nouveaux</div><div class="font-black text-emerald-600">${nNouv}</div></div>
       <div class="card p-2"><div class="text-xs text-gray-400">Existent déjà</div><div class="font-black text-amber-600">${nDbl}</div></div>
@@ -15192,13 +15195,44 @@ function idnAfficher(){
       <div class="card p-2"><div class="text-xs text-gray-400">Erreurs</div><div class="font-black text-red-600">${nErr}</div></div>
     </div>
     ${A.nouveauxClients.length?`<div class="text-xs text-gray-500 mb-2">👥 ${A.nouveauxClients.length} nouveau(x) client(s) seront créé(s) : ${escapeHtml(A.nouveauxClients.slice(0,8).join(', '))}${A.nouveauxClients.length>8?'…':''}</div>`:''}
-    <div class="overflow-x-auto mb-3" style="max-height:340px;overflow-y:auto"><table><thead><tr><th>Ligne</th><th>Statut</th>${T.champs.filter(c=>champsActifs.includes(c[0])).map(c=>`<th>${escapeHtml(c[1].replace(' *',''))}</th>`).join('')}<th>Remarques</th></tr></thead><tbody>
-    ${[...A.res.filter(r=>r.statut==='erreur'),...A.res.filter(r=>r.statut!=='erreur')].slice(0,40).map(r=>`<tr><td>${r.n}</td><td><span class="pill" style="color:${badge[r.statut][1]};border-color:${badge[r.statut][1]}">${badge[r.statut][0]}</span></td>${T.champs.filter(c=>champsActifs.includes(c[0])).map(c=>`<td class="text-xs">${escapeHtml(String(r.rec[c[0]]??''))}</td>`).join('')}<td class="text-xs ${r.err.length?'text-red-600':'text-amber-600'}">${escapeHtml([...r.err,...r.av].join(' ; '))}</td></tr>`).join('')}
-    </tbody></table></div>
-    ${A.res.length>40?`<div class="text-xs text-gray-400 mb-2">Aperçu limité aux 40 premières lignes (erreurs en premier).</div>`:''}
-    <div class="flex flex-wrap gap-2 items-center"><button class="btn btn-primary" ${aImporter?'':'disabled'} onclick="idnImporter()">⬆ Importer ${aImporter} ligne(s)</button>
-      ${nErr?`<button class="btn btn-outline text-xs" onclick="idnExporterErreurs()">⬇ Lignes en erreur (CSV)</button>`:''}</div>
+    <div class="flex flex-wrap gap-2 items-center mb-2">
+      <select style="width:auto" onchange="window._idn.filtre=this.value;window._idn.page=0;idnTableau()"><option value="tous">Toutes les lignes</option><option value="nouveau">Nouveaux</option><option value="doublon">Existent déjà</option><option value="doublon_fichier">Doublons du fichier</option><option value="erreur">Erreurs</option><option value="avert">Avec remarques</option></select>
+      <input style="width:200px" placeholder="🔎 Rechercher dans les lignes…" oninput="clearTimeout(window._idnT);const v=this.value;window._idnT=setTimeout(()=>{window._idn.recherche=v;window._idn.page=0;idnTableau();},250)">
+      <button class="btn btn-outline text-xs" onclick="idnCocher(true)">Tout cocher</button><button class="btn btn-outline text-xs" onclick="idnCocher(false)">Tout décocher</button>
+      <span class="text-xs text-gray-500">(s'applique aux lignes filtrées)</span>
+    </div>
+    <div id="idnTableau"></div>
+    <div class="flex flex-wrap gap-2 items-center mt-3"><button id="idnBoutonImport" class="btn btn-primary" onclick="idnImporter()">⬆ Importer</button>
+      ${nErr?`<button class="btn btn-outline text-xs" onclick="idnExporterErreurs()">⬇ Lignes en erreur (CSV)</button>`:''}
+      <button class="btn btn-outline text-xs" onclick="idnExporterVerification()">⬇ Tableau de vérification (CSV)</button></div>
     <div id="idnResultat" class="text-sm mt-3"></div>`;
+  idnTableau();
+}
+function idnLignesFiltrees(){
+  const I=window._idn, q=idnNorm(I.recherche||'');
+  return I.analyse.res.filter(r=>(I.filtre==='tous'||(I.filtre==='avert'?(r.av.length>0):r.statut===I.filtre))&&(!q||idnNorm(Object.values(r.rec).join(' ')).includes(q)));
+}
+function idnTableau(){
+  const I=window._idn, T=IDN_TYPES[I.type], host=document.getElementById('idnTableau'); if(!host) return;
+  const actifs=T.champs.filter(c=>Object.values(I.map).includes(c[0])), L=idnLignesFiltrees();
+  const pages=Math.max(1,Math.ceil(L.length/IDN_PAGE)); I.page=Math.min(I.page||0,pages-1);
+  const vue=L.slice(I.page*IDN_PAGE,(I.page+1)*IDN_PAGE), sel=idnSelection().length;
+  host.innerHTML=`<div class="overflow-x-auto" style="max-height:460px;overflow-y:auto"><table><thead style="position:sticky;top:0;background:#f9fafb"><tr><th style="width:30px"></th><th>Ligne</th><th>Statut</th>${actifs.map(c=>`<th>${escapeHtml(c[1].replace(' *',''))}</th>`).join('')}<th>Remarques</th></tr></thead><tbody>
+    ${vue.map(r=>{ const k=r.n, ok=idnImportable(r), b=IDN_BADGE[r.statut]; return `<tr style="${r.statut==='erreur'?'background:#fef2f2':ok&&r.exclu?'opacity:.5':''}"><td><input type="checkbox" style="width:auto;margin:0" ${ok?'':'disabled'} ${ok&&!r.exclu?'checked':''} onchange="idnBasculer(${k},this.checked)"></td><td>${k}</td><td><span class="pill" style="color:${b[1]};border-color:${b[1]}">${b[0]}</span></td>${actifs.map(c=>`<td class="text-xs">${escapeHtml(String(r.rec[c[0]]??''))}</td>`).join('')}<td class="text-xs ${r.err.length?'text-red-600':'text-amber-600'}">${escapeHtml([...r.err,...r.av].join(' ; '))}</td></tr>`; }).join('')||`<tr><td colspan="${actifs.length+4}" class="text-center text-gray-400 p-4">Aucune ligne.</td></tr>`}
+    </tbody></table></div>
+    <div class="flex flex-wrap items-center justify-between gap-2 mt-2 text-xs text-gray-500"><span>${L.length} ligne(s) affichée(s) · page ${I.page+1} / ${pages}</span>
+      <span><button class="btn btn-outline text-xs" ${I.page?'':'disabled'} onclick="window._idn.page--;idnTableau()">‹ Précédente</button> <button class="btn btn-outline text-xs" ${I.page<pages-1?'':'disabled'} onclick="window._idn.page++;idnTableau()">Suivante ›</button></span></div>`;
+  idnMajBouton();
+}
+function idnMajBouton(){
+  const b=document.getElementById('idnBoutonImport'); if(!b) return;
+  const n=idnSelection().length; b.disabled=!n; b.textContent=`⬆ Importer ${n} ligne(s) cochée(s)`;
+}
+function idnBasculer(n,coche){ const r=window._idn.analyse.res.find(x=>x.n===n); if(r) r.exclu=!coche; idnMajBouton(); }
+function idnCocher(oui){ idnLignesFiltrees().forEach(r=>{ if(idnImportable(r)) r.exclu=!oui; }); idnTableau(); }
+function idnExporterVerification(){
+  const I=window._idn, T=IDN_TYPES[I.type], actifs=T.champs.filter(c=>Object.values(I.map).includes(c[0]));
+  idnTelecharger(`verification-import-${I.type}.csv`,[idnCsv(['Ligne','Statut','Importée',...actifs.map(c=>c[1].replace(' *','')),'Remarques']),...I.analyse.res.map(r=>idnCsv([r.n,IDN_BADGE[r.statut][0],idnImportable(r)&&!r.exclu?'oui':'non',...actifs.map(c=>r.rec[c[0]]??''),[...r.err,...r.av].join(' ; ')]))].join('\r\n'));
 }
 function idnMapper(ci,k){ const I=window._idn; Object.keys(I.map).forEach(c=>{ if(k&&I.map[c]===k) delete I.map[c]; }); if(k) I.map[ci]=k; else delete I.map[ci]; idnAnalyser(); }
 function idnExporterErreurs(){
@@ -15211,14 +15245,15 @@ async function idnImporter(){
   if(HL.horsLigne()){ toast('📴 Connexion requise pour importer.','error'); return; }
   const manquants=T.champs.filter(c=>c[3]?.req&&!Object.values(I.map).includes(c[0]));
   if(manquants.length){ toast('Associez d\'abord le champ obligatoire : '+manquants[0][1].replace(' *',''),'error'); return; }
-  const ajouts=A.res.filter(r=>r.statut==='nouveau'), majs=I.mode==='maj'?A.res.filter(r=>r.statut==='doublon'):[];
+  const ajouts=idnSelection().filter(r=>r.statut==='nouveau'), majs=idnSelection().filter(r=>r.statut==='doublon');
   if(!confirm(`Importer ${ajouts.length} nouvelle(s) ligne(s)${majs.length?' et mettre à jour '+majs.length+' existante(s)':''} dans « ${T.lib.replace(/^\S+\s/,'')} » ?`)) return;
   const log=m=>{ res.className='text-sm mt-3 text-gray-500'; res.textContent=m; }, erreurs=[];
   let nOk=0, nMaj=0, nStock=0;
   try{
-    if(I.type==='projets'&&A.nouveauxClients.length){
+    const clientsACreer=I.type==='projets'?[...new Set([...ajouts,...majs].filter(r=>!r.rec.client_id&&r.rec.client).map(r=>r.rec.client))]:[];
+    if(clientsACreer.length){
       log('Création des clients…');
-      const {data,error}=await sb.from('clients').insert(A.nouveauxClients.map(nom=>({nom,created_by:CURRENT_USER.id}))).select('id,nom');
+      const {data,error}=await sb.from('clients').insert(clientsACreer.map(nom=>({nom,created_by:CURRENT_USER.id}))).select('id,nom');
       if(error) throw new Error('Création des clients : '+error.message);
       const par=new Map((data||[]).map(c=>[idnNorm(c.nom),c.id]));
       [...ajouts,...majs].forEach(r=>{ if(!r.rec.client_id) r.rec.client_id=par.get(idnNorm(r.rec.client)); });
