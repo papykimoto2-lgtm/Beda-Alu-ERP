@@ -250,19 +250,19 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
         <button class="nav-child" data-page="devis-categories">→ Catégorie</button>
       </div>
 
-      <div class="sidebar-group-title">4 · Projets & chantiers</div>
-      <button class="nav-parent" data-toggle="projets-g">🏠 <span>Projet(s)</span><span class="chev">▸</span></button>
+      <div class="sidebar-group-title">4 · Chantiers</div>
+      <button class="nav-parent" data-toggle="projets-g">🏠 <span>Chantier(s)</span><span class="chev">▸</span></button>
       <div class="sidebar-children" data-children="projets-g">
-        <button class="nav-child" data-page="projets-add">→ Ajouter un Projet</button>
+        <button class="nav-child" data-page="projets-add">→ Ajouter un Chantier</button>
         <button class="nav-child" data-page="projets">→ Tout afficher <span class="nav-badge nav-badge-gray" id="badgeProjTotal">0</span></button>
-        <button class="nav-child" data-page="projets-attente">→ Projet en attente <span class="nav-badge nav-badge-purple" id="badgeProjAttente">0</span></button>
+        <button class="nav-child" data-page="projets-attente">→ Chantier en attente <span class="nav-badge nav-badge-purple" id="badgeProjAttente">0</span></button>
         <button class="nav-child" data-page="projets-mesure">→ Mesure disponible <span class="nav-badge nav-badge-amber" id="badgeProjMesure">0</span></button>
         <button class="nav-child" data-page="projets-pret">→ Prêt pour fabrication <span class="nav-badge nav-badge-amber" id="badgeProjPret">0</span></button>
         <button class="nav-child" data-page="projets-fabrication">→ Fabrication en cours <span class="nav-badge nav-badge-blue" id="badgeProjFabrication">0</span></button>
         <button class="nav-child" data-page="projets-installation">→ Installation en cours <span class="nav-badge nav-badge-blue" id="badgeProjInstallation">0</span></button>
-        <button class="nav-child" data-page="projets-termine">→ Projet terminé <span class="nav-badge nav-badge-green" id="badgeProjTermine">0</span></button>
-        <button class="nav-child" data-page="projets-retard">→ Projet en retard <span class="nav-badge nav-badge-red" id="badgeProjRetard">0</span></button>
-        <button class="nav-child" data-page="projets-annule">→ Projet Annulé <span class="nav-badge nav-badge-red" id="badgeProjAnnule">0</span></button>
+        <button class="nav-child" data-page="projets-termine">→ Chantier terminé <span class="nav-badge nav-badge-green" id="badgeProjTermine">0</span></button>
+        <button class="nav-child" data-page="projets-retard">→ Chantier en retard <span class="nav-badge nav-badge-red" id="badgeProjRetard">0</span></button>
+        <button class="nav-child" data-page="projets-annule">→ Chantier annulé <span class="nav-badge nav-badge-red" id="badgeProjAnnule">0</span></button>
         <button class="nav-child" data-page="carte-chantiers">→ 🗺️ Carte des chantiers</button>
         <button class="nav-child" data-page="etat-chantiers">→ 📊 État suivi chantier (matériel & dépenses)</button>
       </div>
@@ -976,7 +976,7 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers','etat-chantiers':'État de suivi chantier — matériel et dépenses',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Projets — Tout afficher','projets-add':'Ajouter un projet','projets-attente':'Projet en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Projet terminé','projets-retard':'Projet en retard','projets-annule':'Projet Annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant',referentiels:"Familles d'articles & unités",'stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Journal des mouvements','achats-commandes':'Commandes fournisseurs','achats-commande-edit':'Commande fournisseur','achats-commande-view':'Commande fournisseur','achats-reception':'Réception fournisseur','achats-receptions':'Réceptions fournisseurs','commandes-internes':'Commandes internes','commande-interne-edit':'Commande interne','commande-interne-view':'Commande interne','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-valorisation':'Stock — Valorisation, CA prévisionnel et marge','stock-inventaires':"Stock — États d'inventaire",'stock-inventaire-view':"État d'inventaire",'stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',validations:'Validations — Direction générale & hiérarchie autorisée',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'État périodique — Point de vente & caisse','comptoir-z':'Ticket Z — Clôture du point de vente','caisse-brouillard':'Brouillard de caisse',parametres:'Paramètres'};
+const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers','etat-chantiers':'État de suivi chantier — matériel et dépenses',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Chantiers — Tout afficher','projets-add':'Ajouter un chantier','projets-attente':'Chantier en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Chantier terminé','projets-retard':'Chantier en retard','projets-annule':'Chantier annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant',referentiels:"Familles d'articles & unités",'stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Journal des mouvements','achats-commandes':'Commandes fournisseurs','achats-commande-edit':'Commande fournisseur','achats-commande-view':'Commande fournisseur','achats-reception':'Réception fournisseur','achats-receptions':'Réceptions fournisseurs','commandes-internes':'Commandes internes','commande-interne-edit':'Commande interne','commande-interne-view':'Commande interne','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-valorisation':'Stock — Valorisation, CA prévisionnel et marge','stock-inventaires':"Stock — États d'inventaire",'stock-inventaire-view':"État d'inventaire",'stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',validations:'Validations — Direction générale & hiérarchie autorisée',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'État périodique — Point de vente & caisse','comptoir-z':'Ticket Z — Clôture du point de vente','caisse-brouillard':'Brouillard de caisse',parametres:'Paramètres'};
 const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,'etat-chantiers':renderEtatChantiers,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,referentiels:renderReferentiels,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'achats-commandes':renderAchatsCommandes,'achats-commande-edit':renderAchatsCommandeEdit,'achats-commande-view':renderAchatsCommandeView,'achats-reception':renderAchatsReception,'achats-receptions':renderAchatsReceptions,'commandes-internes':renderCommandesInternes,'commande-interne-edit':renderCommandeInterneEdit,'commande-interne-view':renderCommandeInterneView,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-valorisation':renderStockValorisation,'stock-inventaires':renderStockInventaires,'stock-inventaire-view':renderInventaireDetail,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,'caisse-validations':renderCaisseValidations,validations:renderValidations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,'comptoir-z':renderComptoirZ,'caisse-brouillard':renderCaisseBrouillard,parametres:renderParametres};
 const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','etat-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',referentiels:'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','achats-commandes':'achats-g','achats-commande-edit':'achats-g','achats-commande-view':'achats-g','achats-reception':'achats-g','achats-receptions':'achats-g','commandes-internes':'achats-g','commande-interne-edit':'achats-g','commande-interne-view':'achats-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-valorisation':'stock-g','stock-inventaires':'stock-g','stock-inventaire-view':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g','caisse-validations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g','comptoir-z':'comptoir-g','caisse-brouillard':'caisse-g'};
 /* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
@@ -984,7 +984,7 @@ const ALL_MODULES=[
   {code:'Clients',label:'Clients',groupe:'Clients'},
   {code:'Prospects',label:'Prospects',groupe:'Clients'},
   {code:'Fournisseurs',label:'Fournisseurs',groupe:'Clients'},
-  {code:'Projets',label:'Projets / Chantiers',groupe:'Chantier'},
+  {code:'Projets',label:'Chantiers',groupe:'Chantier'},
   {code:'Devis',label:'Devis',groupe:'Commercial'},
   {code:'Factures',label:'Factures',groupe:'Commercial'},
   {code:'Comptoir',label:'Vente au comptoir',groupe:'Commercial'},
@@ -2792,7 +2792,7 @@ async function renderProjets(el,filterEtape){
       <div class="text-sm text-gray-500">${data.length} projet(s)</div>
       <div class="flex items-center gap-2">
         ${listViewToggleHtml('projets','renderProjetsBody')}
-        <button class="btn btn-primary" onclick="window._editId=null;showPage('projets-add')">+ Ajouter un projet</button>
+        <button class="btn btn-primary" onclick="window._editId=null;showPage('projets-add')">+ Ajouter un chantier</button>
       </div>
     </div>
     <div id="projetsList"></div>`;
@@ -2815,7 +2815,7 @@ function renderProjetsBody(){
       badge:badge(STATUT_PROJET,p.etape),
       lines:[escapeHtml(p.clients?[p.clients.nom,p.clients.prenoms].filter(Boolean).join(' '):'—'),`${fmtDate(p.date_debut)} → ${fmtDate(p.date_fin)}`,etapeSelect(p)],
       actionsHtml:actionsHtml(p)
-    })).join('')}</div>`:'<div class="card text-center text-gray-400 p-8">Aucun projet.</div>';
+    })).join('')}</div>`:'<div class="card text-center text-gray-400 p-8">Aucun chantier.</div>';
   } else {
     host.innerHTML=`<div class="card overflow-x-auto">
       <table><thead><tr><th>Code</th><th>Libellé</th><th>Client</th><th>Début</th><th>Fin</th><th>Étape</th><th></th></tr></thead>
@@ -2825,7 +2825,7 @@ function renderProjetsBody(){
         <td>${fmtDate(p.date_debut)}</td><td>${fmtDate(p.date_fin)}</td>
         <td>${etapeSelect(p)}</td>
         <td class="text-right whitespace-nowrap">${actionsHtml(p)}</td>
-      </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun projet.</td></tr>'}</tbody></table>
+      </tr>`).join('')||'<tr><td colspan="7" class="text-gray-400 p-4">Aucun chantier.</td></tr>'}</tbody></table>
     </div>`;
   }
 }
@@ -2905,11 +2905,11 @@ async function renderProjetForm(el){
   if(window._editId){ const {data}=await sb.from('projets').select('*').eq('id',window._editId).single(); p=data||{}; }
   el.innerHTML=`
     <div class="page-card max-w-4xl">
-      <h2>🏗️ ${p.id?'Modifier':'Ajouter'} un projet</h2>
+      <h2>🏗️ ${p.id?'Modifier':'Ajouter'} un chantier</h2>
       <div class="divider"></div>
       <form id="projetForm" class="grid sm:grid-cols-3 gap-4">
         <input type="hidden" id="pjId" value="${p.id||''}">
-        <div class="field sm:col-span-3"><label>Libellé du projet</label>${fieldWrap('🏠',`<input id="pjLibelle" required value="${escapeHtml(p.libelle||'')}">`)}</div>
+        <div class="field sm:col-span-3"><label>Libellé du chantier</label>${fieldWrap('🏠',`<input id="pjLibelle" required value="${escapeHtml(p.libelle||'')}">`)}</div>
         <div class="field sm:col-span-2"><label>Client</label>${fieldWrap('👤',smartSelect('pjClient',clientItems(),p.client_id,{placeholder:'Rechercher un client…'}))}</div>
         <div class="field"><label>Catégorie</label>${fieldWrap('🏷️',`<select id="pjCategorie"><option ${p.categorie==='Habitation'?'selected':''}>Habitation</option><option ${p.categorie==='Bureau'?'selected':''}>Bureau</option><option ${p.categorie==='Commerce'?'selected':''}>Commerce</option><option ${p.categorie==='Industriel'?'selected':''}>Industriel</option></select>`)}</div>
         <div class="field"><label>Date début</label>${fieldWrap('📅',`<input id="pjDateDebut" type="date" value="${p.date_debut||''}">`)}</div>
@@ -2937,11 +2937,11 @@ async function renderProjetForm(el){
     if(id){ ({error}=await sb.from('projets').update(rec).eq('id',id)); }
     else { rec.created_by=CURRENT_USER.id; ({error}=await sb.from('projets').insert(rec)); }
     if(error){ toast(error.message,'error'); return; }
-    toast('Projet enregistré.'); window._editId=null; showPage('projets');
+    toast('Chantier enregistré.'); window._editId=null; showPage('projets');
   };
 }
 
-/* Suivi du chantier : bons de caisse et mouvements de stock rattachés au projet */
+/* Suivi du chantier : bons de caisse et mouvements de stock rattachés au chantier */
 async function renderSuiviChantier(projetId){
   const host=document.getElementById('suiviChantier'); if(!host) return;
   const [{data:caisse,error:e1},{data:stock,error:e2}]=await Promise.all([
@@ -8312,7 +8312,7 @@ function renderDevisBody(){
     })).join('')}</div>`:'<div class="card text-center text-gray-400 p-8">Aucun devis.</div>';
   } else {
     host.innerHTML=`<div class="card overflow-x-auto">
-      <table><thead><tr><th>Code</th><th>Client</th><th>Projet</th><th>Date</th><th class="text-right">Total</th><th>Statut</th><th></th></tr></thead>
+      <table><thead><tr><th>Code</th><th>Client</th><th>Chantier</th><th>Date</th><th class="text-right">Total</th><th>Statut</th><th></th></tr></thead>
       <tbody>${data.map(d=>`<tr>
         <td class="font-semibold"><button class="text-indigo-600 hover:underline" onclick="window._editId='${d.id}';showPage('devis-view')">${escapeHtml(d.code)}</button></td>
         <td>${escapeHtml(d.clients?[d.clients.nom,d.clients.prenoms].filter(Boolean).join(' '):'—')}</td>
@@ -8399,7 +8399,7 @@ function renderDevisEditorBody(){
       <form id="devisHeaderForm" class="grid sm:grid-cols-3 gap-4">
         <div class="field sm:col-span-3"><label>Libellé</label>${fieldWrap('📄',`<input id="dvLibelle" placeholder="Titre du devis" value="${escapeHtml(d.libelle||'')}">`)}</div>
         <div class="field"><label>Client</label>${fieldWrap('👤',smartSelect('dvClient',clientItems(),d.client_id,{placeholder:'Rechercher un client…'}))}</div>
-        <div class="field"><label>Chantier / Projet</label>${fieldWrap('🏗️',smartSelect('dvProjet',(window._projetsCache||[]).map(p=>({id:p.id,label:p.libelle})),d.projet_id,{placeholder:'Aucun projet lié'}))}</div>
+        <div class="field"><label>Chantier</label>${fieldWrap('🏗️',smartSelect('dvProjet',(window._projetsCache||[]).map(p=>({id:p.id,label:p.libelle})),d.projet_id,{placeholder:'Aucun chantier lié'}))}</div>
         <div class="field"><label>Statut du devis</label>${fieldWrap('🏷️',`<select id="dvStatut">${Object.entries(STATUT_DEVIS).map(([k,v])=>`<option value="${k}" ${k===d.statut?'selected':''}>${v.label}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Catégorie du devis</label>${fieldWrap('🏷️',`<select id="dvCategorie"><option value="">—</option>${(window._devisCategoriesCache||[]).map(c=>`<option ${c.nom===d.categorie?'selected':''}>${escapeHtml(c.nom)}</option>`).join('')}</select>`)}</div>
         <div class="field"><label>Date de création</label>${fieldWrap('📅',`<input id="dvDate" type="date" value="${d.date_creation||''}">`)}</div>
@@ -8957,7 +8957,7 @@ function docHeaderHtml(client,meta){
       ${client?.email?`<p><a href="mailto:${escapeHtml(client.email)}">${escapeHtml(client.email)}</a></p>`:''}
       ${(client?.ncc||client?.rccm)?`<p>${[client?.ncc?'NCC '+client.ncc:'',client?.rccm?'RCCM '+client.rccm:''].filter(Boolean).map(escapeHtml).join(' — ')}</p>`:''}
       <p>Lieu d'affaire : ${escapeHtml(meta.lieuAffaire||'—')}</p>
-      ${meta.projet?`<p>Projet : ${escapeHtml(meta.projet)}</p>`:''}
+      ${meta.projet?`<p>Chantier : ${escapeHtml(meta.projet)}</p>`:''}
       ${meta.categorie?`<p>Categorie : ${escapeHtml(meta.categorie)}</p>`:''}
       <p>Localisation : ${escapeHtml([meta.pays,meta.commune].filter(Boolean).join(', ')||'—')}</p>
     </div>
@@ -9831,7 +9831,7 @@ async function renderParametres(el){
       <div class="page-card max-w-2xl">
         <h2>💾 Export / Import de sauvegarde</h2>
         <div class="divider"></div>
-        <p class="text-xs text-gray-500 mb-4">Export JSON complet de toutes les tables (Clients, Devis, Factures, Projets…). L'import restaure les enregistrements par identifiant (écrase les doublons).</p>
+        <p class="text-xs text-gray-500 mb-4">Export JSON complet de toutes les tables (Clients, Devis, Factures, Chantiers…). L'import restaure les enregistrements par identifiant (écrase les doublons).</p>
         <div class="flex gap-2 flex-wrap mb-4">
           <button class="btn btn-primary" onclick="exporterSauvegarde()">⬇ Exporter tout (JSON)</button>
           <button class="btn btn-outline" onclick="document.getElementById('importFileInput').click()">⬆ Importer un fichier JSON</button>
@@ -11089,7 +11089,7 @@ async function caisseOuvrirBonModal(type){
     <div class="field mb-3"><label>Motif</label>${fieldWrap('📝',`<input id="bonMotif" placeholder="ex: Achat quincaillerie chantier X">`)}</div>
     <div class="field mb-3"><label>${type==='entree'?'Provenance':'Bénéficiaire'}</label>${fieldWrap('👤',`<input id="bonBeneficiaire">`)}</div>
     <div class="grid sm:grid-cols-2 gap-3 mb-1">${chantierPickerHtml('bon',caisse?.projet_id||'',{tousClients:true})}</div>
-    <div class="text-xs text-gray-400 mb-3">Rattachez le bon au chantier d'un client pour suivre ses dépenses (fiche du projet) ; l'écriture de ventilation portera ce chantier.</div>
+    <div class="text-xs text-gray-400 mb-3">Rattachez le bon au chantier d'un client pour suivre ses dépenses (fiche du chantier) ; l'écriture de ventilation portera ce chantier.</div>
     <div class="field mb-1"><label>Compte d'imputation SYSCOHADA (comptabilité automatique)</label>${fieldWrap('📗',`<select id="bonCompte"><option value="">— Déterminé par les règles, sinon à ventiler —</option>${compteOptionsHtml('')}</select>`)}</div>
     <div class="text-xs text-gray-400 mb-4">${type==='entree'?'Ex. 4111 client, 4191 avance reçue, 758 produits divers':'Ex. 6042 carburant, 6181 déplacements, 604 fournitures, 622 locations, 4011 règlement fournisseur, 421 avance au personnel'} — l'écriture est générée dès que le bon est enregistré (ou validé par le DG).</div>
     <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="caisseSauverBon('${type}','${session.id}')">Enregistrer</button></div>`);
