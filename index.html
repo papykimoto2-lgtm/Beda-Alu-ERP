@@ -9657,6 +9657,7 @@ async function renderParametres(el){
       ${peutModule('Utilisateurs','voir')?`<button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="utilisateurs" onclick="switchParamTab('utilisateurs')">👤 Utilisateurs</button>`:''}
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="supabase" onclick="switchParamTab('supabase')">☁️ Supabase</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="synchro" onclick="switchParamTab('synchro')">🔄 Synchro</button>
+      <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="import" onclick="switchParamTab('import')">⬆ Import</button>
       <button class="param-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold" data-paramtab="sauvegarde" onclick="switchParamTab('sauvegarde')">💾 Sauvegarde</button>
     </div>
 
@@ -9831,6 +9832,8 @@ async function renderParametres(el){
       <div id="utilisateursMount"></div>
     </div>`:''}
 
+    <div id="paramTab-import" class="param-tab hidden">${idnParamHtml()}</div>
+
     <div id="paramTab-sauvegarde" class="param-tab hidden">
       <div class="page-card max-w-2xl">
         <h2>💾 Export / Import de sauvegarde</h2>
@@ -9838,7 +9841,7 @@ async function renderParametres(el){
         <p class="text-xs text-gray-500 mb-4">Export JSON complet de toutes les tables (Clients, Devis, Factures, Chantiers…). L'import restaure les enregistrements par identifiant (écrase les doublons).</p>
         <div class="flex gap-2 flex-wrap mb-4">
           <button class="btn btn-primary" onclick="exporterSauvegarde()">⬇ Exporter tout (JSON)</button>
-          <button class="btn btn-outline" onclick="document.getElementById('importFileInput').click()">⬆ Importer un fichier JSON</button>
+          <button class="btn btn-outline" onclick="document.getElementById('importFileInput').click()">⬆ Restaurer un fichier JSON</button>
           <input type="file" id="importFileInput" accept=".json" class="hidden" onchange="importerSauvegarde(event)">
         </div>
         <div class="text-xs text-gray-500">Dernière sauvegarde exportée : <b id="lastBackupLabel">${p.derniere_sauvegarde?fmtDate(p.derniere_sauvegarde):'—'}</b></div>
@@ -14977,22 +14980,279 @@ async function viderBase(){
 }
 async function importerSauvegarde(e){
   const file=e.target.files[0]; if(!file) return;
-  if(!confirm("Importer ce fichier ? Les enregistrements existants portant le même identifiant seront écrasés.")) { e.target.value=''; return; }
   const resEl=document.getElementById('backupResult');
-  resEl.textContent='Import en cours…'; resEl.className='text-sm mt-3 text-gray-500';
   try{
-    const text=await file.text();
-    const backup=JSON.parse(text);
-    for(const table of BACKUP_TABLES){
-      const rows=backup.tables?.[table];
-      if(!rows || !rows.length) continue;
-      const {error}=await sb.from(table).upsert(rows,{onConflict:({stocks_depot:'depot_id,composant_id',caisse_affectations:'caisse_id,user_id',point_vente_affectations:'point_vente_id,user_id'})[table]||'id'});
-      if(error) throw new Error(table+' : '+error.message);
-    }
-    resEl.textContent='✅ Import terminé.'; resEl.className='text-sm mt-3 text-emerald-600';
+    const backup=JSON.parse(await file.text());
+    if(!backup.tables||typeof backup.tables!=='object') throw new Error("Fichier non reconnu : ce n'est pas une sauvegarde exportée par l'application.");
+    window._sauvJson=backup;
+    const tables=BACKUP_TABLES.filter(t=>backup.tables[t]?.length);
+    resEl.className='text-sm mt-3';
+    resEl.innerHTML=`<div class="font-semibold mb-1">Sauvegarde du ${backup.exported_at?fmtDate(backup.exported_at):'—'} — choisissez les tables à restaurer :</div>
+      <div class="flex gap-2 mb-2 text-xs"><button class="btn btn-outline text-xs" onclick="document.querySelectorAll('.sauvTable').forEach(c=>c.checked=true)">Tout cocher</button><button class="btn btn-outline text-xs" onclick="document.querySelectorAll('.sauvTable').forEach(c=>c.checked=false)">Tout décocher</button></div>
+      <div class="grid sm:grid-cols-2 gap-x-4 gap-y-1 mb-3" style="max-height:260px;overflow-y:auto">${tables.map(t=>`<label class="flex items-center gap-2 text-xs" style="font-weight:500;color:#111827;margin:0"><input type="checkbox" class="sauvTable" value="${t}" checked style="width:auto;flex:none;margin:0"> <span>${escapeHtml(t)} <b>(${backup.tables[t].length})</b></span></label>`).join('')||'<div class="text-gray-400">Aucune donnée dans ce fichier.</div>'}</div>
+      <div class="text-xs text-amber-700 mb-2">Les enregistrements ayant le même identifiant seront écrasés.</div>
+      ${tables.length?'<button class="btn btn-primary" onclick="restaurerSauvegarde()">⬆ Restaurer la sélection</button>':''}`;
   }catch(err){ resEl.textContent='❌ '+(err.message||err); resEl.className='text-sm mt-3 text-red-600'; }
   e.target.value='';
 }
+async function restaurerSauvegarde(){
+  const resEl=document.getElementById('backupResult'), backup=window._sauvJson;
+  const choix=new Set([...document.querySelectorAll('.sauvTable:checked')].map(c=>c.value));
+  if(!backup||!choix.size){ toast('Sélectionnez au moins une table.','error'); return; }
+  if(HL.horsLigne()){ toast('📴 Connexion requise.','error'); return; }
+  if(!confirm(`Restaurer ${choix.size} table(s) ? Les enregistrements existants portant le même identifiant seront écrasés.`)) return;
+  resEl.textContent='Restauration en cours…'; resEl.className='text-sm mt-3 text-gray-500';
+  try{
+    for(const table of BACKUP_TABLES){
+      if(!choix.has(table)) continue;
+      const rows=backup.tables[table]; if(!rows||!rows.length) continue;
+      resEl.textContent=`Restauration… ${table} (${rows.length})`;
+      for(let i=0;i<rows.length;i+=500){
+        const {error}=await sb.from(table).upsert(rows.slice(i,i+500),{onConflict:({stocks_depot:'depot_id,composant_id',caisse_affectations:'caisse_id,user_id',point_vente_affectations:'point_vente_id,user_id'})[table]||'id'});
+        if(error) throw new Error(table+' : '+error.message);
+      }
+    }
+    window._chantiersRef=null; window._stockComposantsCache=null; window._projetsCache=null;
+    resEl.textContent='✅ Restauration terminée.'; resEl.className='text-sm mt-3 text-emerald-600';
+  }catch(err){ resEl.textContent='❌ '+(err.message||err); resEl.className='text-sm mt-3 text-red-600'; }
+}
+/* ============================== IMPORT DE DONNÉES (Excel / CSV) ==============================
+   Paramétrage > Import : clients, prospects, fournisseurs, chantiers, produits, composants (avec stock de départ).
+   Lecture .xlsx / .xls / .csv, rapprochement des colonnes, aperçu avec doublons et erreurs, puis import par lots. */
+const idnNorm=s=>String(s??'').normalize('NFKD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+const idnTel=s=>String(s??'').replace(/\D/g,'');
+const IDN_COMMUNS=[['commune','Commune',['ville']],['quartier','Quartier',[]],['pays','Pays',[]]];
+const IDN_PERSONNE=[['nom','Nom *',['nom client','client','name','nom complet','nom et prenoms'],{req:1}],['prenoms','Prénoms',['prenom','first name']],['civilite','Civilité',['titre']],['entreprise','Entreprise',['societe','raison sociale']],
+  ['telephone','Téléphone',['tel','mobile','portable','contact','phone','cel','telephone 1']],['email','E-mail',['mail','courriel']],...IDN_COMMUNS,['adresse','Adresse',[]],['source','Source',[]],['commercial','Commercial',[]]];
+const IDN_TYPES={
+  clients:{lib:'👥 Clients',table:'clients',creePar:true,cols:'id,nom,prenoms,telephone',champs:[...IDN_PERSONNE,['categorie','Catégorie',['type']],['ncc','NCC',[]],['rccm','RCCM',[]]],
+    cles:r=>{ const t=idnTel(r.telephone); return [t.length>=6?'t:'+t:'n:'+idnNorm((r.nom||'')+' '+(r.prenoms||''))]; },exemple:['KOUAME','Jean','Monsieur','','0707070707','jean@mail.ci','Abidjan','Cocody','Côte d\'Ivoire','Riviera 2','Recommandation','','Particulier','','']},
+  prospects:{lib:'🎯 Prospects',table:'prospects',creePar:true,cols:'id,nom,prenoms,telephone',champs:[...IDN_PERSONNE,['statut','Statut',['etat']],['notes','Notes',['commentaire','observations']]],
+    cles:r=>{ const t=idnTel(r.telephone); return [t.length>=6?'t:'+t:'n:'+idnNorm((r.nom||'')+' '+(r.prenoms||''))]; },exemple:['TRAORE','Awa','Madame','','0505050505','','Abidjan','Marcory','Côte d\'Ivoire','','Facebook','','nouveau','']},
+  fournisseurs:{lib:'🚚 Fournisseurs',table:'fournisseurs',creePar:true,cols:'id,nom',champs:[['nom','Nom *',['fournisseur','raison sociale','name'],{req:1}],['contact_principal','Contact',['contact principal','responsable']],['telephone','Téléphone',['tel','mobile','phone']],['email','E-mail',['mail']],...IDN_COMMUNS,['categorie','Catégorie',['type']],['adresse','Adresse',[]],['ncc','NCC',[]],['rccm','RCCM',[]]],
+    cles:r=>['n:'+idnNorm(r.nom)],exemple:['PROFILS ALU CI','M. Diallo','0101010101','contact@alu.ci','Abidjan','Yopougon','Côte d\'Ivoire','Matériaux','Zone industrielle','','']},
+  projets:{lib:'🏗️ Chantiers',table:'projets',creePar:true,cols:'id,code,libelle',champs:[['libelle','Libellé *',['chantier','nom','nom chantier','designation','projet'],{req:1}],['client','Client (nom ou code) *',['nom client','code client'],{req:1}],['code','Code',['n chantier','reference']],['date_debut','Date début',['debut','date de debut'],{date:1}],['date_fin','Date fin',['fin','date de fin','echeance'],{date:1}],['etape','Étape',['statut','etat']],['categorie','Catégorie',['type']],...IDN_COMMUNS,['responsable','Responsable',[]],['description','Description',['notes','commentaire']],['source','Source',[]]],
+    cles:r=>[...(r.code?['c:'+idnNorm(r.code)]:[]),'l:'+idnNorm(r.libelle)],exemple:['CHANTIER Mme KONE 2024','KONE Awa','','2026-01-15','2026-03-30','en attente','Habitation','Abidjan','Cocody','Côte d\'Ivoire','','','']},
+  produits:{lib:'🧩 Produits (ouvrages)',table:'produits',cols:'id,nom',champs:[['nom','Nom *',['produit','designation','libelle'],{req:1}],['unite','Unité',['unite de mesure','u']],['prix_vente','Prix de vente',['prix','pv','prix vente'],{num:1}],['cout_materiel','Coût matériel',['cout','cout materiel'],{num:1}],['famille','Famille',['categorie']],['alu_ml','Alu (ml)',[],{num:1}],['glass_m2','Verre (m²)',['vitrage'],{num:1}]],
+    cles:r=>['n:'+idnNorm(r.nom)],exemple:['Fenêtre coulissante 2 vantaux','m2','85000','50000','Fenêtres & châssis','6','1.2']},
+  composants:{lib:'🔩 Composants & stock',table:'composants',creePar:true,cols:'id,nom,code,standing',champs:[['nom','Nom *',['composant','article','designation','libelle'],{req:1}],['code','Code',['reference interne','sku']],['reference','Référence',['ref']],['type','Type',[]],['famille','Famille',['categorie']],['unite','Unité',['unite de mesure','u']],['prix_unitaire','Prix d\'achat',['prix achat','pa','prix unitaire','cout'],{num:1}],['prix_vente','Prix de vente',['pv','prix vente'],{num:1}],['stock','Stock initial',['quantite','qte','stock actuel','stock initial'],{num:1}],['stock_min','Stock min',['seuil','stock minimum'],{num:1}],['stock_max','Stock max',['stock maximum'],{num:1}],['emplacement','Emplacement',['rayon','localisation']],['standing','Standing',['gamme']]],
+    cles:r=>[...(r.code?['c:'+idnNorm(r.code)+'|'+(r.standing||'standard')]:[]),'n:'+idnNorm(r.nom)+'|'+(r.standing||'standard')],exemple:['Profilé coulissant 40x40','PRF-001','','Composant','Profilé aluminium','ml','3500','4500','120','20','','Rayon A','standard']}
+};
+window._idn=window._idn||{type:'clients',noms:[],lignes:[],map:{},mode:'ignorer',autoClient:true,analyse:null};
+function idnParamHtml(){
+  return `<div class="page-card max-w-4xl">
+    <h2>⬆ Import de données (Excel / CSV)</h2><div class="divider"></div>
+    <p class="text-xs text-gray-500 mb-3">Importez vos listes depuis un fichier Excel (.xlsx, .xls) ou CSV. La première ligne doit contenir les titres des colonnes. Un aperçu avec les doublons et les erreurs est affiché avant tout enregistrement.</p>
+    <div class="grid sm:grid-cols-2 gap-3 mb-3">
+      <div class="field"><label>Type de données</label><select id="idnType" onchange="idnChoisirType(this.value)">${Object.entries(IDN_TYPES).map(([k,v])=>`<option value="${k}" ${k===window._idn.type?'selected':''}>${v.lib}</option>`).join('')}</select></div>
+      <div class="field"><label>Fichier</label><input type="file" id="idnFichier" accept=".xlsx,.xls,.csv,.txt" onchange="idnLireFichier(event)"></div>
+    </div>
+    <div class="flex flex-wrap gap-2 mb-3"><button class="btn btn-outline text-xs" onclick="idnModele()">⬇ Télécharger le modèle (CSV)</button></div>
+    <div id="idnZone" class="text-sm"></div>
+  </div>`;
+}
+function idnChoisirType(t){ window._idn={...window._idn,type:t,noms:[],lignes:[],map:{},analyse:null}; const f=document.getElementById('idnFichier'); if(f) f.value=''; document.getElementById('idnZone').innerHTML=''; }
+function idnTelecharger(nom,texte){ telechargerFichier(new File(['﻿'+texte],nom,{type:'text/csv;charset=utf-8'})); }
+const idnCsv=l=>l.map(x=>{ const s=String(x??''); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(';');
+function idnModele(){
+  const T=IDN_TYPES[window._idn.type];
+  idnTelecharger(`modele-import-${window._idn.type}.csv`,[idnCsv(T.champs.map(c=>c[1].replace(' *',''))),idnCsv(T.exemple)].join('\r\n'));
+}
+async function idnLireFichier(e){
+  const f=e.target.files[0]; if(!f) return; const zone=document.getElementById('idnZone');
+  zone.innerHTML='<div class="text-gray-400">Lecture du fichier…</div>';
+  try{
+    await chargerScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js','XLSX');
+    let wb;
+    if(/\.(csv|txt)$/i.test(f.name)){
+      const buf=await f.arrayBuffer(); let txt=new TextDecoder('utf-8').decode(buf);
+      if(txt.includes('�')) txt=new TextDecoder('windows-1252').decode(buf);
+      wb=XLSX.read(txt.replace(/^﻿/,''),{type:'string',cellDates:true});
+    } else wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true});
+    window._idn.classeur=wb; idnChoisirFeuille(wb.SheetNames[0]);
+  }catch(err){ zone.innerHTML=`<div class="text-red-600">❌ ${escapeHtml(err.message||err)}</div>`; }
+}
+function idnChoisirFeuille(nom){
+  const I=window._idn, ws=I.classeur.Sheets[nom];
+  const m=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:'',blankrows:false}).filter(l=>l.some(x=>String(x).trim()!==''));
+  if(m.length<2){ document.getElementById('idnZone').innerHTML='<div class="text-red-600">❌ Fichier vide : il faut une ligne de titres et au moins une ligne de données.</div>'; return; }
+  I.feuille=nom; I.noms=m[0].map(x=>String(x).trim()); I.lignes=m.slice(1,20001);
+  const T=IDN_TYPES[I.type], map={};
+  I.noms.forEach((n,i)=>{ const nn=idnNorm(n); const c=T.champs.find(c=>!Object.values(map).includes(c[0])&&(idnNorm(c[1].replace(' *',''))===nn||idnNorm(c[0])===nn||(c[2]||[]).some(a=>idnNorm(a)===nn))); if(c) map[i]=c[0]; });
+  I.map=map; idnAnalyser();
+}
+/* ---------- Conversions ---------- */
+function idnDate(v){
+  if(v===''||v==null) return null;
+  const p=(n)=>String(n).padStart(2,'0');
+  if(v instanceof Date) return isNaN(v)?undefined:`${v.getFullYear()}-${p(v.getMonth()+1)}-${p(v.getDate())}`;
+  if(typeof v==='number'&&v>20000&&v<80000){ const d=new Date(Math.round((v-25569)*86400000)); return `${d.getUTCFullYear()}-${p(d.getUTCMonth()+1)}-${p(d.getUTCDate())}`; }
+  const s=String(v).trim(); let m;
+  if(m=s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/)) return `${m[1]}-${p(m[2])}-${p(m[3])}`;
+  if(m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/)){ const y=m[3].length===2?'20'+m[3]:m[3]; return `${y}-${p(m[2])}-${p(m[1])}`; }
+  return undefined;
+}
+function idnNombre(v){
+  if(v===''||v==null) return null; if(typeof v==='number') return v;
+  const n=parseFloat(String(v).replace(/[\s ]/g,'').replace(/fcfa|xof|f$/i,'').replace(',','.')); return isNaN(n)?undefined:n;
+}
+function idnEnum(v,table,defaut){ if(v===''||v==null) return defaut; return table[idnNorm(v)]; }
+const IDN_ETAPES=()=>{ const t={}; Object.entries(STATUT_PROJET).forEach(([k,s])=>{ t[idnNorm(k)]=k; t[idnNorm(s.label)]=k; }); return t; };
+const IDN_STATUTS_PROSPECT={nouveau:'nouveau',contacte:'contacte',qualifie:'qualifie',gagne:'gagne',perdu:'perdu'};
+function idnUnite(v,domaine){
+  if(v===''||v==null) return domaine==='produit'?'m2':'unite';
+  const n=idnNorm(v), alias={'m2':'m2','m 2':'m2','metre carre':'m2','u':'unite','pce':'unite','piece':'unite','unite':'unite','m':'ml','ml':'ml','metre lineaire':'ml','l':'litre','litre':'litre','kg':'kg'};
+  const code=alias[n]||(unitesListe().find(u=>idnNorm(u.code)===n||idnNorm(u.libelle)===n)?.code);
+  if(!code) return undefined;
+  if(domaine==='produit') return ['m2','ml','unite'].includes(code)?code:undefined;
+  return unitesListe().some(u=>u.code===code)?code:undefined;
+}
+function idnFamille(v,domaine){
+  if(!v) return {val:'Autre'}; const n=idnNorm(v);
+  const liste=(refInstalle()&&window._REF.familles?.length)?window._REF.familles.filter(f=>f.domaine===domaine).map(f=>f.nom):(domaine==='composant'?COMPOSANT_FAMILLES:PRODUIT_FAMILLES);
+  const t=liste.find(x=>idnNorm(x)===n); return t?{val:t}:{val:'Autre',avert:`famille « ${v} » inconnue → « Autre »`};
+}
+/* ---------- Analyse ---------- */
+async function idnExistants(T){
+  const idx=new Map(); let from=0;
+  for(;;){ const {data,error}=await sb.from(T.table).select(T.cols).range(from,from+999); if(error) throw error;
+    (data||[]).forEach(r=>T.cles(T.table==='projets'?{code:r.code,libelle:r.libelle}:r).forEach(k=>{ if(!idx.has(k)) idx.set(k,r.id); }));
+    if(!data||data.length<1000) break; from+=1000; }
+  return idx;
+}
+async function idnClientsIndex(){
+  const idx=new Map(); let from=0;
+  for(;;){ const {data,error}=await sb.from('clients').select('id,code,nom,prenoms').range(from,from+999); if(error) throw error;
+    (data||[]).forEach(c=>{ [c.code,(c.nom+' '+(c.prenoms||'')),c.nom].forEach(k=>{ const n=idnNorm(k); if(n&&!idx.has(n)) idx.set(n,c.id); }); });
+    if(!data||data.length<1000) break; from+=1000; }
+  return idx;
+}
+async function idnAnalyser(){
+  const I=window._idn, T=IDN_TYPES[I.type], zone=document.getElementById('idnZone');
+  zone.innerHTML='<div class="text-gray-400">Analyse en cours…</div>';
+  try{
+    const exist=await idnExistants(T), clients=I.type==='projets'?await idnClientsIndex():null, etapes=IDN_ETAPES();
+    const vus=new Set(), res=[], nouveauxClients=new Set();
+    I.lignes.forEach((l,i)=>{
+      const rec={}, err=[], av=[];
+      Object.entries(I.map).forEach(([ci,k])=>{
+        const c=T.champs.find(x=>x[0]===k), o=c[3]||{}, v=l[ci];
+        if(v===''||v==null) return;
+        if(o.date){ const d=idnDate(v); if(d===undefined) err.push(`${c[1].replace(' *','')} : date invalide « ${v} »`); else rec[k]=d; }
+        else if(o.num){ const n=idnNombre(v); if(n===undefined) err.push(`${c[1].replace(' *','')} : nombre invalide « ${v} »`); else rec[k]=n; }
+        else rec[k]=String(v).trim();
+      });
+      T.champs.filter(c=>c[3]?.req).forEach(c=>{ if(!rec[c[0]]) err.push(`${c[1].replace(' *','')} manquant`); });
+      if(I.type==='projets'){
+        const e=idnEnum(rec.etape,etapes,'en_attente'); if(e===undefined) err.push(`Étape inconnue « ${rec.etape} »`); else rec.etape=e;
+        if(rec.client){ const id=clients.get(idnNorm(rec.client)); if(id) rec.client_id=id; else if(I.autoClient) nouveauxClients.add(rec.client); else err.push(`Client introuvable « ${rec.client} »`); }
+      }
+      if(I.type==='prospects'){ const s=idnEnum(rec.statut,IDN_STATUTS_PROSPECT,'nouveau'); if(s===undefined) err.push(`Statut inconnu « ${rec.statut} »`); else rec.statut=s; }
+      if(I.type==='produits'){ const u=idnUnite(rec.unite,'produit'); if(u===undefined) err.push(`Unité invalide « ${rec.unite} » (m2, ml, unite)`); else rec.unite=u; const f=idnFamille(rec.famille,'produit'); rec.famille=f.val; if(f.avert) av.push(f.avert); }
+      if(I.type==='composants'){
+        const u=idnUnite(rec.unite,'composant'); if(u===undefined) err.push(`Unité inconnue « ${rec.unite} »`); else rec.unite=u;
+        const f=idnFamille(rec.famille,'composant'); rec.famille=f.val; if(f.avert) av.push(f.avert);
+        const ty=idnEnum(rec.type,{composant:'Composant',consommable:'Consommable'},'Composant'); if(ty===undefined) err.push(`Type inconnu « ${rec.type} »`); else rec.type=ty;
+        const st=idnEnum(rec.standing,{economique:'economique',standard:'standard',premium:'premium'},'standard'); if(st===undefined) err.push(`Standing inconnu « ${rec.standing} »`); else rec.standing=st;
+        if(rec.stock!=null&&rec.stock<0) err.push('Stock négatif');
+      }
+      let statut='nouveau', cible=null;
+      if(err.length) statut='erreur';
+      else { const cles=T.cles(rec); const dedans=cles.some(k=>vus.has(k)); cles.forEach(k=>vus.add(k)); const k=cles.find(k=>exist.has(k));
+        if(dedans) statut='doublon_fichier'; else if(k){ statut='doublon'; cible=exist.get(k); } }
+      res.push({n:i+2,rec,err,av,statut,cible});
+    });
+    I.analyse={res,nouveauxClients:[...nouveauxClients]}; idnAfficher();
+  }catch(err){ zone.innerHTML=`<div class="text-red-600">❌ ${escapeHtml(err.message||err)}</div>`; }
+}
+function idnAfficher(){
+  const I=window._idn, T=IDN_TYPES[I.type], A=I.analyse, zone=document.getElementById('idnZone');
+  const nb=s=>A.res.filter(r=>r.statut===s).length, nNouv=nb('nouveau'), nDbl=nb('doublon'), nDblF=nb('doublon_fichier'), nErr=nb('erreur');
+  const aImporter=nNouv+(I.mode==='maj'?nDbl:0);
+  const badge={nouveau:['Nouveau','#059669'],doublon:['Existe déjà','#d97706'],doublon_fichier:['Doublon fichier','#d97706'],erreur:['Erreur','#dc2626']};
+  const feuilles=I.classeur.SheetNames.length>1?`<div class="field mb-3"><label>Feuille</label><select onchange="idnChoisirFeuille(this.value)">${I.classeur.SheetNames.map(n=>`<option ${n===I.feuille?'selected':''}>${escapeHtml(n)}</option>`).join('')}</select></div>`:'';
+  const champsActifs=Object.values(I.map);
+  zone.innerHTML=`${feuilles}
+    <h3 class="font-semibold mb-1">1. Rapprochement des colonnes</h3>
+    <div class="overflow-x-auto mb-3"><table><thead><tr><th>Colonne du fichier</th><th>Exemple</th><th>Champ de l'application</th></tr></thead><tbody>
+    ${I.noms.map((n,i)=>`<tr><td>${escapeHtml(n||'(sans titre)')}</td><td class="text-xs text-gray-500">${escapeHtml(String(I.lignes[0]?.[i]??'').slice(0,40))}</td>
+      <td><select onchange="idnMapper(${i},this.value)"><option value="">— ignorer —</option>${T.champs.map(c=>`<option value="${c[0]}" ${I.map[i]===c[0]?'selected':''}>${escapeHtml(c[1])}</option>`).join('')}</select></td></tr>`).join('')}
+    </tbody></table></div>
+    ${T.champs.filter(c=>c[3]?.req&&!champsActifs.includes(c[0])).map(c=>`<div class="text-red-600 text-xs mb-1">⚠️ Aucune colonne associée au champ obligatoire « ${escapeHtml(c[1].replace(' *',''))} ».</div>`).join('')}
+    <h3 class="font-semibold mb-1 mt-3">2. Options</h3>
+    <div class="flex flex-wrap gap-4 mb-3 text-sm items-center">
+      <label class="flex items-center gap-2" style="font-weight:500;color:#111827"><span>Si l'enregistrement existe déjà :</span><select style="width:auto" onchange="window._idn.mode=this.value;idnAfficher()"><option value="ignorer" ${I.mode==='ignorer'?'selected':''}>l'ignorer</option><option value="maj" ${I.mode==='maj'?'selected':''}>le mettre à jour</option></select></label>
+      ${I.type==='projets'?`<label class="flex items-center gap-2" style="font-weight:500;color:#111827"><input type="checkbox" style="width:auto;flex:none;margin:0" ${I.autoClient?'checked':''} onchange="window._idn.autoClient=this.checked;idnAnalyser()"> <span>Créer automatiquement les clients introuvables</span></label>`:''}
+    </div>
+    <h3 class="font-semibold mb-1">3. Aperçu — ${A.res.length} ligne(s)</h3>
+    <div class="grid sm:grid-cols-4 gap-2 mb-3">
+      <div class="card p-2"><div class="text-xs text-gray-400">Nouveaux</div><div class="font-black text-emerald-600">${nNouv}</div></div>
+      <div class="card p-2"><div class="text-xs text-gray-400">Existent déjà</div><div class="font-black text-amber-600">${nDbl}</div></div>
+      <div class="card p-2"><div class="text-xs text-gray-400">Doublons dans le fichier</div><div class="font-black text-amber-600">${nDblF}</div></div>
+      <div class="card p-2"><div class="text-xs text-gray-400">Erreurs</div><div class="font-black text-red-600">${nErr}</div></div>
+    </div>
+    ${A.nouveauxClients.length?`<div class="text-xs text-gray-500 mb-2">👥 ${A.nouveauxClients.length} nouveau(x) client(s) seront créé(s) : ${escapeHtml(A.nouveauxClients.slice(0,8).join(', '))}${A.nouveauxClients.length>8?'…':''}</div>`:''}
+    <div class="overflow-x-auto mb-3" style="max-height:340px;overflow-y:auto"><table><thead><tr><th>Ligne</th><th>Statut</th>${T.champs.filter(c=>champsActifs.includes(c[0])).map(c=>`<th>${escapeHtml(c[1].replace(' *',''))}</th>`).join('')}<th>Remarques</th></tr></thead><tbody>
+    ${[...A.res.filter(r=>r.statut==='erreur'),...A.res.filter(r=>r.statut!=='erreur')].slice(0,40).map(r=>`<tr><td>${r.n}</td><td><span class="pill" style="color:${badge[r.statut][1]};border-color:${badge[r.statut][1]}">${badge[r.statut][0]}</span></td>${T.champs.filter(c=>champsActifs.includes(c[0])).map(c=>`<td class="text-xs">${escapeHtml(String(r.rec[c[0]]??''))}</td>`).join('')}<td class="text-xs ${r.err.length?'text-red-600':'text-amber-600'}">${escapeHtml([...r.err,...r.av].join(' ; '))}</td></tr>`).join('')}
+    </tbody></table></div>
+    ${A.res.length>40?`<div class="text-xs text-gray-400 mb-2">Aperçu limité aux 40 premières lignes (erreurs en premier).</div>`:''}
+    <div class="flex flex-wrap gap-2 items-center"><button class="btn btn-primary" ${aImporter?'':'disabled'} onclick="idnImporter()">⬆ Importer ${aImporter} ligne(s)</button>
+      ${nErr?`<button class="btn btn-outline text-xs" onclick="idnExporterErreurs()">⬇ Lignes en erreur (CSV)</button>`:''}</div>
+    <div id="idnResultat" class="text-sm mt-3"></div>`;
+}
+function idnMapper(ci,k){ const I=window._idn; Object.keys(I.map).forEach(c=>{ if(k&&I.map[c]===k) delete I.map[c]; }); if(k) I.map[ci]=k; else delete I.map[ci]; idnAnalyser(); }
+function idnExporterErreurs(){
+  const I=window._idn, rows=I.analyse.res.filter(r=>r.statut==='erreur');
+  idnTelecharger('lignes-en-erreur.csv',[idnCsv(['Ligne',...I.noms,'Erreurs']),...rows.map(r=>idnCsv([r.n,...I.lignes[r.n-2].map(x=>x instanceof Date?idnDate(x):x),r.err.join(' ; ')]))].join('\r\n'));
+}
+/* ---------- Import ---------- */
+async function idnImporter(){
+  const I=window._idn, T=IDN_TYPES[I.type], A=I.analyse, res=document.getElementById('idnResultat');
+  if(HL.horsLigne()){ toast('📴 Connexion requise pour importer.','error'); return; }
+  const manquants=T.champs.filter(c=>c[3]?.req&&!Object.values(I.map).includes(c[0]));
+  if(manquants.length){ toast('Associez d\'abord le champ obligatoire : '+manquants[0][1].replace(' *',''),'error'); return; }
+  const ajouts=A.res.filter(r=>r.statut==='nouveau'), majs=I.mode==='maj'?A.res.filter(r=>r.statut==='doublon'):[];
+  if(!confirm(`Importer ${ajouts.length} nouvelle(s) ligne(s)${majs.length?' et mettre à jour '+majs.length+' existante(s)':''} dans « ${T.lib.replace(/^\S+\s/,'')} » ?`)) return;
+  const log=m=>{ res.className='text-sm mt-3 text-gray-500'; res.textContent=m; }, erreurs=[];
+  let nOk=0, nMaj=0, nStock=0;
+  try{
+    if(I.type==='projets'&&A.nouveauxClients.length){
+      log('Création des clients…');
+      const {data,error}=await sb.from('clients').insert(A.nouveauxClients.map(nom=>({nom,created_by:CURRENT_USER.id}))).select('id,nom');
+      if(error) throw new Error('Création des clients : '+error.message);
+      const par=new Map((data||[]).map(c=>[idnNorm(c.nom),c.id]));
+      [...ajouts,...majs].forEach(r=>{ if(!r.rec.client_id) r.rec.client_id=par.get(idnNorm(r.rec.client)); });
+    }
+    const prepare=r=>{ const o={...r.rec}; delete o.client; delete o.stock; return o; };
+    for(let i=0;i<ajouts.length;i+=200){
+      const lot=ajouts.slice(i,i+200); log(`Import… ${Math.min(i+200,ajouts.length)} / ${ajouts.length}`);
+      const lignes=lot.map(r=>({...prepare(r),...(T.creePar?{created_by:CURRENT_USER.id}:{})}));
+      let {data,error}=await sb.from(T.table).insert(lignes).select('id');
+      if(!error){ nOk+=lot.length; lot.forEach((r,j)=>{ r.id=data?.[j]?.id; }); }
+      else for(let j=0;j<lot.length;j++){   // lot refusé : ligne par ligne pour isoler les erreurs
+        const {data:d1,error:e1}=await sb.from(T.table).insert(lignes[j]).select('id').single();
+        if(e1) erreurs.push(`Ligne ${lot[j].n} : ${e1.message}`); else { nOk++; lot[j].id=d1.id; } }
+    }
+    for(let i=0;i<majs.length;i++){
+      if(i%20===0) log(`Mise à jour… ${i} / ${majs.length}`);
+      const {error}=await sb.from(T.table).update(prepare(majs[i])).eq('id',majs[i].cible);
+      if(error) erreurs.push(`Ligne ${majs[i].n} : ${error.message}`); else nMaj++;
+    }
+    if(I.type==='composants'){
+      const avecStock=ajouts.filter(r=>r.id&&r.rec.stock>0);
+      for(let i=0;i<avecStock.length;i++){
+        if(i%10===0) log(`Stock de départ… ${i} / ${avecStock.length}`);
+        const r=avecStock[i];
+        const {error}=await sb.rpc('stock_mouvement',{p_composant_id:r.id,p_type:'entree',p_quantite:r.rec.stock,p_motif:'Stock initial (import)',p_reference:'IMPORT',p_prix_unitaire:r.rec.prix_unitaire||null});
+        if(error) erreurs.push(`Ligne ${r.n} (stock) : ${error.message}`); else nStock++;
+      }
+    }
+    window._chantiersRef=null; window._stockComposantsCache=null; window._projetsCache=null;
+    res.className='text-sm mt-3 '+(erreurs.length?'text-amber-700':'text-emerald-600');
+    res.innerHTML=`${erreurs.length?'⚠️':'✅'} ${nOk} ligne(s) importée(s)${nMaj?`, ${nMaj} mise(s) à jour`:''}${nStock?`, ${nStock} stock(s) de départ enregistré(s)`:''}.${erreurs.length?`<div class="text-xs text-red-600 mt-2">${erreurs.slice(0,15).map(escapeHtml).join('<br>')}${erreurs.length>15?'<br>…':''}</div>`:''}`;
+  }catch(err){ res.className='text-sm mt-3 text-red-600'; res.textContent='❌ '+(err.message||err)+(nOk?` (${nOk} ligne(s) déjà importée(s))`:''); }
+}
+
 </script>
 </body>
 </html>
