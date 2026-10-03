@@ -8722,7 +8722,7 @@ async function impEcrire(win,meta,html){
 /* ---------- PDF et envoi (WhatsApp / e-mail) d'un document composé par le moteur ---------- */
 function chargerScript(url,globale){
   if(window[globale]) return Promise.resolve();
-  return new Promise((ok,ko)=>{ const s=document.createElement('script'); s.src=url; s.onload=()=>ok(); s.onerror=()=>ko(new Error('Bibliothèque PDF indisponible (connexion requise la première fois).')); document.head.appendChild(s); });
+  return new Promise((ok,ko)=>{ const s=document.createElement('script'); s.src=url; s.onload=()=>ok(); s.onerror=()=>ko(new Error('Bibliothèque indisponible : connexion internet requise la première fois.')); document.head.appendChild(s); });
 }
 async function impGenererPdf(html,nomFichier,orientation){
   await chargerScript('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js','html2pdf');
@@ -15047,7 +15047,7 @@ function idnParamHtml(){
       <div class="field"><label>Type de données</label><select id="idnType" onchange="idnChoisirType(this.value)">${Object.entries(IDN_TYPES).map(([k,v])=>`<option value="${k}" ${k===window._idn.type?'selected':''}>${v.lib}</option>`).join('')}</select></div>
       <div class="field"><label>Fichier</label><input type="file" id="idnFichier" accept=".xlsx,.xls,.csv,.txt" onchange="idnLireFichier(event)"></div>
     </div>
-    <div class="flex flex-wrap gap-2 mb-3"><button class="btn btn-outline text-xs" onclick="idnModele()">⬇ Télécharger le modèle (CSV)</button></div>
+    <div class="flex flex-wrap gap-2 mb-3"><button class="btn btn-outline text-xs" onclick="idnModeleExcel()">⬇ Télécharger le modèle Excel (.xlsx)</button><button class="btn btn-outline text-xs" onclick="idnModele()">⬇ Modèle CSV</button></div>
     <div id="idnZone" class="text-sm"></div>
   </div>`;
 }
@@ -15057,6 +15057,17 @@ const idnCsv=l=>l.map(x=>{ const s=String(x??''); return /[;"\n]/.test(s)?'"'+s.
 function idnModele(){
   const T=IDN_TYPES[window._idn.type];
   idnTelecharger(`modele-import-${window._idn.type}.csv`,[idnCsv(T.champs.map(c=>c[1].replace(' *',''))),idnCsv(T.exemple)].join('\r\n'));
+}
+async function idnModeleExcel(){
+  const t=window._idn.type, T=IDN_TYPES[t];
+  try{
+    await chargerScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js','XLSX');
+    const ws=XLSX.utils.aoa_to_sheet([T.champs.map(c=>c[1].replace(' *','')),T.exemple.map((v,i)=>T.champs[i]?.[3]?.num&&v!==''&&!isNaN(+v)?+v:v)]);
+    ws['!cols']=T.champs.map(c=>({wch:Math.max(14,c[1].length+4)}));
+    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,T.lib.replace(/^\S+\s/,'').slice(0,31));
+    const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    telechargerFichier(new File([out],`modele-import-${t}.xlsx`,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  }catch(err){ toast('Modèle Excel indisponible (connexion internet requise la première fois). Utilisez le modèle CSV.','error'); }
 }
 async function idnLireFichier(e){
   const f=e.target.files[0]; if(!f) return; const zone=document.getElementById('idnZone');
