@@ -15031,10 +15031,12 @@ const IDN_TYPES={
     cles:r=>{ const t=idnTel(r.telephone); return [t.length>=6?'t:'+t:'n:'+idnNorm((r.nom||'')+' '+(r.prenoms||''))]; },exemple:['TRAORE','Awa','Madame','','0505050505','','Abidjan','Marcory','Côte d\'Ivoire','','Facebook','','nouveau','']},
   fournisseurs:{lib:'🚚 Fournisseurs',table:'fournisseurs',creePar:true,cols:'id,nom',champs:[['nom','Nom *',['fournisseur','raison sociale','name'],{req:1}],['contact_principal','Contact',['contact principal','responsable']],['telephone','Téléphone',['tel','mobile','phone']],['email','E-mail',['mail']],...IDN_COMMUNS,['categorie','Catégorie',['type']],['adresse','Adresse',[]],['ncc','NCC',[]],['rccm','RCCM',[]]],
     cles:r=>['n:'+idnNorm(r.nom)],exemple:['PROFILS ALU CI','M. Diallo','0101010101','contact@alu.ci','Abidjan','Yopougon','Côte d\'Ivoire','Matériaux','Zone industrielle','','']},
-  projets:{lib:'🏗️ Chantiers',table:'projets',creePar:true,cols:'id,code,libelle',champs:[['libelle','Libellé *',['chantier','nom','nom chantier','designation','projet'],{req:1}],['client','Client (nom ou code) *',['nom client','code client'],{req:1}],['code','Code',['n chantier','reference']],['date_debut','Date début',['debut','date de debut'],{date:1}],['date_fin','Date fin',['fin','date de fin','echeance'],{date:1}],['etape','Étape',['statut','etat']],['categorie','Catégorie',['type']],...IDN_COMMUNS,['responsable','Responsable',[]],['description','Description',['notes','commentaire']],['source','Source',[]]],
-    cles:r=>[...(r.code?['c:'+idnNorm(r.code)]:[]),'l:'+idnNorm(r.libelle)],exemple:['CHANTIER Mme KONE 2024','KONE Awa','','2026-01-15','2026-03-30','en attente','Habitation','Abidjan','Cocody','Côte d\'Ivoire','','','']},
+  projets:{lib:'🏗️ Chantiers',table:'projets',creePar:true,cols:'id,code,libelle',champs:[['libelle','Libellé *',['chantier','nom','nom chantier','designation','projet'],{req:1}],['client','Client (nom ou code) *',['nom client','code client'],{req:1}],['client_telephone','Téléphone client',['tel client','telephone du client','contact client','tel du client']],['code','Code',['n chantier','reference']],['date_debut','Date début',['debut','date de debut'],{date:1}],['date_fin','Date fin',['fin','date de fin','echeance'],{date:1}],['etape','Étape',['statut','etat']],['categorie','Catégorie',['type']],...IDN_COMMUNS,['responsable','Responsable',[]],['description','Description',['notes','commentaire']],['source','Source',[]]],
+    cles:r=>[...(r.code?['c:'+idnNorm(r.code)]:[]),'l:'+idnNorm(r.libelle)],exemple:['CHANTIER Mme KONE 2024','KONE Awa','0707070707','','2026-01-15','2026-03-30','en attente','Habitation','Abidjan','Cocody','Côte d\'Ivoire','','','']},
   produits:{lib:'🧩 Produits (ouvrages)',table:'produits',cols:'id,nom',champs:[['nom','Nom *',['produit','designation','libelle'],{req:1}],['unite','Unité',['unite de mesure','u']],['prix_vente','Prix de vente',['prix','pv','prix vente'],{num:1}],['cout_materiel','Coût matériel',['cout','cout materiel'],{num:1}],['famille','Famille',['categorie']],['alu_ml','Alu (ml)',[],{num:1}],['glass_m2','Verre (m²)',['vitrage'],{num:1}]],
     cles:r=>['n:'+idnNorm(r.nom)],exemple:['Fenêtre coulissante 2 vantaux','m2','85000','50000','Fenêtres & châssis','6','1.2']},
+  comptes:{lib:'📒 Plan comptable',table:'compta_comptes',pk:'code',cols:'code',champs:[['code','N° de compte *',['numero','compte','n compte','no compte','numero de compte','n de compte'],{req:1}],['libelle','Intitulé *',['libelle','intitule du compte','designation','nom'],{req:1}],['classe','Classe',[],{num:1}],['nature','Nature',['type']]],
+    cles:r=>['c:'+idnNorm(r.code)],exemple:['601100','Achats de marchandises','6','charge']},
   composants:{lib:'🔩 Composants & stock',table:'composants',creePar:true,cols:'id,nom,code,standing',champs:[['nom','Nom *',['composant','article','designation','libelle'],{req:1}],['code','Code',['reference interne','sku']],['reference','Référence',['ref']],['type','Type',[]],['famille','Famille',['categorie']],['unite','Unité',['unite de mesure','u']],['prix_unitaire','Prix d\'achat',['prix achat','pa','prix unitaire','cout'],{num:1}],['prix_vente','Prix de vente',['pv','prix vente'],{num:1}],['stock','Stock initial',['quantite','qte','stock actuel','stock initial'],{num:1}],['stock_min','Stock min',['seuil','stock minimum'],{num:1}],['stock_max','Stock max',['stock maximum'],{num:1}],['emplacement','Emplacement',['rayon','localisation']],['standing','Standing',['gamme']]],
     cles:r=>[...(r.code?['c:'+idnNorm(r.code)+'|'+(r.standing||'standard')]:[]),'n:'+idnNorm(r.nom)+'|'+(r.standing||'standard')],exemple:['Profilé coulissant 40x40','PRF-001','','Composant','Profilé aluminium','ml','3500','4500','120','20','','Rayon A','standard']}
 };
@@ -15078,16 +15080,18 @@ async function idnLireFichier(e){
     if(/\.(csv|txt)$/i.test(f.name)){
       const buf=await f.arrayBuffer(); let txt=new TextDecoder('utf-8').decode(buf);
       if(txt.includes('�')) txt=new TextDecoder('windows-1252').decode(buf);
-      wb=XLSX.read(txt.replace(/^﻿/,''),{type:'string',cellDates:true});
+      wb=XLSX.read(txt.replace(/^﻿/,''),{type:'string',raw:true});
     } else wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true});
     window._idn.classeur=wb; idnChoisirFeuille(wb.SheetNames[0]);
   }catch(err){ zone.innerHTML=`<div class="text-red-600">❌ ${escapeHtml(err.message||err)}</div>`; }
 }
 function idnChoisirFeuille(nom){
   const I=window._idn, ws=I.classeur.Sheets[nom];
-  const m=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:'',blankrows:false}).filter(l=>l.some(x=>String(x).trim()!==''));
+  const brut=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:'',blankrows:true}), txt=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:'',blankrows:true});
+  const garder=txt.map((l,i)=>l.some(x=>String(x).trim()!=='')?i:-1).filter(i=>i>=0);
+  const m=garder.map(i=>brut[i]), mt=garder.map(i=>txt[i]);
   if(m.length<2){ document.getElementById('idnZone').innerHTML='<div class="text-red-600">❌ Fichier vide : il faut une ligne de titres et au moins une ligne de données.</div>'; return; }
-  I.feuille=nom; I.noms=m[0].map(x=>String(x).trim()); I.lignes=m.slice(1,20001);
+  I.feuille=nom; I.noms=mt[0].map(x=>String(x).trim()); I.lignes=m.slice(1,20001); I.textes=mt.slice(1,20001);
   const T=IDN_TYPES[I.type], map={};
   I.noms.forEach((n,i)=>{ const nn=idnNorm(n); const c=T.champs.find(c=>!Object.values(map).includes(c[0])&&(idnNorm(c[1].replace(' *',''))===nn||idnNorm(c[0])===nn||(c[2]||[]).some(a=>idnNorm(a)===nn))); if(c) map[i]=c[0]; });
   I.map=map; idnAnalyser();
@@ -15127,14 +15131,14 @@ function idnFamille(v,domaine){
 async function idnExistants(T){
   const idx=new Map(); let from=0;
   for(;;){ const {data,error}=await sb.from(T.table).select(T.cols).range(from,from+999); if(error) throw error;
-    (data||[]).forEach(r=>T.cles(T.table==='projets'?{code:r.code,libelle:r.libelle}:r).forEach(k=>{ if(!idx.has(k)) idx.set(k,r.id); }));
+    (data||[]).forEach(r=>T.cles(T.table==='projets'?{code:r.code,libelle:r.libelle}:r).forEach(k=>{ if(!idx.has(k)) idx.set(k,r[T.pk||'id']); }));
     if(!data||data.length<1000) break; from+=1000; }
   return idx;
 }
 async function idnClientsIndex(){
   const idx=new Map(); let from=0;
-  for(;;){ const {data,error}=await sb.from('clients').select('id,code,nom,prenoms').range(from,from+999); if(error) throw error;
-    (data||[]).forEach(c=>{ [c.code,(c.nom+' '+(c.prenoms||'')),c.nom].forEach(k=>{ const n=idnNorm(k); if(n&&!idx.has(n)) idx.set(n,c.id); }); });
+  for(;;){ const {data,error}=await sb.from('clients').select('id,code,nom,prenoms,telephone').range(from,from+999); if(error) throw error;
+    (data||[]).forEach(c=>{ [c.code,(c.nom+' '+(c.prenoms||'')),c.nom].forEach(k=>{ const n=idnNorm(k); if(n&&!idx.has(n)) idx.set(n,c.id); }); const t=idnTel(c.telephone); if(t.length>=6&&!idx.has('t:'+t)) idx.set('t:'+t,c.id); });
     if(!data||data.length<1000) break; from+=1000; }
   return idx;
 }
@@ -15142,12 +15146,14 @@ async function idnAnalyser(){
   const I=window._idn, T=IDN_TYPES[I.type], zone=document.getElementById('idnZone');
   zone.innerHTML='<div class="text-gray-400">Analyse en cours…</div>';
   try{
+    if(I.type==='comptes') await comptaChargerReferentiel(true);
     const exist=await idnExistants(T), clients=I.type==='projets'?await idnClientsIndex():null, etapes=IDN_ETAPES();
-    const vus=new Set(), res=[], nouveauxClients=new Set();
+    const vus=new Set(), res=[], nouveauxClients=new Map();
     I.lignes.forEach((l,i)=>{
       const rec={}, err=[], av=[];
       Object.entries(I.map).forEach(([ci,k])=>{
-        const c=T.champs.find(x=>x[0]===k), o=c[3]||{}, v=l[ci];
+        const c=T.champs.find(x=>x[0]===k), o=c[3]||{}; let v=(o.date||o.num)?l[ci]:(I.textes?.[i]?.[ci]??l[ci]);
+        if(/telephone$/.test(k)&&/^\d{9}$/.test(String(v).trim())) v='0'+String(v).trim();   // 0 initial perdu par Excel (numéros à 10 chiffres)
         if(v===''||v==null) return;
         if(o.date){ const d=idnDate(v); if(d===undefined) err.push(`${c[1].replace(' *','')} : date invalide « ${v} »`); else rec[k]=d; }
         else if(o.num){ const n=idnNombre(v); if(n===undefined) err.push(`${c[1].replace(' *','')} : nombre invalide « ${v} »`); else rec[k]=n; }
@@ -15156,7 +15162,17 @@ async function idnAnalyser(){
       T.champs.filter(c=>c[3]?.req).forEach(c=>{ if(!rec[c[0]]) err.push(`${c[1].replace(' *','')} manquant`); });
       if(I.type==='projets'){
         const e=idnEnum(rec.etape,etapes,'en_attente'); if(e===undefined) err.push(`Étape inconnue « ${rec.etape} »`); else rec.etape=e;
-        if(rec.client){ const id=clients.get(idnNorm(rec.client)); if(id) rec.client_id=id; else if(I.autoClient) nouveauxClients.add(rec.client); else err.push(`Client introuvable « ${rec.client} »`); }
+        if(rec.client){ const t=idnTel(rec.client_telephone); const id=(t.length>=6&&clients.get('t:'+t))||clients.get(idnNorm(rec.client));
+          if(id) rec.client_id=id; else if(I.autoClient){ const k=idnNorm(rec.client); if(!nouveauxClients.has(k)) nouveauxClients.set(k,{nom:rec.client,telephone:rec.client_telephone||null}); } else err.push(`Client introuvable « ${rec.client} »`); }
+      }
+      if(I.type==='comptes'){
+        rec.code=String(rec.code||'').replace(/\s+/g,'');
+        const cl=rec.classe!=null?Math.trunc(rec.classe):(+rec.code[0]||0);
+        if(!(cl>=1&&cl<=9)) err.push('Classe introuvable (1 à 9) : précisez la colonne Classe'); else rec.classe=cl;
+        const na=idnEnum(rec.nature,{actif:'actif',passif:'passif',charge:'charge',charges:'charge',produit:'produit',produits:'produit',autre:'autre'},null);
+        if(na===undefined) err.push(`Nature inconnue « ${rec.nature} » (actif, passif, charge, produit, autre)`);
+        else if(rec.code) rec.nature=na||natureParDefaut(rec.code);
+        rec.actif=true;
       }
       if(I.type==='prospects'){ const s=idnEnum(rec.statut,IDN_STATUTS_PROSPECT,'nouveau'); if(s===undefined) err.push(`Statut inconnu « ${rec.statut} »`); else rec.statut=s; }
       if(I.type==='produits'){ const u=idnUnite(rec.unite,'produit'); if(u===undefined) err.push(`Unité invalide « ${rec.unite} » (m2, ml, unite)`); else rec.unite=u; const f=idnFamille(rec.famille,'produit'); rec.famille=f.val; if(f.avert) av.push(f.avert); }
@@ -15173,7 +15189,7 @@ async function idnAnalyser(){
         if(dedans) statut='doublon_fichier'; else if(k){ statut='doublon'; cible=exist.get(k); } }
       res.push({n:i+2,rec,err,av,statut,cible});
     });
-    I.analyse={res,nouveauxClients:[...nouveauxClients]}; idnAfficher();
+    I.analyse={res,nouveauxClients:[...nouveauxClients.values()].map(c=>c.nom),clientsInfos:nouveauxClients}; idnAfficher();
   }catch(err){ zone.innerHTML=`<div class="text-red-600">❌ ${escapeHtml(err.message||err)}</div>`; }
 }
 const IDN_BADGE={nouveau:['Nouveau','#059669'],doublon:['Existe déjà','#d97706'],doublon_fichier:['Doublon fichier','#d97706'],erreur:['Erreur','#dc2626']};
@@ -15189,7 +15205,7 @@ function idnAfficher(){
   zone.innerHTML=`${feuilles}
     <h3 class="font-semibold mb-1">1. Rapprochement des colonnes</h3>
     <div class="overflow-x-auto mb-3"><table><thead><tr><th>Colonne du fichier</th><th>Exemple</th><th>Champ de l'application</th></tr></thead><tbody>
-    ${I.noms.map((n,i)=>`<tr><td>${escapeHtml(n||'(sans titre)')}</td><td class="text-xs text-gray-500">${escapeHtml(String(I.lignes[0]?.[i]??'').slice(0,40))}</td>
+    ${I.noms.map((n,i)=>`<tr><td>${escapeHtml(n||'(sans titre)')}</td><td class="text-xs text-gray-500">${escapeHtml(String((I.textes||I.lignes)[0]?.[i]??'').slice(0,40))}</td>
       <td><select onchange="idnMapper(${i},this.value)"><option value="">— ignorer —</option>${T.champs.map(c=>`<option value="${c[0]}" ${I.map[i]===c[0]?'selected':''}>${escapeHtml(c[1])}</option>`).join('')}</select></td></tr>`).join('')}
     </tbody></table></div>
     ${T.champs.filter(c=>c[3]?.req&&!champsActifs.includes(c[0])).map(c=>`<div class="text-red-600 text-xs mb-1">⚠️ Aucune colonne associée au champ obligatoire « ${escapeHtml(c[1].replace(' *',''))} ».</div>`).join('')}
@@ -15248,7 +15264,7 @@ function idnExporterVerification(){
 function idnMapper(ci,k){ const I=window._idn; Object.keys(I.map).forEach(c=>{ if(k&&I.map[c]===k) delete I.map[c]; }); if(k) I.map[ci]=k; else delete I.map[ci]; idnAnalyser(); }
 function idnExporterErreurs(){
   const I=window._idn, rows=I.analyse.res.filter(r=>r.statut==='erreur');
-  idnTelecharger('lignes-en-erreur.csv',[idnCsv(['Ligne',...I.noms,'Erreurs']),...rows.map(r=>idnCsv([r.n,...I.lignes[r.n-2].map(x=>x instanceof Date?idnDate(x):x),r.err.join(' ; ')]))].join('\r\n'));
+  idnTelecharger('lignes-en-erreur.csv',[idnCsv(['Ligne',...I.noms,'Erreurs']),...rows.map(r=>idnCsv([r.n,...(I.textes||I.lignes)[r.n-2],r.err.join(' ; ')]))].join('\r\n'));
 }
 /* ---------- Import ---------- */
 async function idnImporter(){
@@ -15261,27 +15277,27 @@ async function idnImporter(){
   const log=m=>{ res.className='text-sm mt-3 text-gray-500'; res.textContent=m; }, erreurs=[];
   let nOk=0, nMaj=0, nStock=0;
   try{
-    const clientsACreer=I.type==='projets'?[...new Set([...ajouts,...majs].filter(r=>!r.rec.client_id&&r.rec.client).map(r=>r.rec.client))]:[];
+    const clientsACreer=I.type==='projets'?[...new Set([...ajouts,...majs].filter(r=>!r.rec.client_id&&r.rec.client).map(r=>idnNorm(r.rec.client)))].map(k=>A.clientsInfos.get(k)).filter(Boolean):[];
     if(clientsACreer.length){
       log('Création des clients…');
-      const {data,error}=await sb.from('clients').insert(clientsACreer.map(nom=>({nom,created_by:CURRENT_USER.id}))).select('id,nom');
+      const {data,error}=await sb.from('clients').insert(clientsACreer.map(c=>({nom:c.nom,...(c.telephone?{telephone:c.telephone}:{}),created_by:CURRENT_USER.id}))).select('id,nom');
       if(error) throw new Error('Création des clients : '+error.message);
       const par=new Map((data||[]).map(c=>[idnNorm(c.nom),c.id]));
       [...ajouts,...majs].forEach(r=>{ if(!r.rec.client_id) r.rec.client_id=par.get(idnNorm(r.rec.client)); });
     }
-    const prepare=r=>{ const o={...r.rec}; delete o.client; delete o.stock; return o; };
+    const prepare=r=>{ const o={...r.rec}; delete o.client; delete o.client_telephone; delete o.stock; return o; };
     for(let i=0;i<ajouts.length;i+=200){
       const lot=ajouts.slice(i,i+200); log(`Import… ${Math.min(i+200,ajouts.length)} / ${ajouts.length}`);
       const lignes=lot.map(r=>({...prepare(r),...(T.creePar?{created_by:CURRENT_USER.id}:{})}));
-      let {data,error}=await sb.from(T.table).insert(lignes).select('id');
-      if(!error){ nOk+=lot.length; lot.forEach((r,j)=>{ r.id=data?.[j]?.id; }); }
+      let {data,error}=await sb.from(T.table).insert(lignes).select(T.pk||'id');
+      if(!error){ nOk+=lot.length; lot.forEach((r,j)=>{ r.id=data?.[j]?.[T.pk||'id']; }); }
       else for(let j=0;j<lot.length;j++){   // lot refusé : ligne par ligne pour isoler les erreurs
-        const {data:d1,error:e1}=await sb.from(T.table).insert(lignes[j]).select('id').single();
-        if(e1) erreurs.push(`Ligne ${lot[j].n} : ${e1.message}`); else { nOk++; lot[j].id=d1.id; } }
+        const {data:d1,error:e1}=await sb.from(T.table).insert(lignes[j]).select(T.pk||'id').single();
+        if(e1) erreurs.push(`Ligne ${lot[j].n} : ${e1.message}`); else { nOk++; lot[j].id=d1[T.pk||'id']; } }
     }
     for(let i=0;i<majs.length;i++){
       if(i%20===0) log(`Mise à jour… ${i} / ${majs.length}`);
-      const {error}=await sb.from(T.table).update(prepare(majs[i])).eq('id',majs[i].cible);
+      const {error}=await sb.from(T.table).update(prepare(majs[i])).eq(T.pk||'id',majs[i].cible);
       if(error) erreurs.push(`Ligne ${majs[i].n} : ${error.message}`); else nMaj++;
     }
     if(I.type==='composants'){
@@ -15294,6 +15310,7 @@ async function idnImporter(){
       }
     }
     window._chantiersRef=null; window._stockComposantsCache=null; window._projetsCache=null;
+    if(I.type==='comptes') await comptaChargerReferentiel(true).catch(()=>{});
     res.className='text-sm mt-3 '+(erreurs.length?'text-amber-700':'text-emerald-600');
     res.innerHTML=`${erreurs.length?'⚠️':'✅'} ${nOk} ligne(s) importée(s)${nMaj?`, ${nMaj} mise(s) à jour`:''}${nStock?`, ${nStock} stock(s) de départ enregistré(s)`:''}.${erreurs.length?`<div class="text-xs text-red-600 mt-2">${erreurs.slice(0,15).map(escapeHtml).join('<br>')}${erreurs.length>15?'<br>…':''}</div>`:''}`;
   }catch(err){ res.className='text-sm mt-3 text-red-600'; res.textContent='❌ '+(err.message||err)+(nOk?` (${nOk} ligne(s) déjà importée(s))`:''); }
