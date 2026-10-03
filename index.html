@@ -924,18 +924,19 @@ document.getElementById('loginForm').addEventListener('submit', async (e)=>{
 });
 async function handleLogout(auto){
   const n=HL.enAttente();
-  if(!auto && (n||HL.horsLigne()) && !confirm((n?`${n} opération(s) saisie(s) hors ligne ne sont pas encore envoyées au serveur : elles restent sur cet appareil et partiront à la prochaine connexion.\n`:'')+(HL.horsLigne()?"Vous êtes hors ligne : impossible de vous reconnecter avant le retour du réseau.\n":'')+'Se déconnecter quand même ?')) return;
+  if(!auto && (n||(HL.horsLigne()&&!hlComptes()[CURRENT_USER?.id])) && !confirm((n?`${n} opération(s) saisie(s) hors ligne ne sont pas encore envoyées au serveur : elles restent sur cet appareil et partiront à la prochaine connexion.\n`:'')+(HL.horsLigne()&&!hlComptes()[CURRENT_USER?.id]?"Vous êtes hors ligne : impossible de vous reconnecter avant le retour du réseau.\n":'')+'Se déconnecter quand même ?')) return;
   clearInterval(window._session?.minuteur); document.getElementById('hlVerrou')?.remove(); window._rbac.loaded=false; window._rbac.monProfil=null; window._REF={familles:null,unites:null}; window._affect.charge=false; window.APP_PARAMS=null; document.getElementById('modalMdp')?.remove();
-  if(HL.horsLigne()){ await sb.auth.signOut({scope:'local'}).catch(()=>{}); try{ localStorage.removeItem(sb.auth.storageKey); }catch(e){} }
-  else await sb.auth.signOut().catch(()=>{});
-  HL.viderLectures(); CURRENT_USER=null; document.getElementById('appScreen').classList.add('hidden'); document.getElementById('authScreen').classList.remove('hidden'); preparerEcranConnexion(); }
+  // Déconnexion de CET appareil seulement : la session du serveur reste valable pour la reconnexion hors ligne ;
+  // les données gardées sur l'appareil (rangées par utilisateur) sont conservées pour travailler sans internet.
+  await sb.auth.signOut({scope:'local'}).catch(()=>{}); try{ localStorage.removeItem(sb.auth.storageKey); }catch(e){}
+  CURRENT_USER=null; document.getElementById('appScreen').classList.add('hidden'); document.getElementById('authScreen').classList.remove('hidden'); preparerEcranConnexion(); }
 async function enterApp(){
   let {data:{user},error:eUser}=await sb.auth.getUser();
   if(!user && (HL.horsLigne()||!(eUser?.status>=400&&eUser?.status<500))) user=(await sb.auth.getSession()).data.session?.user||null;   // hors ligne : utilisateur de la session gardée sur l'appareil
   if(!user) return;
   CURRENT_USER=user;
   const {data:profile}=await sb.from('profiles').select('*').eq('id',user.id).maybeSingle();
-  if(profile && profile.actif===false){ await handleLogout(true); showAuthMsg('⛔ Ce compte est désactivé. Contactez un administrateur.',true); return; }
+  if(profile && profile.actif===false){ hlOublierCompte(user.id); await handleLogout(true); showAuthMsg('⛔ Ce compte est désactivé. Contactez un administrateur.',true); return; }
   if(profile && profile.must_change){
     // Mot de passe provisoire : aucun accès aux données (bloqué aussi dans la base) tant qu'il n'est pas changé
     document.getElementById('authScreen').classList.remove('hidden');
@@ -943,6 +944,7 @@ async function enterApp(){
     return;
   }
   window._affect.charge=false; chargerAffectations();
+  document.getElementById('authMsg')?.classList.add('hidden');
   const displayName=profile?.nom_complet||user.email;
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('appScreen').classList.remove('hidden');
@@ -14117,15 +14119,50 @@ async function appelFonctionServeur(nom,corps,avecSession){
 }
 
 /* ---------- Écran de connexion ---------- */
+/* ---------- Comptes de l'appareil : connexion sans internet ----------
+   À chaque connexion EN LIGNE, le compte est mémorisé sur l'appareil : identifiants saisis, empreinte PBKDF2 du mot de
+   passe (jamais le mot de passe) et copie de la session, tenue à jour à chaque renouvellement du jeton. Hors ligne, ce
+   compte peut se reconnecter avec son mot de passe : la session est restaurée localement (même niveau de protection que
+   la session ouverte, déjà gardée sur l'appareil) et renouvelée auprès du serveur au retour du réseau. */
+const HL_COMPTES='aluexpert_hl_comptes';
+function hlComptes(){ try{ return JSON.parse(localStorage.getItem(HL_COMPTES)||'{}')||{}; }catch(e){ return {}; } }
+function hlComptesEcrire(m){ try{ localStorage.setItem(HL_COMPTES,JSON.stringify(m)); }catch(e){} }
+async function hlMemoriserCompte(identifiant,mdp){
+  try{
+    const session=(await sb.auth.getSession()).data.session; if(!session?.user?.id||!crypto.subtle) return;
+    const uid=session.user.id, m=hlComptes(), sel=HL.uuid();
+    const ids=[...new Set([identifiant,session.user.email,...(m[uid]?.ids||[])].filter(Boolean).map(x=>String(x).trim().toLowerCase()))];
+    m[uid]={ids,sel,h:await empreinteMdp(mdp,sel),session,nom:m[uid]?.nom||identifiant,t:Date.now()};
+    hlComptesEcrire(m);
+  }catch(e){}
+}
+function hlOublierCompte(uid){ const m=hlComptes(); if(m[uid]){ delete m[uid]; hlComptesEcrire(m); } }
+async function connecterHorsLigne(identifiant,motDePasse){
+  const id=String(identifiant||'').trim().toLowerCase(), m=hlComptes();
+  const uid=Object.keys(m).find(k=>(m[k].ids||[]).includes(id));
+  if(!uid) throw new Error("📴 Pas de connexion internet. Ce compte ne s'est encore jamais connecté sur cet appareil : la toute première connexion nécessite internet (quelques minutes de partage de connexion d'un téléphone suffisent).");
+  const c=m[uid];
+  if(await empreinteMdp(motDePasse,c.sel)!==c.h) throw new Error('Mot de passe incorrect.');
+  localStorage.setItem(sb.auth.storageKey,JSON.stringify(c.session));
+  localStorage.setItem('aluexpert_verrou',JSON.stringify({uid,sel:c.sel,h:c.h}));
+  const {data}=await sb.auth.getSession();
+  if(!data?.session) throw new Error("Session de cet appareil illisible : reconnectez-vous une fois avec internet.");
+}
+sb.auth.onAuthStateChange((evt,session)=>{   // copie de session tenue à jour (jeton renouvelé)
+  if(!session?.user?.id) return;
+  const m=hlComptes(), c=m[session.user.id]; if(!c) return;
+  if(c.session?.refresh_token===session.refresh_token&&c.session?.access_token===session.access_token) return;
+  c.session=session; c.t=Date.now(); hlComptesEcrire(m);
+});
 async function connecterUtilisateur(identifiant,motDePasse){
-  if(HL.horsLigne()) throw new Error("📴 Pas de connexion internet : se connecter nécessite le réseau. Une session déjà ouverte sur cet appareil reste utilisable hors ligne.");
+  if(HL.horsLigne()) return connecterHorsLigne(identifiant,motDePasse);
   const r=await appelFonctionServeur('connexion',{identifiant,mot_de_passe:motDePasse},false);
   if(r.indisponible){
     // Secours si la fonction « connexion » n'est pas (encore) déployée : connexion directe par e-mail
     if(!identifiant.includes('@')) throw new Error("Service de connexion indisponible. Réessayez, ou connectez-vous avec votre e-mail.");
     const {error}=await sb.auth.signInWithPassword({email:identifiant,password:motDePasse});
     if(error) throw new Error('Identifiant ou mot de passe incorrect.');
-    await enregistrerVerrouLocal(motDePasse);
+    await enregistrerVerrouLocal(motDePasse); await hlMemoriserCompte(identifiant,motDePasse);
     return;
   }
   if(!r.ok){
@@ -14134,7 +14171,7 @@ async function connecterUtilisateur(identifiant,motDePasse){
   }
   const {error}=await sb.auth.setSession(r.session);
   if(error) throw error;
-  await enregistrerVerrouLocal(motDePasse);
+  await enregistrerVerrouLocal(motDePasse); await hlMemoriserCompte(identifiant,motDePasse);
 }
 /* Déverrouillage hors ligne : empreinte PBKDF2 du mot de passe gardée sur l'appareil (jamais le mot de passe),
    pour rouvrir une session verrouillée par inactivité quand le serveur est injoignable. */
@@ -14150,7 +14187,10 @@ async function enregistrerVerrouLocal(mdp){
     localStorage.setItem('aluexpert_verrou',JSON.stringify({uid,sel,h:await empreinteMdp(mdp,sel)}));
   }catch(e){}
 }
-function verrouLocal(){ try{ const v=JSON.parse(localStorage.getItem('aluexpert_verrou')||'null'); return v&&v.uid===CURRENT_USER?.id?v:null; }catch(e){ return null; } }
+function verrouLocal(){
+  try{ const v=JSON.parse(localStorage.getItem('aluexpert_verrou')||'null'); if(v&&v.uid===CURRENT_USER?.id) return v; }catch(e){}
+  const c=hlComptes()[CURRENT_USER?.id]; return c?{uid:CURRENT_USER.id,sel:c.sel,h:c.h}:null;
+}
 function verrouillerHorsLigne(){
   if(document.getElementById('hlVerrou')) return;
   const d=document.createElement('div'); d.id='hlVerrou'; d.className='modal-overlay'; d.style.zIndex='9998'; d.style.background='rgba(17,26,46,.92)';
@@ -14169,6 +14209,10 @@ async function deverrouillerHorsLigne(){
   document.getElementById('hlVerrou')?.remove(); window._session.derniereActivite=Date.now();
 }
 async function preparerEcranConnexion(){
+  if(HL.horsLigne()){
+    const n=Object.keys(hlComptes()).length;
+    showAuthMsg(n?`📴 Hors ligne : connexion possible avec un compte déjà utilisé sur cet appareil (${n} compte${n>1?'s':''}). Vos saisies seront envoyées au retour d'internet.`:"📴 Hors ligne : aucun compte n'a encore été utilisé sur cet appareil. La première connexion nécessite internet.",!n);
+  }
   // « Créer le compte administrateur » n'apparaît que sur une installation vierge (comme Menko : comptes créés par l'admin)
   const btn=document.getElementById('toggleSignup'); if(!btn) return;
   const {data,error}=await sb.rpc('installation_vierge');
@@ -14219,7 +14263,7 @@ function demarrerSurveillanceSession(){
     if(!CURRENT_USER || document.getElementById('hlVerrou')) return;
     const min=+(window.APP_PARAMS?.session_inactivite_min??30);
     if(min>0 && Date.now()-s.derniereActivite>min*60000){
-      if(HL.horsLigne() && verrouLocal()){ verrouillerHorsLigne(); return; }   // hors ligne : verrouiller plutôt que déconnecter (reconnexion impossible sans réseau)
+      if(HL.horsLigne()){ if(verrouLocal()) verrouillerHorsLigne(); else s.derniereActivite=Date.now(); return; }   // hors ligne : verrouiller, jamais déconnecter
       clearInterval(s.minuteur); await handleLogout(true);
       showAuthMsg(`🔒 Déconnecté après ${min} minutes d'inactivité.`,false); return;
     }
@@ -14231,7 +14275,7 @@ function demarrerSurveillanceSession(){
     if(!user){ clearInterval(s.minuteur); await handleLogout(true); showAuthMsg('Session terminée.',false); return; }
     let exempt=''; try{ exempt=localStorage.getItem('aluexpert_deco_exempt')||''; }catch(e){}
     if(force && exempt!==force && user.last_sign_in_at && new Date(user.last_sign_in_at)<new Date(force)){
-      clearInterval(s.minuteur); await handleLogout(true); showAuthMsg('🔒 Session terminée à distance par un administrateur. Reconnectez-vous.',false);
+      hlOublierCompte(CURRENT_USER?.id); clearInterval(s.minuteur); await handleLogout(true); showAuthMsg('🔒 Session terminée à distance par un administrateur. Reconnectez-vous.',false);
     }
   },30000);
 }
