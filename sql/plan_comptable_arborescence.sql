@@ -7,8 +7,8 @@
 --      imputables, comptes auxiliaires clients / fournisseurs.
 --   2. Comptes auxiliaires tiers : un sous-compte par client (sous le compte « Clients »
 --      des réglages, ex. 4111) et par fournisseur (ex. 4011), créé à la demande ;
---      numérotation au choix (n° d'ordre, code du tiers, catégorie) ; libellé suivi au
---      renommage du tiers.
+--      numérotation au choix (n° d'ordre, code du tiers, catégorie) ; compte créé
+--      automatiquement dès la création du tiers ; libellé suivi au renommage du tiers.
 --   3. Changement de code d'un compte (et de tous ses sous-comptes) avec report de
 --      toutes les références : écritures, caisses, ventilations, demandes de caisse,
 --      comptes par défaut, comptes auxiliaires.
@@ -176,6 +176,33 @@ begin
   else update fournisseurs set compte_code = v_code where id = p_id; end if;
   return v_code;
 end $$;
+
+-- Création AUTOMATIQUE du compte auxiliaire dès la création du tiers (fiche, import, vente au comptoir, création
+-- rapide…), si les comptes auxiliaires sont activés pour ce type de tiers. Un échec (compte collectif absent du plan…)
+-- n'empêche jamais l'enregistrement du tiers : son compte sera alors créé à sa première écriture comptable.
+create or replace function public.compta_tiers_compte_auto() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare v_type text := case tg_table_name when 'clients' then 'client' else 'fournisseur' end; v_actif boolean;
+begin
+  if new.compte_code is not null then return new; end if;
+  select coalesce((plan_comptable->>(case v_type when 'client' then 'aux_clients' else 'aux_fournisseurs' end))::boolean, false)
+    into v_actif from parametres limit 1;
+  if coalesce(v_actif, false) then
+    begin
+      perform public.compta_compte_tiers(v_type, new.id);
+    exception when others then
+      raise warning 'Compte auxiliaire non créé pour le % % : %', v_type, new.id, sqlerrm;
+    end;
+  end if;
+  return new;
+end $$;
+revoke execute on function public.compta_tiers_compte_auto() from public, anon, authenticated;
+drop trigger if exists trg_clients_compte_auto on public.clients;
+create trigger trg_clients_compte_auto after insert on public.clients
+  for each row execute function public.compta_tiers_compte_auto();
+drop trigger if exists trg_fournisseurs_compte_auto on public.fournisseurs;
+create trigger trg_fournisseurs_compte_auto after insert on public.fournisseurs
+  for each row execute function public.compta_tiers_compte_auto();
 
 -- Libellé du compte auxiliaire mis à jour quand le tiers est renommé (sauf libellé personnalisé)
 create or replace function public.compta_client_libelle_sync() returns trigger

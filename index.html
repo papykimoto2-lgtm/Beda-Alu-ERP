@@ -10551,7 +10551,7 @@ async function pcOuvrirStructure(){
     </div>
     <div class="rounded-xl border p-3 mb-4">
       <div class="font-semibold mb-1">👥 Comptes auxiliaires tiers</div>
-      <p class="text-xs text-gray-500 mb-2">Un sous-compte par client et par fournisseur, créé automatiquement (au premier enregistrement comptable du tiers, ou tout de suite pour les tiers existants). Les factures, encaissements et achats sont alors imputés sur le compte du tiers ; le compte collectif devient un regroupement.</p>
+      <p class="text-xs text-gray-500 mb-2">Un sous-compte par client et par fournisseur, <b>créé automatiquement dès la création du tiers</b> (fiche, import, vente au comptoir…) ; les tiers existants reçoivent le leur à l’enregistrement ci-dessous. Les factures, encaissements et achats sont alors imputés sur le compte du tiers ; le compte collectif devient un regroupement.</p>
       <label class="flex items-center gap-2 text-sm mb-1" style="font-weight:500;color:#111827"><input type="checkbox" id="pcAuxCli" ${o.auxClients?'checked':''} style="width:auto;flex:none;margin:0"> <span>Clients — sous le compte ${coll('clients')}</span></label>
       <label class="flex items-center gap-2 text-sm mb-2" style="font-weight:500;color:#111827"><input type="checkbox" id="pcAuxFou" ${o.auxFournisseurs?'checked':''} style="width:auto;flex:none;margin:0"> <span>Fournisseurs — sous le compte ${coll('fournisseurs')}</span></label>
       <div class="field mb-2"><label>Numérotation des comptes tiers</label><select id="pcFormatAux" ${nbCli+nbFou?'disabled':''}>
@@ -10700,7 +10700,7 @@ async function tiersCompteFiche(type,id){
       <button type="button" class="btn btn-outline" onclick="tiersExtraitModal('${type}','${id}')">📄 Extrait de compte</button></div>
     <div class="grid sm:grid-cols-3 gap-3 mb-3">
       <div class="card p-3"><div class="text-xs text-gray-400">Compte</div>${t.compte_code?`<div class="font-bold">${escapeHtml(t.compte_code)}</div><div class="text-xs text-gray-500">${escapeHtml(cpt?.libelle||'⚠ absent du plan ou désactivé')}</div>`
-        :aux?`<div class="text-sm">Pas encore de compte auxiliaire</div><div class="text-xs text-gray-500">créé à la première écriture, ou ci-dessous</div>`
+        :aux?`<div class="text-sm">Pas encore de compte auxiliaire</div><div class="text-xs text-gray-500">créé automatiquement à la première écriture, ou ci-dessous</div>`
         :`<div class="font-bold">${escapeHtml(coll||'—')}</div><div class="text-xs text-gray-500">compte collectif (comptes auxiliaires non activés)</div>`}</div>
       <div class="card p-3"><div class="text-xs text-gray-400">Solde ${annee}</div><div class="font-bold ${Math.abs(solde)<0.5?'':type==='client'?(solde>0?'text-rose-700':'text-emerald-700'):(solde<0?'text-rose-700':'text-emerald-700')}">${errL?'—':escapeHtml(tiersSoldeTexte(type,solde))}</div></div>
       <div class="card p-3"><div class="text-xs text-gray-400">Mouvements ${annee}</div><div class="font-bold">${errL?'—':lignes.length}</div><div class="text-xs text-gray-500">écritures validées</div></div>
