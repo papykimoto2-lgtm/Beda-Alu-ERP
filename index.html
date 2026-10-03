@@ -861,6 +861,7 @@ function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;'
 function fmtDate(d){ return d ? new Date(d).toLocaleDateString('fr-FR') : '—'; }
 function uid(){ return 'id_'+Date.now()+'_'+Math.random().toString(36).slice(2,8); }
 function toast(msg, kind){
+  if(/row-level security|permission denied for (table|function)/i.test(String(msg||''))) msg='🔒 Votre rôle ne permet pas cette opération. Demandez le droit à un administrateur (Paramètres → Utilisateurs & Rôles).';
   const el=document.createElement('div');
   el.className='fixed bottom-5 right-5 z-[100] px-4 py-3 rounded-lg text-sm font-semibold shadow-lg '+(kind==='error'?'bg-red-600 text-white':'bg-gray-900 text-white');
   el.textContent=msg;
@@ -14404,6 +14405,12 @@ async function rbacRenderSecuriteTab(host){
           <button class="btn text-xs" style="background:#dc2626;color:#fff" onclick="forcerDeconnexionGenerale()">🔒 Déconnecter tous les autres postes</button>
           ${p.deconnexion_forcee_le?`<div class="text-xs text-gray-400 mt-1">Dernière fois : ${new Date(p.deconnexion_forcee_le).toLocaleString('fr-FR')}</div>`:''}
         </div>
+        ${'droits_en_base' in p?`<div class="border-t mt-4 pt-3">
+          <h3 class="font-bold text-sm mb-1">🛡️ Contrôle des droits en base</h3>
+          <div class="text-xs text-gray-500 mb-2">Les droits de chaque rôle (créer, modifier, supprimer par module) sont vérifiés par le serveur à chaque enregistrement, même en dehors de l’application. <b>À laisser actif.</b> Ne le désactivez qu’en secours, si un rôle légitime se retrouve bloqué : le contrôle repose alors sur l’interface seule, le temps d’ajuster les droits du rôle.</div>
+          <div class="flex items-center gap-3"><span class="text-sm font-semibold ${p.droits_en_base?'text-emerald-700':'text-red-600'}">${p.droits_en_base?'✅ Actif':'⚠️ Désactivé'}</span>
+            ${monRole()?.code==='admin'?`<button class="btn btn-outline text-xs" onclick="basculerDroitsEnBase(${!p.droits_en_base})">${p.droits_en_base?'Désactiver (secours)':'Réactiver'}</button>`:'<span class="text-xs text-gray-400">(administrateur seulement)</span>'}</div>
+        </div>`:''}
       </div>
       <div class="card p-4">
         <h3 class="font-bold text-sm mb-1">💻 Postes connectés récemment (8 h)</h3>
@@ -14432,6 +14439,13 @@ function filtrerJournalConnexions(){
   host.innerHTML=l.map(x=>`<tr><td class="text-xs whitespace-nowrap">${new Date(x.created_at).toLocaleString('fr-FR')}</td><td class="font-mono text-sm">${escapeHtml(x.login_saisi)}</td>
     <td>${x.succes?'<span class="text-emerald-700 text-xs font-semibold">✔ Réussie</span>':'<span class="text-red-600 text-xs font-semibold">✘ Échec</span>'}</td>
     <td class="text-xs">${escapeHtml(x.detail||'')}</td><td class="text-xs">${escapeHtml(libelleAppareil(x.user_agent))}</td><td class="text-xs font-mono">${escapeHtml(x.ip||'')}</td></tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 p-3 text-center">Aucune tentative enregistrée.</td></tr>';
+}
+async function basculerDroitsEnBase(actif){
+  if(!actif&&!confirm("Désactiver le contrôle des droits en base ?\n\nLe serveur n'empêchera plus un utilisateur d'écrire hors de ses droits (seule l'interface le fera). À n'utiliser qu'en secours, le temps de corriger les droits d'un rôle bloqué.")) return;
+  const {error}=await sb.from('parametres').update({droits_en_base:actif}).eq('id',window.APP_PARAMS.id);
+  if(error){ toast(error.message,'error'); return; }
+  await loadAppParams(); toast(actif?'🛡️ Contrôle des droits en base réactivé.':'⚠️ Contrôle des droits en base désactivé.');
+  rbacRenderTab();
 }
 async function enregistrerParamSession(){
   const v=Math.max(0,Math.min(720,parseInt(val('secInact'),10)||0));
