@@ -2341,7 +2341,9 @@ async function renderClientForm(el){
           <button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button>
         </div>
       </form>
-    </div>`;
+    </div>
+    ${c.id?`<div id="tiersCompte" class="page-card max-w-4xl mt-4"><div class="text-sm text-gray-400">Chargement du compte comptable…</div></div>`:''}`;
+  if(c.id) tiersCompteFiche('client',c.id);
   document.getElementById('clientForm').onsubmit=async (e)=>{
     e.preventDefault();
     const rec={civilite:val('clCivilite'),nom:val('clNom'),prenoms:val('clPrenoms'),entreprise:val('clEntreprise'),telephone:val('clTelephone'),email:val('clEmail'),pays:val('clPays'),commune:val('clCommune'),categorie:val('clCategorie'),adresse:val('clAdresse'),source:val('clSource'),commercial:val('clCommercial'),ncc:val('clNcc'),rccm:val('clRccm'),regime_fiscal:val('clRegimeFiscal')||null,latitude:val('clLat')?+val('clLat'):null,longitude:val('clLng')?+val('clLng'):null};
@@ -2742,7 +2744,9 @@ async function renderFournisseurForm(el){
         <div class="field"><label>Régime fiscal</label>${fieldWrap('⚖️',`<select id="foRegimeFiscal"><option value="">—</option><option value="reel_normal" ${f.regime_fiscal==='reel_normal'?'selected':''}>Réel normal (RNI)</option><option value="reel_simplifie" ${f.regime_fiscal==='reel_simplifie'?'selected':''}>Réel simplifié (RSI)</option><option value="micro" ${f.regime_fiscal==='micro'?'selected':''}>Micro-entreprise</option></select>`)}</div>
         <div class="sm:col-span-3 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
       </form>
-    </div>`;
+    </div>
+    ${f.id?`<div id="tiersCompte" class="page-card max-w-4xl mt-4"><div class="text-sm text-gray-400">Chargement du compte comptable…</div></div>`:''}`;
+  if(f.id) tiersCompteFiche('fournisseur',f.id);
   document.getElementById('fournisseurForm').onsubmit=async (e)=>{
     e.preventDefault();
     const rec={nom:val('foNom'),categorie:val('foCategorie'),contact_principal:val('foContact'),telephone:val('foTelephone'),email:val('foEmail'),pays:val('foPays'),commune:val('foCommune'),quartier:val('foQuartier'),adresse:val('foAdresse'),ncc:val('foNcc'),rccm:val('foRccm'),regime_fiscal:val('foRegimeFiscal')||null};
@@ -4168,7 +4172,7 @@ async function comptabiliserReception(br,lignes){
     const total=Object.values(parCompte).reduce((s,v)=>s+v,0); if(total<=0) return false;
     const f=achFourn(br.fournisseur_id), lib=`Achat — ${f?.nom||'fournisseur'} — ${br.code}${br.bl_fournisseur?' (BL '+br.bl_fournisseur+')':''}`;
     await comptaEcritureAuto({date_ecriture:br.date_reception,journal_code:'AC',piece:br.facture_fournisseur||br.code,libelle:lib,source_type:'reception_fournisseur',projet_id:br.projet_id||null},
-      [...Object.entries(parCompte).map(([compte,m])=>({compte_code:compte,sens:'D',montant:m,libelle:lib})),{compte_code:requireCompteDefaut('fournisseurs'),sens:'C',montant:total,libelle:lib,tiers_type:'fournisseur'}]);
+      [...Object.entries(parCompte).map(([compte,m])=>({compte_code:compte,sens:'D',montant:m,libelle:lib})),{compte_code:requireCompteDefaut('fournisseurs'),sens:'C',montant:total,libelle:lib,tiers_type:'fournisseur',tiers_id:br.fournisseur_id||null}]);
     await sb.rpc('reception_marquer_comptabilisee',{p_id:br.id});
     return true;
   }catch(e){ toast('Réception enregistrée mais achat non comptabilisé : '+(e.message||e),'error'); return false; }
@@ -8811,7 +8815,7 @@ async function imprimerPageCourante(){
     <script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body></html>`);
 }
 /* ---------- Vérification d'un document (scan du QR de sécurité, sans compte) ---------- */
-const IMP_TYPES={ETAT_VALIDATIONS:'État périodique des validations',DEVIS:'Devis',FACTURE:'Facture',FACTURE_FNE:'Facture normalisée (FNE)',RECU:'Reçu de caisse',BON_CAISSE:'Bon de caisse',BON_TRANSFERT:'Bon de transfert',FICHE_CLIENT:'Fiche client',FICHE_FOURNISSEUR:'Fiche fournisseur',FICHE_EXECUTION:"Fiche d'exécution",ESTIMATION:'Estimation financière',ETAT_PDV:'État périodique point de vente',BROUILLARD:'Brouillard de caisse',TICKET_Z:'Ticket Z',LECTURE_X:'Lecture X',ETAT_COMPTABLE:'État comptable SYSCOHADA',BULLETIN:'Bulletin de pilotage',PAGE:'Page imprimée',ETAT_INVENTAIRE:"État d'inventaire",FEUILLE_COMPTAGE:'Feuille de comptage',VALORISATION_STOCK:'Valorisation du stock',BON_COMMANDE:'Bon de commande fournisseur',BON_RECEPTION:'Bon de réception',COMMANDE_INTERNE:'Commande interne',JOURNAL_STOCK:'Journal des mouvements de stock',ETAT_CHANTIERS:'État de suivi chantier'};
+const IMP_TYPES={ETAT_VALIDATIONS:'État périodique des validations',DEVIS:'Devis',FACTURE:'Facture',FACTURE_FNE:'Facture normalisée (FNE)',RECU:'Reçu de caisse',BON_CAISSE:'Bon de caisse',BON_TRANSFERT:'Bon de transfert',FICHE_CLIENT:'Fiche client',FICHE_FOURNISSEUR:'Fiche fournisseur',FICHE_EXECUTION:"Fiche d'exécution",ESTIMATION:'Estimation financière',ETAT_PDV:'État périodique point de vente',BROUILLARD:'Brouillard de caisse',TICKET_Z:'Ticket Z',LECTURE_X:'Lecture X',ETAT_COMPTABLE:'État comptable SYSCOHADA',BULLETIN:'Bulletin de pilotage',PAGE:'Page imprimée',ETAT_INVENTAIRE:"État d'inventaire",FEUILLE_COMPTAGE:'Feuille de comptage',VALORISATION_STOCK:'Valorisation du stock',BON_COMMANDE:'Bon de commande fournisseur',BON_RECEPTION:'Bon de réception',COMMANDE_INTERNE:'Commande interne',JOURNAL_STOCK:'Journal des mouvements de stock',ETAT_CHANTIERS:'État de suivi chantier',PLAN_COMPTABLE:'Plan comptable',EXTRAIT_TIERS:'Extrait de compte tiers',BALANCE_TIERS:'Balance auxiliaire'};
 function impVerificationResultatHtml(r){
   if(!r) return `<div style="color:#b91c1c;font-weight:700">⚠ Vérification impossible (serveur injoignable). Réessayez avec une connexion Internet.</div>`;
   if(!r.trouve) return `<div style="text-align:center"><div style="font-size:44px">❌</div><div style="font-size:18px;font-weight:800;color:#b91c1c">Code inconnu</div><p style="color:#475569">Aucun document n'a été émis par le logiciel avec ce code. Le document présenté n'est pas authentique ou le code a été mal saisi.</p></div>`;
@@ -9824,7 +9828,7 @@ async function renderParametres(el){
         <div class="divider"></div>
         <p class="text-xs text-gray-500 mb-4">Comptes SYSCOHADA révisé utilisés par la comptabilisation automatique (ventes, encaissements, achats et stocks, caisse, écarts). Seuls les comptes imputables (sans sous-comptes) sont sélectionnables. Modifiables à tout moment sans casser les écritures déjà passées — elles gardent le compte qui était en vigueur au moment de leur génération.</p>
         <form id="comptaDefautForm" class="grid sm:grid-cols-2 gap-4">
-          ${[...new Set(COMPTES_DEFAUT_CLES.map(d=>d.groupe))].map(g=>`<div class="sm:col-span-2 text-xs font-bold uppercase tracking-wide text-gray-400 mt-2">${escapeHtml(g)}</div>`+COMPTES_DEFAUT_CLES.filter(d=>d.groupe===g).map(d=>`<div class="field"><label>${escapeHtml(d.label)}</label>${fieldWrap('📘',`<select id="cd_${d.cle}"><option value="">— Par défaut : ${escapeHtml(d.fallback)} ${escapeHtml(compteByCode(d.fallback)?.libelle||'')} —</option>${compteOptionsHtml(comptesDefaut[d.cle]||'')}</select>`)}</div>`).join('')).join('')}
+          ${[...new Set(COMPTES_DEFAUT_CLES.map(d=>d.groupe))].map(g=>`<div class="sm:col-span-2 text-xs font-bold uppercase tracking-wide text-gray-400 mt-2">${escapeHtml(g)}</div>`+COMPTES_DEFAUT_CLES.filter(d=>d.groupe===g).map(d=>`<div class="field"><label>${escapeHtml(d.label)}</label>${fieldWrap('📘',`<select id="cd_${d.cle}"><option value="">— Par défaut : ${escapeHtml(d.fallback)} ${escapeHtml(compteByCode(d.fallback)?.libelle||'')} —</option>${compteOptionsHtml(comptesDefaut[d.cle]||'',pcEstCollectifAuxiliaire(d.cle)?{groupes:true}:{})}</select>`)}</div>`).join('')).join('')}
           <div class="sm:col-span-2 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
         </form>
       </div>
@@ -10023,7 +10027,27 @@ function comptesStockComposant(c){
   return {achat:requireCompteDefaut('achats'),stock:requireCompteDefaut(cle),variation:requireCompteDefaut('variation_matieres')};
 }
 /* Création d'une écriture automatique (en-tête + lignes) ; retourne l'écriture ou null */
+/* ---------- Comptes auxiliaires tiers : la ligne « Clients » / « Fournisseurs » d'une écriture automatique
+   est portée sur le sous-compte du client ou du fournisseur (créé à la demande, sql/plan_comptable_arborescence.sql) ---------- */
+function pcOptions(){ const o=window.APP_PARAMS?.plan_comptable||{}; return {longueur:+o.longueur||0,auxClients:!!o.aux_clients,auxFournisseurs:!!o.aux_fournisseurs}; }
+function pcComptesDefautEffectifs(){ return Object.fromEntries(COMPTES_DEFAUT_CLES.map(d=>[d.cle,requireCompteDefaut(d.cle)]).filter(([,v])=>v)); }
+function pcEstCollectifAuxiliaire(cle){ const o=pcOptions(); return (cle==='clients'&&o.auxClients)||(cle==='fournisseurs'&&o.auxFournisseurs); }
+async function comptaLignesAuxiliaires(lignes){
+  const o=pcOptions(); if(!o.auxClients&&!o.auxFournisseurs) return lignes;
+  const cache={}; let nouveau=false;
+  const res=await Promise.all(lignes.map(async l=>{
+    const t=l.tiers_type, cle=t==='client'?'clients':t==='fournisseur'?'fournisseurs':null;
+    if(!cle||!pcEstCollectifAuxiliaire(cle)||l.compte_code!==requireCompteDefaut(cle)) return l;
+    const k=t+':'+(l.tiers_id||'');
+    cache[k]=cache[k]||sb.rpc('compta_compte_tiers',{p_type:t,p_id:l.tiers_id||null}).then(({data,error})=>{ if(error) throw new Error('Compte auxiliaire : '+error.message); return data; });
+    const code=await cache[k]; if(!compteByCode(code)) nouveau=true;
+    return {...l,compte_code:code};
+  }));
+  if(nouveau) await comptaChargerReferentiel(true).catch(()=>{});
+  return res;
+}
 async function comptaEcritureAuto(entete,lignes){
+  lignes=await comptaLignesAuxiliaires(lignes);
   const date=entete.date_ecriture;
   if(exerciceEstClos(date)) throw new Error(`exercice ${new Date(date).getFullYear()} clôturé`);
   const annee=new Date(date).getFullYear();
@@ -10324,11 +10348,11 @@ async function comptaRenderPlanComptable(host){
   const utilises=new Set((usages||[]).map(u=>u.compte_code));
   const {data:caisses}=await sb.from('caisses').select('nom,compte_code');
   // Audit : regroupements déjà mouvementés ou utilisés par un réglage (les écritures automatiques échoueraient)
-  const defauts=COMPTES_DEFAUT_CLES.map(d=>({lib:d.label,code:requireCompteDefaut(d.cle)}));
+  const defauts=COMPTES_DEFAUT_CLES.map(d=>({cle:d.cle,lib:d.label,code:requireCompteDefaut(d.cle)}));
   const alertes=[];
   [...utilises].filter(c=>compteEstRegroupement(c)).forEach(c=>alertes.push(`Le compte <b>${escapeHtml(c)}</b> porte des écritures mais a désormais des sous-comptes : les soldes restent justes (cumul), mais les nouvelles écritures doivent viser un sous-compte.`));
   defauts.filter(d=>d.code&&!A.index[d.code]).forEach(d=>alertes.push(`Compte par défaut « ${escapeHtml(d.lib)} » : <b>${escapeHtml(d.code)}</b> absent du plan.`));
-  defauts.filter(d=>d.code&&compteEstRegroupement(d.code)).forEach(d=>alertes.push(`Compte par défaut « ${escapeHtml(d.lib)} » : <b>${escapeHtml(d.code)}</b> est un regroupement — choisissez un sous-compte (Paramètres → Comptabilité).`));
+  defauts.filter(d=>d.code&&compteEstRegroupement(d.code)&&!pcEstCollectifAuxiliaire(d.cle)).forEach(d=>alertes.push(`Compte par défaut « ${escapeHtml(d.lib)} » : <b>${escapeHtml(d.code)}</b> est un regroupement — choisissez un sous-compte (Paramètres → Comptabilité).`));
   (caisses||[]).filter(c=>compteEstRegroupement(c.compte_code)).forEach(c=>alertes.push(`Caisse « ${escapeHtml(c.nom)} » : son compte <b>${escapeHtml(c.compte_code)}</b> est un regroupement.`));
   const match=c=>(!f.classe||String(c.code[0])===f.classe)&&(!q||c.code.includes(q)||c.libelle.toLowerCase().includes(q));
   let visibles;
@@ -10361,11 +10385,14 @@ async function comptaRenderPlanComptable(host){
   host.innerHTML=`
     <div class="flex flex-wrap justify-between items-start gap-3 mb-3">
       <div><h3 class="font-bold">📒 Plan comptable SYSCOHADA révisé</h3>
-        <p class="text-xs text-gray-500 max-w-2xl">${A.tri.length} comptes actifs en arborescence : classe → compte principal (2 chiffres) → divisionnaire (3) → sous-comptes. Un compte qui a des sous-comptes est un <b>regroupement</b> : il totalise ses sous-comptes et n’est plus imputable. Un sous-compte hérite de la classe et de la nature de son parent.</p></div>
+        <p class="text-xs text-gray-500 max-w-2xl">${A.tri.length} comptes actifs en arborescence : classe → compte principal (2 chiffres) → divisionnaire (3) → sous-comptes${pcOptions().longueur?` · comptes imputables sur <b>${pcOptions().longueur} chiffres</b>`:''}${pcOptions().auxClients||pcOptions().auxFournisseurs?` · comptes auxiliaires ${[pcOptions().auxClients&&'clients',pcOptions().auxFournisseurs&&'fournisseurs'].filter(Boolean).join(' et ')}`:''}. Un compte qui a des sous-comptes est un <b>regroupement</b> : il totalise ses sous-comptes et n’est plus imputable. Un sous-compte hérite de la classe et de la nature de son parent.</p></div>
       <div class="flex flex-wrap gap-2">
         <button class="btn btn-outline btn-sm" onclick="comptaPcToutDeplier(true)">Tout déplier</button>
         <button class="btn btn-outline btn-sm" onclick="comptaPcToutDeplier(false)">Tout replier</button>
         <button class="btn btn-outline btn-sm" onclick="comptaOuvrirImportModal()">📤 Importer (CSV / Sage)</button>
+        <button class="btn btn-outline btn-sm" onclick="pcImprimer()">🖨 Imprimer</button>
+        <button class="btn btn-outline btn-sm" onclick="pcExporterExcel()">⬇ Excel</button>
+        <button class="btn btn-outline btn-sm" onclick="pcOuvrirStructure()">⚙ Structure du plan</button>
         <button class="btn btn-primary btn-sm" onclick="comptaOuvrirCompteModal('')">+ Compte</button>
       </div>
     </div>
@@ -10382,6 +10409,8 @@ function comptaPcBasculer(k){ const o=window._compta.pcOuverts; o[k]=!o[k]; comp
 function comptaPcToutDeplier(v){ const o=window._compta.pcOuverts={}; if(v){ for(let k=1;k<=9;k++) o['cl'+k]=true; pcArbre().tri.forEach(c=>{ if(compteEstRegroupement(c.code)) o[c.code]=true; }); } comptaRenderCycleView(); }
 /* Code libre suivant pour un sous-compte : parent + suffixe (4011 → 40111… ; 571 → 5711) */
 function compteProchainSousCode(parent){
+  const L=pcOptions().longueur;
+  if(L>parent.length){ for(let i=1;i<10**(L-parent.length);i++){ const c=parent+String(i).padStart(L-parent.length,'0'); if(!pcArbre().index[c]) return c; } }
   const enf=compteEnfants(parent).filter(c=>/^\d+$/.test(c));
   const lg=enf.length?Math.max(...enf.map(c=>c.length)):parent.length+1;
   for(let i=1;i<10**(lg-parent.length);i++){ const c=parent+String(i).padStart(lg-parent.length,'0'); if(!pcArbre().index[c]) return c; }
@@ -10392,9 +10421,9 @@ function comptaOuvrirCompteModal(code,parentCode){
   const init=c?c.code:(parentCode?compteProchainSousCode(parentCode):'');
   openModal(`
     <h3 class="font-bold text-lg mb-1">${c?'Modifier le compte':parentCode?'Nouveau sous-compte':'Nouveau compte'}</h3>
-    <p class="text-xs text-gray-500 mb-4">Le code détermine la place dans l’arborescence SYSCOHADA : le compte est rattaché au plus long compte existant dont il prolonge le code.</p>
+    <p class="text-xs text-gray-500 mb-4">Le code détermine la place dans l’arborescence SYSCOHADA : le compte est rattaché au plus long compte existant dont il prolonge le code.${c?' Changer le code déplace le compte (avec ses sous-comptes) dans l’arborescence ; écritures et réglages suivent.':''}${pcOptions().longueur?` Comptes imputables : <b>${pcOptions().longueur} chiffres</b>.`:''}</p>
     <div class="grid sm:grid-cols-[180px_1fr] gap-3 mb-2">
-      <div class="field"><label>Code</label>${fieldWrap('#',`<input id="cptCode" inputmode="numeric" value="${escapeHtml(init)}" ${c?'readonly':''} oninput="comptaCompteHeriter()" placeholder="ex. 60420006">`)}</div>
+      <div class="field"><label>Code</label>${fieldWrap('#',`<input id="cptCode" inputmode="numeric" value="${escapeHtml(init)}" oninput="comptaCompteHeriter(${c?'true':''})" placeholder="ex. 60420006">`)}</div>
       <div class="field"><label>Libellé</label>${fieldWrap('📝',`<input id="cptLibelle" value="${escapeHtml(c?.libelle||'')}" placeholder="Intitulé du compte">`)}</div>
     </div>
     <div id="cptParentHint" class="text-xs mb-3"></div>
@@ -10403,18 +10432,30 @@ function comptaOuvrirCompteModal(code,parentCode){
       <div class="field"><label>Nature</label>${fieldWrap('◐',`<select id="cptNature">${Object.entries(NATURE_LABELS).map(([k,l])=>`<option value="${k}" ${c?.nature===k?'selected':''}>${l}</option>`).join('')}</select>`)}</div>
     </div>
     <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="comptaSauverCompte('${c?.code||''}')">Enregistrer</button></div>`);
+  const inp=document.getElementById('cptCode'); if(inp) inp.dataset.orig=c?c.code:'';
   comptaCompteHeriter(!!c);
 }
 function comptaCompteHeriter(edition){
   const code=(document.getElementById('cptCode')?.value||'').trim(), hint=document.getElementById('cptParentHint'); if(!hint) return;
   if(!code){ hint.innerHTML=''; return; }
   if(!/^[1-9]\d*$/.test(code)){ hint.innerHTML='<span class="text-red-600">Le code doit être numérique et commencer par le chiffre de la classe (1 à 9).</span>'; return; }
-  const p=compteParentPourCode(code);
-  if(!edition){ document.getElementById('cptClasse').value=code[0]; if(p) document.getElementById('cptNature').value=p.nature; }
-  if(!p){ hint.innerHTML=`<span class="text-gray-500">Compte de premier niveau de la classe ${code[0]}.</span>`; return; }
+  const orig=document.getElementById('cptCode')?.dataset.orig||'';
+  const p=compteParentPourCode(code), recode=edition&&orig&&code!==orig;
+  document.getElementById('cptClasse').value=code[0];
+  if(!edition&&p) document.getElementById('cptNature').value=p.nature;
+  const L=pcOptions().longueur, longueurHtml=L&&code.length>L&&!compteEstRegroupement(orig||code)?`<div class="text-red-600 mt-1">Le code dépasse la longueur normalisée (${L} chiffres).</div>`:'';
+  if(recode){
+    const sous=pcArbre().tri.filter(x=>x.code!==orig&&x.code.startsWith(orig)).length;
+    const parentNouveau=pcArbre().tri.filter(x=>!x.code.startsWith(orig)&&code.startsWith(x.code)&&x.code!==code).sort((a,b)=>b.code.length-a.code.length)[0];
+    hint.innerHTML=`<div class="rounded-lg bg-amber-50 border border-amber-200 p-2 text-amber-900">🔀 Changement de code <b>${escapeHtml(orig)}</b> → <b>${escapeHtml(code)}</b>${sous?` avec ses <b>${sous}</b> sous-compte(s) (${escapeHtml(orig)}… → ${escapeHtml(code)}…)`:''}.
+      ${parentNouveau?`Nouveau parent : <b>${escapeHtml(parentNouveau.code)} — ${escapeHtml(parentNouveau.libelle)}</b>.`:`Compte de premier niveau de la classe ${code[0]}.`}
+      Écritures (exercices ouverts), caisses, ventilations et comptes par défaut sont reportés. Impossible si le compte est mouvementé dans un exercice clôturé.</div>${longueurHtml}`;
+    return;
+  }
+  if(!p){ hint.innerHTML=`<span class="text-gray-500">Compte de premier niveau de la classe ${code[0]}.</span>${longueurHtml}`; return; }
   const lib=document.getElementById('cptLibelle'); if(lib&&!lib.value) lib.placeholder=p.libelle+' — détail…';
   const devient=!edition&&!compteEstRegroupement(p.code);
-  hint.innerHTML=`<span class="text-indigo-700">↳ Sous-compte de <b>${escapeHtml(p.code)} — ${escapeHtml(p.libelle)}</b> (classe et nature héritées).</span>${devient?`<div class="text-amber-700 mt-1">⚠ ${escapeHtml(p.code)} deviendra un compte de regroupement : il ne sera plus imputable directement.${comptaCompteUsagesTexte(p.code)}</div>`:''}`;
+  hint.innerHTML=`<span class="text-indigo-700">↳ Sous-compte de <b>${escapeHtml(p.code)} — ${escapeHtml(p.libelle)}</b> (classe et nature héritées).</span>${longueurHtml}${devient?`<div class="text-amber-700 mt-1">⚠ ${escapeHtml(p.code)} deviendra un compte de regroupement : il ne sera plus imputable directement.${comptaCompteUsagesTexte(p.code)}</div>`:''}`;
 }
 function comptaCompteUsagesTexte(code){
   const u=COMPTES_DEFAUT_CLES.filter(d=>requireCompteDefaut(d.cle)===code).map(d=>d.label);
@@ -10428,7 +10469,14 @@ async function comptaSauverCompte(codeOriginal){
   if(!code||!libelle){ toast('Code et libellé requis.','error'); return; }
   if(!/^[1-9]\d*$/.test(code)){ toast('Le code doit être numérique (ex. 60420006).','error'); return; }
   if(String(classe)!==code[0]){ toast(`Un compte de classe ${classe} doit commencer par ${classe}.`,'error'); return; }
+  const L=pcOptions().longueur;
+  if(L&&code.length>L&&!compteEstRegroupement(codeOriginal||code)){ toast(`Le code dépasse la longueur normalisée (${L} chiffres).`,'error'); return; }
+  if(codeOriginal&&code!==codeOriginal){ await comptaRecoderCompte(codeOriginal,code,libelle,nature); return; }
   if(!codeOriginal && compteByCode(code)){ toast(`Le compte ${code} existe déjà.`,'error'); return; }
+  if(!codeOriginal&&L&&code.length<L&&!pcArbre().tri.some(x=>x.code!==code&&x.code.startsWith(code))){
+    const complet=code.padEnd(L,'0');
+    if(!compteByCode(complet)&&confirm(`Compléter le code à ${L} chiffres : ${complet} ?\n\nOK : créer ${complet} (compte imputable normalisé).\nAnnuler : garder ${code} (par exemple pour un futur compte de regroupement).`)){ document.getElementById('cptCode').value=complet; return comptaSauverCompte(codeOriginal); }
+  }
   if(!codeOriginal){
     const {data:inactif}=await sb.from('compta_comptes').select('code').eq('code',code).maybeSingle();
     if(inactif){ const {error}=await sb.from('compta_comptes').update({libelle,classe,nature,actif:true}).eq('code',code); if(error){ toast(error.message,'error'); return; } toast('Compte réactivé.'); closeModal(); await comptaChargerReferentiel(true); comptaRenderCycleView(); return; }
@@ -10454,6 +10502,367 @@ async function comptaSupprimerCompte(code){
   const {error}=await sb.from('compta_comptes').delete().eq('code',code);
   if(error){ toast('Suppression impossible ('+error.message+') — désactivez-le plutôt.','error'); return; }
   await comptaChargerReferentiel(true); comptaRenderCycleView();
+}
+/* ---------- Changement de code d'un compte (et de ses sous-comptes) ---------- */
+function pcErreurSql(error){ const m=error?.message||String(error); return /compta_compte_recoder|compta_plan_normaliser|compta_comptes_tiers_generer|compta_compte_tiers|plan_comptable/.test(m)&&/(find|exist|schema cache|column)/i.test(m)?"Fonction absente : exécutez d'abord sql/plan_comptable_arborescence.sql dans l'éditeur SQL Supabase.":m; }
+async function comptaRecoderCompte(ancien,nouveau,libelle,nature){
+  const sous=pcArbre().tri.filter(x=>x.code!==ancien&&x.code.startsWith(ancien)).length;
+  if(!confirm(`Changer le code ${ancien} en ${nouveau}${sous?` (et ses ${sous} sous-compte(s))`:''} ?\nLes écritures, caisses, ventilations et comptes par défaut qui l'utilisent seront reportés sur le nouveau code.`)) return;
+  const {data,error}=await sb.rpc('compta_compte_recoder',{p_ancien:ancien,p_nouveau:nouveau,p_libelle:libelle,p_defauts:pcComptesDefautEffectifs()});
+  if(error){ toast(pcErreurSql(error),'error'); return; }
+  const cpt=compteByCode(ancien); if(cpt&&nature&&nature!==cpt.nature) await sb.from('compta_comptes').update({nature}).eq('code',nouveau);
+  await loadAppParams();
+  const o=window._compta.pcOuverts; o['cl'+nouveau[0]]=true; compteLignee(nouveau).forEach(x=>o[x]=true);
+  toast(`Compte ${ancien} → ${nouveau} : ${data?.comptes||1} compte(s) recodé(s), ${data?.lignes||0} ligne(s) d'écriture reportée(s).`);
+  closeModal(); await comptaChargerReferentiel(true); comptaRenderCycleView();
+}
+/* ---------- Structure du plan : longueur normalisée et comptes auxiliaires ---------- */
+async function pcEnregistrerOptions(maj){
+  const o={...(window.APP_PARAMS?.plan_comptable||{}),...maj};
+  const {error}=await sb.from('parametres').update({plan_comptable:o}).eq('id',window.APP_PARAMS.id);
+  if(error) throw new Error(pcErreurSql(error));
+  await loadAppParams();
+}
+async function pcOuvrirStructure(){
+  const o=pcOptions(), A=pcArbre(), fmt=window.APP_PARAMS?.plan_comptable?.format_aux||'sequentiel';
+  const nb=async t=>{ const {count,error}=await sb.from(t).select('id',{count:'exact',head:true}).not('compte_code','is',null); return error?0:(count||0); };
+  const [nbCli,nbFou]=await Promise.all([nb('clients'),nb('fournisseurs')]);
+  const exemple=(f)=>{ const c=requireCompteDefaut('clients')||'4111', L=o.longueur, lg=L>c.length?L:c.length+4;
+    return f==='code_tiers'?`client C-1234 → ${c}${'1234'.padStart(lg-c.length,'0')}`:f==='categorie'?`« Particulier » → ${c}1 (Clients — Particulier) → ${c}1${'1'.padStart(Math.max(lg,c.length+4)-c.length-1,'0')}…`:`${c}${'1'.padStart(lg-c.length,'0')}, ${c}${'2'.padStart(lg-c.length,'0')}…`; };
+  const courts=L=>A.tri.filter(c=>c.code.length<L&&!compteEstRegroupement(c.code)).length;
+  const coll=cle=>{ const c=requireCompteDefaut(cle), x=compteByCode(c); return `<b>${escapeHtml(c||'—')}</b>${x?' — '+escapeHtml(x.libelle):' <span class="text-red-600">(absent du plan)</span>'}`; };
+  openModal(`
+    <h3 class="font-bold text-lg mb-1">⚙ Structure du plan comptable</h3>
+    <p class="text-xs text-gray-500 mb-4">Ces réglages s’appliquent à toute la comptabilité. Les exercices clôturés ne sont jamais modifiés.</p>
+    <div class="rounded-xl border p-3 mb-4">
+      <div class="font-semibold mb-1">📏 Longueur des comptes imputables</div>
+      <p class="text-xs text-gray-500 mb-2">Les comptes de regroupement (classes, comptes principaux, divisionnaires) gardent leur code. Les comptes imputables sont créés sur ce nombre de chiffres (ex. 8 : 60110000), et les comptes auxiliaires aussi.</p>
+      <div class="flex flex-wrap items-center gap-2 mb-2">
+        <select id="pcLongueur" style="width:auto" onchange="document.getElementById('pcNormZone').innerHTML=''">${[0,6,7,8,9,10].map(n=>`<option value="${n}" ${n===o.longueur?'selected':''}>${n?n+' chiffres':'Libre (pas de longueur imposée)'}</option>`).join('')}</select>
+        <button class="btn btn-outline text-xs" onclick="pcSauverLongueur()">Enregistrer</button>
+        <button class="btn btn-outline text-xs" onclick="pcApercuNormalisation()">🔎 Aperçu de la normalisation</button>
+      </div>
+      <div class="text-xs text-gray-500">À 8 chiffres : ${courts(8)} compte(s) imputable(s) actuellement plus court(s).</div>
+      <div id="pcNormZone" class="mt-2"></div>
+    </div>
+    <div class="rounded-xl border p-3 mb-4">
+      <div class="font-semibold mb-1">👥 Comptes auxiliaires tiers</div>
+      <p class="text-xs text-gray-500 mb-2">Un sous-compte par client et par fournisseur, créé automatiquement (au premier enregistrement comptable du tiers, ou tout de suite pour les tiers existants). Les factures, encaissements et achats sont alors imputés sur le compte du tiers ; le compte collectif devient un regroupement.</p>
+      <label class="flex items-center gap-2 text-sm mb-1" style="font-weight:500;color:#111827"><input type="checkbox" id="pcAuxCli" ${o.auxClients?'checked':''} style="width:auto;flex:none;margin:0"> <span>Clients — sous le compte ${coll('clients')}</span></label>
+      <label class="flex items-center gap-2 text-sm mb-2" style="font-weight:500;color:#111827"><input type="checkbox" id="pcAuxFou" ${o.auxFournisseurs?'checked':''} style="width:auto;flex:none;margin:0"> <span>Fournisseurs — sous le compte ${coll('fournisseurs')}</span></label>
+      <div class="field mb-2"><label>Numérotation des comptes tiers</label><select id="pcFormatAux" ${nbCli+nbFou?'disabled':''}>
+        ${[['sequentiel','N° d’ordre'],['code_tiers','Numéro du code du tiers'],['categorie','Par catégorie de tiers']].map(([k,l])=>`<option value="${k}" ${fmt===k?'selected':''}>${l} — ${escapeHtml(exemple(k))}</option>`).join('')}</select>
+        <div class="text-xs text-gray-500 mt-1">${nbCli+nbFou?`Verrouillée : ${nbCli} client(s) et ${nbFou} fournisseur(s) ont déjà un compte. Pour renuméroter un compte, modifiez son code (✎) dans le plan comptable.`:'Le compte « divers » (tiers non identifié) est le compte collectif complété de zéros. Si le code du tiers n’a pas de numéro utilisable, le n° d’ordre est employé.'}</div></div>
+      <label class="flex items-center gap-2 text-xs mb-3" style="font-weight:500;color:#374151"><input type="checkbox" id="pcAuxReclasser" checked style="width:auto;flex:none;margin:0"> <span>Reporter les écritures de l’exercice ouvert déjà passées sur le compte collectif vers le compte de chaque tiers</span></label>
+      <button class="btn btn-primary text-xs" onclick="pcSauverAuxiliaires()">Enregistrer et créer les comptes</button>
+      <div class="text-xs text-gray-500 mt-2">Le compte collectif se règle dans Paramètres → Comptabilité (comptes par défaut « Clients » et « Fournisseurs »).</div>
+    </div>
+    <div class="flex justify-end"><button class="btn btn-outline" onclick="closeModal()">Fermer</button></div>`);
+}
+async function pcSauverLongueur(){
+  try{ await pcEnregistrerOptions({longueur:+document.getElementById('pcLongueur').value||0}); toast('Longueur enregistrée.'); comptaRenderCycleView(); }
+  catch(e){ toast(e.message,'error'); }
+}
+async function pcApercuNormalisation(){
+  const L=+document.getElementById('pcLongueur').value, zone=document.getElementById('pcNormZone');
+  if(!L){ zone.innerHTML='<div class="text-xs text-gray-500">Choisissez une longueur.</div>'; return; }
+  zone.innerHTML='<div class="text-xs text-gray-400">Calcul…</div>';
+  const {data,error}=await sb.rpc('compta_plan_normaliser',{p_longueur:L,p_appliquer:false,p_defauts:pcComptesDefautEffectifs()});
+  if(error){ zone.innerHTML=`<div class="text-xs text-red-600">❌ ${escapeHtml(pcErreurSql(error))}</div>`; return; }
+  const l=(data?.comptes||[]).filter(x=>x.statut==='a_creer');
+  if(!l.length){ zone.innerHTML=`<div class="text-xs text-emerald-700">✅ Tous les comptes imputables ont déjà ${L} chiffres ou plus.</div>`; return; }
+  zone.innerHTML=`<div class="text-xs mb-1"><b>${l.length}</b> compte(s) imputable(s) recevront un sous-compte normalisé, qui reprend leurs écritures de l’exercice ouvert et leurs réglages (caisses, comptes par défaut…). Le compte d’origine devient un regroupement.</div>
+    <div class="overflow-y-auto border rounded-lg mb-2" style="max-height:220px"><table><thead><tr><th>Compte actuel</th><th>Libellé</th><th>Nouveau sous-compte</th></tr></thead><tbody>
+    ${l.map(x=>`<tr><td>${escapeHtml(x.ancien)}</td><td class="text-xs">${escapeHtml(compteByCode(x.ancien)?.libelle||'')}</td><td><b>${escapeHtml(x.nouveau)}</b></td></tr>`).join('')}</tbody></table></div>
+    <button class="btn btn-primary text-xs" onclick="pcAppliquerNormalisation(${L})">✔ Appliquer la normalisation (${l.length} compte(s))</button>`;
+}
+async function pcAppliquerNormalisation(L){
+  if(!confirm(`Normaliser le plan comptable à ${L} chiffres ?\nChaque compte imputable plus court reçoit un sous-compte de ${L} chiffres qui reprend ses écritures de l'exercice ouvert et ses réglages.`)) return;
+  const {data,error}=await sb.rpc('compta_plan_normaliser',{p_longueur:L,p_appliquer:true,p_defauts:pcComptesDefautEffectifs()});
+  if(error){ toast(pcErreurSql(error),'error'); return; }
+  await loadAppParams(); closeModal(); await comptaChargerReferentiel(true);
+  toast(`Plan normalisé : ${data?.crees||0} sous-compte(s) créé(s), ${data?.lignes||0} ligne(s) d'écriture reportée(s).`);
+  comptaRenderCycleView();
+}
+async function pcSauverAuxiliaires(){
+  const cli=document.getElementById('pcAuxCli').checked, fou=document.getElementById('pcAuxFou').checked, recl=document.getElementById('pcAuxReclasser').checked;
+  const avant=pcOptions(), msgs=[];
+  try{
+    const L=avant.longueur, cd={...(window.APP_PARAMS?.comptes_defaut||{})}; let cdModifie=false;
+    for(const [cle,actif] of [['clients',cli],['fournisseurs',fou]]){
+      const c=requireCompteDefaut(cle), nomCle=cle==='clients'?'Clients':'Fournisseurs';
+      if(!actif) continue;
+      if(!compteByCode(c)) throw new Error(`Le compte collectif ${nomCle} (${c}) est absent du plan : créez-le ou changez-le dans Paramètres → Comptabilité.`);
+      const parent=compteParent(c);
+      if(L&&c.length>=L&&parent&&parent.length>1&&!compteEstRegroupement(c)){
+        if(!confirm(`Le compte collectif ${nomCle} est ${c}, un compte imputable de ${L} chiffres : les comptes auxiliaires ne peuvent pas être créés dessous.\n\nUtiliser ${parent} — ${compteByCode(parent)?.libelle||''} comme compte collectif ?\n${c} est conservé et devient « ${nomCle} divers » (il garde ses écritures).`)) throw new Error('Activation annulée : choisissez un compte collectif plus court dans Paramètres → Comptabilité.');
+        cd[cle]=parent; cdModifie=true;
+      }
+    }
+    if(cdModifie){ const {error}=await sb.from('parametres').update({comptes_defaut:cd}).eq('id',window.APP_PARAMS.id); if(error) throw new Error(error.message); await loadAppParams(); }
+    const fmtSel=document.getElementById('pcFormatAux');
+    await pcEnregistrerOptions({aux_clients:cli,aux_fournisseurs:fou,...(fmtSel&&!fmtSel.disabled?{format_aux:fmtSel.value}:{})});
+    for(const [type,actif] of [['client',cli],['fournisseur',fou]]){
+      if(!actif) continue;
+      const {data,error}=await sb.rpc('compta_comptes_tiers_generer',{p_type:type,p_reclasser:recl});
+      if(error) throw new Error(pcErreurSql(error));
+      msgs.push(`${type==='client'?'Clients':'Fournisseurs'} : ${data?.crees||0} compte(s) créé(s)${recl?`, ${data?.reclasses||0} ligne(s) reportée(s)`:''}`);
+    }
+    if(!cli&&avant.auxClients) msgs.push('Clients : les nouvelles écritures reviennent sur le compte collectif (comptes existants conservés)');
+    if(!fou&&avant.auxFournisseurs) msgs.push('Fournisseurs : les nouvelles écritures reviennent sur le compte collectif (comptes existants conservés)');
+    closeModal(); await comptaChargerReferentiel(true); comptaRenderCycleView();
+    toast(msgs.join(' · ')||'Réglages enregistrés.');
+  }catch(e){ toast(e.message,'error'); }
+}
+/* ---------- Édition du plan : impression et Excel (filtres de la vue appliqués) ---------- */
+async function pcLignesEdition(){
+  await comptaChargerReferentiel();
+  const C=window._compta, A=pcArbre(), f=C.pcFiltre||{q:'',classe:'',soldes:false}, q=(f.q||'').trim().toLowerCase();
+  const mvt=f.soldes?await comptaMouvementsParCompte():null;
+  let liste=A.tri;
+  if(q||f.classe){ const garder=new Set(); A.tri.filter(c=>(!f.classe||String(c.code[0])===f.classe)&&(!q||c.code.includes(q)||c.libelle.toLowerCase().includes(q))).forEach(c=>{ garder.add(c.code); compteLignee(c.code).forEach(p=>garder.add(p)); }); liste=A.tri.filter(c=>garder.has(c.code)); }
+  return {soldes:!!mvt,filtre:[f.classe?'Classe '+f.classe:'',q?'« '+f.q.trim()+' »':''].filter(Boolean).join(' · '),
+    lignes:liste.map(c=>{ const grp=compteEstRegroupement(c.code); const s=mvt?(grp?pcCumul(mvt,c.code):(mvt[c.code]||{debit:0,credit:0})):null; return {c,grp,niveau:A.prof[c.code]||0,parent:A.par[c.code]||'',s}; })};
+}
+async function pcImprimer(){
+  const win=window.open('','_blank','width=1100,height=1000'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const E=await pcLignesEdition(), o=pcOptions();
+  let classe=null, corps='';
+  E.lignes.forEach(x=>{
+    if(x.c.code[0]!==classe){ classe=x.c.code[0]; corps+=`<tr class="cl"><td colspan="${E.soldes?5:4}">Classe ${classe} — ${escapeHtml(SYSCO_CLASSES[classe]||'')}</td></tr>`; }
+    const sol=x.s?x.s.debit-x.s.credit:0;
+    corps+=`<tr class="${x.grp?'grp':''}"><td style="padding-left:${6+x.niveau*14}px">${escapeHtml(x.c.code)}</td><td>${escapeHtml(x.c.libelle)}</td><td>${escapeHtml(NATURE_LABELS[x.c.nature]||x.c.nature)}</td><td>${x.grp?'Regroupement':'Imputable'}</td>${E.soldes?`<td class="r">${x.s&&(x.s.debit||x.s.credit)?money(Math.abs(sol))+(sol>=0?' D':' C'):''}</td>`:''}</tr>`;
+  });
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Plan comptable</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:22px;color:#0f172a;font-size:10px}
+    table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd5e1;padding:3px 5px;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9px;text-transform:uppercase}.r{text-align:right;white-space:nowrap}
+    tr.cl td{background:#1e293b;color:#fff;font-weight:bold}tr.grp td{background:#eef2ff;font-weight:bold}thead{display:table-header-group}tr{break-inside:avoid}@page{size:A4 portrait;margin:9mm}@media print{body{padding:0}}</style></head><body>${achBouton}
+    <h1 style="font-size:16px;margin:0">PLAN COMPTABLE — SYSCOHADA RÉVISÉ</h1><div style="color:#475569;margin-bottom:8px">${escapeHtml(nomEntreprise()||'')} · ${E.lignes.length} compte(s)${E.filtre?' · '+escapeHtml(E.filtre):''}${o.longueur?` · comptes imputables sur ${o.longueur} chiffres`:''}${E.soldes?` · soldes ${window._compta.annee}`:''} · édité le ${new Date().toLocaleString('fr-FR')}</div>
+    <table><thead><tr><th>Code</th><th>Libellé</th><th>Nature</th><th>Type</th>${E.soldes?'<th class="r">Solde</th>':''}</tr></thead><tbody>${corps}</tbody></table>
+    <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`;
+  await impEcrire(win,{type:'PLAN_COMPTABLE',titre:'Plan comptable',periode:E.soldes?String(window._compta.annee):'',montant:0,niveau:E.filtre||'Plan complet',contenu:true},html);
+}
+async function pcExporterExcel(){
+  const E=await pcLignesEdition();
+  const ent=['Classe','Niveau','Code','Libellé','Compte parent','Nature','Type',...(E.soldes?['Débit','Crédit','Solde']:[])];
+  const rows=E.lignes.map(x=>[+x.c.code[0],x.niveau+1,x.c.code,x.c.libelle,x.parent,NATURE_LABELS[x.c.nature]||x.c.nature,x.grp?'Regroupement':'Imputable',...(E.soldes?[x.s?.debit||0,x.s?.credit||0,(x.s?.debit||0)-(x.s?.credit||0)]:[])]);
+  const nom=`${slugEntreprise()}-plan-comptable`;
+  try{
+    await chargerScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js','XLSX');
+    const ws=XLSX.utils.aoa_to_sheet([ent,...rows]); ws['!cols']=[{wch:7},{wch:7},{wch:12},{wch:48},{wch:12},{wch:16},{wch:14},{wch:14},{wch:14},{wch:14}];
+    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Plan comptable');
+    telechargerFichier(new File([XLSX.write(wb,{bookType:'xlsx',type:'array'})],nom+'.xlsx',{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  }catch(e){   // sans connexion : CSV
+    const csv='﻿'+[ent,...rows].map(l=>l.map(x=>{ const v=String(x??''); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }).join(';')).join('\r\n');
+    telechargerFichier(new File([csv],nom+'.csv',{type:'text/csv;charset=utf-8'}));
+  }
+}
+/* ============================== COMPTES TIERS (clients / fournisseurs) ==============================
+   Compte comptable sur la fiche du tiers, balance auxiliaire (Comptabilité → Contrôle → Comptes tiers) et extrait
+   de compte. Les lignes d'un tiers sont celles de son compte auxiliaire ET celles du compte collectif qui portent
+   son identifiant (tiers_id) : l'extrait est juste avec ou sans comptes auxiliaires. Écritures validées seulement. */
+const TIERS_T={
+  client:{table:'clients',cle:'clients',lib:'client',libs:'Clients',page:'clients-add',champs:'id,code,nom,prenoms,telephone,email,adresse,commune,categorie,compte_code',nom:t=>[t.nom,t.prenoms].filter(Boolean).join(' ')},
+  fournisseur:{table:'fournisseurs',cle:'fournisseurs',lib:'fournisseur',libs:'Fournisseurs',page:'fournisseurs-add',champs:'id,code,nom,telephone,email,adresse,commune,categorie,compte_code',nom:t=>t.nom||''}
+};
+function tiersSoldeTexte(type,s){
+  if(Math.abs(s)<0.5) return 'Compte soldé';
+  if(type==='client') return s>0?`${money(s)} dû par le client`:`${money(-s)} en faveur du client (avance reçue)`;
+  return s<0?`${money(-s)} dû au fournisseur`:`${money(s)} en faveur de l’entreprise (avance versée)`;
+}
+async function tiersLignesCompte(type,t,annee){
+  const sel='id,compte_code,sens,montant,libelle,tiers_type,tiers_id,compta_ecritures!inner(date_ecriture,ref,journal_code,piece,libelle,exercice_annee,valide_le)';
+  let q=sb.from('compta_lignes').select(sel).eq('compta_ecritures.exercice_annee',annee);
+  q=t.compte_code?q.or(`compte_code.eq.${t.compte_code},and(tiers_type.eq.${type},tiers_id.eq.${t.id})`):q.eq('tiers_type',type).eq('tiers_id',t.id);
+  const {data,error}=await q; if(error) throw error;
+  return (data||[]).filter(l=>l.compta_ecritures?.valide_le).map(l=>({...l,e:l.compta_ecritures}))
+    .sort((a,b)=>a.e.date_ecriture<b.e.date_ecriture?-1:a.e.date_ecriture>b.e.date_ecriture?1:String(a.e.ref).localeCompare(String(b.e.ref)));
+}
+/* ---------- Bloc « Compte comptable » de la fiche client / fournisseur ---------- */
+async function tiersCompteFiche(type,id){
+  const host=document.getElementById('tiersCompte'); if(!host) return;
+  if(typeof peutModule==='function'&&!peutModule('Comptabilite','voir')){ host.remove(); return; }
+  const T=TIERS_T[type];
+  try{ await comptaChargerReferentiel(); if(!window.APP_PARAMS) await loadAppParams(); }catch(e){}
+  const {data:t,error}=await sb.from(T.table).select('*').eq('id',id).single();
+  if(error){ host.innerHTML=`<div class="text-sm text-gray-400">Compte comptable indisponible : ${escapeHtml(error.message)}</div>`; return; }
+  const annee=window._compta?.annee||new Date().getFullYear();
+  let lignes=[], errL=null; try{ lignes=await tiersLignesCompte(type,t,annee); }catch(e){ errL=e; }
+  const solde=lignes.reduce((a,l)=>a+(l.sens==='D'?1:-1)*(+l.montant||0),0);
+  const coll=requireCompteDefaut(T.cle), aux=pcEstCollectifAuxiliaire(T.cle), cpt=t.compte_code?compteByCode(t.compte_code):null;
+  const choix=pcArbre().tri.filter(c=>c.code[0]==='4'&&!compteEstRegroupement(c.code));
+  const sansColonne='compte_code' in t?'':`<div class="text-xs text-amber-700 mt-2">⚠ Exécutez sql/plan_comptable_arborescence.sql pour rattacher un compte à ce ${T.lib}.</div>`;
+  host.innerHTML=`
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-3"><h2>📒 Compte comptable</h2>
+      <button type="button" class="btn btn-outline" onclick="tiersExtraitModal('${type}','${id}')">📄 Extrait de compte</button></div>
+    <div class="grid sm:grid-cols-3 gap-3 mb-3">
+      <div class="card p-3"><div class="text-xs text-gray-400">Compte</div>${t.compte_code?`<div class="font-bold">${escapeHtml(t.compte_code)}</div><div class="text-xs text-gray-500">${escapeHtml(cpt?.libelle||'⚠ absent du plan ou désactivé')}</div>`
+        :aux?`<div class="text-sm">Pas encore de compte auxiliaire</div><div class="text-xs text-gray-500">créé à la première écriture, ou ci-dessous</div>`
+        :`<div class="font-bold">${escapeHtml(coll||'—')}</div><div class="text-xs text-gray-500">compte collectif (comptes auxiliaires non activés)</div>`}</div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Solde ${annee}</div><div class="font-bold ${Math.abs(solde)<0.5?'':type==='client'?(solde>0?'text-rose-700':'text-emerald-700'):(solde<0?'text-rose-700':'text-emerald-700')}">${errL?'—':escapeHtml(tiersSoldeTexte(type,solde))}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Mouvements ${annee}</div><div class="font-bold">${errL?'—':lignes.length}</div><div class="text-xs text-gray-500">écritures validées</div></div>
+    </div>
+    <div class="flex flex-wrap gap-2 items-center">
+      ${!t.compte_code&&'compte_code' in t?`<button type="button" class="btn btn-primary text-xs" onclick="tiersCreerCompte('${type}','${id}')">➕ Créer le compte auxiliaire</button><span class="text-xs text-gray-400">ou</span>`:''}
+      <select id="tiersCptSel" style="width:auto;max-width:340px" class="text-sm"><option value="">${t.compte_code?'Changer de compte…':'Rattacher à un compte existant…'}</option>${choix.map(c=>`<option value="${escapeHtml(c.code)}" ${c.code===t.compte_code?'disabled':''}>${escapeHtml(c.code)} — ${escapeHtml(c.libelle)}</option>`).join('')}</select>
+      <button type="button" class="btn btn-outline text-xs" onclick="tiersRattacher('${type}','${id}')">Rattacher</button>
+      ${t.compte_code?`<button type="button" class="btn btn-outline text-xs" onclick="tiersRattacher('${type}','${id}',true)">Détacher</button>`:''}
+    </div>${sansColonne}
+    ${errL?`<div class="text-xs text-red-600 mt-2">${escapeHtml(errL.message||errL)}</div>`:''}`;
+}
+async function tiersCreerCompte(type,id){
+  const {data,error}=await sb.rpc('compta_compte_tiers',{p_type:type,p_id:id});
+  if(error){ toast(pcErreurSql(error),'error'); return; }
+  await comptaChargerReferentiel(true); toast(`Compte ${data} créé.`); tiersCompteFiche(type,id);
+}
+async function tiersRattacher(type,id,detacher){
+  const T=TIERS_T[type], code=detacher?null:document.getElementById('tiersCptSel').value;
+  if(!detacher&&!code){ toast('Choisissez un compte.','error'); return; }
+  if(code){
+    const [{data:c1},{data:f1}]=await Promise.all([sb.from('clients').select('id,nom').eq('compte_code',code).neq('id',id).limit(1),sb.from('fournisseurs').select('id,nom').eq('compte_code',code).neq('id',id).limit(1)]);
+    const autre=(c1||[])[0]||(f1||[])[0];
+    if(autre&&!confirm(`Le compte ${code} est déjà rattaché à « ${autre.nom} ». Le partager avec ce ${T.lib} ?\n(Les extraits des deux tiers comprendront les mêmes écritures.)`)) return;
+  } else if(!confirm(`Détacher le compte de ce ${T.lib} ? Les écritures restent sur le compte ; un nouveau compte auxiliaire sera créé à la prochaine écriture si les comptes auxiliaires sont activés.`)) return;
+  const {error}=await sb.from(T.table).update({compte_code:code}).eq('id',id);
+  if(error){ toast(pcErreurSql(error),'error'); return; }
+  toast(code?`Compte ${code} rattaché.`:'Compte détaché.'); tiersCompteFiche(type,id);
+}
+/* ---------- Extrait de compte ---------- */
+function tiersExtraitModal(type,id){
+  const y=window._compta?.annee||new Date().getFullYear(), auj=new Date().toISOString().slice(0,10);
+  window._tiersEx={type,id,du:`${y}-01-01`,au:String(y)===auj.slice(0,4)?auj:`${y}-12-31`};
+  openModal(`<h3 class="font-bold text-lg mb-1">📄 Extrait de compte ${escapeHtml(TIERS_T[type].lib)}</h3>
+    <p class="text-xs text-gray-500 mb-3">Écritures validées de l’exercice. La période doit rester dans une même année.</p>
+    <div class="flex flex-wrap gap-2 items-center mb-3"><span class="text-xs text-gray-500">Du</span><input type="date" id="exDu" style="width:auto" value="${window._tiersEx.du}" onchange="window._tiersEx.du=this.value;tiersExtraitApercu()">
+      <span class="text-xs text-gray-500">au</span><input type="date" id="exAu" style="width:auto" value="${window._tiersEx.au}" onchange="window._tiersEx.au=this.value;tiersExtraitApercu()"></div>
+    <div id="exApercu" class="text-sm text-gray-400 mb-3">Chargement…</div>
+    <div class="flex flex-wrap justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Fermer</button><button class="btn btn-outline" onclick="tiersExtraitImprimer()">🖨 Imprimer</button><button class="btn btn-primary" onclick="tiersExtraitEnvoyer()">📤 WhatsApp / e-mail</button></div>`);
+  tiersExtraitApercu();
+}
+async function tiersExtraitCalc(){
+  const {type,id,du,au}=window._tiersEx, T=TIERS_T[type];
+  if(!du||!au||du>au) throw new Error('Période invalide.');
+  if(du.slice(0,4)!==au.slice(0,4)) throw new Error('La période doit rester dans une même année (un exercice).');
+  const {data:t,error}=await sb.from(T.table).select('*').eq('id',id).single(); if(error) throw error;
+  const lignes=await tiersLignesCompte(type,t,+du.slice(0,4));
+  let init=0; const mouv=[];
+  lignes.forEach(l=>{ const m=(l.sens==='D'?1:-1)*(+l.montant||0), d=l.e.date_ecriture; if(d<du) init+=m; else if(d<=au) mouv.push(l); });
+  let solde=init; const rows=mouv.map(l=>{ solde+=(l.sens==='D'?1:-1)*(+l.montant||0); return {...l,solde}; });
+  return {t,T,type,du,au,init,rows,final:solde,totD:mouv.filter(l=>l.sens==='D').reduce((a,l)=>a+(+l.montant||0),0),totC:mouv.filter(l=>l.sens==='C').reduce((a,l)=>a+(+l.montant||0),0)};
+}
+async function tiersExtraitApercu(){
+  const z=document.getElementById('exApercu'); if(!z) return;
+  try{
+    const x=window._tiersExCalc=await tiersExtraitCalc();
+    z.className='text-sm mb-3';
+    z.innerHTML=`<div class="grid grid-cols-3 gap-2 mb-2"><div class="card p-2"><div class="text-xs text-gray-400">Solde au ${fmtDate(x.du)}</div><b>${money(Math.abs(x.init))} ${x.init>=0?'D':'C'}</b></div>
+      <div class="card p-2"><div class="text-xs text-gray-400">Mouvements</div><b>${x.rows.length}</b></div><div class="card p-2"><div class="text-xs text-gray-400">Solde au ${fmtDate(x.au)}</div><b>${money(Math.abs(x.final))} ${x.final>=0?'D':'C'}</b></div></div>
+      <div class="font-semibold">${escapeHtml(x.T.nom(x.t))} — ${escapeHtml(tiersSoldeTexte(x.type,x.final))}</div>
+      <div class="overflow-y-auto border rounded-lg mt-2" style="max-height:220px"><table><thead><tr><th>Date</th><th>Pièce</th><th>Libellé</th><th class="text-right">Débit</th><th class="text-right">Crédit</th></tr></thead><tbody>
+      ${x.rows.map(l=>`<tr><td class="text-xs">${fmtDate(l.e.date_ecriture)}</td><td class="text-xs">${escapeHtml(l.e.piece||l.e.ref||'')}</td><td class="text-xs">${escapeHtml(l.libelle||l.e.libelle||'')}</td><td class="text-right text-xs">${l.sens==='D'?money(l.montant):''}</td><td class="text-right text-xs">${l.sens==='C'?money(l.montant):''}</td></tr>`).join('')||'<tr><td colspan="5" class="text-center text-gray-400 p-3">Aucun mouvement sur la période.</td></tr>'}</tbody></table></div>`;
+  }catch(e){ z.className='text-sm text-red-600 mb-3'; z.textContent='❌ '+(e.message||e); }
+}
+function tiersExtraitHtml(x){
+  const t=x.t, sd=v=>v?money(v):'', cumul=v=>`${money(Math.abs(v))} ${v>=0?'D':'C'}`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Extrait de compte</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:22px;color:#0f172a;font-size:10.5px}
+    table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd5e1;padding:4px 6px;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9px;text-transform:uppercase}.r{text-align:right;white-space:nowrap}
+    .blocs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}.bloc{border:1px solid #cbd5e1;border-radius:6px;padding:8px}.t{font-size:9px;text-transform:uppercase;color:#64748b;margin-bottom:3px}
+    tr.tot td{font-weight:bold;background:#f8fafc}.final{margin-top:10px;padding:10px;border:2px solid #0f172a;border-radius:8px;font-size:13px;font-weight:bold;text-align:right}
+    thead{display:table-header-group}tr{break-inside:avoid}@page{size:A4 portrait;margin:10mm}@media print{body{padding:0}}</style></head><body>${achBouton}
+    <h1 style="font-size:16px;margin:0">EXTRAIT DE COMPTE ${x.type==='client'?'CLIENT':'FOURNISSEUR'}</h1><div style="color:#475569">Période du ${fmtDate(x.du)} au ${fmtDate(x.au)} · édité le ${new Date().toLocaleString('fr-FR')}</div>
+    <div class="blocs"><div class="bloc"><div class="t">${x.type==='client'?'Client':'Fournisseur'}</div><b>${escapeHtml(x.T.nom(t))}</b>${t.code?' · '+escapeHtml(t.code):''}${t.telephone?'<br>Tél. '+escapeHtml(t.telephone):''}${t.adresse||t.commune?'<br>'+escapeHtml([t.adresse,t.commune].filter(Boolean).join(', ')):''}</div>
+      <div class="bloc"><div class="t">Compte</div>${t.compte_code?`<b>${escapeHtml(t.compte_code)}</b> — ${escapeHtml(compteByCode(t.compte_code)?.libelle||'')}`:`Compte collectif ${escapeHtml(requireCompteDefaut(x.T.cle)||'')}`}<br>Solde au ${fmtDate(x.du)} : <b>${cumul(x.init)}</b></div></div>
+    <table><thead><tr><th>Date</th><th>Journal</th><th>Pièce</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th><th class="r">Solde</th></tr></thead><tbody>
+      <tr class="tot"><td colspan="6">Solde au ${fmtDate(x.du)}</td><td class="r">${cumul(x.init)}</td></tr>
+      ${x.rows.map(l=>`<tr><td>${fmtDate(l.e.date_ecriture)}</td><td>${escapeHtml(l.e.journal_code||'')}</td><td>${escapeHtml(l.e.piece||l.e.ref||'')}</td><td>${escapeHtml(l.libelle||l.e.libelle||'')}</td><td class="r">${l.sens==='D'?sd(+l.montant):''}</td><td class="r">${l.sens==='C'?sd(+l.montant):''}</td><td class="r">${cumul(l.solde)}</td></tr>`).join('')}
+      <tr class="tot"><td colspan="4">Totaux de la période</td><td class="r">${money(x.totD)}</td><td class="r">${money(x.totC)}</td><td class="r">${cumul(x.final)}</td></tr></tbody></table>
+    <div class="final">Solde au ${fmtDate(x.au)} : ${escapeHtml(tiersSoldeTexte(x.type,x.final))}</div>
+    <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`;
+}
+const tiersExtraitMeta=x=>({type:'EXTRAIT_TIERS',titre:`Extrait de compte — ${x.T.nom(x.t)}`,periode:`${x.du} → ${x.au}`,montant:x.final,niveau:x.t.compte_code||'',contenu:true});
+async function tiersExtraitImprimer(){
+  const win=window.open('','_blank','width=1000,height=1000'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  try{ const x=window._tiersExCalc=await tiersExtraitCalc(); await impEcrire(win,tiersExtraitMeta(x),tiersExtraitHtml(x)); }catch(e){ win.close(); toast(e.message||String(e),'error'); }
+}
+async function tiersExtraitEnvoyer(){
+  try{
+    const x=window._tiersExCalc=await tiersExtraitCalc(), nom=x.T.nom(x.t);
+    const texte=`Bonjour ${nom},\n\nVeuillez trouver ci-joint l'extrait de votre compte chez ${nomEntreprise()||APP_NOM} du ${fmtDate(x.du)} au ${fmtDate(x.au)}.\n\nSolde au ${fmtDate(x.au)} : *${tiersSoldeTexte(x.type,x.final)}*\n\nCordialement.`;
+    impOuvrirEnvoi({titre:`Extrait de compte — ${nom}`,html:tiersExtraitHtml(x),meta:tiersExtraitMeta(x),orientation:'portrait',nomFichier:`${slugEntreprise()}-extrait-${(x.t.code||nom).replace(/[^a-z0-9]+/gi,'-')}-${x.au}.pdf`,texte,tel:x.t.telephone||'',mail:x.t.email||''});
+  }catch(e){ toast(e.message||String(e),'error'); }
+}
+/* ---------- Balance auxiliaire (Comptabilité → Contrôle → Comptes tiers) ---------- */
+async function tiersBalanceCalc(){
+  const C=window._compta, f=C.tiersFiltre, T=TIERS_T[f.type];
+  const [{data:tiers,error},ecritures]=await Promise.all([sb.from(T.table).select('*').order('nom').limit(20000),comptaChargerEcritures({})]);
+  if(error) throw error;
+  const parCompte={}, ids=new Set((tiers||[]).map(t=>t.id)); (tiers||[]).forEach(t=>{ if(t.compte_code&&!parCompte[t.compte_code]) parCompte[t.compte_code]=t.id; });
+  const coll=requireCompteDefaut(T.cle), agg={}, non={debit:0,credit:0,n:0};
+  ecritures.filter(ecrEstValidee).filter(e=>!f.au||e.date_ecriture<=f.au).forEach(e=>(e.compta_lignes||[]).forEach(l=>{
+    let id=parCompte[l.compte_code]; if(!id&&l.tiers_type===f.type&&l.tiers_id) id=l.tiers_id;
+    const x=id&&ids.has(id)?(agg[id]=agg[id]||{debit:0,credit:0,n:0}):((id||(coll&&l.compte_code.startsWith(coll)))?non:null);
+    if(!x) return; x[l.sens==='D'?'debit':'credit']+=+l.montant||0; x.n++;
+  }));
+  const q=idnNorm(f.q||'');
+  const lignes=(tiers||[]).map(t=>({t,...(agg[t.id]||{debit:0,credit:0,n:0})})).map(r=>({...r,solde:r.debit-r.credit}))
+    .filter(r=>(!f.mouvementes||r.n>0)&&(!f.nonSoldes||Math.abs(r.solde)>=0.5)&&(!q||idnNorm([T.nom(r.t),r.t.code,r.t.compte_code,r.t.telephone].join(' ')).includes(q)));
+  const tot=lignes.reduce((a,r)=>({debit:a.debit+r.debit,credit:a.credit+r.credit}),{debit:0,credit:0});
+  return {T,f,lignes,tot,non,coll,annee:C.annee};
+}
+async function comptaRenderTiers(host){
+  const C=window._compta; C.tiersFiltre=C.tiersFiltre||{type:'client',q:'',au:'',mouvementes:true,nonSoldes:false};
+  const f=C.tiersFiltre; let B;
+  try{ B=window._tiersBal=await tiersBalanceCalc(); }catch(e){ host.innerHTML=`<div class="text-red-600 text-sm">❌ ${escapeHtml(e.message||e)}</div>`; return; }
+  const sCell=(s)=>Math.abs(s)<0.5?'<span class="text-gray-300">—</span>':`<span class="${(f.type==='client'?s>0:s<0)?'text-rose-700':'text-emerald-700'} font-semibold">${money(Math.abs(s))} ${s>=0?'D':'C'}</span>`;
+  const soldeTot=B.tot.debit-B.tot.credit;
+  host.innerHTML=`
+    <div class="flex flex-wrap justify-between items-start gap-3 mb-3">
+      <div><h3 class="font-bold">👥 Comptes tiers — balance auxiliaire ${escapeHtml(B.T.libs.toLowerCase())} ${B.annee}</h3>
+        <p class="text-xs text-gray-500 max-w-2xl">Débit, crédit et solde de chaque ${B.T.lib} : écritures validées de son compte auxiliaire et du compte collectif ${escapeHtml(B.coll||'')} qui le désignent. ${pcEstCollectifAuxiliaire(B.T.cle)?'Comptes auxiliaires activés.':'Comptes auxiliaires non activés (Plan comptable → ⚙ Structure du plan).'}</p></div>
+      <div class="flex flex-wrap gap-2"><button class="btn btn-outline btn-sm" onclick="tiersBalanceImprimer()">🖨 Imprimer</button><button class="btn btn-outline btn-sm" onclick="tiersBalanceExcel()">⬇ Excel</button></div>
+    </div>
+    <div class="flex flex-wrap gap-2 items-center mb-3">
+      <div class="flex rounded-lg border overflow-hidden">${['client','fournisseur'].map(k=>`<button class="px-3 py-1.5 text-sm font-semibold ${f.type===k?'bg-indigo-600 text-white':''}" onclick="window._compta.tiersFiltre.type='${k}';comptaRenderCycleView()">${TIERS_T[k].libs}</button>`).join('')}</div>
+      <input id="tbQ" style="width:220px" placeholder="🔎 Nom, code, compte, téléphone…" value="${escapeHtml(f.q)}" oninput="clearTimeout(window._tbT);const v=this.value;window._tbT=setTimeout(()=>{window._compta.tiersFiltre.q=v;comptaRenderCycleView().then(()=>{const i=document.getElementById('tbQ');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}})},300)">
+      <span class="text-xs text-gray-500">Jusqu’au</span><input type="date" style="width:auto" value="${f.au}" onchange="window._compta.tiersFiltre.au=this.value;comptaRenderCycleView()">
+      <label class="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" style="width:15px;height:15px" ${f.mouvementes?'checked':''} onchange="window._compta.tiersFiltre.mouvementes=this.checked;comptaRenderCycleView()"> Mouvementés seulement</label>
+      <label class="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" style="width:15px;height:15px" ${f.nonSoldes?'checked':''} onchange="window._compta.tiersFiltre.nonSoldes=this.checked;comptaRenderCycleView()"> Non soldés seulement</label>
+    </div>
+    <div class="card overflow-x-auto"><table><thead><tr><th>${escapeHtml(B.T.libs.slice(0,-1))}</th><th>Code</th><th>Compte</th><th class="text-right">Débit</th><th class="text-right">Crédit</th><th class="text-right">Solde</th><th></th></tr></thead><tbody>
+      ${B.lignes.map(r=>`<tr><td><b>${escapeHtml(B.T.nom(r.t))}</b>${r.t.telephone?`<div class="text-xs text-gray-400">${escapeHtml(r.t.telephone)}</div>`:''}</td><td class="text-xs">${escapeHtml(r.t.code||'')}</td><td class="text-xs">${escapeHtml(r.t.compte_code||'—')}</td>
+        <td class="text-right">${r.debit?money(r.debit):''}</td><td class="text-right">${r.credit?money(r.credit):''}</td><td class="text-right whitespace-nowrap">${sCell(r.solde)}</td>
+        <td class="text-right whitespace-nowrap"><button class="text-xs text-indigo-600 mr-2" onclick="tiersExtraitModal('${f.type}','${r.t.id}')">📄 Extrait</button><button class="text-xs text-gray-600" onclick="window._editId='${r.t.id}';showPage('${B.T.page}')">Fiche</button></td></tr>`).join('')||`<tr><td colspan="7" class="text-center text-gray-400 p-4">Aucun ${escapeHtml(B.T.lib)} pour ces filtres.</td></tr>`}
+      ${B.non.n?`<tr class="bg-amber-50"><td colspan="3" class="text-xs text-amber-800">Écritures du compte collectif sans ${escapeHtml(B.T.lib)} identifié (${B.non.n} ligne(s))</td><td class="text-right">${money(B.non.debit)}</td><td class="text-right">${money(B.non.credit)}</td><td class="text-right">${sCell(B.non.debit-B.non.credit)}</td><td></td></tr>`:''}
+    </tbody><tfoot><tr><th colspan="3">Total (${B.lignes.length} ${escapeHtml(B.T.libs.toLowerCase())})</th><th class="text-right">${money(B.tot.debit)}</th><th class="text-right">${money(B.tot.credit)}</th><th class="text-right">${money(Math.abs(soldeTot))} ${soldeTot>=0?'D':'C'}</th><th></th></tr></tfoot></table></div>`;
+}
+function tiersBalanceLignesExport(){
+  const B=window._tiersBal;
+  return {B,ent:[B.T.libs.slice(0,-1),'Code','Téléphone','Compte','Débit','Crédit','Solde','Sens'],rows:B.lignes.map(r=>[B.T.nom(r.t),r.t.code||'',r.t.telephone||'',r.t.compte_code||'',r.debit,r.credit,Math.abs(r.solde),Math.abs(r.solde)<0.5?'':r.solde>0?'D':'C'])};
+}
+async function tiersBalanceImprimer(){
+  const win=window.open('','_blank','width=1100,height=1000'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const {B}=tiersBalanceLignesExport(), st=B.tot.debit-B.tot.credit;
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Balance auxiliaire</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:22px;color:#0f172a;font-size:10px}
+    table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd5e1;padding:3px 5px;text-align:left}th{background:#f1f5f9;font-size:9px;text-transform:uppercase}.r{text-align:right;white-space:nowrap}tfoot th{background:#e2e8f0}
+    thead{display:table-header-group}tr{break-inside:avoid}@page{size:A4 portrait;margin:9mm}@media print{body{padding:0}}</style></head><body>${achBouton}
+    <h1 style="font-size:16px;margin:0">BALANCE AUXILIAIRE ${B.T.libs.toUpperCase()} — ${B.annee}</h1><div style="color:#475569;margin-bottom:8px">${escapeHtml(nomEntreprise()||'')}${B.f.au?' · jusqu’au '+fmtDate(B.f.au):''} · compte collectif ${escapeHtml(B.coll||'')} · écritures validées · édité le ${new Date().toLocaleString('fr-FR')}</div>
+    <table><thead><tr><th>${escapeHtml(B.T.libs.slice(0,-1))}</th><th>Code</th><th>Compte</th><th class="r">Débit</th><th class="r">Crédit</th><th class="r">Solde</th></tr></thead><tbody>
+    ${B.lignes.map(r=>`<tr><td>${escapeHtml(B.T.nom(r.t))}</td><td>${escapeHtml(r.t.code||'')}</td><td>${escapeHtml(r.t.compte_code||'')}</td><td class="r">${r.debit?money(r.debit):''}</td><td class="r">${r.credit?money(r.credit):''}</td><td class="r">${Math.abs(r.solde)<0.5?'':money(Math.abs(r.solde))+(r.solde>0?' D':' C')}</td></tr>`).join('')}
+    ${B.non.n?`<tr><td colspan="3"><i>Compte collectif sans tiers identifié</i></td><td class="r">${money(B.non.debit)}</td><td class="r">${money(B.non.credit)}</td><td class="r">${money(Math.abs(B.non.debit-B.non.credit))}</td></tr>`:''}
+    </tbody><tfoot><tr><th colspan="3">Total</th><th class="r">${money(B.tot.debit)}</th><th class="r">${money(B.tot.credit)}</th><th class="r">${money(Math.abs(st))} ${st>=0?'D':'C'}</th></tr></tfoot></table>
+    <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`;
+  await impEcrire(win,{type:'BALANCE_TIERS',titre:`Balance auxiliaire ${B.T.libs.toLowerCase()}`,periode:String(B.annee)+(B.f.au?' → '+B.f.au:''),montant:st,niveau:B.coll||'',contenu:true},html);
+}
+async function tiersBalanceExcel(){
+  const {B,ent,rows}=tiersBalanceLignesExport(), nom=`${slugEntreprise()}-balance-${B.T.libs.toLowerCase()}-${B.annee}`;
+  try{
+    await chargerScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js','XLSX');
+    const ws=XLSX.utils.aoa_to_sheet([ent,...rows]); ws['!cols']=[{wch:34},{wch:10},{wch:16},{wch:12},{wch:14},{wch:14},{wch:14},{wch:6}];
+    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Balance '+B.T.libs.toLowerCase());
+    telechargerFichier(new File([XLSX.write(wb,{bookType:'xlsx',type:'array'})],nom+'.xlsx',{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  }catch(e){
+    const csv='﻿'+[ent,...rows].map(l=>l.map(x=>{ const v=String(x??''); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }).join(';')).join('\r\n');
+    telechargerFichier(new File([csv],nom+'.csv',{type:'text/csv;charset=utf-8'}));
+  }
 }
 /* ---------- Grand livre (un compte, ou un regroupement avec tous ses sous-comptes) ---------- */
 async function comptaRenderGrandLivre(host){
@@ -10786,7 +11195,7 @@ async function comptaRattraperVentes(){
 const COMPTA_CYCLE=[
   {icon:'①',label:'OUVERTURE',items:[{v:'plan_comptable',label:'Plan comptable'},{v:'bilan_ouverture',label:"Bilan d'ouverture",action:"comptaOuvrirBilanOuverture()"}]},
   {icon:'②',label:'SAISIE',items:[{v:'journal',label:'Journal'},{v:'automatismes',label:'⚡ Automatismes'}]},
-  {icon:'③',label:'CONTRÔLE',items:[{v:'grand_livre',label:'Grand livre'},{v:'balance',label:'Balance'},{v:'ventilation_caisse',label:'Ventilation caisse'}]},
+  {icon:'③',label:'CONTRÔLE',items:[{v:'grand_livre',label:'Grand livre'},{v:'balance',label:'Balance'},{v:'tiers',label:'Comptes tiers'},{v:'ventilation_caisse',label:'Ventilation caisse'}]},
   {icon:'④',label:'VISA',items:[{v:'validation',label:'Validation'}]},
   {icon:'⑤',label:'ÉTATS',items:[{v:'bilan',label:'Bilan'},{v:'resultat',label:'Compte de résultat'}]},
   {icon:'⑥',label:'CLÔTURE',items:[{v:'cloture',label:'Clôture'}]}
@@ -10817,7 +11226,7 @@ async function comptaRenderCycleView(){
   const host=document.getElementById('comptaCycleContent');
   if(!host) return;
   host.innerHTML='<div class="text-sm text-gray-400 p-8 text-center">Chargement…</div>';
-  const renderers={journal:comptaRenderJournal,automatismes:comptaRenderAutomatismes,grand_livre:comptaRenderGrandLivre,balance:comptaRenderBalance,ventilation_caisse:comptaRenderVentilationCaisse,brouillard_caisse:comptaRenderVentilationCaisse,validation:comptaRenderValidation,bilan:comptaRenderBilan,resultat:comptaRenderCompteResultat,cloture:comptaRenderCloture,plan_comptable:comptaRenderPlanComptable};
+  const renderers={tiers:comptaRenderTiers,journal:comptaRenderJournal,automatismes:comptaRenderAutomatismes,grand_livre:comptaRenderGrandLivre,balance:comptaRenderBalance,ventilation_caisse:comptaRenderVentilationCaisse,brouillard_caisse:comptaRenderVentilationCaisse,validation:comptaRenderValidation,bilan:comptaRenderBilan,resultat:comptaRenderCompteResultat,cloture:comptaRenderCloture,plan_comptable:comptaRenderPlanComptable};
   const fn=renderers[window._compta.cycleView]||comptaRenderJournal;
   await fn(host);
 }
