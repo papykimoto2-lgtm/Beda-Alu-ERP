@@ -21,7 +21,7 @@ Le logiciel n'est lié à aucune entreprise : le nom, le logo, les coordonnées 
 Les autres scripts de `sql/` servent uniquement à mettre à jour une installation existante, étape par étape.
 
 ## Installation actuelle
-Ce dépôt est déployé pour Beda Alu : `config.js` pointe vers le projet Supabase `beda-alu-erp` (org vosgeycwzrixylyhmzlv).
+Ce dépôt est déployé pour BEDA FER ET ALU : `config.js` pointe vers le projet Supabase `beda-alu-erp` (org vosgeycwzrixylyhmzlv).
 
 ## Schéma
 Tables : `profiles`, `clients`, `projets`, `produits`, `devis`, `devis_lignes`, `factures`, `fiches_execution`, `fiche_execution_lignes`. RLS activée (accès complet aux utilisateurs authentifiés).

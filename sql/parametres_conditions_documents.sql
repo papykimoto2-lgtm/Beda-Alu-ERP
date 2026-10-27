@@ -6,7 +6,7 @@
 alter table parametres add column if not exists conditions_documents text;
 
 -- Reprise des conditions auparavant écrites dans le code, UNIQUEMENT pour l'installation d'origine
--- (Beda Alu) : on ne les applique qu'à une ligne de paramètres existante dont la raison sociale
+-- (BEDA FER ET ALU) : on ne les applique qu'à une ligne de paramètres existante dont la raison sociale
 -- mentionne Beda. Une nouvelle structure démarre sans conditions.
 update parametres set conditions_documents = $txt$Ne sont pas inclus :
 - Tout type de correction (maçonnerie, carrelage, électricité et peinture)

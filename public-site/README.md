@@ -1,4 +1,4 @@
-# Portail client BEDA ALU — site public
+# Portail client BEDA FER ET ALU — site public
 
 `index.html` et `portail-unique.html` sont **identiques** et **toujours à jour** :
 ils ne contiennent que la connexion Supabase (URL + clé publique) et interrogent en
