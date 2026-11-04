@@ -2270,7 +2270,7 @@ function smartSelect(id,items,selectedId,opts={}){
   const changeAttr=opts.onChange?` onchange="${opts.onChange}"`:'';
   return `<div class="smart-select">
     <input type="text" id="${id}_q" class="smart-select-input" autocomplete="off" placeholder="${escapeHtml(opts.placeholder||'Rechercher…')}" value="${escapeHtml(label)}" oninput="smartSelectFilter('${id}')" onfocus="smartSelectOpen('${id}')" onblur="smartSelectBlur('${id}')" onkeydown="smartSelectKey(event,'${id}')">
-    <input type="hidden" id="${id}" value="${selectedId||''}"${changeAttr}>
+    <input type="hidden" id="${id}" value="${selectedId||''}"${changeAttr}${opts.effacable?` data-effacable="1" data-dernier="${escapeHtml(String(selectedId||''))}"`:''}>
     <div class="smart-select-list hidden" id="${id}_list"></div>
   </div>`;
 }
@@ -2306,12 +2306,18 @@ window.addEventListener('scroll',e=>{
 },true);
 window.addEventListener('resize',()=>document.querySelectorAll('.smart-select-list:not(.hidden)').forEach(l=>smartSelectPlacer(l.id.replace(/_list$/,''))));
 function smartSelectOpen(id){ smartSelectRenderList(id,document.getElementById(id+'_q').value); }
-function smartSelectFilter(id){ document.getElementById(id).value=''; smartSelectRenderList(id,document.getElementById(id+'_q').value); }
+/* Champ « effaçable » (filtres) : quand la valeur choisie est retirée (texte effacé ou abandonné sans choix), le filtre est levé */
+function smartSelectLever(id){
+  const h=document.getElementById(id); if(!h||!h.dataset.effacable||h.value||!h.dataset.dernier) return;
+  h.dataset.dernier=''; h.dispatchEvent(new Event('change'));
+}
+function smartSelectFilter(id){ document.getElementById(id).value=''; const t=document.getElementById(id+'_q').value; smartSelectRenderList(id,t); if(!t.trim()) smartSelectLever(id); }
 function smartSelectBlur(id){
   setTimeout(()=>{
     const list=document.getElementById(id+'_list'); if(list) list.classList.add('hidden');
     const hidden=document.getElementById(id),q=document.getElementById(id+'_q');
     if(!hidden||!q) return;
+    smartSelectLever(id);
     if(hidden.value){ const items=window._smartSelectData[id]||[]; const sel=items.find(it=>String(it.id)===hidden.value); q.value=sel?sel.label:''; }
     else{ q.value=''; }
   },180);
@@ -2328,7 +2334,7 @@ function smartSelectPick(id,valId){
   const items=window._smartSelectData[id]||[];
   const it=items.find(x=>String(x.id)===String(valId));
   const hidden=document.getElementById(id),q=document.getElementById(id+'_q');
-  hidden.value=valId; q.value=it?it.label:'';
+  hidden.value=valId; q.value=it?it.label:''; if(hidden.dataset.effacable) hidden.dataset.dernier=String(valId);
   const list=document.getElementById(id+'_list'); if(list) list.classList.add('hidden');
   hidden.dispatchEvent(new Event('change'));
 }
@@ -4471,18 +4477,20 @@ async function renderStockMouvements(el){
   const [{data:composants},{data:profils}]=await Promise.all([sb.from('composants').select('id,nom,code,reference,famille,unite,cmup').order('nom'),sb.from('profiles').select('id,nom_complet,email')]);
   window._stockComposantsCache=composants||[]; window._jmProfils=profils||[];
   const J=window._jm, fams=famillesPresentes('composant',(composants||[]).map(c=>c.famille)), R=window._chantiersRef||{projets:[]};
+  // Filtre à saisie intuitive : on tape une partie du nom / code pour réduire la liste ; vide = tous
+  const rech=(k,id,items,ph,larg)=>`<div style="min-width:${larg}px">${smartSelect(id,items,J[k],{placeholder:ph,effacable:true,onChange:`window._jm['${k}']=this.value;jmCharger()`})}</div>`;
   const sel=(k,opts)=>`<select class="border rounded-lg px-2 py-1.5 text-sm" style="width:auto;max-width:240px" onchange="window._jm['${k}']=this.value;jmCharger()">${opts.map(([v,l])=>`<option value="${escapeHtml(v)}" ${String(J[k])===String(v)?'selected':''}>${escapeHtml(l)}</option>`).join('')}</select>`;
   el.innerHTML=`
     <div class="card p-3 mb-3 flex flex-wrap gap-2 items-center">
       <span class="text-xs text-gray-500">Du</span><input type="date" class="border rounded-lg px-2 py-1.5 text-sm" style="width:auto" value="${J.du}" onchange="window._jm.du=this.value;jmCharger()">
       <span class="text-xs text-gray-500">au</span><input type="date" class="border rounded-lg px-2 py-1.5 text-sm" style="width:auto" value="${J.au}" onchange="window._jm.au=this.value;jmCharger()">
-      ${sel('depot',[['','🏭 Tous les dépôts'],...(window._depotsCache||[]).map(d=>[d.id,d.nom])])}
+      ${rech('depot','jmDepot',(window._depotsCache||[]).map(d=>({id:d.id,label:d.nom})),'🏭 Tous les dépôts (tapez pour chercher)',200)}
       ${sel('type',[['','🗂️ Tous types'],...Object.entries(STOCK_TYPE_LABELS).map(([k,v])=>[k,v.icon+' '+v.label])])}
       ${sel('sens',[['','⇅ Entrées et sorties'],['entree','⬇️ Entrées seulement'],['sortie','⬆️ Sorties seulement']])}
-      ${sel('famille',[['','🏷️ Toutes familles'],...fams.map(f=>[f,f])])}
-      ${sel('user',[['','👤 Tous utilisateurs'],...(profils||[]).map(p=>[p.id,p.nom_complet||p.email||'?'])])}
-      ${sel('chantier',[['','🏗️ Tous chantiers'],['-','Sans chantier'],...R.projets.map(p=>[p.id,(p.code?p.code+' — ':'')+p.libelle])])}
-      <div style="min-width:240px">${smartSelect('jmArt',(composants||[]).map(c=>({id:c.id,label:c.nom+(c.code||c.reference?' · '+(c.code||c.reference):'')})),J.composant,{placeholder:'🔩 Article (tous)',onChange:`window._jm.composant=this.value;jmCharger()`})}</div>
+      ${rech('famille','jmFamille',fams.map(f=>({id:f,label:f})),'🏷️ Toutes familles (tapez pour chercher)',200)}
+      ${rech('user','jmUser',(profils||[]).map(p=>({id:p.id,label:p.nom_complet||p.email||'?'})),'👤 Tous utilisateurs (tapez pour chercher)',200)}
+      ${rech('chantier','jmChantier',[{id:'-',label:'Sans chantier'},...R.projets.map(p=>({id:p.id,label:(p.code?p.code+' — ':'')+p.libelle}))],'🏗️ Tous chantiers (code, client, libellé…)',280)}
+      <div style="min-width:240px">${smartSelect('jmArt',(composants||[]).map(c=>({id:c.id,label:c.nom+(c.code||c.reference?' · '+(c.code||c.reference):'')})),J.composant,{placeholder:'🔩 Article (tous)',effacable:true,onChange:`window._jm.composant=this.value;jmCharger()`})}</div>
       <input class="border rounded-lg px-2 py-1.5 text-sm" style="width:170px" placeholder="🔗 Pièce / réf. (BR-, INV-…)" value="${escapeHtml(J.piece)}" oninput="clearTimeout(window._jmT);window._jm.piece=this.value;window._jmT=setTimeout(jmAfficher,250)">
       <button class="btn btn-outline text-xs" onclick="window._jm={...window._jm,depot:'',type:'',famille:'',composant:'',piece:'',user:'',chantier:'',sens:''};showPage('stock-mouvements')">Réinitialiser</button>
     </div>
