@@ -929,7 +929,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e)=>{
 async function handleLogout(auto){
   const n=HL.enAttente();
   if(!auto && (n||(HL.horsLigne()&&!hlComptes()[CURRENT_USER?.id])) && !confirm((n?`${n} opération(s) saisie(s) hors ligne ne sont pas encore envoyées au serveur : elles restent sur cet appareil et partiront à la prochaine connexion.\n`:'')+(HL.horsLigne()&&!hlComptes()[CURRENT_USER?.id]?"Vous êtes hors ligne : impossible de vous reconnecter avant le retour du réseau.\n":'')+'Se déconnecter quand même ?')) return;
-  clearInterval(window._session?.minuteur); document.getElementById('hlVerrou')?.remove(); window._rbac.loaded=false; window._rbac.monProfil=null; window._REF={familles:null,unites:null}; window._affect.charge=false; window.APP_PARAMS=null; document.getElementById('modalMdp')?.remove();
+  clearInterval(window._session?.minuteur); validationsTempsReelArreter(); document.getElementById('hlVerrou')?.remove(); window._rbac.loaded=false; window._rbac.monProfil=null; window._REF={familles:null,unites:null}; window._affect.charge=false; window.APP_PARAMS=null; document.getElementById('modalMdp')?.remove();
   // Déconnexion de CET appareil seulement : la session du serveur reste valable pour la reconnexion hors ligne ;
   // les données gardées sur l'appareil (rangées par utilisateur) sont conservées pour travailler sans internet.
   await sb.auth.signOut({scope:'local'}).catch(()=>{}); try{ localStorage.removeItem(sb.auth.storageKey); }catch(e){}
@@ -970,6 +970,7 @@ async function enterApp(){
   HL.synchroniser();
   syncDemarrerAuto();
   majBadgeValidations().catch(()=>{});
+  validationsTempsReelDemarrer();
   if(monRole()?.code==='sans_role'){
     document.getElementById('pageContent').innerHTML=`<div class="card p-10 text-center max-w-lg mx-auto mt-10"><div class="text-5xl mb-3">⏳</div><h2 class="text-lg font-bold mb-2">Compte en attente</h2><p class="text-gray-500">Votre compte n'a pas encore de rôle. Un administrateur doit vous en attribuer un (Paramètres → Utilisateurs & Rôles).</p><button class="btn btn-outline mt-5" onclick="handleLogout()">Se déconnecter</button></div>`;
     document.getElementById('pageTitle').textContent='Compte en attente';
@@ -1147,6 +1148,41 @@ async function majBadgeValidations(){
   if(!error) n=(data||[]).filter(vcPeutDecider).length;
   else { const {count}=await sb.from('caisse_demandes').select('id',{count:'exact',head:true}).eq('statut','en_attente'); n=jePeuxValiderMontant(0)?(count||0):0; }
   document.querySelectorAll('.badge-validations').forEach(b=>{ b.textContent=n; b.classList.toggle('hidden',!n); });
+}
+/* ---------- Temps réel : demandes à valider (Supabase Realtime) ----------
+   Écoute caisse_demandes, commandes_fournisseur et commandes_internes. À chaque changement :
+   badge du menu mis à jour, notification au valideur habilité, et rafraîchissement des pages de validation
+   (sauf si une fenêtre est ouverte, pour ne pas perdre une saisie). Les droits (RLS) filtrent ce que chacun reçoit.
+   Prérequis serveur : sql/validations_temps_reel.sql (publication supabase_realtime). */
+window._vrt=window._vrt||{canal:null,minuteur:null,suivi:null};
+function validationsTempsReelArreter(){
+  const R=window._vrt; clearTimeout(R.minuteur); clearInterval(R.suivi); R.suivi=null;
+  if(R.canal){ try{ sb.removeChannel(R.canal); }catch(e){} R.canal=null; }
+}
+function validationsTempsReelDemarrer(){
+  validationsTempsReelArreter();
+  if(!CURRENT_USER||typeof sb.channel!=='function') return;
+  const R=window._vrt;
+  const surEvenement=(payload)=>{
+    const n=payload.new||{}, nouvelle=payload.eventType==='INSERT'&&(n.statut==='en_attente'||n.statut==='soumise');
+    clearTimeout(R.minuteur);
+    R.minuteur=setTimeout(async ()=>{
+      await majBadgeValidations().catch(()=>{});
+      if(window._dash) window._dash.data=null;
+      if(nouvelle && n.demande_par!==CURRENT_USER?.id && jePeuxValiderMontant(+n.montant||0)) toast(`🔔 Nouvelle demande à valider${n.numero?' ('+n.numero+')':''}`);
+      const p=window._pageCourante;
+      const modalOuvert=!!document.querySelector('#modalRoot .modal-overlay');
+      if(!modalOuvert && ['caisse-detail','caisse-validations','validations'].includes(p)) showPage(p);
+    },600);   // regroupe les rafales d'événements
+  };
+  try{
+    R.canal=['caisse_demandes','commandes_fournisseur','commandes_internes'].reduce(
+      (c,t)=>c.on('postgres_changes',{event:'*',schema:'public',table:t},surEvenement),
+      sb.channel('validations-temps-reel-'+CURRENT_USER.id)
+    ).subscribe();
+  }catch(e){ console.warn('Temps réel indisponible',e); }
+  // Filet de sécurité si la connexion temps réel est coupée ou non activée côté serveur : relecture du badge toutes les 60 s
+  R.suivi=setInterval(()=>{ if(!document.hidden) majBadgeValidations().catch(()=>{}); },60000);
 }
 async function imprimerBonDemande(id){
   const w=window.open('','_blank','width=800,height=900'); if(!w){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
