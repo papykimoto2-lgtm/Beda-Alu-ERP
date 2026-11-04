@@ -399,6 +399,7 @@ Menu **Approvisionnement → Achats & commandes**.
 ## Journal des mouvements de stock
 Stock → **Journal des mouvements** : tous les mouvements (réceptions, ventes, sorties chantier, transferts, inventaires, ajustements).
 - **Filtres** : période (du / au), dépôt, type, entrées ou sorties, famille, article, utilisateur, chantier, pièce ou référence (BR-, INV-, TR-…).
+  - **Saisie intuitive** : les filtres dépôt, famille, article, utilisateur et chantier sont des champs de recherche. On tape une partie du nom ou du code (ex. « COULIBALY », « CH-1098 ») pour réduire la liste, puis on choisit avec la souris ou les flèches + Entrée. Effacer le texte lève le filtre.
 - **Indicateurs** : nombre de mouvements, entrées et sorties **en valeur**, variation nette.
 - **Synthèses** par type et par dépôt.
 - **Détail** : pièce cliquable (bon de réception, inventaire, transfert), prix unitaire, valeur, stock du dépôt après le mouvement, auteur.
