@@ -13355,7 +13355,9 @@ async function chargerBrouillard(){
   const caisse=dispo.find(c=>c.id===f.caisseId);
   if(!caisse) return {dispo,caisse:null};
   const [{data:sessions,error:e1},{data:prec}]=await Promise.all([
-    sb.from('caisse_sessions').select('*').eq('caisse_id',caisse.id).gte('date_session',f.debut).lte('date_session',f.fin).order('date_session').order('ouverte_le'),
+    // Séances de la période + toute séance encore ouverte ouverte avant la fin de la période (une séance ouverte
+    // depuis plusieurs jours reste en cours : filtrer sur sa seule date d'ouverture la ferait disparaître du brouillard).
+    sb.from('caisse_sessions').select('*').eq('caisse_id',caisse.id).or(`and(date_session.gte.${f.debut},date_session.lte.${f.fin}),and(statut.eq.ouverte,date_session.lte.${f.fin})`).order('date_session').order('ouverte_le'),
     sb.from('caisse_sessions').select('id,date_session,statut,fond_cloture_reel').eq('caisse_id',caisse.id).lt('date_session',f.debut).order('date_session',{ascending:false}).order('ouverte_le',{ascending:false}).limit(1)]);
   if(e1) throw e1;
   const ids=(sessions||[]).map(s=>s.id);

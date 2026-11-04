@@ -2,7 +2,7 @@
    Garde en cache l'application (index.html, config.js, bibliothèques CDN) pour qu'elle s'ouvre
    sans connexion. Les DONNÉES (Supabase) ne passent pas par ici : elles sont gérées dans
    index.html (cache de lecture + file d'attente des saisies, synchronisée au retour du réseau). */
-const VERSION = 'aluexpert-v27';
+const VERSION = 'aluexpert-v28';
 // Bibliothèques : cache PERMANENT (non effacé aux mises à jour) — l'application démarre toujours hors ligne,
 // même si une mise à jour a été installée juste avant une coupure.
 const CACHE_CDN = 'aluexpert-cdn';
