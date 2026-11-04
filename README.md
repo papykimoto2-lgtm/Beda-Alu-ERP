@@ -418,6 +418,12 @@ Menu **✅ Validations** (en haut du menu, badge = demandes que **vous** pouvez 
 - **Règle de décision** (contrôlée aussi dans la base, fonction `peut_valider`) : droit « valider » du module (Caisse ou Stock) **et** plafond du rôle couvrant le montant **et** niveau de rôle au moins égal au palier. L'administrateur (DG) passe tous les paliers.
 - Commandes fournisseur : bandeau de validation sur la fiche (soumise / validée / rejetée avec motif) et filtre « 🔐 En attente de validation » dans la liste.
 - Migration : `sql/validations_hierarchie.sql` (section 20 de `00_installation_complete.sql`).
+- **Temps réel** : les demandes à valider (mouvements de caisse, bons de commande, commandes internes) se mettent à jour sans recharger la page :
+  - le badge « Validations » du menu change aussitôt ;
+  - le valideur habilité reçoit une notification « 🔔 Nouvelle demande à valider » ;
+  - les pages Validations et Caisse se rafraîchissent d'elles-mêmes, sauf si une fenêtre est ouverte (aucune saisie perdue) ;
+  - si le temps réel est coupé, le badge est relu toutes les 60 s.
+  - Migration : `sql/validations_temps_reel.sql` (publie les tables dans `supabase_realtime`).
 
 ## Portail client — refonte visuelle
 Paramètres → 🌐 Portail client génère toujours un fichier HTML unique et autonome (aucune dépendance à héberger côté ERP), mais avec un design entièrement revu :
