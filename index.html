@@ -13343,7 +13343,7 @@ const DISTINCTION_CAISSE_HTML=(actif)=>`<div class="grid sm:grid-cols-3 gap-2 mb
 </div>`;
 
 /* ---------- Brouillard de caisse ---------- */
-window._brouillard=window._brouillard||{caisseId:'',debut:isoLocal(new Date()),fin:isoLocal(new Date()),grouper:true};
+window._brouillard=window._brouillard||{caisseId:'',debut:isoLocal(new Date()),fin:isoLocal(new Date()),grouper:true,manuel:false};
 const estPieceVente=n=>/^VCH?-\d{4}-[A-Z0-9]+$/.test(n||''), estPieceRembours=n=>/^VCH?-\d{4}-[A-Z0-9]+-AN$/.test(n||'');
 async function chargerBrouillard(){
   const f=window._brouillard;
@@ -13407,7 +13407,7 @@ const BROUILLARD_CSS=`.br-t{width:100%;border-collapse:collapse;font-size:12.5px
   .br-ok{color:#047857;font-size:11px;white-space:nowrap}.br-ko{color:#b45309;font-size:11px;white-space:nowrap}.br-alerte{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:6px 10px;font-size:12px;margin:4px 0}`;
 function brouillardSectionsHtml(b,opts={}){
   const m=n=>new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
-  if(!b.seances.length) return `<div class="br-m" style="padding:16px 0">Aucune séance de caisse sur la période.</div>`;
+  if(!b.seances.length) return `<div class="br-m" style="padding:16px 0">Aucune séance de caisse sur la période. Choisissez une autre période (« Ce mois », « Hier » ou les dates Du / Au) puis « Appliquer ».</div>`;
   return b.seances.map(x=>{
     const s=x.s, clo=s.statut==='cloturee';
     return `<div style="break-inside:avoid">
@@ -13432,10 +13432,17 @@ function brouillardSectionsHtml(b,opts={}){
 async function renderCaisseBrouillard(el){
   await chargerAffectations();
   const f=window._brouillard;
+  // Période par défaut = aujourd'hui. Si elle ne contient aucune séance et que l'utilisateur n'a encore choisi aucune période,
+  // on élargit au mois en cours pour ne pas afficher un brouillard vide alors que les jours précédents ont des données.
+  if(!f.manuel){ const n=new Date(), auj=isoLocal(n); if(f.debut===f.fin){ f.debut=f.fin=auj; } }
   let b; try{ b=await chargerBrouillard(); }catch(e){ el.innerHTML=`<div class="card p-4 text-red-600">${escapeHtml(e.message||String(e))}</div>`; return; }
+  if(!f.manuel && b.caisse && !b.seances.length && f.debut===f.fin){
+    const n=new Date(); f.debut=isoLocal(new Date(n.getFullYear(),n.getMonth(),1)); f.fin=isoLocal(n);
+    try{ b=await chargerBrouillard(); }catch(e){ el.innerHTML=`<div class="card p-4 text-red-600">${escapeHtml(e.message||String(e))}</div>`; return; }
+  }
   window._brouillardData=b;
   if(!b.caisse){ el.innerHTML=DISTINCTION_CAISSE_HTML('brouillard')+`<div class="card p-8 text-center text-gray-500">Aucune caisse accessible.</div>`; return; }
-  const per=(a,z)=>{ f.debut=a; f.fin=z; showPage('caisse-brouillard'); };
+  const per=(a,z)=>{ f.debut=a; f.fin=z; f.manuel=true; showPage('caisse-brouillard'); };
   window._brPer=per;
   const t=aujIso(), d=new Date(); const hier=isoLocal(new Date(d.getFullYear(),d.getMonth(),d.getDate()-1)), deb=isoLocal(new Date(d.getFullYear(),d.getMonth(),1));
   el.innerHTML=`<style>${BROUILLARD_CSS}</style>${DISTINCTION_CAISSE_HTML('brouillard')}
