@@ -3641,6 +3641,7 @@ async function renderComposants(el){
       <p class="text-sm text-gray-500 max-w-lg">Composants (pièces entrant dans les ouvrages) et consommables (matières d'atelier) utilisés pour le Débit et le Chiffrage.</p>
       <button class="btn btn-primary" onclick="window._editId=null;showPage('composants-add')">+ Ajouter</button>
     </div>
+    ${(window._composantsTypeFilter||window._composantsFamFilter||window._composantsStandingFilter)?`<div class="card mb-3 text-sm flex items-center justify-between gap-2" style="background:#fffbeb;border:1px solid #fde68a">⚠️ Filtres actifs : certains articles peuvent être masqués. <button class="btn" onclick="window._composantsTypeFilter='';window._composantsFamFilter='';window._composantsStandingFilter='';showPage('composants')">Réinitialiser</button></div>`:''}
     <div class="card mb-3">
       <div class="flex items-center gap-2 mb-2" style="overflow-x:auto">${typeChips}</div>
       <div class="flex items-center gap-2 mb-2" style="overflow-x:auto">${famChips}</div>
@@ -3753,8 +3754,17 @@ async function dupliquerComposant(id){
 }
 async function renderComposantForm(el){
   await chargerReferentiels();
-  let c={};
-  if(window._editId){ const {data}=await sb.from('composants').select('*').eq('id',window._editId).single(); c=data||{}; }
+  await chargerDepots();
+  let c={}, affect={};
+  if(window._editId){
+    const [{data},{data:st}]=await Promise.all([sb.from('composants').select('*').eq('id',window._editId).single(),sb.from('stocks_depot').select('depot_id,quantite').eq('composant_id',window._editId)]);
+    c=data||{}; (st||[]).forEach(r=>{ affect[r.depot_id]=+r.quantite||0; });
+  } else { const pid=depotPrincipalId(); if(pid) affect[pid]=0; }
+  window._coAffectInit=affect;
+  const depotsAffect=(window._depotsCache||[]).filter(d=>d.actif||d.id in affect).map(d=>{
+    const q=affect[d.id], verrou=q!=null&&q!==0;
+    return `<label class="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm cursor-pointer" ${verrou?'title="Stock non nul : transférez ou videz le stock avant de retirer ce dépôt"':''}><input type="checkbox" class="coDepot" value="${d.id}" ${q!=null?'checked':''} ${verrou?'disabled':''}> <span>${DEPOT_TYPES[d.type]?.icon||'🏭'} ${escapeHtml(d.nom)}${d.est_principal?' (principal)':''}</span>${verrou?`<b class="ml-auto text-xs">${fmtQte(q)}</b>`:''}</label>`;
+  }).join('');
   el.innerHTML=`
     <div class="page-card max-w-2xl">
       <h2>🔩 ${c.id?'Modifier':'Ajouter'} un composant</h2>
@@ -3784,6 +3794,10 @@ async function renderComposantForm(el){
         <div class="field"><label>CMUP (coût moyen pondéré)</label>${fieldWrap('💰',`<input value="${money(c.cmup||0)}" readonly style="background:#f9fafb;color:#6b7280">`)}</div>
         <div class="sm:col-span-2 text-xs text-gray-600" id="coRepartition"></div>
         <div class="sm:col-span-2 text-xs text-gray-400">Le stock ne se modifie pas ici — passez par Stock → Mouvements (entrée/sortie/ajustement), Inventaire ou Transferts.</div>`:''}
+        <div class="sm:col-span-2 border-t pt-3 mt-1">
+          <div class="text-xs font-bold text-gray-500 uppercase mb-2">🏭 Dépôts d'affectation (un ou plusieurs)</div>
+          <div class="grid sm:grid-cols-2 gap-2">${depotsAffect||'<span class="text-xs text-gray-400">Aucun dépôt défini (Stock → Dépôts & points de vente).</span>'}</div>
+        </div>
         <div class="field"><label>Stock minimum (seuil rupture)</label>${fieldWrap('⚠️',`<input id="coStockMin" type="number" min="0" step="0.1" value="${c.stock_min??0}">`)}</div>
         <div class="field"><label>Stock maximum (seuil surstock)</label>${fieldWrap('📈',`<input id="coStockMax" type="number" min="0" step="0.1" value="${c.stock_max??''}" placeholder="Optionnel">`)}</div>
         <div class="field sm:col-span-2"><label>Emplacement</label>${fieldWrap('📍',`<input id="coEmplacement" placeholder="Ex : Atelier A - Rayon 3" value="${escapeHtml(c.emplacement||'')}">`)}</div>
@@ -3807,8 +3821,15 @@ async function renderComposantForm(el){
     if(id){ ({error}=await sb.from('composants').update(rec).eq('id',id)); }
     else { rec.id=HL.uuid(); rec.created_by=CURRENT_USER.id; ({error}=await sb.from('composants').insert(rec)); id=rec.id; }
     if(error){ toast(error.message,'error'); return; }
+    const coches=[...document.querySelectorAll('.coDepot:checked')].map(x=>x.value);
+    const ajouts=coches.filter(d=>!(d in window._coAffectInit)).map(d=>({depot_id:d,composant_id:id,quantite:0}));
+    const retraits=Object.keys(window._coAffectInit).filter(d=>!coches.includes(d)&&!+window._coAffectInit[d]);
+    if(ajouts.length){ const {error:e2}=await sb.from('stocks_depot').upsert(ajouts,{onConflict:'depot_id,composant_id',ignoreDuplicates:true}); if(e2){ toast('Affectation dépôts : '+e2.message,'error'); return; } }
+    if(retraits.length){ const {error:e3}=await sb.from('stocks_depot').delete().eq('composant_id',id).in('depot_id',retraits).eq('quantite',0); if(e3){ toast('Affectation dépôts : '+e3.message,'error'); return; } }
     await photoEnregistrerGrande('coPhoto','composant',id);
-    toast('Composant enregistré.'); window._editId=null; showPage('composants');
+    toast('Composant enregistré.'); window._editId=null;
+    window._composantsTypeFilter=''; window._composantsFamFilter=''; window._composantsStandingFilter='';
+    showPage('composants');
   };
 }
 
