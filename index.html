@@ -852,6 +852,36 @@ const { createClient } = supabase;
 const sb = createClient(window.SB_CFG.SUPABASE_URL, window.SB_CFG.SUPABASE_ANON_KEY, {
   global: { fetch: HL.fetch }   // hors ligne : cache de lecture + file d'attente des saisies (voir HL)
 });
+/* Pagination automatique : PostgREST plafonne chaque lecture à 1000 lignes ; au-delà, des articles (les derniers par
+   ordre alphabétique) disparaissaient en silence des listes. Toute lecture sans limit() est relue par pages de 1000. */
+(function(){
+  try{
+    let P=Object.getPrototypeOf(sb.from('_').select('*'));
+    while(P && !Object.prototype.hasOwnProperty.call(P,'then')) P=Object.getPrototypeOf(P);
+    if(!P) return;
+    const orig=P.then, TAILLE=1000, MAX_PAGES=100, ORDRE_DEFAUT={stocks_depot:'depot_id,composant_id'};
+    P.then=function(ok,ko){
+      const u=this.url;
+      if(this.method!=='GET'||!u||this.isMaybeSingle||u.searchParams.has('limit')||u.searchParams.has('offset')) return orig.call(this,ok,ko);
+      const h=this.headers, acc=(h&&(typeof h.get==='function'?h.get('Accept'):h.Accept))||'';
+      if(/vnd\.pgrst\.object/.test(acc)) return orig.call(this,ok,ko);
+      const self=this;
+      const tout=(async()=>{
+        if(!u.searchParams.has('order')){ const t=decodeURIComponent(u.pathname.split('/').pop()); if(ORDRE_DEFAUT[t]) u.searchParams.set('order',ORDRE_DEFAUT[t]); }
+        let tout=[], res;
+        for(let p=0;p<MAX_PAGES;p++){
+          u.searchParams.set('limit',String(TAILLE)); u.searchParams.set('offset',String(p*TAILLE));
+          res=await orig.call(self,r=>r);
+          if(res.error||!Array.isArray(res.data)) return res;
+          tout=tout.concat(res.data);
+          if(res.data.length<TAILLE) break;
+        }
+        return {...res,data:tout};
+      })();
+      return tout.then(ok,ko);
+    };
+  }catch(e){ console.warn('Pagination auto indisponible',e); }
+})();
 let CURRENT_USER = null;
 function money(n){ return new Intl.NumberFormat('fr-FR').format(Math.round(n||0)) + ' FCFA'; }
 /* Cellule d'export CSV : un texte qui commence par = + - @ (hors nombre) est préfixé d'une apostrophe pour qu'Excel
