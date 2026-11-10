@@ -3641,6 +3641,7 @@ async function renderComposants(el){
       <p class="text-sm text-gray-500 max-w-lg">Composants (pièces entrant dans les ouvrages) et consommables (matières d'atelier) utilisés pour le Débit et le Chiffrage.</p>
       <button class="btn btn-primary" onclick="window._editId=null;showPage('composants-add')">+ Ajouter</button>
     </div>
+    ${(window._composantsTypeFilter||window._composantsFamFilter||window._composantsStandingFilter)?`<div class="card mb-3 text-sm flex items-center justify-between gap-2" style="background:#fffbeb;border:1px solid #fde68a">⚠️ Filtres actifs : certains articles peuvent être masqués. <button class="btn" onclick="window._composantsTypeFilter='';window._composantsFamFilter='';window._composantsStandingFilter='';showPage('composants')">Réinitialiser</button></div>`:''}
     <div class="card mb-3">
       <div class="flex items-center gap-2 mb-2" style="overflow-x:auto">${typeChips}</div>
       <div class="flex items-center gap-2 mb-2" style="overflow-x:auto">${famChips}</div>
@@ -3808,7 +3809,9 @@ async function renderComposantForm(el){
     else { rec.id=HL.uuid(); rec.created_by=CURRENT_USER.id; ({error}=await sb.from('composants').insert(rec)); id=rec.id; }
     if(error){ toast(error.message,'error'); return; }
     await photoEnregistrerGrande('coPhoto','composant',id);
-    toast('Composant enregistré.'); window._editId=null; showPage('composants');
+    toast('Composant enregistré.'); window._editId=null;
+    window._composantsTypeFilter=''; window._composantsFamFilter=''; window._composantsStandingFilter='';
+    showPage('composants');
   };
 }
 
