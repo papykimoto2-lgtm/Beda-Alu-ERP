@@ -3058,12 +3058,48 @@ async function renderProjetForm(el){
   };
 }
 
-/* Suivi du chantier : bons de caisse et mouvements de stock rattachés au chantier */
+/* Matériel affecté à un chantier (fiche de suivi importée : table chantier_materiel) :
+   cartes de synthèse, récapitulatif par fournisseur et tableau détaillé des lignes avec leurs montants. */
+const matEstPaye=m=>/^p[a-z]*ye/i.test(String(m.statut_paiement||''));
+function matChantierHtml(rows,erreur){
+  if(erreur) return `<div class="text-sm text-gray-400 mb-4">Matériel du chantier indisponible : ${escapeHtml(erreur.message||String(erreur))}</div>`;
+  const L=rows||[];
+  const montant=m=>+m.montant||0;
+  const total=L.reduce((t,m)=>t+montant(m),0);
+  const paye=L.filter(matEstPaye).reduce((t,m)=>t+montant(m),0);
+  const reste=total-paye;
+  const nbPaye=L.filter(matEstPaye).length;
+  const frs={};
+  L.forEach(m=>{ const k=(m.fournisseur||'').trim()||'Non renseigné'; const f=frs[k]||(frs[k]={nom:k,n:0,total:0,paye:0}); f.n++; f.total+=montant(m); if(matEstPaye(m)) f.paye+=montant(m); });
+  const parFrs=Object.values(frs).sort((a,b)=>b.total-a.total);
+  const kpi=(t,v,c,s)=>`<div class="card p-3"><div class="text-xs text-gray-400">${t}</div><div class="text-lg font-black ${c||''}">${v}</div>${s?`<div class="text-xs text-gray-400">${s}</div>`:''}</div>`;
+  const badge=m=>matEstPaye(m)?'<span class="pill" style="color:#059669;border-color:#059669">Payé</span>':'<span class="pill" style="color:#d97706;border-color:#d97706">À payer</span>';
+  return `
+    <h3 class="font-semibold text-sm mb-2">🧱 Matériel affecté au chantier (${L.length} ligne${L.length>1?'s':''})</h3>
+    <div class="grid sm:grid-cols-4 gap-3 mb-3">
+      ${kpi('Montant total du matériel',money(total))}
+      ${kpi('Déjà payé',money(paye),'text-emerald-600',nbPaye+' ligne(s)')}
+      ${kpi('Reste à payer / non renseigné',money(reste),reste>0?'text-red-600':'',(L.length-nbPaye)+' ligne(s)')}
+      ${kpi('Fournisseurs',String(parFrs.filter(f=>f.nom!=='Non renseigné').length),'',total?Math.round(paye/total*100)+' % payé':'')}
+    </div>
+    ${parFrs.length>1?`<div class="overflow-x-auto mb-3"><table><thead><tr><th>Fournisseur</th><th class="text-right">Lignes</th><th class="text-right">Montant</th><th class="text-right">Payé</th><th class="text-right">Reste</th></tr></thead><tbody>
+      ${parFrs.map(f=>`<tr><td>${escapeHtml(f.nom)}</td><td class="text-right">${f.n}</td><td class="text-right font-semibold">${money(f.total)}</td><td class="text-right">${money(f.paye)}</td><td class="text-right ${f.total-f.paye>0?'text-red-600':''}">${money(f.total-f.paye)}</td></tr>`).join('')}
+    </tbody></table></div>`:''}
+    <div class="overflow-x-auto mb-4"><table><thead><tr><th>#</th><th class="text-right">Qté</th><th>Désignation</th><th>Fournisseur</th><th class="text-right">P.U</th><th class="text-right">Montant</th><th>Paiement</th><th>Date paiement</th><th>Livraison</th></tr></thead><tbody>
+      ${L.map((m,i)=>`<tr><td class="text-xs text-gray-400">${m.ordre||i+1}</td><td class="text-right">${m.quantite==null?'—':fmtQte(+m.quantite)}</td>
+        <td>${escapeHtml(m.designation||'')}${m.code_article?` <span class="text-xs text-gray-400">(${escapeHtml(m.code_article)})</span>`:''}</td><td class="text-xs">${escapeHtml(m.fournisseur||'—')}</td>
+        <td class="text-right">${m.prix_unitaire==null?'—':money(m.prix_unitaire)}</td><td class="text-right font-semibold">${money(montant(m))}</td>
+        <td>${badge(m)}${m.statut_paiement&&/chq|cheq/i.test(m.statut_paiement)?' <span class="text-xs text-gray-400">chèque</span>':''}</td><td class="text-xs">${m.date_paiement?fmtDate(m.date_paiement):'—'}</td><td class="text-xs">${escapeHtml(m.livraison||'—')}</td></tr>`).join('')||'<tr><td colspan="9" class="text-gray-400 text-center p-3">Aucun matériel enregistré pour ce chantier.</td></tr>'}
+    </tbody>${L.length?`<tfoot><tr><th colspan="5" class="text-right">Total matériel</th><th class="text-right">${money(total)}</th><th colspan="3"></th></tr></tfoot>`:''}</table></div>`;
+}
+
+/* Suivi du chantier : matériel de la fiche, bons de caisse et mouvements de stock rattachés au chantier */
 async function renderSuiviChantier(projetId){
   const host=document.getElementById('suiviChantier'); if(!host) return;
-  const [{data:caisse,error:e1},{data:stock,error:e2}]=await Promise.all([
+  const [{data:caisse,error:e1},{data:stock,error:e2},{data:mat,error:e3}]=await Promise.all([
     sb.from('caisse_mouvements').select('*, caisses(nom)').eq('projet_id',projetId).order('date_mouvement',{ascending:false}),
-    sb.from('mouvements_stock').select('*, composants(nom,unite)').eq('projet_id',projetId).order('created_at',{ascending:false})
+    sb.from('mouvements_stock').select('*, composants(nom,unite)').eq('projet_id',projetId).order('created_at',{ascending:false}),
+    sb.from('chantier_materiel').select('*').eq('projet_id',projetId).order('ordre',{ascending:true})
   ]);
   if(e1||e2){ host.innerHTML=`<div class="text-sm text-gray-400">Suivi indisponible : ${escapeHtml((e1||e2).message)}</div>`; return; }
   const cm=caisse||[], ms=stock||[];
@@ -3073,9 +3109,10 @@ async function renderSuiviChantier(projetId){
   const materiaux=ms.reduce((t,m)=>t+coutLigne(m),0);
   host.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
-      <h2>📊 Suivi du chantier — caisse & matériaux</h2>
+      <h2>📊 Suivi du chantier — matériel, caisse & stock</h2>
       <button class="btn btn-outline" onclick="openMouvementModal('sortie',null,null,'${projetId}')">📦 Sortie de stock pour ce chantier</button>
     </div>
+    ${matChantierHtml(mat,e3)}
     <div class="grid sm:grid-cols-4 gap-3 mb-4">
       <div class="card p-3"><div class="text-xs text-gray-400">Dépenses de caisse</div><div class="text-lg font-black text-red-600">${money(depenses)}</div></div>
       <div class="card p-3"><div class="text-xs text-gray-400">Encaissements (caisse)</div><div class="text-lg font-black text-emerald-600">${money(recettes)}</div></div>
@@ -3126,8 +3163,10 @@ async function ecCharger(){
   if(E.du){ qc=qc.gte('date_mouvement',E.du); qs=qs.gte('date_mouvement',E.du); }
   if(E.au){ qc=qc.lte('date_mouvement',E.au); qs=qs.lte('date_mouvement',E.au); }
   if(E.chantier){ qc=qc.eq('projet_id',E.chantier); qs=qs.eq('projet_id',E.chantier); }
-  const [{data:caisse,error:e1},{data:stock,error:e2},{data:devis}]=await Promise.all([qc,qs,sb.from('devis').select('projet_id,total,statut').eq('is_current',true).not('projet_id','is',null)]);
+  const qm=E.chantier?sb.from('chantier_materiel').select('*').eq('projet_id',E.chantier).order('ordre',{ascending:true}):Promise.resolve({data:[],error:null});
+  const [{data:caisse,error:e1},{data:stock,error:e2},{data:devis},{data:mat,error:e3}]=await Promise.all([qc,qs,sb.from('devis').select('projet_id,total,statut').eq('is_current',true).not('projet_id','is',null),qm]);
   if(e1||e2){ host.innerHTML=`<div class="text-red-600">${escapeHtml((e1||e2).message)}</div>`; return; }
+  window._ecMat={rows:mat||[],erreur:e3||null};
   window._ecCalc=ecCalc(caisse||[],stock||[],devis||[]); ecAfficher();
 }
 const ecCout=m=>-(+m.quantite||0)*(+(m.cmup_apres??m.prix_unitaire)||0);   // sortie = coût positif, retour = coût négatif
@@ -3156,10 +3195,13 @@ function ecAfficher(){
     ${r.lignes.map(l=>`<tr class="cursor-pointer" onclick="window._ec.chantier='${l.id}';showPage('etat-chantiers')"><td><b>${escapeHtml(l.libelle)}</b><div class="text-xs text-gray-400">${escapeHtml(l.code)}</div></td><td>${escapeHtml(l.client)}</td><td class="text-xs">${escapeHtml(STATUT_PROJET[l.etape]?.label||'')}</td>
       <td class="text-right">${money(l.depenses)}</td><td class="text-right">${money(l.materiel)}</td><td class="text-right font-semibold">${money(l.cout)}</td><td class="text-right">${l.devis?money(l.devis):'—'}</td><td class="text-right ${l.devis>0&&l.cout>l.devis?'text-red-600 font-semibold':''}">${ratio(l)}</td></tr>`).join('')||'<tr><td colspan="8" class="text-gray-400 text-center p-4">Aucun mouvement rattaché à un chantier sur cette période.</td></tr>'}
     </tbody></table></div>`;
-  if(E.chantier&&r.lignes[0]){
-    const l=r.lignes[0], arts=Object.values(l.articles).sort((a,b)=>b.cout-a.cout);
-    html+=`<h3 class="font-bold mb-2">🏗️ Détail — ${escapeHtml(l.libelle)}</h3>
-      <h4 class="font-semibold text-sm mb-1">📦 Matériel par article</h4>
+  if(E.chantier){
+    const pj=ref.projets.find(x=>x.id===E.chantier)||{};
+    const l=r.lignes[0]||{id:E.chantier,libelle:pj.libelle||'Chantier',code:pj.code||'',client:chantierNomClient(pj.client_id),articles:{},caisse:[],stock:[],depenses:0,recettes:0,materiel:0,devis:0,cout:0};
+    const arts=Object.values(l.articles).sort((a,b)=>b.cout-a.cout);
+    html+=`<h3 class="font-bold mb-2">🏗️ Détail — ${escapeHtml(l.libelle)}${l.code?` <span class="text-xs text-gray-400">${escapeHtml(l.code)}</span>`:''}${l.client?` · <span class="text-sm font-normal">${escapeHtml(l.client)}</span>`:''}</h3>
+      ${matChantierHtml(window._ecMat?.rows,window._ecMat?.erreur)}
+      <h4 class="font-semibold text-sm mb-1">📦 Matériel sorti du stock par article</h4>
       <div class="card p-0 overflow-x-auto mb-4"><table><thead><tr><th>Article</th><th>Famille</th><th class="text-right">Sorti</th><th class="text-right">Retourné</th><th class="text-right">Net</th><th class="text-right">Coût (CMUP)</th></tr></thead><tbody>
       ${arts.map(a=>`<tr><td>${escapeHtml(a.nom)}</td><td class="text-xs">${escapeHtml(a.famille)}</td><td class="text-right">${fmtQte(a.sorti)} ${escapeHtml(a.unite)}</td><td class="text-right">${a.retour?fmtQte(a.retour)+' '+escapeHtml(a.unite):'—'}</td><td class="text-right">${fmtQte(a.sorti-a.retour)} ${escapeHtml(a.unite)}</td><td class="text-right font-semibold">${money(a.cout)}</td></tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 text-center p-3">Aucun mouvement de stock.</td></tr>'}
       </tbody><tfoot><tr><th colspan="5" class="text-right">Total matériel</th><th class="text-right">${money(l.materiel)}</th></tr></tfoot></table></div>
