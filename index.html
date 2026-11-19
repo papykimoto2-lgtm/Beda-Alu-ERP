@@ -2808,11 +2808,11 @@ async function facturesCharger(){
     sb.from('projets').select('id,code,libelle,client_id,etape,created_at,description'),
     sb.from('commandes_chantier').select('id,n_facture,client,categorie,designation,date_commande,mode_paiement,montant,avance,reste'),
     sb.from('chantier_materiel').select('projet_id,montant'),
-    sb.from('clients').select('id,nom,prenoms'),
+    sb.from('clients').select('id,nom,prenoms,telephone,email'),
     modifsCharger()   // table facultative : absente tant que sql/modifications_facture.sql n'est pas exécuté
   ]);
   if(e1||e2||e3) throw (e1||e2||e3);
-  const nomClient={}; (clients||[]).forEach(c=>{ nomClient[c.id]=[c.nom,c.prenoms].filter(Boolean).join(' '); });
+  const nomClient={}, contactClient={}; (clients||[]).forEach(c=>{ nomClient[c.id]=[c.nom,c.prenoms].filter(Boolean).join(' '); contactClient[c.id]={tel:c.telephone||'',email:c.email||''}; });
   const matParProjet={}; (mat||[]).forEach(m=>{ matParProjet[m.projet_id]=(matParProjet[m.projet_id]||0)+(+m.montant||0); });
   const F={};   // clé numérique → facture
   const get=k=>F[k]||(F[k]={cle:k,num:'N°'+k,clients:new Set(),projets:[],cmds:[],date:null});
@@ -2820,7 +2820,7 @@ async function facturesCharger(){
   let sansNumero=0;
   (projets||[]).forEach(p=>{
     const k=facturesCles(chantierNumFacture(p))[0]; if(!k){ sansNumero++; return; }
-    const f=get(k); f.projets.push(p); if(p.client_id&&nomClient[p.client_id]) f.clients.add(nomClient[p.client_id]);
+    const f=get(k); f.projets.push(p); if(p.client_id&&nomClient[p.client_id]) f.clients.add(nomClient[p.client_id]); if(!f.contact&&p.client_id) f.contact=contactClient[p.client_id];
     const d=String(p.libelle||'').match(/(\d{4}-\d{2}-\d{2})/); maj(f,d?d[1]:p.created_at);
   });
   // Commande portant plusieurs n° (« N°24164/26563 ») : montants comptés une seule fois (1er n°), les autres n° la référencent
@@ -3019,6 +3019,59 @@ function mfCmdChoisie(cle,saisie){
   const ecart=(m.value!==''?+m.value:(+c.montant||0))-(+c.montant||0);
   document.getElementById('mfEcartAuto').innerHTML=ecart?`Écart : <b class="${ecart>0?'text-red-600':'text-emerald-600'}">${ecart>0?'+':''}${money(ecart)}</b> · reste à payer recalculé automatiquement (montant − avance).`:'Montant inchangé.';
 }
+/* Impression / envoi (WhatsApp, e-mail) de la fiche d'une facture : chantiers, commandes, matériel, stock et historique des modifications */
+function factureRapportHtml(){
+  const D=window._factDetail, r=D.r, e=escapeHtml, num=x=>x==null?'':money(x);
+  const codeDe=id=>(r.projets.find(p=>p.id===id)||{}).code||'';
+  const totMat=D.mat.reduce((t,m)=>t+(+m.montant||0),0);
+  const kpi=(t,v)=>`<div>${t}<b>${v}</b></div>`;
+  const vide=t=>`<div style="color:#64748b;margin:2px 0 6px">${t}</div>`;
+  const chantiers=r.projets.length?`<table><thead><tr><th>Code</th><th>Libellé</th><th>Étape</th><th>Création</th><th class="r">Matériel</th></tr></thead><tbody>
+    ${r.projets.map(p=>`<tr><td>${e(p.code||'')}</td><td>${e(p.libelle||'')}</td><td>${e(STATUT_PROJET[p.etape]?.label||'')}</td><td>${p.created_at?fmtDate(p.created_at):''}</td><td class="r">${money(D.mat.filter(m=>m.projet_id===p.id).reduce((t,m)=>t+(+m.montant||0),0))}</td></tr>`).join('')}</tbody></table>`:vide('Aucun chantier lié.');
+  const commandes=r.cmds.length?`<table><thead><tr><th>Date</th><th>Cat.</th><th>Désignation</th><th>Paiement</th><th class="r">Montant</th><th class="r">Avance</th><th class="r">Reste</th></tr></thead><tbody>
+    ${r.cmds.map(c=>{ const mo=window._modifsCmd?.[c.id]; return `<tr><td>${c.date_commande?fmtDate(c.date_commande):''}</td><td>${e(c.categorie||'')}</td><td>${e(c.designation||'')}${mo?' <i>(modifiée)</i>':''}</td><td>${e(c.mode_paiement||'')}</td><td class="r">${num(c.montant)}${mo&&mo.initial!=null&&+mo.initial!==+c.montant?`<br><s style="color:#64748b">${money(mo.initial)}</s>`:''}</td><td class="r">${num(c.avance)}</td><td class="r">${num(c.reste)}</td></tr>`; }).join('')}</tbody>
+    <tfoot><tr><th colspan="4" class="r">Total</th><th class="r">${money(r.montant)}</th><th class="r">${money(r.avance)}</th><th class="r">${money(r.reste)}</th></tr></tfoot></table>`:vide('Aucune commande chantier pour ce n° de facture.');
+  const materiel=D.mat.length?`<table><thead><tr><th>Chantier</th><th class="r">Qté</th><th>Désignation</th><th>Fournisseur</th><th class="r">Montant</th><th>Paiement</th></tr></thead><tbody>
+    ${D.mat.map(m=>`<tr><td>${e(codeDe(m.projet_id))}</td><td class="r">${m.quantite==null?'':fmtQte(+m.quantite)}</td><td>${e(m.designation||'')}</td><td>${e(m.fournisseur||'')}</td><td class="r">${money(+m.montant||0)}</td><td>${matEstPaye(m)?'Payé':'À payer'}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><th colspan="4" class="r">Total matériel</th><th class="r">${money(totMat)}</th><th></th></tr></tfoot></table>`:vide('Aucun matériel affecté.');
+  const stock=D.stock.length?`<table><thead><tr><th>Date</th><th>Composant</th><th>Type</th><th class="r">Quantité</th><th>Motif / réf.</th></tr></thead><tbody>
+    ${D.stock.map(m=>`<tr><td>${fmtDate(m.date_mouvement||m.created_at)}</td><td>${e(m.composants?.nom||'')}</td><td>${e(STOCK_TYPE_LABELS[m.type]?.label||m.type)}</td><td class="r">${fmtQte(+m.quantite)} ${e(m.composants?.unite||'')}</td><td>${e([m.reference,m.motif].filter(Boolean).join(' — '))}</td></tr>`).join('')}</tbody></table>`:vide('Aucun mouvement de stock rattaché.');
+  const histo=(D.modifs.length||D.auto.length)?`<table><thead><tr><th>Date</th><th>Type</th><th>Détail</th><th>Par</th></tr></thead><tbody>
+    ${D.modifs.map(m=>{ const ann=D.annulees.has(m.id); const det=[
+        m.ancien_materiel||m.nouveau_materiel?`${e(m.ancien_materiel||'')}${m.ancien_materiel&&m.nouveau_materiel?' → ':''}<b>${e(m.nouveau_materiel||'')}</b>`:'',
+        m.ancien_montant!=null||m.nouveau_montant!=null?`Montant : ${m.ancien_montant==null?'—':money(m.ancien_montant)} → <b>${m.nouveau_montant==null?'—':money(m.nouveau_montant)}</b>`:(m.ecart_montant!=null?`Écart : ${+m.ecart_montant>0?'+':''}${money(m.ecart_montant)}`:''),
+        e(m.note)].filter(Boolean).join('<br>');
+      return `<tr style="${ann?'color:#64748b':''}"><td>${fmtDate(m.date_modif)}</td><td>${e(m.type)}${ann?'<br><i>annulée</i>':''}</td><td>${ann?'<s>':''}${det}${ann?'</s>':''}</td><td>${e(m.profiles?.nom_complet||'')}</td></tr>`; }).join('')}
+    ${D.auto.map(x=>`<tr><td>${fmtDate(x.p.created_at)}</td><td>Import Excel</td><td>Feuille « ${e(x.f)} » : version modifiée de cette facture (chantier ${e(x.p.code||'')}).</td><td></td></tr>`).join('')}</tbody></table>`:vide('Aucune modification enregistrée.');
+  const h=t=>`<h2>${t}</h2>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Facture ${e(r.num)}</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:22px;color:#0f172a;font-size:10px}
+    h2{font-size:12px;margin:14px 0 4px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd5e1;padding:3px 5px;text-align:left;vertical-align:top}th{background:#f1f5f9;font-size:9px;text-transform:uppercase}.r{text-align:right;white-space:nowrap}
+    .k{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}.k div{border:1px solid #cbd5e1;border-radius:6px;padding:6px}.k b{display:block;font-size:13px}
+    thead{display:table-header-group}tr{break-inside:avoid}@page{size:A4 portrait;margin:9mm}@media print{body{padding:0}}</style></head><body>${achBouton}
+    <h1 style="font-size:16px;margin:0">FACTURE ${e(r.num)} — SUIVI ET MODIFICATIONS</h1>
+    <div style="color:#475569">${e(r.clientTxt||'Client non renseigné')} · ${r.date?fmtDate(r.date):'date inconnue'}${r.cats.length?' · '+e(r.cats.join(', ')):''} · édité le ${new Date().toLocaleString('fr-FR')}</div>
+    <div class="k">${kpi('Commandes',r.cmds.length?money(r.montant):'—')}${kpi('Avance',r.cmds.length?money(r.avance):'—')}${kpi('Reste à payer',r.cmds.length?money(r.reste):'—')}${kpi('Matériel affecté',D.mat.length?money(totMat):'—')}</div>
+    ${h('Chantier(s) lié(s)')}${chantiers}${h('Commandes chantier')}${commandes}${h('Matériel affecté')}${materiel}${h('Mouvements de stock')}${stock}${h('Historique des modifications (MODI / MODIF)')}${histo}
+    <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`;
+}
+const factureMeta=()=>{ const r=window._factDetail.r; return {type:'FACTURE_CHANTIER',titre:'Facture '+r.num+' — suivi et modifications',numero:r.num,montant:r.montant,tiers:r.clientTxt||'',contenu:true}; };
+async function factureImprimer(){
+  if(!window._factDetail) return;
+  const win=window.open('','_blank','width=1000,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  await impEcrire(win,factureMeta(),factureRapportHtml());
+}
+function factureEnvoyer(){
+  const D=window._factDetail; if(!D) return; const r=D.r;
+  const actives=D.modifs.filter(m=>m.type!=='ANNULATION'&&!D.annulees.has(m.id));
+  const der=D.modifs.length?D.modifs[0]:null;   // la plus récente (liste triée par date décroissante)
+  const texte=`🧾 *Facture ${r.num}* — ${nomEntreprise()||APP_NOM}\n${r.clientTxt?'Client : '+r.clientTxt+'\n':''}\n`+
+    (r.cmds.length?`• Montant des commandes : *${money(r.montant)}*\n• Avance : ${money(r.avance)}\n• Reste à payer : ${money(r.reste)}\n`:'')+
+    (D.mat.length?`• Matériel affecté : ${money(D.mat.reduce((t,m)=>t+(+m.montant||0),0))}\n`:'')+
+    (D.modifs.length||D.auto.length?`• Modifications : ${actives.length+D.auto.length}${der?` (dernière le ${fmtDate(der.date_modif)})`:''}\n`:'')+
+    `\nDétail (chantiers, commandes, matériel, historique) dans le PDF joint.`;
+  let tel=(r.contact?.tel||'').replace(/[^\d+]/g,''); if(tel&&!tel.startsWith('+')) tel=tel.replace(/^00/,'+').replace(/^(\d{10})$/,'+225$1');   // numéro local ivoirien → international
+  impOuvrirEnvoi({titre:'Facture '+r.num,html:factureRapportHtml(),meta:factureMeta(),orientation:'portrait',nomFichier:`${slugEntreprise()}-facture-${r.cle}-suivi.pdf`,texte,tel,mail:r.contact?.email||''});
+}
 async function detailFactureChantier(cle){
   const r=(window._factChCache?.rows||[]).find(x=>x.cle===cle); if(!r) return;
   openModal(`<div class="p-6 text-center text-sm text-gray-400">Chargement de la facture ${escapeHtml(r.num)}…</div>`);
@@ -3068,11 +3121,12 @@ async function detailFactureChantier(cle){
   const materiel=mat.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Chantier</th><th class="text-right">Qté</th><th>Désignation</th><th>Fournisseur</th><th class="text-right">Montant</th><th>Paiement</th></tr></thead><tbody>
       ${mat.map(m=>`<tr><td class="text-xs">${escapeHtml(codeDe(m.projet_id))}</td><td class="text-right">${m.quantite==null?'—':fmtQte(+m.quantite)}</td><td>${escapeHtml(m.designation||'')}</td><td class="text-xs">${escapeHtml(m.fournisseur||'—')}</td><td class="text-right font-semibold">${money(+m.montant||0)}</td><td>${matEstPaye(m)?'<span class="pill" style="color:#059669;border-color:#059669">Payé</span>':'<span class="pill" style="color:#d97706;border-color:#d97706">À payer</span>'}</td></tr>`).join('')}
     </tbody><tfoot><tr><th colspan="4" class="text-right">Total matériel</th><th class="text-right">${money(totMat)}</th><th></th></tr></tfoot></table></div>`:'<div class="text-sm text-gray-400">Aucun matériel affecté (fiche de suivi non importée pour ce chantier).</div>';
+  window._factDetail={r,mat,stock,modifs,annulees,auto};   // pour l'impression et l'envoi
   openModal(`
     <div class="flex justify-between items-start gap-3 mb-3">
       <div><h2 class="text-lg font-bold">🧾 Facture ${escapeHtml(r.num)}</h2>
         <div class="text-xs text-gray-400">${escapeHtml(r.clientTxt||'Client non renseigné')} · ${r.date?fmtDate(r.date):'date inconnue'}${r.cats.length?' · '+escapeHtml(r.cats.join(', ')):''}</div></div>
-      <button class="btn btn-outline" onclick="closeModal()">✕</button>
+      <div class="flex flex-wrap justify-end gap-2"><button class="btn btn-outline text-xs" onclick="factureImprimer()">🖨 Imprimer</button><button class="btn btn-outline text-xs" onclick="factureEnvoyer()">📤 WhatsApp / e-mail</button><button class="btn btn-outline" onclick="closeModal()">✕</button></div>
     </div>
     <div style="max-height:68vh;overflow-y:auto">
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -9380,7 +9434,7 @@ async function imprimerPageCourante(){
     <script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body></html>`);
 }
 /* ---------- Vérification d'un document (scan du QR de sécurité, sans compte) ---------- */
-const IMP_TYPES={ETAT_VALIDATIONS:'État périodique des validations',DEVIS:'Devis',FACTURE:'Facture',FACTURE_FNE:'Facture normalisée (FNE)',RECU:'Reçu de caisse',BON_CAISSE:'Bon de caisse',BON_TRANSFERT:'Bon de transfert',FICHE_CLIENT:'Fiche client',FICHE_FOURNISSEUR:'Fiche fournisseur',FICHE_EXECUTION:"Fiche d'exécution",ESTIMATION:'Estimation financière',ETAT_PDV:'État périodique point de vente',BROUILLARD:'Brouillard de caisse',TICKET_Z:'Ticket Z',LECTURE_X:'Lecture X',ETAT_COMPTABLE:'État comptable SYSCOHADA',BULLETIN:'Bulletin de pilotage',PAGE:'Page imprimée',ETAT_INVENTAIRE:"État d'inventaire",FEUILLE_COMPTAGE:'Feuille de comptage',VALORISATION_STOCK:'Valorisation du stock',BON_COMMANDE:'Bon de commande fournisseur',BON_RECEPTION:'Bon de réception',COMMANDE_INTERNE:'Commande interne',JOURNAL_STOCK:'Journal des mouvements de stock',ETAT_CHANTIERS:'État de suivi chantier',PLAN_COMPTABLE:'Plan comptable',EXTRAIT_TIERS:'Extrait de compte tiers',BALANCE_TIERS:'Balance auxiliaire'};
+const IMP_TYPES={FACTURE_CHANTIER:'Facture de chantier — suivi et modifications',ETAT_VALIDATIONS:'État périodique des validations',DEVIS:'Devis',FACTURE:'Facture',FACTURE_FNE:'Facture normalisée (FNE)',RECU:'Reçu de caisse',BON_CAISSE:'Bon de caisse',BON_TRANSFERT:'Bon de transfert',FICHE_CLIENT:'Fiche client',FICHE_FOURNISSEUR:'Fiche fournisseur',FICHE_EXECUTION:"Fiche d'exécution",ESTIMATION:'Estimation financière',ETAT_PDV:'État périodique point de vente',BROUILLARD:'Brouillard de caisse',TICKET_Z:'Ticket Z',LECTURE_X:'Lecture X',ETAT_COMPTABLE:'État comptable SYSCOHADA',BULLETIN:'Bulletin de pilotage',PAGE:'Page imprimée',ETAT_INVENTAIRE:"État d'inventaire",FEUILLE_COMPTAGE:'Feuille de comptage',VALORISATION_STOCK:'Valorisation du stock',BON_COMMANDE:'Bon de commande fournisseur',BON_RECEPTION:'Bon de réception',COMMANDE_INTERNE:'Commande interne',JOURNAL_STOCK:'Journal des mouvements de stock',ETAT_CHANTIERS:'État de suivi chantier',PLAN_COMPTABLE:'Plan comptable',EXTRAIT_TIERS:'Extrait de compte tiers',BALANCE_TIERS:'Balance auxiliaire'};
 function impVerificationResultatHtml(r){
   if(!r) return `<div style="color:#b91c1c;font-weight:700">⚠ Vérification impossible (serveur injoignable). Réessayez avec une connexion Internet.</div>`;
   if(!r.trouve) return `<div style="text-align:center"><div style="font-size:44px">❌</div><div style="font-size:18px;font-weight:800;color:#b91c1c">Code inconnu</div><p style="color:#475569">Aucun document n'a été émis par le logiciel avec ce code. Le document présenté n'est pas authentique ou le code a été mal saisi.</p></div>`;
