@@ -14034,6 +14034,7 @@ async function renderCaisseBrouillard(el){
           ${b.t.aVentiler?`<button class="btn btn-outline" onclick="caisseOuvrirVentilation('${b.caisse.id}')">📒 Ventiler (${b.t.aVentiler})</button>`:''}
           ${b.pdvs.length?`<button class="btn btn-outline" onclick="window._ticketZ.pdv='${b.pdvs[0].id}';showPage('comptoir-z')">🧾 Ticket Z</button>`:''}
           <button class="btn btn-outline" onclick="exporterBrouillardCsv()">⬇ CSV</button>
+          <button class="btn btn-outline" onclick="brouillardEnvoyer()">📤 Envoyer (WhatsApp / e-mail)</button>
           <button class="btn btn-primary" onclick="imprimerBrouillard()">🖨 Imprimer</button>
         </div>
       </div>
@@ -14059,12 +14060,14 @@ async function renderCaisseBrouillard(el){
     </div>
     <div class="page-card">${brouillardSectionsHtml(b)}</div>`;
 }
-async function imprimerBrouillard(){
-  const b=window._brouillardData; if(!b?.caisse) return;
-  const win=window.open('','_blank','width=1000,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
-  const f=b.f, per=f.debut===f.fin?new Date(f.debut+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):`du ${new Date(f.debut+'T00:00:00').toLocaleDateString('fr-FR')} au ${new Date(f.fin+'T00:00:00').toLocaleDateString('fr-FR')}`;
+function brouillardPeriode(b){
+  const f=b.f; return f.debut===f.fin?new Date(f.debut+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):`du ${new Date(f.debut+'T00:00:00').toLocaleDateString('fr-FR')} au ${new Date(f.fin+'T00:00:00').toLocaleDateString('fr-FR')}`;
+}
+const brouillardMeta=b=>({type:'BROUILLARD',titre:'Brouillard de caisse',periode:brouillardPeriode(b),niveau:'Caisse : '+b.caisse.nom,montant:b.t.soldeFinal,contenu:true});
+function brouillardHtml(b){
+  const per=brouillardPeriode(b);
   const m=n=>new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
-  await impEcrire(win,{type:'BROUILLARD',titre:'Brouillard de caisse',periode:per,niveau:'Caisse : '+b.caisse.nom,montant:b.t.soldeFinal,contenu:true},`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Brouillard de caisse — ${escapeHtml(b.caisse.nom)}</title>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Brouillard de caisse — ${escapeHtml(b.caisse.nom)}</title>
     <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:26px;color:#0f172a;font-size:12px}${BROUILLARD_CSS}.br-h{margin-top:18px}
     @media print{body{padding:0}.noprint{display:none}}</style></head><body>
     <div class="noprint" style="text-align:right;margin-bottom:10px"><button onclick="window.print()" style="background:#6d28d9;color:#fff;border:0;padding:8px 16px;border-radius:6px;font-weight:700;cursor:pointer">🖨 Imprimer</button></div>
@@ -14078,8 +14081,25 @@ async function imprimerBrouillard(){
       <tr><td>Séances</td><td class="br-r">${b.seances.length}</td><td>Écarts de caisse</td><td class="br-r"><b>${m(b.t.ecarts)}</b></td></tr></tbody></table>
     ${brouillardSectionsHtml(b,{impression:true})}
     <div style="display:flex;gap:30px;margin-top:40px">${['Le caissier (la caissière)','Le contrôleur','Visa du DG'].map(x=>`<div style="flex:1;border-top:1px solid #0f172a;padding-top:6px;text-align:center">${x}</div>`).join('')}</div>
-    <script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`);
+    <script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`;
+}
+async function imprimerBrouillard(){
+  const b=window._brouillardData; if(!b?.caisse) return;
+  const win=window.open('','_blank','width=1000,height=1200'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  await impEcrire(win,brouillardMeta(b),brouillardHtml(b));
   win.document.close(); win.focus();
+}
+/* Envoi du brouillard (période et caisse affichées) par WhatsApp / e-mail, en PDF — même fenêtre d'envoi que les factures */
+function brouillardEnvoyer(){
+  const b=window._brouillardData; if(!b?.caisse) return;
+  if(!b.seances.length){ toast('Aucune séance sur la période : rien à envoyer.','error'); return; }
+  if(b.t.pieces>1500 && !confirm(`Cette période compte ${b.t.pieces} pièces : le PDF sera très volumineux et long à produire. Réduisez la période (ex. un mois) ou poursuivez quand même ?`)) return;
+  const m=n=>new Intl.NumberFormat('fr-FR').format(Math.round(n||0)), per=brouillardPeriode(b), f=b.f;
+  const texte=`📖 *Brouillard de caisse* — ${nomEntreprise()||APP_NOM}\nCaisse : ${b.caisse.nom}\nPériode : ${per}\n\n`+
+    `• Fond initial : ${m(b.t.fondInitial)} FCFA\n• Entrées : ${m(b.t.entrees)} FCFA\n• Sorties : ${m(b.t.sorties)} FCFA\n• *Solde final : ${m(b.t.soldeFinal)} FCFA*${b.t.ouvertes?' (théorique, séance ouverte)':''}\n`+
+    (Math.abs(b.t.ecarts)>=1?`• Écarts de caisse : ${m(b.t.ecarts)} FCFA\n`:'')+
+    `• ${b.seances.length} séance(s) · ${b.t.pieces} pièce(s)${b.t.aVentiler?` · ${b.t.aVentiler} à ventiler`:''}\n\nDétail pièce par pièce dans le PDF joint.`;
+  impOuvrirEnvoi({titre:'Brouillard de caisse — '+per,html:brouillardHtml(b),meta:brouillardMeta(b),orientation:'portrait',nomFichier:`${slugEntreprise()}-brouillard-caisse-${f.debut}${f.debut===f.fin?'':'_'+f.fin}.pdf`,texte});
 }
 function exporterBrouillardCsv(){
   const b=window._brouillardData; if(!b?.caisse) return;
