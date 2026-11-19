@@ -2788,13 +2788,16 @@ function filterCommandesChantier(){
    Une ligne par n° de facture (repris de l'Excel : libellé des chantiers « Fiche N27484 - date » et colonne
    « Facture » des commandes chantier). Rassemble le client, les chantiers liés, les commandes (montant, avance,
    reste) et le matériel affecté. Un même n° peut regrouper plusieurs chantiers ; « N°24164/26563 » compte pour 2 n°. */
+/* Feuille Excel importée « … MODIF / MODI » : le chantier est une version modifiée de la même facture */
+function facturesFeuilleModif(p){ const m=String(p.description||'').match(/feuille\s*:\s*(.*)$/i); return m&&/\bmodif?\b/i.test(m[1])?m[1].trim():''; }
 function facturesCles(txt){ return (String(txt||'').match(/\d{3,}/g)||[]).map(x=>x.replace(/^0+/,'')).filter(Boolean); }
 async function renderFacturesChantier(el){
-  const [{data:projets,error:e1},{data:cmds,error:e2},{data:mat,error:e3},{data:clients}]=await Promise.all([
-    sb.from('projets').select('id,code,libelle,client_id,etape,created_at'),
+  const [{data:projets,error:e1},{data:cmds,error:e2},{data:mat,error:e3},{data:clients},{data:modifs}]=await Promise.all([
+    sb.from('projets').select('id,code,libelle,client_id,etape,created_at,description'),
     sb.from('commandes_chantier').select('n_facture,client,categorie,designation,date_commande,mode_paiement,montant,avance,reste'),
     sb.from('chantier_materiel').select('projet_id,montant'),
-    sb.from('clients').select('id,nom,prenoms')
+    sb.from('clients').select('id,nom,prenoms'),
+    sb.from('facture_modifications').select('n_facture,note,ancien_materiel,nouveau_materiel')   // table facultative : absente tant que sql/modifications_facture.sql n'est pas exécuté
   ]);
   if(e1||e2||e3) throw (e1||e2||e3);
   const nomClient={}; (clients||[]).forEach(c=>{ nomClient[c.id]=[c.nom,c.prenoms].filter(Boolean).join(' '); });
@@ -2810,7 +2813,10 @@ async function renderFacturesChantier(el){
   });
   // Commande portant plusieurs n° (« N°24164/26563 ») : montants comptés une seule fois (1er n°), les autres n° la référencent
   (cmds||[]).forEach(c=>{ facturesCles(c.n_facture).forEach((k,i)=>{ const f=get(k); f.cmds.push(i?{...c,montant:null,avance:null,reste:null,designation:(c.designation||'')+' (montant porté par le n° '+c.n_facture.split('/')[0].trim()+')'}:c); maj(f,c.date_commande); }); });
+  (modifs||[]).forEach(m=>{ const f=F[m.n_facture]; if(f){ f.nbNotes=(f.nbNotes||0)+1; f.notesTxt=(f.notesTxt||'')+' '+[m.note,m.ancien_materiel,m.nouveau_materiel].filter(Boolean).join(' '); } });
   const rows=Object.values(F).map(f=>{
+    f.feuillesModif=f.projets.filter(p=>facturesFeuilleModif(p)).length;   // chantiers importés depuis une feuille Excel « MODIF »
+    f.nbModif=(f.nbNotes||0)+f.feuillesModif;
     if(!f.clients.size) f.cmds.forEach(c=>{ if(c.client) f.clients.add(String(c.client).trim()); });
     f.clientTxt=[...f.clients].join(' · ');
     f.montant=f.cmds.reduce((t,c)=>t+(+c.montant||0),0);
@@ -2818,7 +2824,7 @@ async function renderFacturesChantier(el){
     f.reste=f.cmds.reduce((t,c)=>t+(+c.reste||0),0);
     f.materiel=f.projets.reduce((t,p)=>t+(matParProjet[p.id]||0),0);
     f.cats=[...new Set(f.cmds.map(c=>c.categorie).filter(Boolean))];
-    f.hay=[f.num,f.cle,f.clientTxt,...f.projets.map(p=>p.code+' '+p.libelle),...f.cmds.map(c=>c.designation)].join(' ').toLowerCase();
+    f.hay=[f.num,f.cle,f.clientTxt,...f.projets.map(p=>p.code+' '+p.libelle),...f.cmds.map(c=>c.designation),f.notesTxt||''].join(' ').toLowerCase();
     return f;
   }).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
   window._factChCache={rows,sansNumero};
@@ -2830,7 +2836,7 @@ async function renderFacturesChantier(el){
         ${fieldWrap('📅',`<select id="fcAn" onchange="filterFacturesChantier()"><option value="">Toutes années</option>${annees.map(a=>`<option>${a}</option>`).join('')}</select>`)}
         ${fieldWrap('🏗️',`<select id="fcEtape" onchange="filterFacturesChantier()"><option value="">Toutes étapes de chantier</option>${Object.entries(STATUT_PROJET).map(([k,v])=>`<option value="${k}">${escapeHtml(v.label)}</option>`).join('')}</select>`)}
         ${fieldWrap('🏷️',`<select id="fcCat" onchange="filterFacturesChantier()"><option value="">Toutes catégories</option><option>ALU</option><option>INOX</option><option>FER</option><option>FERR</option></select>`)}
-        ${fieldWrap('🔗',`<select id="fcLien" onchange="filterFacturesChantier()"><option value="">Avec ou sans chantier</option><option value="avec">Liées à un chantier</option><option value="sans">Sans chantier (commandes seules)</option><option value="multi">Plusieurs chantiers</option></select>`)}
+        ${fieldWrap('🔗',`<select id="fcLien" onchange="filterFacturesChantier()"><option value="">Avec ou sans chantier</option><option value="avec">Liées à un chantier</option><option value="sans">Sans chantier (commandes seules)</option><option value="multi">Plusieurs chantiers</option><option value="modif">Avec modification (MODI / MODIF)</option></select>`)}
         ${fieldWrap('💰',`<select id="fcSolde" onchange="filterFacturesChantier()"><option value="">Tous les règlements</option><option value="reste">Reste à payer</option><option value="solde">Soldées</option></select>`)}
         <div class="sm:col-span-2 flex items-center"><button class="btn btn-outline text-xs" onclick="['fcQ','fcAn','fcEtape','fcCat','fcLien','fcSolde'].forEach(i=>document.getElementById(i).value='');filterFacturesChantier()">Réinitialiser</button></div>
       </div>
@@ -2851,6 +2857,7 @@ function filterFacturesChantier(){
     if(lien==='avec' && !r.projets.length) return false;
     if(lien==='sans' && r.projets.length) return false;
     if(lien==='multi' && r.projets.length<2) return false;
+    if(lien==='modif' && !r.nbModif) return false;
     if(sol==='reste' && !(r.reste>0)) return false;
     if(sol==='solde' && !(r.cmds.length && r.reste<=0)) return false;
     return true;
@@ -2860,7 +2867,7 @@ function filterFacturesChantier(){
   const shown=rows.slice(0,300);
   document.getElementById('fcList').innerHTML=`<div class="card overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>N° facture</th><th>Date</th><th>Client</th><th>Chantier(s)</th><th>Étape</th><th class="text-right">Commandes</th><th class="text-right">Avance</th><th class="text-right">Reste</th><th class="text-right">Matériel</th><th></th></tr></thead><tbody>
     ${shown.map(r=>`<tr class="cursor-pointer" onclick="if(!event.target.closest('a,button'))detailFactureChantier('${r.cle}')">
-      <td class="font-semibold whitespace-nowrap">${escapeHtml(r.num)}</td>
+      <td class="font-semibold whitespace-nowrap">${escapeHtml(r.num)}${r.nbModif?` <span class="pill" style="color:#d97706;border-color:#d97706" title="${r.nbModif} modification(s) : historique dans le détail">✏️ ${r.nbModif}</span>`:''}</td>
       <td class="whitespace-nowrap">${r.date?fmtDate(r.date):'—'}</td>
       <td>${escapeHtml(r.clientTxt||'—')}</td>
       <td>${r.projets.length?r.projets.map(p=>`<a href="#" class="text-xs hover:underline" style="color:#4f46e5" title="${escapeHtml(p.libelle)}" onclick="window._editId='${p.id}';showPage('projets-add');return false;">${escapeHtml(p.code||'chantier')}</a>`).join(', '):'<span class="text-xs text-gray-400">aucun chantier</span>'}</td>
@@ -2873,10 +2880,44 @@ function filterFacturesChantier(){
     </tr>`).join('')||'<tr><td colspan="10" class="text-gray-400 text-center p-4">Aucune facture.</td></tr>'}
   </tbody></table>${rows.length>shown.length?`<div class="text-xs text-gray-500 p-2">300 premières factures affichées — affinez les filtres.</div>`:''}</div>`;
 }
+/* Ajout d'une note de modification (remplacement de matériel livré) : la facture reste la même, l'historique est conservé */
+function ouvrirModifFacture(cle){
+  const r=(window._factChCache?.rows||[]).find(x=>x.cle===cle); if(!r) return;
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">✏️ Modification — facture ${escapeHtml(r.num)}</h2>
+    <div class="text-xs text-gray-400 mb-2">${escapeHtml(r.clientTxt||'')} · même facture, l'historique des changements est conservé.</div>
+    <form id="modifFactForm" class="grid sm:grid-cols-2 gap-3">
+      <div class="field"><label>Date</label>${fieldWrap('📅',`<input id="mfDate" type="date" value="${new Date().toLocaleDateString('sv-SE')}" required>`)}</div>
+      <div class="field"><label>Type</label>${fieldWrap('🗂️',`<select id="mfType"><option value="MODIF">MODIF — remplacement de matériel</option><option value="AJOUT">Ajout de matériel</option><option value="RETRAIT">Retrait de matériel</option><option value="AUTRE">Autre</option></select>`)}</div>
+      ${r.projets.length?`<div class="field sm:col-span-2"><label>Chantier concerné</label>${fieldWrap('🏗️',`<select id="mfProjet"><option value="">— toute la facture —</option>${r.projets.map(p=>`<option value="${p.id}">${escapeHtml((p.code||'')+' — '+(p.libelle||''))}</option>`).join('')}</select>`)}</div>`:''}
+      <div class="field"><label>Matériel livré (remplacé)</label>${fieldWrap('📦',`<input id="mfAncien" placeholder="Ex : 3 vitres claires 6 mm">`)}</div>
+      <div class="field"><label>Matériel de remplacement</label>${fieldWrap('🔄',`<input id="mfNouveau" placeholder="Ex : 3 vitres fumées 8 mm">`)}</div>
+      <div class="field sm:col-span-2"><label>Écart de montant (FCFA, facultatif : + supplément / − avoir)</label>${fieldWrap('💰',`<input id="mfEcart" type="number" step="1" placeholder="0">`)}</div>
+      <div class="field sm:col-span-2"><label>Note (obligatoire)</label><textarea id="mfNote" rows="3" required placeholder="Ex : le client souhaite remplacer… demande faite le… validée par…" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:8px"></textarea></div>
+      <div class="sm:col-span-2 flex justify-end gap-2 pt-1">
+        <button type="button" class="btn btn-outline" onclick="detailFactureChantier('${cle}')">Annuler</button>
+        <button type="submit" class="btn btn-primary px-6">Enregistrer</button>
+      </div>
+    </form>`);
+  document.getElementById('modifFactForm').onsubmit=async e=>{
+    e.preventDefault();
+    const note=val('mfNote').trim(); if(!note){ toast('La note est obligatoire.','error'); return; }
+    const {error}=await sb.from('facture_modifications').insert({n_facture:cle,projet_id:val('mfProjet')||null,date_modif:val('mfDate'),type:val('mfType'),
+      ancien_materiel:val('mfAncien').trim()||null,nouveau_materiel:val('mfNouveau').trim()||null,ecart_montant:val('mfEcart')!==''?+val('mfEcart'):null,note,created_by:CURRENT_USER?.id||null});
+    if(error){ toast(/facture_modifications/.test(error.message)?'Historique non activé : exécutez sql/modifications_facture.sql dans Supabase.':error.message,'error'); return; }
+    toast('Modification enregistrée.');
+    const el=document.getElementById('fcList'); if(el) await renderFacturesChantier(el.parentElement);   // recharge le compteur ✏️
+    detailFactureChantier(cle);
+  };
+}
 async function detailFactureChantier(cle){
   const r=(window._factChCache?.rows||[]).find(x=>x.cle===cle); if(!r) return;
   openModal(`<div class="p-6 text-center text-sm text-gray-400">Chargement de la facture ${escapeHtml(r.num)}…</div>`);
-  let mat=[], stock=[];
+  let mat=[], stock=[], modifs=[], modifErr=null;
+  {
+    const {data,error}=await sb.from('facture_modifications').select('*, profiles(nom_complet)').eq('n_facture',r.cle).order('date_modif',{ascending:false}).order('created_at',{ascending:false});
+    modifs=data||[]; modifErr=error||null;
+  }
   if(r.projets.length){
     const {data}=await sb.from('chantier_materiel').select('*').in('projet_id',r.projets.map(p=>p.id)).order('ordre',{ascending:true});
     mat=data||[];
@@ -2898,6 +2939,17 @@ async function detailFactureChantier(cle){
   const commandes=r.cmds.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Cat.</th><th>Désignation</th><th>Paiement</th><th class="text-right">Montant</th><th class="text-right">Avance</th><th class="text-right">Reste</th></tr></thead><tbody>
       ${r.cmds.map(c=>`<tr><td>${c.date_commande?fmtDate(c.date_commande):'—'}</td><td>${escapeHtml(c.categorie||'')}</td><td>${escapeHtml(c.designation||'')}</td><td class="text-xs">${escapeHtml(c.mode_paiement||'')}</td><td class="text-right">${c.montant==null?'—':money(c.montant)}</td><td class="text-right">${c.avance==null?'—':money(c.avance)}</td><td class="text-right ${(+c.reste||0)>0?'text-red-600':''}">${c.reste==null?'—':money(c.reste)}</td></tr>`).join('')}
     </tbody><tfoot><tr><th colspan="4" class="text-right">Total</th><th class="text-right">${money(r.montant)}</th><th class="text-right">${money(r.avance)}</th><th class="text-right">${money(r.reste)}</th></tr></tfoot></table></div>`:'<div class="text-sm text-gray-400">Aucune commande chantier pour ce n° de facture.</div>';
+  const codeProjet=id=>(r.projets.find(p=>p.id===id)||{}).code||'';
+  const auto=r.projets.map(p=>({p,f:facturesFeuilleModif(p)})).filter(x=>x.f);
+  const histoHtml=modifErr?`<div class="text-sm text-amber-700">Historique non activé : exécutez une fois <b>sql/modifications_facture.sql</b> dans Supabase (SQL Editor).</div>`:
+    ((modifs.length||auto.length)?`<div class="space-y-2">
+      ${modifs.map(m=>`<div class="card p-3" style="border-left:4px solid #d97706">
+        <div class="flex flex-wrap justify-between gap-2 text-xs text-gray-500"><span><b class="text-gray-700">${fmtDate(m.date_modif)}</b> · <span class="pill" style="color:#d97706;border-color:#d97706">${escapeHtml(m.type)}</span>${m.projet_id?' · chantier '+escapeHtml(codeProjet(m.projet_id)):''}</span><span>${escapeHtml(m.profiles?.nom_complet||'')}${m.created_at?' · '+new Date(m.created_at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):''}</span></div>
+        ${m.ancien_materiel||m.nouveau_materiel?`<div class="text-sm mt-1">${m.ancien_materiel?`<span class="text-red-600 line-through">${escapeHtml(m.ancien_materiel)}</span>`:''}${m.ancien_materiel&&m.nouveau_materiel?' → ':''}${m.nouveau_materiel?`<span class="text-emerald-700 font-semibold">${escapeHtml(m.nouveau_materiel)}</span>`:''}</div>`:''}
+        ${m.ecart_montant!=null?`<div class="text-xs mt-1">Écart de montant : <b class="${+m.ecart_montant>0?'text-red-600':'text-emerald-600'}">${+m.ecart_montant>0?'+':''}${money(m.ecart_montant)}</b></div>`:''}
+        <div class="text-sm mt-1 whitespace-pre-wrap">${escapeHtml(m.note)}</div></div>`).join('')}
+      ${auto.map(x=>`<div class="card p-3 bg-gray-50" style="border-left:4px solid #9ca3af"><div class="text-xs text-gray-500"><b class="text-gray-700">${fmtDate(x.p.created_at)}</b> · Import Excel · chantier ${escapeHtml(x.p.code||'')}</div><div class="text-sm mt-1">Feuille « ${escapeHtml(x.f)} » : version modifiée de cette facture (reprise automatique de l'Excel).</div></div>`).join('')}
+    </div>`:'<div class="text-sm text-gray-400">Aucune modification enregistrée. Si le client remplace du matériel livré, ajoutez une note : la facture reste la même, l\'historique est conservé.</div>');
   const stockHtml=stock.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Composant</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Coût</th><th>Motif / réf.</th></tr></thead><tbody>
       ${stock.map(m=>{ const t=STOCK_TYPE_LABELS[m.type]||{icon:'',label:m.type,color:'#6b7280'}; return `<tr><td class="text-xs">${fmtDate(m.date_mouvement||m.created_at)}</td><td>${escapeHtml(m.composants?.nom||'—')}</td><td><span class="pill" style="color:${t.color};border-color:${t.color}">${t.icon} ${t.label}</span></td><td class="text-right">${fmtQte(+m.quantite)} ${escapeHtml(m.composants?.unite||'')}</td><td class="text-right">${money(-(+m.quantite||0)*(+m.cmup_apres||0))}</td><td class="text-xs">${escapeHtml([m.reference,m.motif].filter(Boolean).join(' — '))}</td></tr>`; }).join('')}
     </tbody></table></div>`:'<div class="text-sm text-gray-400">Aucun mouvement de stock rattaché à cette facture. Depuis « Nouveau mouvement de stock », choisissez ce n° de facture.</div>';
@@ -2914,6 +2966,7 @@ async function detailFactureChantier(cle){
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
         ${kpi('Commandes',r.cmds.length?money(r.montant):'—')}${kpi('Avance',r.cmds.length?money(r.avance):'—','text-emerald-600')}${kpi('Reste à payer',r.cmds.length?money(r.reste):'—',r.reste>0?'text-red-600':'')}${kpi('Matériel affecté',mat.length?money(totMat):'—',mat.length&&totMat>payeMat?'':'')}
       </div>
+      ${bloc('✏️ Historique des modifications — MODI / MODIF ('+(modifs.length+auto.length)+') <button class="btn btn-outline text-xs ml-2" onclick="ouvrirModifFacture(\''+r.cle+'\')">➕ Ajouter une modification</button>',histoHtml)}
       ${bloc('🏗️ Chantier(s) lié(s) ('+r.projets.length+')',chantiers)}
       ${bloc('📦 Commandes chantier ('+r.cmds.length+')',commandes)}
       ${bloc('🧱 Matériel affecté ('+mat.length+' ligne'+(mat.length>1?'s':'')+')',materiel)}
