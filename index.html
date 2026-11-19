@@ -2792,7 +2792,7 @@ function facturesCles(txt){ return (String(txt||'').match(/\d{3,}/g)||[]).map(x=
 async function renderFacturesChantier(el){
   const [{data:projets,error:e1},{data:cmds,error:e2},{data:mat,error:e3},{data:clients}]=await Promise.all([
     sb.from('projets').select('id,code,libelle,client_id,etape,created_at'),
-    sb.from('commandes_chantier').select('n_facture,client,categorie,designation,date_commande,montant,avance,reste'),
+    sb.from('commandes_chantier').select('n_facture,client,categorie,designation,date_commande,mode_paiement,montant,avance,reste'),
     sb.from('chantier_materiel').select('projet_id,montant'),
     sb.from('clients').select('id,nom,prenoms')
   ]);
@@ -2859,7 +2859,7 @@ function filterFacturesChantier(){
   document.getElementById('fcTotaux').innerHTML=`<b>${rows.length}</b> facture(s) sur ${C.rows.length} · Commandes <b>${money(tot('montant'))}</b> · Avances <b>${money(tot('avance'))}</b> · Reste <b>${money(tot('reste'))}</b> · Matériel affecté <b>${money(tot('materiel'))}</b>${C.sansNumero?` <span class="text-xs text-gray-400">· ${C.sansNumero} chantier(s) sans n° de facture non listé(s)</span>`:''}`;
   const shown=rows.slice(0,300);
   document.getElementById('fcList').innerHTML=`<div class="card overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>N° facture</th><th>Date</th><th>Client</th><th>Chantier(s)</th><th>Étape</th><th class="text-right">Commandes</th><th class="text-right">Avance</th><th class="text-right">Reste</th><th class="text-right">Matériel</th><th></th></tr></thead><tbody>
-    ${shown.map(r=>`<tr>
+    ${shown.map(r=>`<tr class="cursor-pointer" onclick="if(!event.target.closest('a,button'))detailFactureChantier('${r.cle}')">
       <td class="font-semibold whitespace-nowrap">${escapeHtml(r.num)}</td>
       <td class="whitespace-nowrap">${r.date?fmtDate(r.date):'—'}</td>
       <td>${escapeHtml(r.clientTxt||'—')}</td>
@@ -2869,20 +2869,56 @@ function filterFacturesChantier(){
       <td class="text-right">${r.cmds.length?money(r.avance):'—'}</td>
       <td class="text-right ${r.reste>0?'text-red-600 font-semibold':''}">${r.cmds.length?money(r.reste):'—'}</td>
       <td class="text-right">${r.materiel?money(r.materiel):'—'}</td>
-      <td class="text-right whitespace-nowrap">${r.cmds.length?`<button class="btn btn-outline text-xs" onclick="detailFactureChantier('${r.cle}')">Détail</button>`:''}</td>
+      <td class="text-right whitespace-nowrap"><button class="btn btn-outline text-xs" onclick="detailFactureChantier('${r.cle}')">👁 Détail</button></td>
     </tr>`).join('')||'<tr><td colspan="10" class="text-gray-400 text-center p-4">Aucune facture.</td></tr>'}
   </tbody></table>${rows.length>shown.length?`<div class="text-xs text-gray-500 p-2">300 premières factures affichées — affinez les filtres.</div>`:''}</div>`;
 }
-function detailFactureChantier(cle){
+async function detailFactureChantier(cle){
   const r=(window._factChCache?.rows||[]).find(x=>x.cle===cle); if(!r) return;
+  openModal(`<div class="p-6 text-center text-sm text-gray-400">Chargement de la facture ${escapeHtml(r.num)}…</div>`);
+  let mat=[], stock=[];
+  if(r.projets.length){
+    const {data}=await sb.from('chantier_materiel').select('*').in('projet_id',r.projets.map(p=>p.id)).order('ordre',{ascending:true});
+    mat=data||[];
+  }
+  {  // mouvements de stock : rattachés au n° de facture (référence) ou aux chantiers de la facture
+    const filtre=[`reference.ilike.*${r.cle}*`]; if(r.projets.length) filtre.push(`projet_id.in.(${r.projets.map(p=>p.id).join(',')})`);
+    const {data}=await sb.from('mouvements_stock').select('id,type,quantite,cmup_apres,motif,reference,date_mouvement,created_at,projet_id,composants(nom,unite)').or(filtre.join(',')).order('created_at',{ascending:false});
+    stock=(data||[]).filter(m=>r.projets.some(p=>p.id===m.projet_id)||facturesCles(m.reference).includes(r.cle));
+  }
+  const codeDe=id=>(r.projets.find(p=>p.id===id)||{}).code||'';
+  const kpi=(t,v,c)=>`<div class="card p-3"><div class="text-xs text-gray-400">${t}</div><div class="text-base font-black ${c||''}">${v}</div></div>`;
+  const totMat=mat.reduce((t,m)=>t+(+m.montant||0),0), payeMat=mat.filter(matEstPaye).reduce((t,m)=>t+(+m.montant||0),0);
+  const bloc=(titre,html)=>`<h3 class="font-semibold text-sm mt-4 mb-1">${titre}</h3>${html}`;
+  const chantiers=r.projets.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Code</th><th>Libellé</th><th>Étape</th><th>Création</th><th class="text-right">Matériel</th><th></th></tr></thead><tbody>
+      ${r.projets.map(p=>`<tr><td class="font-semibold">${escapeHtml(p.code||'')}</td><td>${escapeHtml(p.libelle||'')}</td><td>${badge(STATUT_PROJET,p.etape)}</td><td class="text-xs">${p.created_at?fmtDate(p.created_at):'—'}</td>
+        <td class="text-right">${money(mat.filter(m=>m.projet_id===p.id).reduce((t,m)=>t+(+m.montant||0),0))}</td>
+        <td class="text-right"><button class="btn btn-outline text-xs" onclick="closeModal();window._editId='${p.id}';showPage('projets-add')">Ouvrir le chantier</button></td></tr>`).join('')}
+    </tbody></table></div>`:'<div class="text-sm text-gray-400">Aucun chantier lié : ce n° n\'apparaît que dans les commandes chantier.</div>';
+  const commandes=r.cmds.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Cat.</th><th>Désignation</th><th>Paiement</th><th class="text-right">Montant</th><th class="text-right">Avance</th><th class="text-right">Reste</th></tr></thead><tbody>
+      ${r.cmds.map(c=>`<tr><td>${c.date_commande?fmtDate(c.date_commande):'—'}</td><td>${escapeHtml(c.categorie||'')}</td><td>${escapeHtml(c.designation||'')}</td><td class="text-xs">${escapeHtml(c.mode_paiement||'')}</td><td class="text-right">${c.montant==null?'—':money(c.montant)}</td><td class="text-right">${c.avance==null?'—':money(c.avance)}</td><td class="text-right ${(+c.reste||0)>0?'text-red-600':''}">${c.reste==null?'—':money(c.reste)}</td></tr>`).join('')}
+    </tbody><tfoot><tr><th colspan="4" class="text-right">Total</th><th class="text-right">${money(r.montant)}</th><th class="text-right">${money(r.avance)}</th><th class="text-right">${money(r.reste)}</th></tr></tfoot></table></div>`:'<div class="text-sm text-gray-400">Aucune commande chantier pour ce n° de facture.</div>';
+  const stockHtml=stock.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Composant</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Coût</th><th>Motif / réf.</th></tr></thead><tbody>
+      ${stock.map(m=>{ const t=STOCK_TYPE_LABELS[m.type]||{icon:'',label:m.type,color:'#6b7280'}; return `<tr><td class="text-xs">${fmtDate(m.date_mouvement||m.created_at)}</td><td>${escapeHtml(m.composants?.nom||'—')}</td><td><span class="pill" style="color:${t.color};border-color:${t.color}">${t.icon} ${t.label}</span></td><td class="text-right">${fmtQte(+m.quantite)} ${escapeHtml(m.composants?.unite||'')}</td><td class="text-right">${money(-(+m.quantite||0)*(+m.cmup_apres||0))}</td><td class="text-xs">${escapeHtml([m.reference,m.motif].filter(Boolean).join(' — '))}</td></tr>`; }).join('')}
+    </tbody></table></div>`:'<div class="text-sm text-gray-400">Aucun mouvement de stock rattaché à cette facture. Depuis « Nouveau mouvement de stock », choisissez ce n° de facture.</div>';
+  const materiel=mat.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Chantier</th><th class="text-right">Qté</th><th>Désignation</th><th>Fournisseur</th><th class="text-right">Montant</th><th>Paiement</th></tr></thead><tbody>
+      ${mat.map(m=>`<tr><td class="text-xs">${escapeHtml(codeDe(m.projet_id))}</td><td class="text-right">${m.quantite==null?'—':fmtQte(+m.quantite)}</td><td>${escapeHtml(m.designation||'')}</td><td class="text-xs">${escapeHtml(m.fournisseur||'—')}</td><td class="text-right font-semibold">${money(+m.montant||0)}</td><td>${matEstPaye(m)?'<span class="pill" style="color:#059669;border-color:#059669">Payé</span>':'<span class="pill" style="color:#d97706;border-color:#d97706">À payer</span>'}</td></tr>`).join('')}
+    </tbody><tfoot><tr><th colspan="4" class="text-right">Total matériel</th><th class="text-right">${money(totMat)}</th><th></th></tr></tfoot></table></div>`:'<div class="text-sm text-gray-400">Aucun matériel affecté (fiche de suivi non importée pour ce chantier).</div>';
   openModal(`
     <div class="flex justify-between items-start gap-3 mb-3">
-      <div><h2 class="text-lg font-bold">🧾 Facture ${escapeHtml(r.num)}</h2><div class="text-xs text-gray-400">${escapeHtml(r.clientTxt||'—')} · ${r.projets.length} chantier(s) · ${r.cmds.length} ligne(s) de commande</div></div>
+      <div><h2 class="text-lg font-bold">🧾 Facture ${escapeHtml(r.num)}</h2>
+        <div class="text-xs text-gray-400">${escapeHtml(r.clientTxt||'Client non renseigné')} · ${r.date?fmtDate(r.date):'date inconnue'}${r.cats.length?' · '+escapeHtml(r.cats.join(', ')):''}</div></div>
       <button class="btn btn-outline" onclick="closeModal()">✕</button>
     </div>
-    <div class="overflow-x-auto" style="max-height:60vh;overflow-y:auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Cat.</th><th>Désignation</th><th class="text-right">Montant</th><th class="text-right">Avance</th><th class="text-right">Reste</th></tr></thead><tbody>
-      ${r.cmds.map(c=>`<tr><td>${fmtDate(c.date_commande)}</td><td>${escapeHtml(c.categorie||'')}</td><td>${escapeHtml(c.designation||'')}</td><td class="text-right">${c.montant==null?'—':money(c.montant)}</td><td class="text-right">${c.avance==null?'—':money(c.avance)}</td><td class="text-right">${c.reste==null?'—':money(c.reste)}</td></tr>`).join('')}
-    </tbody><tfoot><tr><th colspan="3" class="text-right">Total</th><th class="text-right">${money(r.montant)}</th><th class="text-right">${money(r.avance)}</th><th class="text-right">${money(r.reste)}</th></tr></tfoot></table></div>`);
+    <div style="max-height:68vh;overflow-y:auto">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        ${kpi('Commandes',r.cmds.length?money(r.montant):'—')}${kpi('Avance',r.cmds.length?money(r.avance):'—','text-emerald-600')}${kpi('Reste à payer',r.cmds.length?money(r.reste):'—',r.reste>0?'text-red-600':'')}${kpi('Matériel affecté',mat.length?money(totMat):'—',mat.length&&totMat>payeMat?'':'')}
+      </div>
+      ${bloc('🏗️ Chantier(s) lié(s) ('+r.projets.length+')',chantiers)}
+      ${bloc('📦 Commandes chantier ('+r.cmds.length+')',commandes)}
+      ${bloc('🧱 Matériel affecté ('+mat.length+' ligne'+(mat.length>1?'s':'')+')',materiel)}
+      ${bloc('📦 Mouvements de stock ('+stock.length+')',stockHtml)}
+    </div>`);
 }
 async function renderFournisseurs(el){
   const {data,error}=await sb.from('fournisseurs').select('*').order('created_at',{ascending:false});
@@ -3282,18 +3318,21 @@ async function renderSuiviChantier(projetId){
 /* ============================== ÉTAT DE SUIVI CHANTIER (matériel & dépenses) ==============================
    Synthèse par chantier : dépenses de caisse et matériaux sortis du stock (valorisés au CMUP), comparés au montant
    du devis ; détail d'un chantier (dépenses, matériel par article) ; impression, Excel (CSV) et envoi. */
-window._ec=window._ec||{du:'',au:'',etape:'',chantier:''};
+window._ec=window._ec||{du:'',au:'',etape:'',chantier:'',q:''};
 async function renderEtatChantiers(el){
   await chargerChantiersRef(true);
   const E=window._ec, R=window._chantiersRef;
   const sel=(k,opts)=>`<select class="border rounded-lg px-2 py-1.5 text-sm" style="width:auto;max-width:260px" onchange="window._ec['${k}']=this.value;ecCharger()">${opts.map(([v,l])=>`<option value="${escapeHtml(v)}" ${E[k]===v?'selected':''}>${escapeHtml(l)}</option>`).join('')}</select>`;
   el.innerHTML=`
+    <div class="card p-3 mb-3">
+      <input id="ecQ" class="border rounded-lg px-3 py-2 text-sm w-full" placeholder="🔎 Rechercher : nom du client, n° de chantier (CH-…), n° de facture, date (28/01/2026, 2026-01, janvier 2026)…" value="${escapeHtml(E.q||'')}" oninput="clearTimeout(window._ecT);window._ecT=setTimeout(ecRecherche,200)">
+    </div>
     <div class="card p-3 mb-3 flex flex-wrap gap-2 items-center">
       <span class="text-xs text-gray-500">Du</span><input type="date" class="border rounded-lg px-2 py-1.5 text-sm" style="width:auto" value="${E.du}" onchange="window._ec.du=this.value;ecCharger()">
       <span class="text-xs text-gray-500">au</span><input type="date" class="border rounded-lg px-2 py-1.5 text-sm" style="width:auto" value="${E.au}" onchange="window._ec.au=this.value;ecCharger()">
       ${sel('etape',[['','🧭 Toutes les étapes'],...Object.entries(STATUT_PROJET).map(([k,v])=>[k,v.label])])}
       ${sel('chantier',[['','🏗️ Tous les chantiers (synthèse)'],...R.projets.map(p=>[p.id,(p.code?p.code+' — ':'')+p.libelle])])}
-      <button class="btn btn-outline text-xs" onclick="window._ec={du:'',au:'',etape:'',chantier:''};showPage('etat-chantiers')">Réinitialiser</button>
+      <button class="btn btn-outline text-xs" onclick="window._ec={du:'',au:'',etape:'',chantier:'',q:''};showPage('etat-chantiers')">Réinitialiser</button>
     </div>
     <div class="flex flex-wrap justify-end gap-2 mb-3">
       <button class="btn btn-outline" onclick="ecExporterCsv()">⬇ Excel (CSV)</button><button class="btn btn-outline" onclick="ecImprimer()">🖨 Imprimer</button><button class="btn btn-outline" onclick="ecEnvoyer()">📤 WhatsApp / e-mail</button>
@@ -3313,6 +3352,7 @@ async function ecCharger(){
   const [{data:caisse,error:e1},{data:stock,error:e2},{data:devis},{data:mat,error:e3}]=await Promise.all([qc,qs,sb.from('devis').select('projet_id,total,statut').eq('is_current',true).not('projet_id','is',null),qm]);
   if(e1||e2){ host.innerHTML=`<div class="text-red-600">${escapeHtml((e1||e2).message)}</div>`; return; }
   window._ecMat={rows:mat||[],erreur:e3||null};
+  window._ecBrut={caisse:caisse||[],stock:stock||[],devis:devis||[]};
   window._ecCalc=ecCalc(caisse||[],stock||[],devis||[]); ecAfficher();
 }
 const ecCout=m=>-(+m.quantite||0)*(+(m.cmup_apres??m.prix_unitaire)||0);   // sortie = coût positif, retour = coût négatif
@@ -3325,11 +3365,30 @@ function ecCalc(caisse,stock,devis){
     if(+m.quantite<0) a.sorti+=-m.quantite; else a.retour+=+m.quantite; a.cout+=c; });
   devis.filter(d=>d.statut!=='annule'&&par[d.projet_id]).forEach(d=>{ par[d.projet_id].devis+=+d.total||0; });
   const lignes=Object.values(par).map(l=>{ const p=R.projets.find(x=>x.id===l.id)||{}; return {...l,projet:p,code:p.code||'',libelle:p.libelle||'Chantier',etape:p.etape||'',client:chantierNomClient(p.client_id),cout:l.depenses+l.materiel}; })
-    .filter(l=>!E.etape||l.etape===E.etape).sort((a,b)=>b.cout-a.cout);
+    .filter(l=>!E.etape||l.etape===E.etape).filter(l=>E.chantier||ecCorrespond(l,E.q)).sort((a,b)=>b.cout-a.cout);
   const tot=lignes.reduce((t,l)=>({depenses:t.depenses+l.depenses,recettes:t.recettes+l.recettes,materiel:t.materiel+l.materiel,devis:t.devis+l.devis,cout:t.cout+l.cout}),{depenses:0,recettes:0,materiel:0,devis:0,cout:0});
   return {lignes,tot};
 }
-function ecPeriode(){ const E=window._ec; return E.du||E.au?`Période : ${E.du?fmtDate(E.du):'début'} → ${E.au?fmtDate(E.au):'ce jour'}`:'Toutes périodes'; }
+/* Recherche : tous les mots doivent se retrouver dans le client, le code ou libellé du chantier, son n° de facture
+   ou l'une de ses dates (mouvements de caisse / de stock, création) écrites en jj/mm/aaaa, aaaa-mm-jj ou « janvier 2026 ». */
+const EC_MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+function ecNorm(t){ return String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+function ecDateTexte(d){
+  const m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})/); if(!m) return '';
+  return `${m[1]}-${m[2]}-${m[3]} ${m[3]}/${m[2]}/${m[1]} ${m[2]}/${m[1]} ${EC_MOIS[+m[2]-1]||''} ${m[1]}`;
+}
+function ecCorrespond(l,q){
+  const mots=ecNorm(q).split(/\s+/).filter(Boolean); if(!mots.length) return true;
+  const dates=[l.projet?.created_at,...l.caisse.map(m=>m.date_mouvement),...l.stock.map(m=>m.date_mouvement||m.created_at)].map(ecDateTexte);
+  const foin=ecNorm([l.client,l.code,l.libelle,chantierNumFacture(l.projet||{}),...dates].join(' '));
+  return mots.every(w=>foin.includes(w));
+}
+function ecRecherche(){
+  window._ec.q=document.getElementById('ecQ')?.value||'';
+  const b=window._ecBrut; if(!b) return;
+  window._ecCalc=ecCalc(b.caisse,b.stock,b.devis); ecAfficher();
+}
+function ecPeriode(){ const E=window._ec; return (E.du||E.au?`Période : ${E.du?fmtDate(E.du):'début'} → ${E.au?fmtDate(E.au):'ce jour'}`:'Toutes périodes')+(E.q&&!E.chantier?` · Recherche : « ${E.q} »`:''); }
 function ecAfficher(){
   const host=document.getElementById('ecResultats'); if(!host) return;
   const r=window._ecCalc, E=window._ec, ref=window._chantiersRef;
@@ -4876,6 +4935,8 @@ async function openMouvementModal(presetType,presetComposantId,presetDepotId,pre
   await Promise.all([chargerDepots(),chargerChantiersRef(true)]);
   let composants=window._stockComposantsCache;
   if(!composants){ const {data}=await sb.from('composants').select('id,nom').order('nom'); composants=data||[]; }
+  const facturesItems=await mvFacturesItems();
+  const presetFacture=presetProjetId?(facturesCles(chantierNumFacture((window._chantiersRef?.projets||[]).find(p=>p.id===presetProjetId)||{}))[0]||''):'';
   openModal(`
     <h2 class="text-lg font-bold mb-1">📦 Nouveau mouvement de stock</h2>
     <div class="divider"></div>
@@ -4888,6 +4949,8 @@ async function openMouvementModal(presetType,presetComposantId,presetDepotId,pre
       <div class="field sm:col-span-2"><label>Date de mouvement</label>${fieldWrap('📅',`<input id="mvDate" type="date" value="${new Date().toLocaleDateString('sv-SE')}" required>`)}</div>
       <div class="field sm:col-span-2"><label>Motif</label>${fieldWrap('📝',`<input id="mvMotif" placeholder="Ex : Achat fournisseur, casse, correction…">`)}</div>
       <div class="field sm:col-span-2"><label>Référence (optionnel)</label>${fieldWrap('🔗',`<input id="mvRef" placeholder="N° BL, bon de livraison…">`)}</div>
+      <div class="field sm:col-span-2"><label>N° de facture rattaché (facultatif)</label>${fieldWrap('🧾',smartSelect('mvFact',facturesItems,presetFacture,{placeholder:'Rechercher un n° de facture ou un client…',effacable:true,onChange:'mvFactureChoisie()'}))}
+        <div class="text-xs text-gray-400 mt-1">Choisir une facture présélectionne le client et le chantier correspondants.</div></div>
       ${chantierPickerHtml('mv',presetProjetId||'')}
       <div class="sm:col-span-2 text-xs text-gray-400 -mt-2">Ex. sortie de matériaux pour le chantier d'un client, retour de chantier, achat livré directement sur chantier.</div>
       <div class="sm:col-span-2 flex justify-end gap-2 pt-2">
@@ -4905,15 +4968,34 @@ async function openMouvementModal(presetType,presetComposantId,presetDepotId,pre
     if(!composantId){ toast('Sélectionnez un composant.','error'); return; }
     if(!quantite && type!=='inventaire'){ toast('Quantité requise.','error'); return; }
     const projetId=chantierValeur('mv');
-    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:val('mvRef')||null,p_prix_unitaire:prix,p_depot_id:val('mvDepot')||null,p_date_mouvement:val('mvDate')||null,...(projetId?{p_projet_id:projetId}:{})});
+    const cleFact=val('mvFact'); const refMv=[cleFact?'N°'+cleFact:'',val('mvRef')].filter(Boolean).join(' · ');   // « N°27484 · BL 12 »
+    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:refMv||null,p_prix_unitaire:prix,p_depot_id:val('mvDepot')||null,p_date_mouvement:val('mvDate')||null,...(projetId?{p_projet_id:projetId}:{})});
     if(error){ toast(error.message,'error'); return; }
     if(type==='entree' && prix>0){
       const composant=(composants||[]).find(c=>c.id===composantId);
-      await comptabiliserAchatMouvementStock(composant,quantite,prix,val('mvMotif'),val('mvRef'),projetId);
+      await comptabiliserAchatMouvementStock(composant,quantite,prix,val('mvMotif'),refMv,projetId);
     }
     toast('Mouvement enregistré.'); closeModal(); refreshStockAlertesBadge();
     showPage(PAGE_RENDERERS[currentPageKey()]?currentPageKey():'stock-mouvements');
   };
+}
+/* N° de facture proposés pour un mouvement de stock : ceux des chantiers (fiches importées) et des commandes chantier */
+async function mvFacturesItems(){
+  const R=window._chantiersRef||{clients:[],projets:[]};
+  const {data:cmds}=await sb.from('commandes_chantier').select('n_facture,client').not('n_facture','is',null);
+  const F={};
+  const get=k=>F[k]||(F[k]=new Set());
+  R.projets.forEach(p=>{ const k=facturesCles(chantierNumFacture(p))[0]; if(k){ const n=chantierNomClient(p.client_id); get(k); if(n) F[k].add(n); } });
+  (cmds||[]).forEach(c=>facturesCles(c.n_facture).forEach(k=>{ get(k); if(c.client&&!F[k].size) F[k].add(String(c.client).trim()); }));
+  return Object.keys(F).sort((a,b)=>(+b)-(+a)).map(k=>({id:k,label:'N°'+k+(F[k].size?' — '+[...F[k]].join(' · '):'')}));
+}
+function mvFactureChoisie(){
+  const cle=document.getElementById('mvFact')?.value||''; if(!cle) return;
+  const liste=(window._chantiersRef?.projets||[]).filter(p=>facturesCles(chantierNumFacture(p))[0]===cle);
+  if(!liste.length) return;   // facture connue seulement par les commandes : pas de chantier à présélectionner
+  const p=liste.find(x=>!['termine','annule'].includes(x.etape))||liste[0];
+  smartSelectPick('mvClient',p.client_id);                       // remplit la liste des chantiers du client
+  const sel=document.getElementById('mvProjet'); if(sel) sel.value=p.id;
 }
 function currentPageKey(){
   const active=document.querySelector('.nav-child.active,.nav-item.active');
