@@ -2179,6 +2179,7 @@ function filterClientsTable(){
   const actionsHtml=c=>`<div class="dropdown">
       <button class="btn-icon-menu" onclick="toggleRowMenu(event)">⚙</button>
       <div class="dropdown-menu hidden">
+        <button style="color:#ea580c" onclick="voirChantiersClient('${c.id}')">🏗️ Chantiers du client</button>
         <button style="color:#16a34a" onclick="envoyerCodeAccesPortail('${c.id}')">📲 Envoyer le code d'accès</button>
         <button style="color:#6b7280" onclick="printClientFiche('${c.id}')">🖨 Imprimer la fiche</button>
         <button style="color:#4f46e5" onclick="window._editId='${c.id}';showPage('clients-add')">✏️ Modifier</button>
@@ -2187,7 +2188,7 @@ function filterClientsTable(){
     </div>`;
   if(getListView('clients')==='grille'){
     host.innerHTML=filtered.length?`<div class="entity-grid">${filtered.map(c=>entityCardHtml({
-      icon:'👤',title:escapeHtml([c.civilite,c.nom,c.prenoms].filter(Boolean).join(' ')),
+      icon:'👤',title:`<a href="#" class="hover:underline" title="Voir les chantiers de ce client" onclick="voirChantiersClient('${c.id}');return false;">${escapeHtml([c.civilite,c.nom,c.prenoms].filter(Boolean).join(' '))}</a>`,
       subtitle:escapeHtml(c.entreprise||c.code),
       lines:[escapeHtml(c.telephone||'—'),escapeHtml(c.email||'—'),escapeHtml(c.commune||'—'),c.categorie?`<span class="badge bg-gray-100 text-gray-600">${escapeHtml(c.categorie)}</span>`:''],
       actionsHtml:actionsHtml(c)
@@ -2197,7 +2198,7 @@ function filterClientsTable(){
       <table><thead><tr><th>Code</th><th>Nom</th><th>Téléphone</th><th>Email</th><th>Ville</th><th>Catégorie</th><th></th></tr></thead>
       <tbody>${filtered.map(c=>`<tr>
         <td class="font-semibold">${escapeHtml(c.code)}</td>
-        <td>${escapeHtml([c.civilite,c.nom,c.prenoms].filter(Boolean).join(' '))}${c.entreprise?`<div class="text-xs text-gray-400">${escapeHtml(c.entreprise)}</div>`:''}</td>
+        <td><a href="#" class="font-medium hover:underline" title="Voir les chantiers de ce client" onclick="voirChantiersClient('${c.id}');return false;">${escapeHtml([c.civilite,c.nom,c.prenoms].filter(Boolean).join(' '))}</a>${c.entreprise?`<div class="text-xs text-gray-400">${escapeHtml(c.entreprise)}</div>`:''}</td>
         <td>${escapeHtml(c.telephone||'—')}</td><td>${escapeHtml(c.email||'—')}</td><td>${escapeHtml(c.commune||'—')}</td>
         <td>${escapeHtml(c.categorie||'—')}</td>
         <td class="text-right whitespace-nowrap">${actionsHtml(c)}</td>
@@ -2205,6 +2206,50 @@ function filterClientsTable(){
     </div>`;
   }
   const countEl=document.getElementById('clientsCount'); if(countEl) countEl.textContent=`${filtered.length} client(s)`+(filtered.length!==data.length?` sur ${data.length}`:'');
+}
+/* Chantiers d'un client : chaque chantier (projets.client_id) est identifié par son n° de facture,
+   repris de la fiche de suivi importée (libellé « Fiche N27484 - date »). */
+function chantierNumFacture(p){
+  const lib=String(p.libelle||'');
+  const m=lib.match(/^Fiche\s+N(\d\S*)/i);          // « Fiche N27484 - 2026-01-28 » (« Ns.o. » = sans numéro)
+  if(m) return 'N°'+m[1];
+  if(/^Fiche\s+N/i.test(lib)) return '';
+  const d=lib.match(/(?:N°?\s?)?\b(\d{4,6})\b/);    // « CHANTIER M BONY 29223 »
+  return d?'N°'+d[1]:'';
+}
+async function voirChantiersClient(clientId){
+  const c=(window._clientsListCache||[]).find(x=>x.id===clientId)||{};
+  const nom=[c.civilite,c.nom,c.prenoms].filter(Boolean).join(' ')||'Client';
+  openModal(`<div class="p-6 text-center text-sm text-gray-400">Chargement des chantiers de ${escapeHtml(nom)}…</div>`);
+  const {data:projets,error}=await sb.from('projets').select('id,code,libelle,etape,date_debut,date_fin,commune,created_at').eq('client_id',clientId).order('created_at',{ascending:false});
+  if(error){ openModal(`<div class="p-6 text-sm text-red-600">${escapeHtml(error.message)}</div><div class="p-4 text-right"><button class="btn btn-outline" onclick="closeModal()">Fermer</button></div>`); return; }
+  const ids=(projets||[]).map(p=>p.id);
+  const mat={};
+  if(ids.length){
+    const {data:lignes}=await sb.from('chantier_materiel').select('projet_id,montant').in('projet_id',ids);
+    (lignes||[]).forEach(l=>{ mat[l.projet_id]=(mat[l.projet_id]||0)+(+l.montant||0); });
+  }
+  const L=projets||[];
+  const lignes=L.map(p=>{ const f=chantierNumFacture(p); return `<tr>
+      <td class="font-semibold whitespace-nowrap">${f?escapeHtml(f):'<span class="text-gray-400">—</span>'}</td>
+      <td class="text-xs text-gray-500">${escapeHtml(p.code||'')}</td>
+      <td>${escapeHtml(p.libelle||'')}</td>
+      <td>${badge(STATUT_PROJET,p.etape)}</td>
+      <td class="text-xs whitespace-nowrap">${p.date_debut?fmtDate(p.date_debut):'—'}${p.date_fin?' → '+fmtDate(p.date_fin):''}</td>
+      <td class="text-right">${mat[p.id]?money(mat[p.id]):'—'}</td>
+      <td class="text-right whitespace-nowrap"><button class="btn btn-outline" onclick="closeModal();window._editId='${p.id}';showPage('projets-add')">Ouvrir</button></td>
+    </tr>`; }).join('');
+  const totalMat=Object.values(mat).reduce((t,v)=>t+v,0);
+  openModal(`
+    <div class="flex justify-between items-start gap-3 mb-3">
+      <div><h2 class="text-lg font-bold">🏗️ Chantiers de ${escapeHtml(nom)}</h2>
+        <div class="text-xs text-gray-400">${escapeHtml(c.code||'')} · ${L.length} chantier${L.length>1?'s':''}${totalMat?' · matériel affecté : '+money(totalMat):''}</div></div>
+      <button class="btn btn-outline" onclick="closeModal()">✕</button>
+    </div>
+    <div class="overflow-x-auto" style="max-height:60vh;overflow-y:auto"><table>
+      <thead><tr><th>N° facture</th><th>Code</th><th>Libellé</th><th>Étape</th><th>Période</th><th class="text-right">Matériel</th><th></th></tr></thead>
+      <tbody>${lignes||'<tr><td colspan="7" class="text-gray-400 text-center p-4">Aucun chantier pour ce client.</td></tr>'}</tbody>
+    </table></div>`);
 }
 async function printClientFiche(id){
   const {data:c,error}=await sb.from('clients').select('*').eq('id',id).single();
