@@ -2792,7 +2792,7 @@ function facturesCles(txt){ return (String(txt||'').match(/\d{3,}/g)||[]).map(x=
 async function renderFacturesChantier(el){
   const [{data:projets,error:e1},{data:cmds,error:e2},{data:mat,error:e3},{data:clients}]=await Promise.all([
     sb.from('projets').select('id,code,libelle,client_id,etape,created_at'),
-    sb.from('commandes_chantier').select('n_facture,client,categorie,designation,date_commande,montant,avance,reste'),
+    sb.from('commandes_chantier').select('n_facture,client,categorie,designation,date_commande,mode_paiement,montant,avance,reste'),
     sb.from('chantier_materiel').select('projet_id,montant'),
     sb.from('clients').select('id,nom,prenoms')
   ]);
@@ -2859,7 +2859,7 @@ function filterFacturesChantier(){
   document.getElementById('fcTotaux').innerHTML=`<b>${rows.length}</b> facture(s) sur ${C.rows.length} · Commandes <b>${money(tot('montant'))}</b> · Avances <b>${money(tot('avance'))}</b> · Reste <b>${money(tot('reste'))}</b> · Matériel affecté <b>${money(tot('materiel'))}</b>${C.sansNumero?` <span class="text-xs text-gray-400">· ${C.sansNumero} chantier(s) sans n° de facture non listé(s)</span>`:''}`;
   const shown=rows.slice(0,300);
   document.getElementById('fcList').innerHTML=`<div class="card overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>N° facture</th><th>Date</th><th>Client</th><th>Chantier(s)</th><th>Étape</th><th class="text-right">Commandes</th><th class="text-right">Avance</th><th class="text-right">Reste</th><th class="text-right">Matériel</th><th></th></tr></thead><tbody>
-    ${shown.map(r=>`<tr>
+    ${shown.map(r=>`<tr class="cursor-pointer" onclick="if(!event.target.closest('a,button'))detailFactureChantier('${r.cle}')">
       <td class="font-semibold whitespace-nowrap">${escapeHtml(r.num)}</td>
       <td class="whitespace-nowrap">${r.date?fmtDate(r.date):'—'}</td>
       <td>${escapeHtml(r.clientTxt||'—')}</td>
@@ -2869,20 +2869,47 @@ function filterFacturesChantier(){
       <td class="text-right">${r.cmds.length?money(r.avance):'—'}</td>
       <td class="text-right ${r.reste>0?'text-red-600 font-semibold':''}">${r.cmds.length?money(r.reste):'—'}</td>
       <td class="text-right">${r.materiel?money(r.materiel):'—'}</td>
-      <td class="text-right whitespace-nowrap">${r.cmds.length?`<button class="btn btn-outline text-xs" onclick="detailFactureChantier('${r.cle}')">Détail</button>`:''}</td>
+      <td class="text-right whitespace-nowrap"><button class="btn btn-outline text-xs" onclick="detailFactureChantier('${r.cle}')">👁 Détail</button></td>
     </tr>`).join('')||'<tr><td colspan="10" class="text-gray-400 text-center p-4">Aucune facture.</td></tr>'}
   </tbody></table>${rows.length>shown.length?`<div class="text-xs text-gray-500 p-2">300 premières factures affichées — affinez les filtres.</div>`:''}</div>`;
 }
-function detailFactureChantier(cle){
+async function detailFactureChantier(cle){
   const r=(window._factChCache?.rows||[]).find(x=>x.cle===cle); if(!r) return;
+  openModal(`<div class="p-6 text-center text-sm text-gray-400">Chargement de la facture ${escapeHtml(r.num)}…</div>`);
+  let mat=[];
+  if(r.projets.length){
+    const {data}=await sb.from('chantier_materiel').select('*').in('projet_id',r.projets.map(p=>p.id)).order('ordre',{ascending:true});
+    mat=data||[];
+  }
+  const codeDe=id=>(r.projets.find(p=>p.id===id)||{}).code||'';
+  const kpi=(t,v,c)=>`<div class="card p-3"><div class="text-xs text-gray-400">${t}</div><div class="text-base font-black ${c||''}">${v}</div></div>`;
+  const totMat=mat.reduce((t,m)=>t+(+m.montant||0),0), payeMat=mat.filter(matEstPaye).reduce((t,m)=>t+(+m.montant||0),0);
+  const bloc=(titre,html)=>`<h3 class="font-semibold text-sm mt-4 mb-1">${titre}</h3>${html}`;
+  const chantiers=r.projets.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Code</th><th>Libellé</th><th>Étape</th><th>Création</th><th class="text-right">Matériel</th><th></th></tr></thead><tbody>
+      ${r.projets.map(p=>`<tr><td class="font-semibold">${escapeHtml(p.code||'')}</td><td>${escapeHtml(p.libelle||'')}</td><td>${badge(STATUT_PROJET,p.etape)}</td><td class="text-xs">${p.created_at?fmtDate(p.created_at):'—'}</td>
+        <td class="text-right">${money(mat.filter(m=>m.projet_id===p.id).reduce((t,m)=>t+(+m.montant||0),0))}</td>
+        <td class="text-right"><button class="btn btn-outline text-xs" onclick="closeModal();window._editId='${p.id}';showPage('projets-add')">Ouvrir le chantier</button></td></tr>`).join('')}
+    </tbody></table></div>`:'<div class="text-sm text-gray-400">Aucun chantier lié : ce n° n\'apparaît que dans les commandes chantier.</div>';
+  const commandes=r.cmds.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Cat.</th><th>Désignation</th><th>Paiement</th><th class="text-right">Montant</th><th class="text-right">Avance</th><th class="text-right">Reste</th></tr></thead><tbody>
+      ${r.cmds.map(c=>`<tr><td>${c.date_commande?fmtDate(c.date_commande):'—'}</td><td>${escapeHtml(c.categorie||'')}</td><td>${escapeHtml(c.designation||'')}</td><td class="text-xs">${escapeHtml(c.mode_paiement||'')}</td><td class="text-right">${c.montant==null?'—':money(c.montant)}</td><td class="text-right">${c.avance==null?'—':money(c.avance)}</td><td class="text-right ${(+c.reste||0)>0?'text-red-600':''}">${c.reste==null?'—':money(c.reste)}</td></tr>`).join('')}
+    </tbody><tfoot><tr><th colspan="4" class="text-right">Total</th><th class="text-right">${money(r.montant)}</th><th class="text-right">${money(r.avance)}</th><th class="text-right">${money(r.reste)}</th></tr></tfoot></table></div>`:'<div class="text-sm text-gray-400">Aucune commande chantier pour ce n° de facture.</div>';
+  const materiel=mat.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Chantier</th><th class="text-right">Qté</th><th>Désignation</th><th>Fournisseur</th><th class="text-right">Montant</th><th>Paiement</th></tr></thead><tbody>
+      ${mat.map(m=>`<tr><td class="text-xs">${escapeHtml(codeDe(m.projet_id))}</td><td class="text-right">${m.quantite==null?'—':fmtQte(+m.quantite)}</td><td>${escapeHtml(m.designation||'')}</td><td class="text-xs">${escapeHtml(m.fournisseur||'—')}</td><td class="text-right font-semibold">${money(+m.montant||0)}</td><td>${matEstPaye(m)?'<span class="pill" style="color:#059669;border-color:#059669">Payé</span>':'<span class="pill" style="color:#d97706;border-color:#d97706">À payer</span>'}</td></tr>`).join('')}
+    </tbody><tfoot><tr><th colspan="4" class="text-right">Total matériel</th><th class="text-right">${money(totMat)}</th><th></th></tr></tfoot></table></div>`:'<div class="text-sm text-gray-400">Aucun matériel affecté (fiche de suivi non importée pour ce chantier).</div>';
   openModal(`
     <div class="flex justify-between items-start gap-3 mb-3">
-      <div><h2 class="text-lg font-bold">🧾 Facture ${escapeHtml(r.num)}</h2><div class="text-xs text-gray-400">${escapeHtml(r.clientTxt||'—')} · ${r.projets.length} chantier(s) · ${r.cmds.length} ligne(s) de commande</div></div>
+      <div><h2 class="text-lg font-bold">🧾 Facture ${escapeHtml(r.num)}</h2>
+        <div class="text-xs text-gray-400">${escapeHtml(r.clientTxt||'Client non renseigné')} · ${r.date?fmtDate(r.date):'date inconnue'}${r.cats.length?' · '+escapeHtml(r.cats.join(', ')):''}</div></div>
       <button class="btn btn-outline" onclick="closeModal()">✕</button>
     </div>
-    <div class="overflow-x-auto" style="max-height:60vh;overflow-y:auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Cat.</th><th>Désignation</th><th class="text-right">Montant</th><th class="text-right">Avance</th><th class="text-right">Reste</th></tr></thead><tbody>
-      ${r.cmds.map(c=>`<tr><td>${fmtDate(c.date_commande)}</td><td>${escapeHtml(c.categorie||'')}</td><td>${escapeHtml(c.designation||'')}</td><td class="text-right">${c.montant==null?'—':money(c.montant)}</td><td class="text-right">${c.avance==null?'—':money(c.avance)}</td><td class="text-right">${c.reste==null?'—':money(c.reste)}</td></tr>`).join('')}
-    </tbody><tfoot><tr><th colspan="3" class="text-right">Total</th><th class="text-right">${money(r.montant)}</th><th class="text-right">${money(r.avance)}</th><th class="text-right">${money(r.reste)}</th></tr></tfoot></table></div>`);
+    <div style="max-height:68vh;overflow-y:auto">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        ${kpi('Commandes',r.cmds.length?money(r.montant):'—')}${kpi('Avance',r.cmds.length?money(r.avance):'—','text-emerald-600')}${kpi('Reste à payer',r.cmds.length?money(r.reste):'—',r.reste>0?'text-red-600':'')}${kpi('Matériel affecté',mat.length?money(totMat):'—',mat.length&&totMat>payeMat?'':'')}
+      </div>
+      ${bloc('🏗️ Chantier(s) lié(s) ('+r.projets.length+')',chantiers)}
+      ${bloc('📦 Commandes chantier ('+r.cmds.length+')',commandes)}
+      ${bloc('🧱 Matériel affecté ('+mat.length+' ligne'+(mat.length>1?'s':'')+')',materiel)}
+    </div>`);
 }
 async function renderFournisseurs(el){
   const {data,error}=await sb.from('fournisseurs').select('*').order('created_at',{ascending:false});
