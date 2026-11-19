@@ -14095,10 +14095,28 @@ function brouillardEnvoyer(){
   if(!b.seances.length){ toast('Aucune séance sur la période : rien à envoyer.','error'); return; }
   if(b.t.pieces>1500 && !confirm(`Cette période compte ${b.t.pieces} pièces : le PDF sera très volumineux et long à produire. Réduisez la période (ex. un mois) ou poursuivez quand même ?`)) return;
   const m=n=>new Intl.NumberFormat('fr-FR').format(Math.round(n||0)), per=brouillardPeriode(b), f=b.f;
-  const texte=`📖 *Brouillard de caisse* — ${nomEntreprise()||APP_NOM}\nCaisse : ${b.caisse.nom}\nPériode : ${per}\n\n`+
+  const entete=`📖 *Brouillard de caisse* — ${nomEntreprise()||APP_NOM}\nCaisse : ${b.caisse.nom}\nPériode : ${per}\n\n`+
     `• Fond initial : ${m(b.t.fondInitial)} FCFA\n• Entrées : ${m(b.t.entrees)} FCFA\n• Sorties : ${m(b.t.sorties)} FCFA\n• *Solde final : ${m(b.t.soldeFinal)} FCFA*${b.t.ouvertes?' (théorique, séance ouverte)':''}\n`+
     (Math.abs(b.t.ecarts)>=1?`• Écarts de caisse : ${m(b.t.ecarts)} FCFA\n`:'')+
-    `• ${b.seances.length} séance(s) · ${b.t.pieces} pièce(s)${b.t.aVentiler?` · ${b.t.aVentiler} à ventiler`:''}\n\nDétail pièce par pièce dans le PDF joint.`;
+    `• ${b.seances.length} séance(s) · ${b.t.pieces} pièce(s)${b.t.aVentiler?` · ${b.t.aVentiler} à ventiler`:''}\n`;
+  // Détail des mouvements dans le message (limité : un lien WhatsApp / mailto trop long est tronqué par les applications)
+  const LIMITE=1800; let detail='', coupe=false, nbLignes=0;
+  const total=b.seances.reduce((a,x)=>a+x.lignes.length,0);
+  externe: for(const x of b.seances){
+    const jour=new Date(x.s.date_session+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});
+    const tete=`\n📅 *${jour}* — fond ${m(x.fond)}\n`;
+    if(detail.length+tete.length>LIMITE){ coupe=true; break; }
+    detail+=tete;
+    for(const l of x.lignes){
+      const mt=l.entree?`+${m(l.entree)}`:`−${m(l.sortie)}`;
+      const lib=(l.libelle||'').replace(/\s*\(pièce [^)]*\)$/,'').slice(0,60);
+      const ligne=`${l.entree?'🟢':'🔴'} ${l.numero} ${lib} : ${mt}\n`;
+      if(detail.length+ligne.length>LIMITE){ coupe=true; break externe; }
+      detail+=ligne; nbLignes++;
+    }
+    detail+=`Solde : *${m(x.compte!=null?x.compte:x.theorique)}*\n`;
+  }
+  const texte=entete+(detail?'\n— Détail des mouvements —'+detail:'')+(coupe?`\n… ${total-nbLignes} mouvement(s) non listé(s) ici : voir le PDF joint.\n`:'')+'\nDétail complet pièce par pièce dans le PDF joint.';
   impOuvrirEnvoi({titre:'Brouillard de caisse — '+per,html:brouillardHtml(b),meta:brouillardMeta(b),orientation:'portrait',nomFichier:`${slugEntreprise()}-brouillard-caisse-${f.debut}${f.debut===f.fin?'':'_'+f.fin}.pdf`,texte});
 }
 function exporterBrouillardCsv(){
