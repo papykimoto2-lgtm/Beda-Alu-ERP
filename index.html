@@ -2876,10 +2876,15 @@ function filterFacturesChantier(){
 async function detailFactureChantier(cle){
   const r=(window._factChCache?.rows||[]).find(x=>x.cle===cle); if(!r) return;
   openModal(`<div class="p-6 text-center text-sm text-gray-400">Chargement de la facture ${escapeHtml(r.num)}…</div>`);
-  let mat=[];
+  let mat=[], stock=[];
   if(r.projets.length){
     const {data}=await sb.from('chantier_materiel').select('*').in('projet_id',r.projets.map(p=>p.id)).order('ordre',{ascending:true});
     mat=data||[];
+  }
+  {  // mouvements de stock : rattachés au n° de facture (référence) ou aux chantiers de la facture
+    const filtre=[`reference.ilike.*${r.cle}*`]; if(r.projets.length) filtre.push(`projet_id.in.(${r.projets.map(p=>p.id).join(',')})`);
+    const {data}=await sb.from('mouvements_stock').select('id,type,quantite,cmup_apres,motif,reference,date_mouvement,created_at,projet_id,composants(nom,unite)').or(filtre.join(',')).order('created_at',{ascending:false});
+    stock=(data||[]).filter(m=>r.projets.some(p=>p.id===m.projet_id)||facturesCles(m.reference).includes(r.cle));
   }
   const codeDe=id=>(r.projets.find(p=>p.id===id)||{}).code||'';
   const kpi=(t,v,c)=>`<div class="card p-3"><div class="text-xs text-gray-400">${t}</div><div class="text-base font-black ${c||''}">${v}</div></div>`;
@@ -2893,6 +2898,9 @@ async function detailFactureChantier(cle){
   const commandes=r.cmds.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Cat.</th><th>Désignation</th><th>Paiement</th><th class="text-right">Montant</th><th class="text-right">Avance</th><th class="text-right">Reste</th></tr></thead><tbody>
       ${r.cmds.map(c=>`<tr><td>${c.date_commande?fmtDate(c.date_commande):'—'}</td><td>${escapeHtml(c.categorie||'')}</td><td>${escapeHtml(c.designation||'')}</td><td class="text-xs">${escapeHtml(c.mode_paiement||'')}</td><td class="text-right">${c.montant==null?'—':money(c.montant)}</td><td class="text-right">${c.avance==null?'—':money(c.avance)}</td><td class="text-right ${(+c.reste||0)>0?'text-red-600':''}">${c.reste==null?'—':money(c.reste)}</td></tr>`).join('')}
     </tbody><tfoot><tr><th colspan="4" class="text-right">Total</th><th class="text-right">${money(r.montant)}</th><th class="text-right">${money(r.avance)}</th><th class="text-right">${money(r.reste)}</th></tr></tfoot></table></div>`:'<div class="text-sm text-gray-400">Aucune commande chantier pour ce n° de facture.</div>';
+  const stockHtml=stock.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Composant</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Coût</th><th>Motif / réf.</th></tr></thead><tbody>
+      ${stock.map(m=>{ const t=STOCK_TYPE_LABELS[m.type]||{icon:'',label:m.type,color:'#6b7280'}; return `<tr><td class="text-xs">${fmtDate(m.date_mouvement||m.created_at)}</td><td>${escapeHtml(m.composants?.nom||'—')}</td><td><span class="pill" style="color:${t.color};border-color:${t.color}">${t.icon} ${t.label}</span></td><td class="text-right">${fmtQte(+m.quantite)} ${escapeHtml(m.composants?.unite||'')}</td><td class="text-right">${money(-(+m.quantite||0)*(+m.cmup_apres||0))}</td><td class="text-xs">${escapeHtml([m.reference,m.motif].filter(Boolean).join(' — '))}</td></tr>`; }).join('')}
+    </tbody></table></div>`:'<div class="text-sm text-gray-400">Aucun mouvement de stock rattaché à cette facture. Depuis « Nouveau mouvement de stock », choisissez ce n° de facture.</div>';
   const materiel=mat.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Chantier</th><th class="text-right">Qté</th><th>Désignation</th><th>Fournisseur</th><th class="text-right">Montant</th><th>Paiement</th></tr></thead><tbody>
       ${mat.map(m=>`<tr><td class="text-xs">${escapeHtml(codeDe(m.projet_id))}</td><td class="text-right">${m.quantite==null?'—':fmtQte(+m.quantite)}</td><td>${escapeHtml(m.designation||'')}</td><td class="text-xs">${escapeHtml(m.fournisseur||'—')}</td><td class="text-right font-semibold">${money(+m.montant||0)}</td><td>${matEstPaye(m)?'<span class="pill" style="color:#059669;border-color:#059669">Payé</span>':'<span class="pill" style="color:#d97706;border-color:#d97706">À payer</span>'}</td></tr>`).join('')}
     </tbody><tfoot><tr><th colspan="4" class="text-right">Total matériel</th><th class="text-right">${money(totMat)}</th><th></th></tr></tfoot></table></div>`:'<div class="text-sm text-gray-400">Aucun matériel affecté (fiche de suivi non importée pour ce chantier).</div>';
@@ -2909,6 +2917,7 @@ async function detailFactureChantier(cle){
       ${bloc('🏗️ Chantier(s) lié(s) ('+r.projets.length+')',chantiers)}
       ${bloc('📦 Commandes chantier ('+r.cmds.length+')',commandes)}
       ${bloc('🧱 Matériel affecté ('+mat.length+' ligne'+(mat.length>1?'s':'')+')',materiel)}
+      ${bloc('📦 Mouvements de stock ('+stock.length+')',stockHtml)}
     </div>`);
 }
 async function renderFournisseurs(el){
@@ -4903,6 +4912,8 @@ async function openMouvementModal(presetType,presetComposantId,presetDepotId,pre
   await Promise.all([chargerDepots(),chargerChantiersRef(true)]);
   let composants=window._stockComposantsCache;
   if(!composants){ const {data}=await sb.from('composants').select('id,nom').order('nom'); composants=data||[]; }
+  const facturesItems=await mvFacturesItems();
+  const presetFacture=presetProjetId?(facturesCles(chantierNumFacture((window._chantiersRef?.projets||[]).find(p=>p.id===presetProjetId)||{}))[0]||''):'';
   openModal(`
     <h2 class="text-lg font-bold mb-1">📦 Nouveau mouvement de stock</h2>
     <div class="divider"></div>
@@ -4915,6 +4926,8 @@ async function openMouvementModal(presetType,presetComposantId,presetDepotId,pre
       <div class="field sm:col-span-2"><label>Date de mouvement</label>${fieldWrap('📅',`<input id="mvDate" type="date" value="${new Date().toLocaleDateString('sv-SE')}" required>`)}</div>
       <div class="field sm:col-span-2"><label>Motif</label>${fieldWrap('📝',`<input id="mvMotif" placeholder="Ex : Achat fournisseur, casse, correction…">`)}</div>
       <div class="field sm:col-span-2"><label>Référence (optionnel)</label>${fieldWrap('🔗',`<input id="mvRef" placeholder="N° BL, bon de livraison…">`)}</div>
+      <div class="field sm:col-span-2"><label>N° de facture rattaché (facultatif)</label>${fieldWrap('🧾',smartSelect('mvFact',facturesItems,presetFacture,{placeholder:'Rechercher un n° de facture ou un client…',effacable:true,onChange:'mvFactureChoisie()'}))}
+        <div class="text-xs text-gray-400 mt-1">Choisir une facture présélectionne le client et le chantier correspondants.</div></div>
       ${chantierPickerHtml('mv',presetProjetId||'')}
       <div class="sm:col-span-2 text-xs text-gray-400 -mt-2">Ex. sortie de matériaux pour le chantier d'un client, retour de chantier, achat livré directement sur chantier.</div>
       <div class="sm:col-span-2 flex justify-end gap-2 pt-2">
@@ -4932,15 +4945,34 @@ async function openMouvementModal(presetType,presetComposantId,presetDepotId,pre
     if(!composantId){ toast('Sélectionnez un composant.','error'); return; }
     if(!quantite && type!=='inventaire'){ toast('Quantité requise.','error'); return; }
     const projetId=chantierValeur('mv');
-    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:val('mvRef')||null,p_prix_unitaire:prix,p_depot_id:val('mvDepot')||null,p_date_mouvement:val('mvDate')||null,...(projetId?{p_projet_id:projetId}:{})});
+    const cleFact=val('mvFact'); const refMv=[cleFact?'N°'+cleFact:'',val('mvRef')].filter(Boolean).join(' · ');   // « N°27484 · BL 12 »
+    const {error}=await sb.rpc('stock_mouvement',{p_composant_id:composantId,p_type:type,p_quantite:quantite,p_motif:val('mvMotif')||null,p_reference:refMv||null,p_prix_unitaire:prix,p_depot_id:val('mvDepot')||null,p_date_mouvement:val('mvDate')||null,...(projetId?{p_projet_id:projetId}:{})});
     if(error){ toast(error.message,'error'); return; }
     if(type==='entree' && prix>0){
       const composant=(composants||[]).find(c=>c.id===composantId);
-      await comptabiliserAchatMouvementStock(composant,quantite,prix,val('mvMotif'),val('mvRef'),projetId);
+      await comptabiliserAchatMouvementStock(composant,quantite,prix,val('mvMotif'),refMv,projetId);
     }
     toast('Mouvement enregistré.'); closeModal(); refreshStockAlertesBadge();
     showPage(PAGE_RENDERERS[currentPageKey()]?currentPageKey():'stock-mouvements');
   };
+}
+/* N° de facture proposés pour un mouvement de stock : ceux des chantiers (fiches importées) et des commandes chantier */
+async function mvFacturesItems(){
+  const R=window._chantiersRef||{clients:[],projets:[]};
+  const {data:cmds}=await sb.from('commandes_chantier').select('n_facture,client').not('n_facture','is',null);
+  const F={};
+  const get=k=>F[k]||(F[k]=new Set());
+  R.projets.forEach(p=>{ const k=facturesCles(chantierNumFacture(p))[0]; if(k){ const n=chantierNomClient(p.client_id); get(k); if(n) F[k].add(n); } });
+  (cmds||[]).forEach(c=>facturesCles(c.n_facture).forEach(k=>{ get(k); if(c.client&&!F[k].size) F[k].add(String(c.client).trim()); }));
+  return Object.keys(F).sort((a,b)=>(+b)-(+a)).map(k=>({id:k,label:'N°'+k+(F[k].size?' — '+[...F[k]].join(' · '):'')}));
+}
+function mvFactureChoisie(){
+  const cle=document.getElementById('mvFact')?.value||''; if(!cle) return;
+  const liste=(window._chantiersRef?.projets||[]).filter(p=>facturesCles(chantierNumFacture(p))[0]===cle);
+  if(!liste.length) return;   // facture connue seulement par les commandes : pas de chantier à présélectionner
+  const p=liste.find(x=>!['termine','annule'].includes(x.etape))||liste[0];
+  smartSelectPick('mvClient',p.client_id);                       // remplit la liste des chantiers du client
+  const sel=document.getElementById('mvProjet'); if(sel) sel.value=p.id;
 }
 function currentPageKey(){
   const active=document.querySelector('.nav-child.active,.nav-item.active');
