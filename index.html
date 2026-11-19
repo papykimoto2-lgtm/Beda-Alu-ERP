@@ -2755,9 +2755,9 @@ async function renderProspectForm(el){
 
 /* ============================== FOURNISSEURS ============================== */
 async function renderCommandesChantier(el){
-  const {data,error}=await sb.from('commandes_chantier').select('*').order('date_commande',{ascending:false}).order('ordre',{ascending:false});
+  const [{data,error},MD]=await Promise.all([sb.from('commandes_chantier').select('*').order('date_commande',{ascending:false}).order('ordre',{ascending:false}),modifsCharger()]);
   if(error) throw error;
-  window._cmdChCache=data;
+  window._cmdChCache=data; window._modifsCmd=MD.parCmd; window._modifsFact=MD.parFacture;
   const mois=[...new Set(data.map(r=>String(r.date_commande).slice(0,7)))].sort().reverse();
   el.innerHTML=`
     <div class="card mb-3">
@@ -2782,7 +2782,7 @@ function filterCommandesChantier(){
   const tot=rows.reduce((a,r)=>a+(+r.montant||0),0), av=rows.reduce((a,r)=>a+(+r.avance||0),0);
   document.getElementById('ccTotaux').innerHTML=`<b>${rows.length}</b> ligne(s) · Montant <b>${money(tot)}</b> · Avances <b>${money(av)}</b>`;
   const shown=rows.slice(0,300);
-  document.getElementById('ccList').innerHTML=`<div class="card" style="overflow:auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Cat.</th><th>Facture</th><th>Client</th><th>Désignation</th><th class="text-right">Montant</th><th class="text-right">Avance</th><th>Paiement</th></tr></thead><tbody>${shown.map(r=>`<tr><td>${fmtDate(r.date_commande)}${r.date_estimee?' <span title="Date estimée" style="color:#d97706">~</span>':''}</td><td>${esc(r.categorie||'')}</td><td>${esc(r.n_facture||'')}</td><td>${esc(r.client||'')}</td><td>${esc(r.designation)}</td><td class="text-right">${r.montant==null?'—':money(r.montant)}</td><td class="text-right">${r.avance==null?'—':money(r.avance)}</td><td>${esc(r.mode_paiement||'')}</td></tr>`).join('')}</tbody></table>${rows.length>shown.length?`<div class="text-xs text-gray-500 p-2">300 premières lignes affichées — affinez les filtres.</div>`:''}</div>`;
+  document.getElementById('ccList').innerHTML=`<div class="card" style="overflow:auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Cat.</th><th>Facture</th><th>Client</th><th>Désignation</th><th class="text-right">Montant</th><th class="text-right">Avance</th><th>Paiement</th></tr></thead><tbody>${shown.map(r=>`<tr><td>${fmtDate(r.date_commande)}${r.date_estimee?' <span title="Date estimée" style="color:#d97706">~</span>':''}</td><td>${esc(r.categorie||'')}</td><td>${esc(r.n_facture||'')}${(()=>{ const k=facturesCles(r.n_facture).find(x=>window._modifsFact?.[x]); return k?` <a href="#" class="pill" style="color:#d97706;border-color:#d97706" title="Facture modifiée : voir l'historique" onclick="ouvrirFactureParCle('${k}');return false;">✏️ ${window._modifsFact[k]}</a>`:''; })()}</td><td>${esc(r.client||'')}</td><td>${esc(r.designation)}${window._modifsCmd?.[r.id]?' <span class="text-xs" style="color:#d97706">(modifiée)</span>':''}</td><td class="text-right">${r.montant==null?'—':money(r.montant)}${window._modifsCmd?.[r.id]?.initial!=null?`<div class="text-xs text-gray-400 line-through" title="Montant initial">${money(window._modifsCmd[r.id].initial)}</div>`:''}</td><td class="text-right">${r.avance==null?'—':money(r.avance)}</td><td>${esc(r.mode_paiement||'')}</td></tr>`).join('')}</tbody></table>${rows.length>shown.length?`<div class="text-xs text-gray-500 p-2">300 premières lignes affichées — affinez les filtres.</div>`:''}</div>`;
 }
 /* ============================== FACTURES DES CHANTIERS ==============================
    Une ligne par n° de facture (repris de l'Excel : libellé des chantiers « Fiche N27484 - date » et colonne
@@ -2790,14 +2790,26 @@ function filterCommandesChantier(){
    reste) et le matériel affecté. Un même n° peut regrouper plusieurs chantiers ; « N°24164/26563 » compte pour 2 n°. */
 /* Feuille Excel importée « … MODIF / MODI » : le chantier est une version modifiée de la même facture */
 function facturesFeuilleModif(p){ const m=String(p.description||'').match(/feuille\s*:\s*(.*)$/i); return m&&/\bmodif?\b/i.test(m[1])?m[1].trim():''; }
+async function modifsCharger(){
+  let r=await sb.from('facture_modifications').select('id,n_facture,commande_id,ancien_montant,nouveau_montant,note,ancien_materiel,nouveau_materiel').order('created_at',{ascending:true});
+  if(r.error) r=await sb.from('facture_modifications').select('id,n_facture,note,ancien_materiel,nouveau_materiel').order('created_at',{ascending:true});   // avant sql/modifications_facture_montant.sql
+  const parCmd={}, parFacture={}, texte={};
+  (r.error?[]:r.data||[]).forEach(m=>{
+    parFacture[m.n_facture]=(parFacture[m.n_facture]||0)+1;
+    texte[m.n_facture]=(texte[m.n_facture]||'')+' '+[m.note,m.ancien_materiel,m.nouveau_materiel].filter(Boolean).join(' ');
+    if(m.commande_id){ const c=parCmd[m.commande_id]||(parCmd[m.commande_id]={n:0,initial:null}); c.n++; if(c.initial==null&&m.ancien_montant!=null) c.initial=+m.ancien_montant; }
+  });
+  return {parCmd,parFacture,texte,erreur:r.error||null};
+}
+async function ouvrirFactureParCle(cle){ if(!(window._factChCache?.rows||[]).find(x=>x.cle===cle)) await facturesCharger(); detailFactureChantier(cle); }
 function facturesCles(txt){ return (String(txt||'').match(/\d{3,}/g)||[]).map(x=>x.replace(/^0+/,'')).filter(Boolean); }
-async function renderFacturesChantier(el){
-  const [{data:projets,error:e1},{data:cmds,error:e2},{data:mat,error:e3},{data:clients},{data:modifs}]=await Promise.all([
+async function facturesCharger(){
+  const [{data:projets,error:e1},{data:cmds,error:e2},{data:mat,error:e3},{data:clients},MD]=await Promise.all([
     sb.from('projets').select('id,code,libelle,client_id,etape,created_at,description'),
-    sb.from('commandes_chantier').select('n_facture,client,categorie,designation,date_commande,mode_paiement,montant,avance,reste'),
+    sb.from('commandes_chantier').select('id,n_facture,client,categorie,designation,date_commande,mode_paiement,montant,avance,reste'),
     sb.from('chantier_materiel').select('projet_id,montant'),
     sb.from('clients').select('id,nom,prenoms'),
-    sb.from('facture_modifications').select('n_facture,note,ancien_materiel,nouveau_materiel')   // table facultative : absente tant que sql/modifications_facture.sql n'est pas exécuté
+    modifsCharger()   // table facultative : absente tant que sql/modifications_facture.sql n'est pas exécuté
   ]);
   if(e1||e2||e3) throw (e1||e2||e3);
   const nomClient={}; (clients||[]).forEach(c=>{ nomClient[c.id]=[c.nom,c.prenoms].filter(Boolean).join(' '); });
@@ -2812,8 +2824,9 @@ async function renderFacturesChantier(el){
     const d=String(p.libelle||'').match(/(\d{4}-\d{2}-\d{2})/); maj(f,d?d[1]:p.created_at);
   });
   // Commande portant plusieurs n° (« N°24164/26563 ») : montants comptés une seule fois (1er n°), les autres n° la référencent
-  (cmds||[]).forEach(c=>{ facturesCles(c.n_facture).forEach((k,i)=>{ const f=get(k); f.cmds.push(i?{...c,montant:null,avance:null,reste:null,designation:(c.designation||'')+' (montant porté par le n° '+c.n_facture.split('/')[0].trim()+')'}:c); maj(f,c.date_commande); }); });
-  (modifs||[]).forEach(m=>{ const f=F[m.n_facture]; if(f){ f.nbNotes=(f.nbNotes||0)+1; f.notesTxt=(f.notesTxt||'')+' '+[m.note,m.ancien_materiel,m.nouveau_materiel].filter(Boolean).join(' '); } });
+  (cmds||[]).forEach(c=>{ facturesCles(c.n_facture).forEach((k,i)=>{ const f=get(k); f.cmds.push(i?{...c,_copie:true,montant:null,avance:null,reste:null,designation:(c.designation||'')+' (montant porté par le n° '+c.n_facture.split('/')[0].trim()+')'}:c); maj(f,c.date_commande); }); });
+  Object.entries(MD.parFacture).forEach(([k,n])=>{ const f=F[k]; if(f){ f.nbNotes=n; f.notesTxt=MD.texte[k]||''; } });
+  window._modifsCmd=MD.parCmd; window._modifsFact=MD.parFacture;
   const rows=Object.values(F).map(f=>{
     f.feuillesModif=f.projets.filter(p=>facturesFeuilleModif(p)).length;   // chantiers importés depuis une feuille Excel « MODIF »
     f.nbModif=(f.nbNotes||0)+f.feuillesModif;
@@ -2828,6 +2841,11 @@ async function renderFacturesChantier(el){
     return f;
   }).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
   window._factChCache={rows,sansNumero};
+  return window._factChCache;
+}
+async function renderFacturesChantier(el){ await facturesCharger(); facturesAfficher(el); }
+function facturesAfficher(el){
+  const rows=window._factChCache.rows;
   const annees=[...new Set(rows.map(r=>(r.date||'').slice(0,4)).filter(Boolean))].sort().reverse();
   el.innerHTML=`
     <div class="card mb-3">
@@ -2890,9 +2908,17 @@ function ouvrirModifFacture(cle){
       <div class="field"><label>Date</label>${fieldWrap('📅',`<input id="mfDate" type="date" value="${new Date().toLocaleDateString('sv-SE')}" required>`)}</div>
       <div class="field"><label>Type</label>${fieldWrap('🗂️',`<select id="mfType"><option value="MODIF">MODIF — remplacement de matériel</option><option value="AJOUT">Ajout de matériel</option><option value="RETRAIT">Retrait de matériel</option><option value="AUTRE">Autre</option></select>`)}</div>
       ${r.projets.length?`<div class="field sm:col-span-2"><label>Chantier concerné</label>${fieldWrap('🏗️',`<select id="mfProjet"><option value="">— toute la facture —</option>${r.projets.map(p=>`<option value="${p.id}">${escapeHtml((p.code||'')+' — '+(p.libelle||''))}</option>`).join('')}</select>`)}</div>`:''}
+      ${(()=>{ const L=r.cmds.filter(c=>c.id&&!c._copie); return L.length?`<div class="sm:col-span-2 card p-3" style="background:#fffbeb">
+        <div class="text-sm font-semibold mb-2">🛒 Mettre à jour la commande chantier (facultatif)</div>
+        <div class="field">${fieldWrap('🧾',`<select id="mfCmd" onchange="mfCmdChoisie('${cle}')"><option value="">— note seule : ne pas modifier la commande —</option>${L.map(c=>`<option value="${c.id}">${escapeHtml((c.designation||'Ligne')+' — '+(c.montant==null?'sans montant':money(c.montant)))}</option>`).join('')}</select>`)}</div>
+        <div id="mfCmdChamps" class="hidden grid sm:grid-cols-2 gap-3 mt-2">
+          <div class="field"><label>Nouveau montant (FCFA)</label>${fieldWrap('💰',`<input id="mfMontant" type="number" step="1" oninput="mfCmdChoisie('${cle}',true)">`)}</div>
+          <div class="field"><label>Nouvelle désignation (vide = inchangée)</label>${fieldWrap('📝',`<input id="mfDesig">`)}</div>
+          <div class="text-xs sm:col-span-2" id="mfEcartAuto"></div>
+        </div></div>`:''; })()}
       <div class="field"><label>Matériel livré (remplacé)</label>${fieldWrap('📦',`<input id="mfAncien" placeholder="Ex : 3 vitres claires 6 mm">`)}</div>
       <div class="field"><label>Matériel de remplacement</label>${fieldWrap('🔄',`<input id="mfNouveau" placeholder="Ex : 3 vitres fumées 8 mm">`)}</div>
-      <div class="field sm:col-span-2"><label>Écart de montant (FCFA, facultatif : + supplément / − avoir)</label>${fieldWrap('💰',`<input id="mfEcart" type="number" step="1" placeholder="0">`)}</div>
+      <div class="field sm:col-span-2" id="mfEcartChamp"><label>Écart de montant (FCFA, facultatif : + supplément / − avoir)</label>${fieldWrap('💰',`<input id="mfEcart" type="number" step="1" placeholder="0">`)}</div>
       <div class="field sm:col-span-2"><label>Note (obligatoire)</label><textarea id="mfNote" rows="3" required placeholder="Ex : le client souhaite remplacer… demande faite le… validée par…" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:8px"></textarea></div>
       <div class="sm:col-span-2 flex justify-end gap-2 pt-1">
         <button type="button" class="btn btn-outline" onclick="detailFactureChantier('${cle}')">Annuler</button>
@@ -2902,13 +2928,43 @@ function ouvrirModifFacture(cle){
   document.getElementById('modifFactForm').onsubmit=async e=>{
     e.preventDefault();
     const note=val('mfNote').trim(); if(!note){ toast('La note est obligatoire.','error'); return; }
+    let ancien=val('mfAncien').trim()||null, nouveau=val('mfNouveau').trim()||null, ecart=val('mfEcart')!==''?+val('mfEcart'):null;
+    const cmdId=val('mfCmd')||null, ligne=cmdId?r.cmds.find(c=>c.id===cmdId):null;
+    const extra={}; let patch=null, avant=null;
+    if(ligne){
+      const ancM=+ligne.montant||0, nouvM=val('mfMontant')!==''?+val('mfMontant'):ancM, nd=val('mfDesig').trim();
+      const chMontant=nouvM!==ancM, chDesig=!!nd&&nd!==(ligne.designation||'');
+      if(!chMontant&&!chDesig){ toast('Aucun changement de montant ni de désignation : modifiez une valeur ou choisissez « note seule ».','error'); return; }
+      patch={}; avant={};
+      if(chMontant){ patch.montant=nouvM; avant.montant=ligne.montant; if(ligne.reste!=null||ligne.avance!=null){ patch.reste=nouvM-(+ligne.avance||0); avant.reste=ligne.reste; }
+        ecart=nouvM-ancM; Object.assign(extra,{ancien_montant:ancM,nouveau_montant:nouvM}); }
+      if(chDesig){ patch.designation=nd; avant.designation=ligne.designation; ancien=ancien||ligne.designation||null; nouveau=nouveau||nd; }
+      Object.assign(extra,{commande_id:cmdId});
+      const {data:maj,error:eU}=await sb.from('commandes_chantier').update(patch).eq('id',cmdId).select('id');
+      if(eU||!(maj||[]).length){ toast(eU?eU.message:'Mise à jour de la commande refusée.','error'); return; }
+    }
     const {error}=await sb.from('facture_modifications').insert({n_facture:cle,projet_id:val('mfProjet')||null,date_modif:val('mfDate'),type:val('mfType'),
-      ancien_materiel:val('mfAncien').trim()||null,nouveau_materiel:val('mfNouveau').trim()||null,ecart_montant:val('mfEcart')!==''?+val('mfEcart'):null,note,created_by:CURRENT_USER?.id||null});
-    if(error){ toast(/facture_modifications/.test(error.message)?'Historique non activé : exécutez sql/modifications_facture.sql dans Supabase.':error.message,'error'); return; }
-    toast('Modification enregistrée.');
-    const el=document.getElementById('fcList'); if(el) await renderFacturesChantier(el.parentElement);   // recharge le compteur ✏️
+      ancien_materiel:ancien,nouveau_materiel:nouveau,ecart_montant:ecart,note,created_by:CURRENT_USER?.id||null,...extra});
+    if(error){
+      if(patch) await sb.from('commandes_chantier').update(avant).eq('id',cmdId);   // pas de note = pas de changement de commande
+      toast(/facture_modifications|column/.test(error.message)?'Historique non activé ou à mettre à jour : exécutez sql/modifications_facture.sql puis sql/modifications_facture_montant.sql dans Supabase.':error.message,'error'); return; }
+    toast(patch?'Modification enregistrée et commande chantier mise à jour.':'Modification enregistrée.');
+    await facturesCharger();
+    const fl=document.getElementById('fcList'); if(fl) facturesAfficher(fl.parentElement);          // compteur ✏️ et totaux
+    const cl=document.getElementById('ccList'); if(cl) await renderCommandesChantier(cl.parentElement); // liste « Commandes chantier »
     detailFactureChantier(cle);
   };
+}
+function mfCmdChoisie(cle,saisie){
+  const r=(window._factChCache?.rows||[]).find(x=>x.cle===cle); if(!r) return;
+  const id=document.getElementById('mfCmd')?.value||'', c=id?r.cmds.find(x=>x.id===id):null;
+  document.getElementById('mfCmdChamps')?.classList.toggle('hidden',!c);
+  document.getElementById('mfEcartChamp')?.classList.toggle('hidden',!!c);
+  if(!c) return;
+  const m=document.getElementById('mfMontant'), d=document.getElementById('mfDesig');
+  if(!saisie){ m.value=c.montant==null?'':Math.round(+c.montant); d.value=''; d.placeholder=c.designation||''; }
+  const ecart=(m.value!==''?+m.value:(+c.montant||0))-(+c.montant||0);
+  document.getElementById('mfEcartAuto').innerHTML=ecart?`Écart : <b class="${ecart>0?'text-red-600':'text-emerald-600'}">${ecart>0?'+':''}${money(ecart)}</b> · reste à payer recalculé automatiquement (montant − avance).`:'Montant inchangé.';
 }
 async function detailFactureChantier(cle){
   const r=(window._factChCache?.rows||[]).find(x=>x.cle===cle); if(!r) return;
@@ -2937,7 +2993,7 @@ async function detailFactureChantier(cle){
         <td class="text-right"><button class="btn btn-outline text-xs" onclick="closeModal();window._editId='${p.id}';showPage('projets-add')">Ouvrir le chantier</button></td></tr>`).join('')}
     </tbody></table></div>`:'<div class="text-sm text-gray-400">Aucun chantier lié : ce n° n\'apparaît que dans les commandes chantier.</div>';
   const commandes=r.cmds.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Cat.</th><th>Désignation</th><th>Paiement</th><th class="text-right">Montant</th><th class="text-right">Avance</th><th class="text-right">Reste</th></tr></thead><tbody>
-      ${r.cmds.map(c=>`<tr><td>${c.date_commande?fmtDate(c.date_commande):'—'}</td><td>${escapeHtml(c.categorie||'')}</td><td>${escapeHtml(c.designation||'')}</td><td class="text-xs">${escapeHtml(c.mode_paiement||'')}</td><td class="text-right">${c.montant==null?'—':money(c.montant)}</td><td class="text-right">${c.avance==null?'—':money(c.avance)}</td><td class="text-right ${(+c.reste||0)>0?'text-red-600':''}">${c.reste==null?'—':money(c.reste)}</td></tr>`).join('')}
+      ${r.cmds.map(c=>`<tr><td>${c.date_commande?fmtDate(c.date_commande):'—'}</td><td>${escapeHtml(c.categorie||'')}</td><td>${escapeHtml(c.designation||'')}${window._modifsCmd?.[c.id]?' <span class="pill" style="color:#d97706;border-color:#d97706" title="Ligne modifiée : voir l\'historique">✏️ modifiée</span>':''}</td><td class="text-xs">${escapeHtml(c.mode_paiement||'')}</td><td class="text-right">${c.montant==null?'—':money(c.montant)}${window._modifsCmd?.[c.id]?.initial!=null?`<div class="text-xs text-gray-400 line-through">${money(window._modifsCmd[c.id].initial)}</div>`:''}</td><td class="text-right">${c.avance==null?'—':money(c.avance)}</td><td class="text-right ${(+c.reste||0)>0?'text-red-600':''}">${c.reste==null?'—':money(c.reste)}</td></tr>`).join('')}
     </tbody><tfoot><tr><th colspan="4" class="text-right">Total</th><th class="text-right">${money(r.montant)}</th><th class="text-right">${money(r.avance)}</th><th class="text-right">${money(r.reste)}</th></tr></tfoot></table></div>`:'<div class="text-sm text-gray-400">Aucune commande chantier pour ce n° de facture.</div>';
   const codeProjet=id=>(r.projets.find(p=>p.id===id)||{}).code||'';
   const auto=r.projets.map(p=>({p,f:facturesFeuilleModif(p)})).filter(x=>x.f);
@@ -2946,6 +3002,7 @@ async function detailFactureChantier(cle){
       ${modifs.map(m=>`<div class="card p-3" style="border-left:4px solid #d97706">
         <div class="flex flex-wrap justify-between gap-2 text-xs text-gray-500"><span><b class="text-gray-700">${fmtDate(m.date_modif)}</b> · <span class="pill" style="color:#d97706;border-color:#d97706">${escapeHtml(m.type)}</span>${m.projet_id?' · chantier '+escapeHtml(codeProjet(m.projet_id)):''}</span><span>${escapeHtml(m.profiles?.nom_complet||'')}${m.created_at?' · '+new Date(m.created_at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):''}</span></div>
         ${m.ancien_materiel||m.nouveau_materiel?`<div class="text-sm mt-1">${m.ancien_materiel?`<span class="text-red-600 line-through">${escapeHtml(m.ancien_materiel)}</span>`:''}${m.ancien_materiel&&m.nouveau_materiel?' → ':''}${m.nouveau_materiel?`<span class="text-emerald-700 font-semibold">${escapeHtml(m.nouveau_materiel)}</span>`:''}</div>`:''}
+        ${m.ancien_montant!=null||m.nouveau_montant!=null?`<div class="text-xs mt-1">Montant de la commande : <span class="line-through text-gray-400">${m.ancien_montant==null?'—':money(m.ancien_montant)}</span> → <b>${m.nouveau_montant==null?'—':money(m.nouveau_montant)}</b></div>`:''}
         ${m.ecart_montant!=null?`<div class="text-xs mt-1">Écart de montant : <b class="${+m.ecart_montant>0?'text-red-600':'text-emerald-600'}">${+m.ecart_montant>0?'+':''}${money(m.ecart_montant)}</b></div>`:''}
         <div class="text-sm mt-1 whitespace-pre-wrap">${escapeHtml(m.note)}</div></div>`).join('')}
       ${auto.map(x=>`<div class="card p-3 bg-gray-50" style="border-left:4px solid #9ca3af"><div class="text-xs text-gray-500"><b class="text-gray-700">${fmtDate(x.p.created_at)}</b> · Import Excel · chantier ${escapeHtml(x.p.code||'')}</div><div class="text-sm mt-1">Feuille « ${escapeHtml(x.f)} » : version modifiée de cette facture (reprise automatique de l'Excel).</div></div>`).join('')}
