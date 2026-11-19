@@ -2782,7 +2782,7 @@ function filterCommandesChantier(){
   const tot=rows.reduce((a,r)=>a+(+r.montant||0),0), av=rows.reduce((a,r)=>a+(+r.avance||0),0);
   document.getElementById('ccTotaux').innerHTML=`<b>${rows.length}</b> ligne(s) · Montant <b>${money(tot)}</b> · Avances <b>${money(av)}</b>`;
   const shown=rows.slice(0,300);
-  document.getElementById('ccList').innerHTML=`<div class="card" style="overflow:auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Cat.</th><th>Facture</th><th>Client</th><th>Désignation</th><th class="text-right">Montant</th><th class="text-right">Avance</th><th>Paiement</th></tr></thead><tbody>${shown.map(r=>`<tr><td>${fmtDate(r.date_commande)}${r.date_estimee?' <span title="Date estimée" style="color:#d97706">~</span>':''}</td><td>${esc(r.categorie||'')}</td><td>${esc(r.n_facture||'')}${(()=>{ const k=facturesCles(r.n_facture).find(x=>window._modifsFact?.[x]); return k?` <a href="#" class="pill" style="color:#d97706;border-color:#d97706" title="Facture modifiée : voir l'historique" onclick="ouvrirFactureParCle('${k}');return false;">✏️ ${window._modifsFact[k]}</a>`:''; })()}</td><td>${esc(r.client||'')}</td><td>${esc(r.designation)}${window._modifsCmd?.[r.id]?' <span class="text-xs" style="color:#d97706">(modifiée)</span>':''}</td><td class="text-right">${r.montant==null?'—':money(r.montant)}${window._modifsCmd?.[r.id]?.initial!=null?`<div class="text-xs text-gray-400 line-through" title="Montant initial">${money(window._modifsCmd[r.id].initial)}</div>`:''}</td><td class="text-right">${r.avance==null?'—':money(r.avance)}</td><td>${esc(r.mode_paiement||'')}</td></tr>`).join('')}</tbody></table>${rows.length>shown.length?`<div class="text-xs text-gray-500 p-2">300 premières lignes affichées — affinez les filtres.</div>`:''}</div>`;
+  document.getElementById('ccList').innerHTML=`<div class="card" style="overflow:auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Cat.</th><th>Facture</th><th>Client</th><th>Désignation</th><th class="text-right">Montant</th><th class="text-right">Avance</th><th>Paiement</th></tr></thead><tbody>${shown.map(r=>`<tr><td>${fmtDate(r.date_commande)}${r.date_estimee?' <span title="Date estimée" style="color:#d97706">~</span>':''}</td><td>${esc(r.categorie||'')}</td><td>${esc(r.n_facture||'')}${(()=>{ const k=facturesCles(r.n_facture).find(x=>window._modifsFact?.[x]); return k?` <a href="#" class="pill" style="color:#d97706;border-color:#d97706" title="Facture modifiée : voir l'historique" onclick="ouvrirFactureParCle('${k}');return false;">✏️ ${window._modifsFact[k]}</a>`:''; })()}</td><td>${esc(r.client||'')}</td><td>${esc(r.designation)}${window._modifsCmd?.[r.id]?' <span class="text-xs" style="color:#d97706">(modifiée)</span>':''}</td><td class="text-right">${r.montant==null?'—':money(r.montant)}${window._modifsCmd?.[r.id]?.initial!=null&&+window._modifsCmd[r.id].initial!==+r.montant?`<div class="text-xs text-gray-400 line-through" title="Montant initial">${money(window._modifsCmd[r.id].initial)}</div>`:''}</td><td class="text-right">${r.avance==null?'—':money(r.avance)}</td><td>${esc(r.mode_paiement||'')}</td></tr>`).join('')}</tbody></table>${rows.length>shown.length?`<div class="text-xs text-gray-500 p-2">300 premières lignes affichées — affinez les filtres.</div>`:''}</div>`;
 }
 /* ============================== FACTURES DES CHANTIERS ==============================
    Une ligne par n° de facture (repris de l'Excel : libellé des chantiers « Fiche N27484 - date » et colonne
@@ -2938,7 +2938,7 @@ function ouvrirModifFacture(cle){
       patch={}; avant={};
       if(chMontant){ patch.montant=nouvM; avant.montant=ligne.montant; if(ligne.reste!=null||ligne.avance!=null){ patch.reste=nouvM-(+ligne.avance||0); avant.reste=ligne.reste; }
         ecart=nouvM-ancM; Object.assign(extra,{ancien_montant:ancM,nouveau_montant:nouvM}); }
-      if(chDesig){ patch.designation=nd; avant.designation=ligne.designation; ancien=ancien||ligne.designation||null; nouveau=nouveau||nd; }
+      if(chDesig){ patch.designation=nd; avant.designation=ligne.designation; ancien=ancien||ligne.designation||null; nouveau=nouveau||nd; Object.assign(extra,{ancienne_designation:ligne.designation||null,nouvelle_designation:nd}); }
       Object.assign(extra,{commande_id:cmdId});
       const {data:maj,error:eU}=await sb.from('commandes_chantier').update(patch).eq('id',cmdId).select('id');
       if(eU||!(maj||[]).length){ toast(eU?eU.message:'Mise à jour de la commande refusée.','error'); return; }
@@ -2947,11 +2947,64 @@ function ouvrirModifFacture(cle){
       ancien_materiel:ancien,nouveau_materiel:nouveau,ecart_montant:ecart,note,created_by:CURRENT_USER?.id||null,...extra});
     if(error){
       if(patch) await sb.from('commandes_chantier').update(avant).eq('id',cmdId);   // pas de note = pas de changement de commande
-      toast(/facture_modifications|column/.test(error.message)?'Historique non activé ou à mettre à jour : exécutez sql/modifications_facture.sql puis sql/modifications_facture_montant.sql dans Supabase.':error.message,'error'); return; }
+      toast(/facture_modifications|column/.test(error.message)?'Historique non activé ou à mettre à jour : exécutez sql/modifications_facture.sql, sql/modifications_facture_montant.sql puis sql/modifications_facture_annulation.sql dans Supabase.':error.message,'error'); return; }
     toast(patch?'Modification enregistrée et commande chantier mise à jour.':'Modification enregistrée.');
     await facturesCharger();
     const fl=document.getElementById('fcList'); if(fl) facturesAfficher(fl.parentElement);          // compteur ✏️ et totaux
     const cl=document.getElementById('ccList'); if(cl) await renderCommandesChantier(cl.parentElement); // liste « Commandes chantier »
+    detailFactureChantier(cle);
+  };
+}
+/* Annulation d'une modification : la commande chantier retrouve son état d'avant, rien n'est effacé —
+   l'annulation est une nouvelle ligne de l'historique (type ANNULATION) qui pointe la modification annulée. */
+async function annulerModifFacture(cle,id){
+  const {data:m}=await sb.from('facture_modifications').select('*').eq('id',id).maybeSingle();
+  if(!m){ toast('Modification introuvable.','error'); return; }
+  const {data:deja}=await sb.from('facture_modifications').select('id').eq('annule_id',id).limit(1);
+  if((deja||[]).length){ toast('Cette modification est déjà annulée.','error'); detailFactureChantier(cle); return; }
+  let ligne=null;
+  if(m.commande_id){ const {data}=await sb.from('commandes_chantier').select('id,montant,avance,reste,designation').eq('id',m.commande_id).maybeSingle(); ligne=data; }
+  const rendreMontant=!!ligne&&m.ancien_montant!=null, rendreDesig=!!ligne&&!!m.ancienne_designation;
+  let blocage='';
+  if(rendreMontant&&+ligne.montant!==+m.nouveau_montant) blocage=`Le montant de la ligne a changé depuis (${money(ligne.montant)} au lieu de ${money(m.nouveau_montant)}) : annulez d'abord les modifications plus récentes de cette ligne.`;
+  else if(rendreDesig&&(ligne.designation||'')!==(m.nouvelle_designation||'')) blocage='La désignation de la ligne a changé depuis : annulez d\'abord les modifications plus récentes de cette ligne.';
+  const lignes=[];
+  if(rendreMontant) lignes.push(`Montant de la commande : <b>${money(ligne.montant)}</b> → <b class="text-emerald-700">${money(m.ancien_montant)}</b>`);
+  if(rendreDesig) lignes.push(`Désignation : « ${escapeHtml(ligne.designation||'')} » → <b class="text-emerald-700">« ${escapeHtml(m.ancienne_designation)} »</b>`);
+  openModal(`
+    <h2 class="text-lg font-bold mb-1">↩ Annuler la modification du ${fmtDate(m.date_modif)}</h2>
+    <div class="text-xs text-gray-400 mb-2">${escapeHtml(m.type)} — ${escapeHtml(m.note)}</div>
+    <div class="card p-3 mb-3" style="background:#f9fafb">
+      ${lignes.length?'<div class="text-sm font-semibold mb-1">La commande chantier sera remise comme avant :</div>'+lignes.map(l=>`<div class="text-sm">${l}</div>`).join(''):'<div class="text-sm">Cette modification n\'avait pas changé la commande : seule la note sera marquée « annulée ».</div>'}
+      <div class="text-xs text-gray-500 mt-2">Rien n'est supprimé : l'annulation est ajoutée à l'historique.</div>
+    </div>
+    ${blocage?`<div class="text-sm text-red-600 mb-3">${escapeHtml(blocage)}</div>`:''}
+    <form id="annulModifForm" class="grid gap-3">
+      <div class="field"><label>Motif de l'annulation (obligatoire)</label><textarea id="anMotif" rows="2" required placeholder="Ex : le client garde finalement le matériel d'origine" style="width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:8px"></textarea></div>
+      <div class="flex justify-end gap-2"><button type="button" class="btn btn-outline" onclick="detailFactureChantier('${cle}')">Retour</button><button type="submit" class="btn btn-primary" ${blocage?'disabled':''}>Confirmer l'annulation</button></div>
+    </form>`);
+  document.getElementById('annulModifForm').onsubmit=async e=>{
+    e.preventDefault();
+    const motif=val('anMotif').trim(); if(!motif||blocage){ if(!motif) toast('Le motif est obligatoire.','error'); return; }
+    const patch={}, avant={};
+    if(rendreMontant){ patch.montant=+m.ancien_montant; avant.montant=ligne.montant; if(ligne.reste!=null||ligne.avance!=null){ patch.reste=+m.ancien_montant-(+ligne.avance||0); avant.reste=ligne.reste; } }
+    if(rendreDesig){ patch.designation=m.ancienne_designation; avant.designation=ligne.designation; }
+    const touche=Object.keys(patch).length>0;
+    if(touche){
+      const {data:maj,error:eU}=await sb.from('commandes_chantier').update(patch).eq('id',m.commande_id).select('id');
+      if(eU||!(maj||[]).length){ toast(eU?eU.message:'Mise à jour de la commande refusée.','error'); return; }
+    }
+    const {error}=await sb.from('facture_modifications').insert({n_facture:cle,projet_id:m.projet_id,date_modif:new Date().toLocaleDateString('sv-SE'),type:'ANNULATION',annule_id:m.id,commande_id:m.commande_id,
+      ancien_montant:rendreMontant?+ligne.montant:null,nouveau_montant:rendreMontant?+m.ancien_montant:null,ecart_montant:rendreMontant?+m.ancien_montant-(+ligne.montant):null,
+      ancienne_designation:rendreDesig?ligne.designation:null,nouvelle_designation:rendreDesig?m.ancienne_designation:null,ancien_materiel:m.nouveau_materiel,nouveau_materiel:m.ancien_materiel,
+      note:`Annulation de la modification du ${fmtDate(m.date_modif)} — ${motif}`,created_by:CURRENT_USER?.id||null});
+    if(error){
+      if(touche) await sb.from('commandes_chantier').update(avant).eq('id',m.commande_id);   // pas d'historique = pas de changement
+      toast(/duplicate|uq_facture_modif_annule/.test(error.message)?'Cette modification est déjà annulée.':/facture_modifications|column|constraint/.test(error.message)?'Annulation non activée : exécutez sql/modifications_facture_annulation.sql dans Supabase.':error.message,'error'); return; }
+    toast(touche?'Modification annulée : commande chantier remise comme avant.':'Modification annulée.');
+    await facturesCharger();
+    const fl=document.getElementById('fcList'); if(fl) facturesAfficher(fl.parentElement);
+    const cl=document.getElementById('ccList'); if(cl) await renderCommandesChantier(cl.parentElement);
     detailFactureChantier(cle);
   };
 }
@@ -2993,18 +3046,20 @@ async function detailFactureChantier(cle){
         <td class="text-right"><button class="btn btn-outline text-xs" onclick="closeModal();window._editId='${p.id}';showPage('projets-add')">Ouvrir le chantier</button></td></tr>`).join('')}
     </tbody></table></div>`:'<div class="text-sm text-gray-400">Aucun chantier lié : ce n° n\'apparaît que dans les commandes chantier.</div>';
   const commandes=r.cmds.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Cat.</th><th>Désignation</th><th>Paiement</th><th class="text-right">Montant</th><th class="text-right">Avance</th><th class="text-right">Reste</th></tr></thead><tbody>
-      ${r.cmds.map(c=>`<tr><td>${c.date_commande?fmtDate(c.date_commande):'—'}</td><td>${escapeHtml(c.categorie||'')}</td><td>${escapeHtml(c.designation||'')}${window._modifsCmd?.[c.id]?' <span class="pill" style="color:#d97706;border-color:#d97706" title="Ligne modifiée : voir l\'historique">✏️ modifiée</span>':''}</td><td class="text-xs">${escapeHtml(c.mode_paiement||'')}</td><td class="text-right">${c.montant==null?'—':money(c.montant)}${window._modifsCmd?.[c.id]?.initial!=null?`<div class="text-xs text-gray-400 line-through">${money(window._modifsCmd[c.id].initial)}</div>`:''}</td><td class="text-right">${c.avance==null?'—':money(c.avance)}</td><td class="text-right ${(+c.reste||0)>0?'text-red-600':''}">${c.reste==null?'—':money(c.reste)}</td></tr>`).join('')}
+      ${r.cmds.map(c=>`<tr><td>${c.date_commande?fmtDate(c.date_commande):'—'}</td><td>${escapeHtml(c.categorie||'')}</td><td>${escapeHtml(c.designation||'')}${window._modifsCmd?.[c.id]?' <span class="pill" style="color:#d97706;border-color:#d97706" title="Ligne modifiée : voir l\'historique">✏️ modifiée</span>':''}</td><td class="text-xs">${escapeHtml(c.mode_paiement||'')}</td><td class="text-right">${c.montant==null?'—':money(c.montant)}${window._modifsCmd?.[c.id]?.initial!=null&&+window._modifsCmd[c.id].initial!==+c.montant?`<div class="text-xs text-gray-400 line-through">${money(window._modifsCmd[c.id].initial)}</div>`:''}</td><td class="text-right">${c.avance==null?'—':money(c.avance)}</td><td class="text-right ${(+c.reste||0)>0?'text-red-600':''}">${c.reste==null?'—':money(c.reste)}</td></tr>`).join('')}
     </tbody><tfoot><tr><th colspan="4" class="text-right">Total</th><th class="text-right">${money(r.montant)}</th><th class="text-right">${money(r.avance)}</th><th class="text-right">${money(r.reste)}</th></tr></tfoot></table></div>`:'<div class="text-sm text-gray-400">Aucune commande chantier pour ce n° de facture.</div>';
   const codeProjet=id=>(r.projets.find(p=>p.id===id)||{}).code||'';
   const auto=r.projets.map(p=>({p,f:facturesFeuilleModif(p)})).filter(x=>x.f);
+  const annulees=new Set(modifs.filter(x=>x.annule_id).map(x=>x.annule_id));   // modifications déjà annulées
   const histoHtml=modifErr?`<div class="text-sm text-amber-700">Historique non activé : exécutez une fois <b>sql/modifications_facture.sql</b> dans Supabase (SQL Editor).</div>`:
     ((modifs.length||auto.length)?`<div class="space-y-2">
-      ${modifs.map(m=>`<div class="card p-3" style="border-left:4px solid #d97706">
-        <div class="flex flex-wrap justify-between gap-2 text-xs text-gray-500"><span><b class="text-gray-700">${fmtDate(m.date_modif)}</b> · <span class="pill" style="color:#d97706;border-color:#d97706">${escapeHtml(m.type)}</span>${m.projet_id?' · chantier '+escapeHtml(codeProjet(m.projet_id)):''}</span><span>${escapeHtml(m.profiles?.nom_complet||'')}${m.created_at?' · '+new Date(m.created_at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):''}</span></div>
+      ${modifs.map(m=>`<div class="card p-3" style="border-left:4px solid ${m.type==='ANNULATION'?'#6b7280':'#d97706'};${annulees.has(m.id)?'opacity:.55':''}">
+        <div class="flex flex-wrap justify-between gap-2 text-xs text-gray-500"><span><b class="text-gray-700">${fmtDate(m.date_modif)}</b> · <span class="pill" style="color:#d97706;border-color:#d97706">${escapeHtml(m.type)}</span>${annulees.has(m.id)?' <span class="pill" style="color:#6b7280;border-color:#6b7280">↩ annulée</span>':''}${m.projet_id?' · chantier '+escapeHtml(codeProjet(m.projet_id)):''}</span><span>${escapeHtml(m.profiles?.nom_complet||'')}${m.created_at?' · '+new Date(m.created_at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):''}</span></div>
         ${m.ancien_materiel||m.nouveau_materiel?`<div class="text-sm mt-1">${m.ancien_materiel?`<span class="text-red-600 line-through">${escapeHtml(m.ancien_materiel)}</span>`:''}${m.ancien_materiel&&m.nouveau_materiel?' → ':''}${m.nouveau_materiel?`<span class="text-emerald-700 font-semibold">${escapeHtml(m.nouveau_materiel)}</span>`:''}</div>`:''}
         ${m.ancien_montant!=null||m.nouveau_montant!=null?`<div class="text-xs mt-1">Montant de la commande : <span class="line-through text-gray-400">${m.ancien_montant==null?'—':money(m.ancien_montant)}</span> → <b>${m.nouveau_montant==null?'—':money(m.nouveau_montant)}</b></div>`:''}
         ${m.ecart_montant!=null?`<div class="text-xs mt-1">Écart de montant : <b class="${+m.ecart_montant>0?'text-red-600':'text-emerald-600'}">${+m.ecart_montant>0?'+':''}${money(m.ecart_montant)}</b></div>`:''}
-        <div class="text-sm mt-1 whitespace-pre-wrap">${escapeHtml(m.note)}</div></div>`).join('')}
+        <div class="text-sm mt-1 whitespace-pre-wrap">${escapeHtml(m.note)}</div>
+        ${m.type!=='ANNULATION'&&!annulees.has(m.id)?`<div class="text-right mt-1"><button class="btn btn-outline text-xs" onclick="annulerModifFacture('${cle}','${m.id}')">↩ Annuler cette modification</button></div>`:''}</div>`).join('')}
       ${auto.map(x=>`<div class="card p-3 bg-gray-50" style="border-left:4px solid #9ca3af"><div class="text-xs text-gray-500"><b class="text-gray-700">${fmtDate(x.p.created_at)}</b> · Import Excel · chantier ${escapeHtml(x.p.code||'')}</div><div class="text-sm mt-1">Feuille « ${escapeHtml(x.f)} » : version modifiée de cette facture (reprise automatique de l'Excel).</div></div>`).join('')}
     </div>`:'<div class="text-sm text-gray-400">Aucune modification enregistrée. Si le client remplace du matériel livré, ajoutez une note : la facture reste la même, l\'historique est conservé.</div>');
   const stockHtml=stock.length?`<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-left"><th>Date</th><th>Composant</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Coût</th><th>Motif / réf.</th></tr></thead><tbody>
