@@ -3507,7 +3507,7 @@ async function renderProjetForm(el,opts={}){
     else { rec.created_by=CURRENT_USER.id; const r=await sb.from('projets').insert(rec).select('id').single(); error=r.error; projetCree=r.data?.id; }
     const lignesMat=(window._pjMat||[]).filter(m=>m.designation.trim()&&m.quantite>0);
     if(!error&&projetCree&&lignesMat.length){
-      ({error}=await sb.from('chantier_materiel').insert(lignesMat.map((m,i)=>({projet_id:projetCree,ordre:i+1,quantite:m.quantite,designation:m.designation.trim(),prix_unitaire:m.prix_unitaire,montant:Math.round(m.quantite*m.prix_unitaire)}))));
+      ({error}=await sb.from('chantier_materiel').insert(lignesMat.map((m,i)=>({projet_id:projetCree,ordre:i+1,quantite:m.quantite,designation:m.designation.trim(),prix_unitaire:m.prix_unitaire}))));
       if(error){ await sb.from('projets').delete().eq('id',projetCree); }   // annule le chantier si le matériel échoue
     }
     if(error){
@@ -3571,7 +3571,7 @@ async function matAjoutModal(projetId){
     e.preventDefault();
     const q=+val('maQte')||0, pu=+val('maPu')||0;
     const {data:last}=await sb.from('chantier_materiel').select('ordre').eq('projet_id',projetId).order('ordre',{ascending:false}).limit(1);
-    const {error}=await sb.from('chantier_materiel').insert({projet_id:projetId,ordre:(last?.[0]?.ordre||0)+1,quantite:q,designation:val('maDes'),prix_unitaire:pu,montant:Math.round(q*pu)});
+    const {error}=await sb.from('chantier_materiel').insert({projet_id:projetId,ordre:(last?.[0]?.ordre||0)+1,quantite:q,designation:val('maDes'),prix_unitaire:pu});
     if(error){ toast(error.message,'error'); return; }
     closeModal(); toast('Matériel ajouté.'); renderSuiviChantier(projetId);
   };
