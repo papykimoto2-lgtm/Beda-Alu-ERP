@@ -2211,6 +2211,7 @@ function filterClientsTable(){
 /* Chantiers d'un client : chaque chantier (projets.client_id) est identifié par son n° de facture,
    repris de la fiche de suivi importée (libellé « Fiche N27484 - date »). */
 function chantierNumFacture(p){
+  if(p.n_facture) return String(p.n_facture);      // n° rattaché au chantier (saisi ou automatique)
   const lib=String(p.libelle||'');
   const m=lib.match(/^Fiche\s+N(\d\S*)/i);          // « Fiche N27484 - 2026-01-28 » (« Ns.o. » = sans numéro)
   if(m) return 'N°'+m[1];
@@ -2806,7 +2807,7 @@ async function ouvrirFactureParCle(cle){ if(!(window._factChCache?.rows||[]).fin
 function facturesCles(txt){ return (String(txt||'').match(/\d{3,}/g)||[]).map(x=>x.replace(/^0+/,'')).filter(Boolean); }
 async function facturesCharger(){
   const [{data:projets,error:e1},{data:cmds,error:e2},{data:mat,error:e3},{data:clients},MD]=await Promise.all([
-    sb.from('projets').select('id,code,libelle,client_id,etape,created_at,description'),
+    sb.from('projets').select('*'),
     sb.from('commandes_chantier').select('id,n_facture,client,categorie,designation,date_commande,mode_paiement,montant,avance,reste'),
     sb.from('chantier_materiel').select('projet_id,montant'),
     sb.from('clients').select('id,nom,prenoms,telephone,email'),
@@ -3445,6 +3446,7 @@ async function renderProjetForm(el,opts={}){
         <div class="field sm:col-span-3"><label>Libellé du chantier${opts.depuisClient?' (facultatif : laisser vide = client seul)':''}</label>${fieldWrap('🏠',`<input id="pjLibelle" ${opts.depuisClient?'':'required'} value="${escapeHtml(p.libelle||'')}">`)}</div>
         <div class="field sm:col-span-2" id="pjClientExistant"><label>Client</label>${fieldWrap('👤',smartSelect('pjClient',clientItems(),p.client_id,{placeholder:'Rechercher un client…'}))}</div>
         <div class="field"><label>Catégorie</label>${fieldWrap('🏷️',`<select id="pjCategorie"><option ${p.categorie==='Habitation'?'selected':''}>Habitation</option><option ${p.categorie==='Bureau'?'selected':''}>Bureau</option><option ${p.categorie==='Commerce'?'selected':''}>Commerce</option><option ${p.categorie==='Industriel'?'selected':''}>Industriel</option></select>`)}</div>
+        <div class="field sm:col-span-2"><label>N° de facture rattaché (relie caisse et stock au chantier)</label><div class="flex gap-2">${fieldWrap('🧾',`<input id="pjNFacture" placeholder="Ex. N°27484" value="${escapeHtml(p.n_facture||'')}">`)}<button type="button" class="btn btn-outline" onclick="pjAutoNFacture()">✨ Auto</button></div></div>
         <div class="field"><label>Date début</label>${fieldWrap('📅',`<input id="pjDateDebut" type="date" value="${p.date_debut||''}">`)}</div>
         <div class="field"><label>Date fin</label>${fieldWrap('📅',`<input id="pjDateFin" type="date" value="${p.date_fin||''}">`)}</div>
         <div class="field"><label>Pays</label>${fieldWrap('🌐',`<input id="pjPays" value="${escapeHtml(p.pays||"Côte d'Ivoire")}">`)}</div>
@@ -3467,7 +3469,7 @@ async function renderProjetForm(el,opts={}){
       </form>
     </div>
     ${p.id?`<div id="suiviChantier" class="page-card max-w-4xl mt-4"><div class="text-sm text-gray-400">Chargement du suivi du chantier…</div></div>`:''}`;
-  if(p.id) renderSuiviChantier(p.id);
+  if(p.id){ document.getElementById('pageTitle').textContent='Modifier le chantier '+(p.code||''); renderSuiviChantier(p.id); }
   window.pjMatRender=()=>{
     const B=document.getElementById('pjMatBody'); if(!B) return;
     B.innerHTML=window._pjMat.map((m,i)=>`<tr><td><input class="w-full" value="${escapeHtml(m.designation)}" oninput="window._pjMat[${i}].designation=this.value" placeholder="Désignation"></td>
@@ -3485,12 +3487,21 @@ async function renderProjetForm(el,opts={}){
     pjMatRender();
   };
   pjMatRender();
+  window.pjAutoNFacture=async()=>{
+    let n=chantierNumFacture({libelle:val('pjLibelle')});
+    if(!n&&p.id){   // sinon : facture liée à un devis du chantier
+      const {data:dv}=await sb.from('devis').select('id').eq('projet_id',p.id);
+      if(dv?.length){ const {data:f}=await sb.from('factures').select('code').in('devis_id',dv.map(d=>d.id)).order('date_facture',{ascending:false}).limit(1); n=f?.[0]?.code||''; }
+    }
+    if(!n){ toast('Aucun n° détecté : saisissez-le à la main.','error'); return; }
+    document.getElementById('pjNFacture').value=n; toast('N° de facture : '+n);
+  };
   window.pjToggleClient=()=>{ const n=document.getElementById('pjNouveauClient')?.checked; document.getElementById('pjClientNouveau').style.display=n?'grid':'none'; document.getElementById('pjClientExistant').style.display=n?'none':''; };
   if(!p.id) pjToggleClient();
   document.getElementById('projetForm').onsubmit=async (e)=>{
     e.preventDefault();
     const nouveau=!!document.getElementById('pjNouveauClient')?.checked;
-    const rec={libelle:val('pjLibelle'),client_id:nouveau?'':val('pjClient'),categorie:val('pjCategorie'),date_debut:val('pjDateDebut')||null,date_fin:val('pjDateFin')||null,pays:val('pjPays'),commune:val('pjCommune'),quartier:val('pjQuartier'),source:val('pjSource'),responsable:val('pjResponsable'),description:val('pjDescription'),latitude:val('pjLat')?+val('pjLat'):null,longitude:val('pjLng')?+val('pjLng'):null};
+    const rec={libelle:val('pjLibelle'),client_id:nouveau?'':val('pjClient'),categorie:val('pjCategorie'),date_debut:val('pjDateDebut')||null,date_fin:val('pjDateFin')||null,pays:val('pjPays'),commune:val('pjCommune'),quartier:val('pjQuartier'),source:val('pjSource'),responsable:val('pjResponsable'),description:val('pjDescription'),latitude:val('pjLat')?+val('pjLat'):null,longitude:val('pjLng')?+val('pjLng'):null,n_facture:val('pjNFacture')||chantierNumFacture({libelle:val('pjLibelle')})||null};
     const id=val('pjId');
     let clientCree=null;
     if(nouveau){
@@ -3503,8 +3514,12 @@ async function renderProjetForm(el,opts={}){
     }
     if(!rec.client_id){ toast('Sélectionnez un client.','error'); return; }
     let error, projetCree=null;
-    if(id){ ({error}=await sb.from('projets').update(rec).eq('id',id)); }
-    else { rec.created_by=CURRENT_USER.id; const r=await sb.from('projets').insert(rec).select('id').single(); error=r.error; projetCree=r.data?.id; }
+    const ecrire=async()=>{
+      if(id) return (await sb.from('projets').update(rec).eq('id',id)).error;
+      const r=await sb.from('projets').insert(rec).select('id').single(); projetCree=r.data?.id; return r.error;
+    };
+    error=await ecrire();
+    if(error&&/n_facture/.test(error.message||'')){ delete rec.n_facture; toast("N° de facture non enregistré : exécuter sql/projets_n_facture.sql",'error'); error=await ecrire(); }
     const lignesMat=(window._pjMat||[]).filter(m=>m.designation.trim()&&m.quantite>0);
     if(!error&&projetCree&&lignesMat.length){
       ({error}=await sb.from('chantier_materiel').insert(lignesMat.map((m,i)=>({projet_id:projetCree,ordre:i+1,quantite:m.quantite,designation:m.designation.trim(),prix_unitaire:m.prix_unitaire}))));
@@ -3600,6 +3615,18 @@ async function matHistoriqueModal(projetId){
     </tbody></table></div></div>`);
 }
 
+/* Rattache définitivement (projet_id) les mouvements de caisse / stock retrouvés via le n° de facture du chantier */
+async function rattacherMouvementsFacture(projetId){
+  const R=window._matNonRatt||{caisse:[],stock:[]};
+  if(!confirm(`Rattacher ${R.caisse.length} mouvement(s) de caisse et ${R.stock.length} mouvement(s) de stock à ce chantier ?`)) return;
+  let err=null;
+  if(R.caisse.length){ const {error}=await sb.from('caisse_mouvements').update({projet_id:projetId}).in('id',R.caisse.map(x=>x.id)).is('projet_id',null); err=err||error; }
+  if(R.stock.length){ const {error}=await sb.from('mouvements_stock').update({projet_id:projetId}).in('id',R.stock.map(x=>x.id)).is('projet_id',null); err=err||error; }
+  if(err){ toast(err.message,'error'); }
+  else toast('Mouvements rattachés au chantier.');
+  renderSuiviChantier(projetId);
+}
+
 /* Impression du calcul du matériel d'un chantier (moteur d'impression sécurisé : en-tête, pied, QR) */
 async function matImprimer(projetId){
   const win=window.open('','_blank','width=1000,height=900'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
@@ -3656,9 +3683,19 @@ async function renderSuiviChantier(projetId){
     sb.from('mouvements_stock').select('*, composants(nom,unite)').eq('projet_id',projetId).order('created_at',{ascending:false}),
     sb.from('chantier_materiel').select('*').eq('projet_id',projetId).order('ordre',{ascending:true})
   ]);
+  const {data:pjS}=await sb.from('projets').select('*').eq('id',projetId).single();
+  const nFact=pjS?.n_facture||'', cles=[...new Set(facturesCles(nFact))];
+  let caisseN=[], stockN=[];
+  if(cles.length){   // mouvements non rattachés dont le n° / motif / référence contient le n° de facture du chantier
+    const [c2,s2]=await Promise.all([
+      sb.from('caisse_mouvements').select('*, caisses(nom)').is('projet_id',null).or(cles.map(k=>`motif.ilike.%${k}%,numero.ilike.%${k}%`).join(',')),
+      sb.from('mouvements_stock').select('*, composants(nom,unite)').is('projet_id',null).or(cles.map(k=>`reference.ilike.%${k}%`).join(','))]);
+    caisseN=c2.data||[]; stockN=s2.data||[];
+  }
+  window._matNonRatt={caisse:caisseN,stock:stockN};
   if(e1||e2){ host.innerHTML=`<div class="text-sm text-gray-400">Suivi indisponible : ${escapeHtml((e1||e2).message)}</div>`; return; }
   window._matLignes=mat||[]; window._matProjet=projetId;
-  const cm=caisse||[], ms=stock||[];
+  const cm=[...(caisse||[]),...caisseN], ms=[...(stock||[]),...stockN];
   const depenses=cm.filter(m=>m.type==='sortie').reduce((t,m)=>t+(+m.montant||0),0);
   const recettes=cm.filter(m=>m.type==='entree').reduce((t,m)=>t+(+m.montant||0),0);
   const coutLigne=m=>-(+m.quantite||0)*(+m.cmup_apres||0);   // sortie = coût positif, retour = coût négatif
@@ -3670,6 +3707,9 @@ async function renderSuiviChantier(projetId){
       <button class="btn btn-outline" onclick="matImprimer('${projetId}')">🖨 Imprimer le matériel</button>
       <button class="btn btn-outline" onclick="matHistoriqueModal('${projetId}')">🕘 Historique</button>
       <button class="btn btn-outline" onclick="openMouvementModal('sortie',null,null,'${projetId}')">📦 Sortie de stock pour ce chantier</button></div>
+    </div>
+    <div class="mb-3 text-sm flex flex-wrap items-center gap-2">🧾 N° de facture du chantier : <b>${escapeHtml(nFact||'non renseigné')}</b>
+      ${caisseN.length+stockN.length?`<span class="pill" style="color:#d97706;border-color:#d97706">${caisseN.length} mouvement(s) de caisse et ${stockN.length} de stock trouvés via ce n°</span><button class="btn btn-outline text-xs" onclick="rattacherMouvementsFacture('${projetId}')">🔗 Rattacher définitivement</button>`:(nFact?'<span class="text-xs text-gray-400">aucun mouvement non rattaché trouvé</span>':'<span class="text-xs text-gray-400">renseignez-le dans la fiche du chantier (haut de page)</span>')}
     </div>
     <div class="flex flex-wrap justify-between items-center gap-2 mb-1"><h3 class="font-semibold text-sm">📄 Devis & 🧾 factures du chantier</h3>
       <button class="btn btn-outline text-xs" onclick="window._editId=null;window._devisDepuisProjet='${projetId}';showPage('devis-add')">+ Créer un devis pour ce chantier</button></div>
