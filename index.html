@@ -2426,6 +2426,7 @@ function smartSelectKey(e,id){
   opts.forEach(o=>o.classList.remove('active')); opts[idx].classList.add('active'); opts[idx].scrollIntoView({block:'nearest'});
 }
 async function renderClientForm(el){
+  if(!window._editId) return renderProjetForm(el,{depuisClient:true});   // création : client + chantier dans le même formulaire
   let c={};
   if(window._editId){ const {data}=await sb.from('clients').select('*').eq('id',window._editId).single(); c=data||{}; }
   const {data:cats}=await sb.from('client_categories').select('nom').order('nom');
@@ -3416,19 +3417,32 @@ function chantierValeur(prefixe){
 function clientItems(){
   return (window._clientsCache||[]).map(c=>({id:c.id,label:[c.nom,c.prenoms].filter(Boolean).join(' ')}));
 }
-async function renderProjetForm(el){
-  const {data:clients}=await sb.from('clients').select('id,nom,prenoms').order('nom');
+async function renderProjetForm(el,opts={}){
+  const [{data:clients},{data:cats}]=await Promise.all([sb.from('clients').select('id,nom,prenoms').order('nom'),sb.from('client_categories').select('nom').order('nom')]);
   window._clientsCache=clients||[];
+  const catOpts=(cats||[]).map(x=>`<option>${escapeHtml(x.nom)}</option>`).join('');
   let p={};
   if(window._editId){ const {data}=await sb.from('projets').select('*').eq('id',window._editId).single(); p=data||{}; }
   el.innerHTML=`
     <div class="page-card max-w-4xl">
-      <h2>🏗️ ${p.id?'Modifier':'Ajouter'} un chantier</h2>
+      <h2>${opts.depuisClient?'👤🏗️ Nouveau client + chantier':'🏗️ '+(p.id?'Modifier':'Ajouter')+' un chantier'}</h2>
       <div class="divider"></div>
       <form id="projetForm" class="grid sm:grid-cols-3 gap-4">
         <input type="hidden" id="pjId" value="${p.id||''}">
-        <div class="field sm:col-span-3"><label>Libellé du chantier</label>${fieldWrap('🏠',`<input id="pjLibelle" required value="${escapeHtml(p.libelle||'')}">`)}</div>
-        <div class="field sm:col-span-2"><label>Client</label>${fieldWrap('👤',smartSelect('pjClient',clientItems(),p.client_id,{placeholder:'Rechercher un client…'}))}</div>
+        ${p.id?'':`<label class="sm:col-span-3 flex items-center gap-2 text-sm font-semibold"><input type="checkbox" id="pjNouveauClient" ${opts.depuisClient?'checked':''} onchange="pjToggleClient()"> ➕ Nouveau client (créé avec le chantier)</label>
+        <div id="pjClientNouveau" class="sm:col-span-3 grid sm:grid-cols-3 gap-4 border rounded-lg p-3 bg-gray-50" style="display:none">
+          <div class="sm:col-span-3 text-xs font-bold text-gray-500 uppercase">👤 Client</div>
+          <div class="field"><label>Civilité</label>${fieldWrap('👤',`<select id="ncCivilite"><option>Monsieur</option><option>Madame</option><option>Entreprise</option></select>`)}</div>
+          <div class="field"><label>Nom</label>${fieldWrap('👤',`<input id="ncNom" placeholder="Nom">`)}</div>
+          <div class="field"><label>Prénoms</label>${fieldWrap('👤',`<input id="ncPrenoms" placeholder="Prénoms">`)}</div>
+          <div class="field sm:col-span-3"><label>Nom de l'entreprise</label>${fieldWrap('🏢',`<input id="ncEntreprise" placeholder="Raison sociale">`)}</div>
+          <div class="field"><label>Téléphone</label>${fieldWrap('📞',`<input id="ncTelephone" type="tel" placeholder="Numéro de téléphone">`)}</div>
+          <div class="field"><label>Email</label>${fieldWrap('✉️',`<input id="ncEmail" type="email">`)}</div>
+          <div class="field"><label>Catégorie client</label>${fieldWrap('🏷️',`<select id="ncCategorie">${catOpts}</select>`)}</div>
+          <div class="field sm:col-span-3"><label>Adresse</label>${fieldWrap('📍',`<input id="ncAdresse">`)}</div>
+        </div>`}
+        <div class="field sm:col-span-3"><label>Libellé du chantier${opts.depuisClient?' (facultatif : laisser vide = client seul)':''}</label>${fieldWrap('🏠',`<input id="pjLibelle" ${opts.depuisClient?'':'required'} value="${escapeHtml(p.libelle||'')}">`)}</div>
+        <div class="field sm:col-span-2" id="pjClientExistant"><label>Client</label>${fieldWrap('👤',smartSelect('pjClient',clientItems(),p.client_id,{placeholder:'Rechercher un client…'}))}</div>
         <div class="field"><label>Catégorie</label>${fieldWrap('🏷️',`<select id="pjCategorie"><option ${p.categorie==='Habitation'?'selected':''}>Habitation</option><option ${p.categorie==='Bureau'?'selected':''}>Bureau</option><option ${p.categorie==='Commerce'?'selected':''}>Commerce</option><option ${p.categorie==='Industriel'?'selected':''}>Industriel</option></select>`)}</div>
         <div class="field"><label>Date début</label>${fieldWrap('📅',`<input id="pjDateDebut" type="date" value="${p.date_debut||''}">`)}</div>
         <div class="field"><label>Date fin</label>${fieldWrap('📅',`<input id="pjDateFin" type="date" value="${p.date_fin||''}">`)}</div>
@@ -3446,16 +3460,31 @@ async function renderProjetForm(el){
     </div>
     ${p.id?`<div id="suiviChantier" class="page-card max-w-4xl mt-4"><div class="text-sm text-gray-400">Chargement du suivi du chantier…</div></div>`:''}`;
   if(p.id) renderSuiviChantier(p.id);
+  window.pjToggleClient=()=>{ const n=document.getElementById('pjNouveauClient')?.checked; document.getElementById('pjClientNouveau').style.display=n?'grid':'none'; document.getElementById('pjClientExistant').style.display=n?'none':''; };
+  if(!p.id) pjToggleClient();
   document.getElementById('projetForm').onsubmit=async (e)=>{
     e.preventDefault();
-    const rec={libelle:val('pjLibelle'),client_id:val('pjClient'),categorie:val('pjCategorie'),date_debut:val('pjDateDebut')||null,date_fin:val('pjDateFin')||null,pays:val('pjPays'),commune:val('pjCommune'),quartier:val('pjQuartier'),source:val('pjSource'),responsable:val('pjResponsable'),description:val('pjDescription'),latitude:val('pjLat')?+val('pjLat'):null,longitude:val('pjLng')?+val('pjLng'):null};
-    if(!rec.client_id){ toast('Sélectionnez un client.','error'); return; }
+    const nouveau=!!document.getElementById('pjNouveauClient')?.checked;
+    const rec={libelle:val('pjLibelle'),client_id:nouveau?'':val('pjClient'),categorie:val('pjCategorie'),date_debut:val('pjDateDebut')||null,date_fin:val('pjDateFin')||null,pays:val('pjPays'),commune:val('pjCommune'),quartier:val('pjQuartier'),source:val('pjSource'),responsable:val('pjResponsable'),description:val('pjDescription'),latitude:val('pjLat')?+val('pjLat'):null,longitude:val('pjLng')?+val('pjLng'):null};
     const id=val('pjId');
+    let clientCree=null;
+    if(nouveau){
+      if(!val('ncNom')){ toast('Nom du client requis.','error'); return; }
+      const cl={civilite:val('ncCivilite'),nom:val('ncNom'),prenoms:val('ncPrenoms'),entreprise:val('ncEntreprise'),telephone:val('ncTelephone'),email:val('ncEmail'),categorie:val('ncCategorie'),adresse:val('ncAdresse'),pays:rec.pays,commune:rec.commune,source:rec.source,commercial:rec.responsable,latitude:rec.latitude,longitude:rec.longitude,created_by:CURRENT_USER.id};
+      const {data:nc,error:eC}=await sb.from('clients').insert(cl).select('id').single();
+      if(eC){ toast(eC.message,'error'); return; }
+      clientCree=nc.id; rec.client_id=nc.id;
+      if(!rec.libelle){ toast('Client enregistré.'); window._editId=null; showPage('clients'); return; }   // client seul
+    }
+    if(!rec.client_id){ toast('Sélectionnez un client.','error'); return; }
     let error;
     if(id){ ({error}=await sb.from('projets').update(rec).eq('id',id)); }
     else { rec.created_by=CURRENT_USER.id; ({error}=await sb.from('projets').insert(rec)); }
-    if(error){ toast(error.message,'error'); return; }
-    toast('Chantier enregistré.'); window._editId=null; showPage('projets');
+    if(error){
+      if(clientCree) await sb.from('clients').delete().eq('id',clientCree);   // annule le client si le chantier échoue
+      toast(error.message,'error'); return;
+    }
+    toast(clientCree?'Client et chantier enregistrés.':'Chantier enregistré.'); window._editId=null; showPage('projets');
   };
 }
 
@@ -3497,6 +3526,8 @@ function matChantierHtml(rows,erreur){
 /* Suivi du chantier : matériel de la fiche, bons de caisse et mouvements de stock rattachés au chantier */
 async function renderSuiviChantier(projetId){
   const host=document.getElementById('suiviChantier'); if(!host) return;
+  const {data:dvs}=await sb.from('devis').select('id,code,libelle,statut,total,date_creation,version_number').eq('projet_id',projetId).eq('is_current',true).order('created_at');
+  const {data:fcs}=(dvs||[]).length?await sb.from('factures').select('id,code,devis_id,date_facture,total,statut').in('devis_id',dvs.map(d=>d.id)).order('date_facture'):{data:[]};
   const [{data:caisse,error:e1},{data:stock,error:e2},{data:mat,error:e3}]=await Promise.all([
     sb.from('caisse_mouvements').select('*, caisses(nom)').eq('projet_id',projetId).order('date_mouvement',{ascending:false}),
     sb.from('mouvements_stock').select('*, composants(nom,unite)').eq('projet_id',projetId).order('created_at',{ascending:false}),
@@ -3513,6 +3544,14 @@ async function renderSuiviChantier(projetId){
       <h2>📊 Suivi du chantier — matériel, caisse & stock</h2>
       <button class="btn btn-outline" onclick="openMouvementModal('sortie',null,null,'${projetId}')">📦 Sortie de stock pour ce chantier</button>
     </div>
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-1"><h3 class="font-semibold text-sm">📄 Devis & 🧾 factures du chantier</h3>
+      <button class="btn btn-outline text-xs" onclick="window._editId=null;window._devisDepuisProjet='${projetId}';showPage('devis-add')">+ Créer un devis pour ce chantier</button></div>
+    <div class="overflow-x-auto mb-4"><table><thead><tr><th>Devis</th><th>Statut</th><th class="text-right">Total</th><th>Facture(s)</th></tr></thead><tbody>
+      ${(dvs||[]).map(d=>{ const st=STATUT_DEVIS[d.statut]||{label:d.statut,color:''}; const fl=(fcs||[]).filter(f=>f.devis_id===d.id);
+        return `<tr><td><a href="#" class="hover:underline" style="color:#4f46e5" onclick="window._editId='${d.id}';showPage('devis-view');return false;">${escapeHtml(d.code)}</a> <span class="text-xs text-gray-400">${escapeHtml(d.libelle||'')}</span></td>
+        <td><span class="pill ${st.color}">${st.label}</span></td><td class="text-right font-semibold">${money(d.total)}</td>
+        <td>${fl.map(f=>`<a href="#" class="text-xs hover:underline" style="color:#4f46e5" onclick="window._editId='${f.id}';showPage('facture-view');return false;">${escapeHtml(f.code)}</a> <span class="text-xs text-gray-400">${money(f.total)} · ${(STATUT_FACTURE[f.statut]||{}).label||f.statut}</span>`).join('<br>')||'<span class="text-xs text-gray-400">aucune</span>'}</td></tr>`; }).join('')||'<tr><td colspan="4" class="text-gray-400 text-center p-3">Aucun devis lié. Créez-en un ou rattachez un devis existant (champ « Chantier » du devis).</td></tr>'}
+    </tbody></table></div>
     ${matChantierHtml(mat,e3)}
     <div class="grid sm:grid-cols-4 gap-3 mb-4">
       <div class="card p-3"><div class="text-xs text-gray-400">Dépenses de caisse</div><div class="text-lg font-black text-red-600">${money(depenses)}</div></div>
@@ -9014,6 +9053,10 @@ async function renderDevisEditorPage(el){
     const {data:d}=await sb.from('devis').select('*').eq('id',devisId).single();
     const {data:l}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
     devis=d; lignes=l||[];
+  } else if(window._devisDepuisProjet){
+    const pj=window._projetsCache.find(x=>x.id===window._devisDepuisProjet);
+    if(pj){ devis.projet_id=pj.id; devis.client_id=pj.client_id; devis.libelle=pj.libelle; }
+    window._devisDepuisProjet=null;
   }
   devisEditorState={devis,lignes,el};
   renderDevisEditorBody();
