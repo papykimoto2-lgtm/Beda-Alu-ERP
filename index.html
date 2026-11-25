@@ -3514,7 +3514,7 @@ async function renderProjetForm(el,opts={}){
       if(clientCree) await sb.from('clients').delete().eq('id',clientCree);   // annule le client si le chantier échoue
       toast(error.message,'error'); return;
     }
-    toast(clientCree?'Client et chantier enregistrés.':'Chantier enregistré.'); window._editId=null; showPage('projets');
+    toast(clientCree?'Client et chantier enregistrés.':'Chantier enregistré.'); window._editId=projetCree||null; showPage(projetCree?'projets-add':'projets');   // ouvre la fiche : suivi + matériel visibles
   };
 }
 
@@ -3553,6 +3553,30 @@ function matChantierHtml(rows,erreur){
     </tbody>${L.length?`<tfoot><tr><th colspan="5" class="text-right">Total matériel</th><th class="text-right">${money(total)}</th><th colspan="3"></th></tr></tfoot>`:''}</table></div>`;
 }
 
+/* Ajout de matériel (calcul qté × P.U) directement depuis le suivi du chantier */
+async function matAjoutModal(projetId){
+  const {data:comps}=await sb.from('composants').select('id,nom,unite,prix_unitaire').order('nom');
+  window._maComps=comps||[];
+  openModal(`<form id="maForm" class="p-5 grid gap-3" style="min-width:300px">
+    <h3 class="font-bold">🧱 Ajouter du matériel</h3>
+    <div class="field"><label>Composant (facultatif)</label>${fieldWrap('🔎',smartSelect('maComp',window._maComps.map(c=>({id:c.id,label:c.nom+' ('+(c.unite||'')+')'})),'',{placeholder:'Rechercher…',onChange:'maPick(this.value)'}))}</div>
+    <div class="field"><label>Désignation</label>${fieldWrap('📝','<input id="maDes" required>')}</div>
+    <div class="grid grid-cols-2 gap-3"><div class="field"><label>Quantité</label>${fieldWrap('🔢','<input id="maQte" type="number" min="0" step="any" value="1" oninput="maTot()">')}</div>
+    <div class="field"><label>P.U (FCFA)</label>${fieldWrap('💰','<input id="maPu" type="number" min="0" step="any" value="0" oninput="maTot()">')}</div></div>
+    <div class="text-right font-bold" id="maTotal">0 FCFA</div>
+    <div class="flex justify-end gap-2"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary">Ajouter</button></div></form>`);
+  window.maTot=()=>{ document.getElementById('maTotal').textContent=money((+val('maQte')||0)*(+val('maPu')||0)); };
+  window.maPick=(id)=>{ const c=window._maComps.find(x=>x.id===id); if(c){ document.getElementById('maDes').value=c.nom; document.getElementById('maPu').value=+c.prix_unitaire||0; maTot(); } };
+  document.getElementById('maForm').onsubmit=async e=>{
+    e.preventDefault();
+    const q=+val('maQte')||0, pu=+val('maPu')||0;
+    const {data:last}=await sb.from('chantier_materiel').select('ordre').eq('projet_id',projetId).order('ordre',{ascending:false}).limit(1);
+    const {error}=await sb.from('chantier_materiel').insert({projet_id:projetId,ordre:(last?.[0]?.ordre||0)+1,quantite:q,designation:val('maDes'),prix_unitaire:pu,montant:Math.round(q*pu)});
+    if(error){ toast(error.message,'error'); return; }
+    closeModal(); toast('Matériel ajouté.'); renderSuiviChantier(projetId);
+  };
+}
+
 /* Suivi du chantier : matériel de la fiche, bons de caisse et mouvements de stock rattachés au chantier */
 async function renderSuiviChantier(projetId){
   const host=document.getElementById('suiviChantier'); if(!host) return;
@@ -3572,7 +3596,8 @@ async function renderSuiviChantier(projetId){
   host.innerHTML=`
     <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
       <h2>📊 Suivi du chantier — matériel, caisse & stock</h2>
-      <button class="btn btn-outline" onclick="openMouvementModal('sortie',null,null,'${projetId}')">📦 Sortie de stock pour ce chantier</button>
+      <div class="flex gap-2"><button class="btn btn-outline" onclick="matAjoutModal('${projetId}')">🧱 Ajouter du matériel</button>
+      <button class="btn btn-outline" onclick="openMouvementModal('sortie',null,null,'${projetId}')">📦 Sortie de stock pour ce chantier</button></div>
     </div>
     <div class="flex flex-wrap justify-between items-center gap-2 mb-1"><h3 class="font-semibold text-sm">📄 Devis & 🧾 factures du chantier</h3>
       <button class="btn btn-outline text-xs" onclick="window._editId=null;window._devisDepuisProjet='${projetId}';showPage('devis-add')">+ Créer un devis pour ce chantier</button></div>
