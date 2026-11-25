@@ -3418,7 +3418,8 @@ function clientItems(){
   return (window._clientsCache||[]).map(c=>({id:c.id,label:[c.nom,c.prenoms].filter(Boolean).join(' ')}));
 }
 async function renderProjetForm(el,opts={}){
-  const [{data:clients},{data:cats}]=await Promise.all([sb.from('clients').select('id,nom,prenoms').order('nom'),sb.from('client_categories').select('nom').order('nom')]);
+  const [{data:clients},{data:cats},{data:comps}]=await Promise.all([sb.from('clients').select('id,nom,prenoms').order('nom'),sb.from('client_categories').select('nom').order('nom'),sb.from('composants').select('id,nom,unite,prix_unitaire').order('nom')]);
+  window._pjComps=comps||[]; window._pjMat=[];
   window._clientsCache=clients||[];
   const catOpts=(cats||[]).map(x=>`<option>${escapeHtml(x.nom)}</option>`).join('');
   let p={};
@@ -3454,12 +3455,36 @@ async function renderProjetForm(el,opts={}){
         <div class="field"><label>Latitude</label>${fieldWrap('🌍',`<input id="pjLat" type="number" step="any" value="${p.latitude??''}">`)}</div>
         <div class="field"><label>Longitude</label>${fieldWrap('🌍',`<input id="pjLng" type="number" step="any" value="${p.longitude??''}">`)}</div>
         <div class="field flex items-end"><button type="button" class="btn btn-dark w-full" onclick="geolocateField('pjLat','pjLng')">📍 Ma position</button></div>
+        ${p.id?'':`<div class="sm:col-span-3 border rounded-lg p-3">
+          <div class="text-xs font-bold text-gray-500 uppercase mb-2">🧱 Calcul du matériel (estimation)</div>
+          <div class="field">${fieldWrap('🔎',smartSelect('pjMatPick',window._pjComps.map(c=>({id:c.id,label:c.nom+' ('+(c.unite||'')+')'})),'',{placeholder:'Ajouter un composant / matériau…',onChange:"pjMatAdd(this.value)"}))}</div>
+          <div class="overflow-x-auto mt-2"><table class="w-full text-sm"><thead><tr><th>Désignation</th><th class="text-right">Qté</th><th class="text-right">P.U (FCFA)</th><th class="text-right">Montant</th><th></th></tr></thead><tbody id="pjMatBody"></tbody>
+          <tfoot><tr><th colspan="3" class="text-right">Total matériel</th><th class="text-right" id="pjMatTotal">0 FCFA</th><th></th></tr></tfoot></table></div>
+          <button type="button" class="btn btn-outline text-xs mt-2" onclick="pjMatAdd('')">+ Ligne libre</button>
+        </div>`}
         <div class="field sm:col-span-3"><label>Description</label>${fieldWrap('📝',`<textarea id="pjDescription" rows="3">${escapeHtml(p.description||'')}</textarea>`)}</div>
         <div class="sm:col-span-3 flex justify-end pt-2"><button type="submit" class="btn btn-primary px-8 py-2.5">SAUVEGARDER</button></div>
       </form>
     </div>
     ${p.id?`<div id="suiviChantier" class="page-card max-w-4xl mt-4"><div class="text-sm text-gray-400">Chargement du suivi du chantier…</div></div>`:''}`;
   if(p.id) renderSuiviChantier(p.id);
+  window.pjMatRender=()=>{
+    const B=document.getElementById('pjMatBody'); if(!B) return;
+    B.innerHTML=window._pjMat.map((m,i)=>`<tr><td><input class="w-full" value="${escapeHtml(m.designation)}" oninput="window._pjMat[${i}].designation=this.value" placeholder="Désignation"></td>
+      <td class="text-right"><input type="number" min="0" step="any" style="width:80px" value="${m.quantite}" oninput="window._pjMat[${i}].quantite=+this.value||0;pjMatTot()"></td>
+      <td class="text-right"><input type="number" min="0" step="any" style="width:110px" value="${m.prix_unitaire}" oninput="window._pjMat[${i}].prix_unitaire=+this.value||0;pjMatTot()"></td>
+      <td class="text-right font-semibold" id="pjMatM${i}">${money(m.quantite*m.prix_unitaire)}</td>
+      <td><button type="button" class="text-red-600" onclick="window._pjMat.splice(${i},1);pjMatRender()">✕</button></td></tr>`).join('')||'<tr><td colspan="5" class="text-gray-400 text-center p-2">Aucune ligne.</td></tr>';
+    pjMatTot();
+  };
+  window.pjMatTot=()=>{ window._pjMat.forEach((m,i)=>{ const e=document.getElementById('pjMatM'+i); if(e) e.textContent=money(m.quantite*m.prix_unitaire); }); const t=document.getElementById('pjMatTotal'); if(t) t.textContent=money(window._pjMat.reduce((a,m)=>a+m.quantite*m.prix_unitaire,0)); };
+  window.pjMatAdd=(id)=>{
+    const c=id?window._pjComps.find(x=>x.id===id):null;
+    window._pjMat.push({composant_id:c?.id||null,designation:c?c.nom:'',quantite:1,prix_unitaire:+c?.prix_unitaire||0});
+    if(id){ document.getElementById('pjMatPick').value=''; document.getElementById('pjMatPick_q').value=''; }
+    pjMatRender();
+  };
+  pjMatRender();
   window.pjToggleClient=()=>{ const n=document.getElementById('pjNouveauClient')?.checked; document.getElementById('pjClientNouveau').style.display=n?'grid':'none'; document.getElementById('pjClientExistant').style.display=n?'none':''; };
   if(!p.id) pjToggleClient();
   document.getElementById('projetForm').onsubmit=async (e)=>{
@@ -3477,9 +3502,14 @@ async function renderProjetForm(el,opts={}){
       if(!rec.libelle){ toast('Client enregistré.'); window._editId=null; showPage('clients'); return; }   // client seul
     }
     if(!rec.client_id){ toast('Sélectionnez un client.','error'); return; }
-    let error;
+    let error, projetCree=null;
     if(id){ ({error}=await sb.from('projets').update(rec).eq('id',id)); }
-    else { rec.created_by=CURRENT_USER.id; ({error}=await sb.from('projets').insert(rec)); }
+    else { rec.created_by=CURRENT_USER.id; const r=await sb.from('projets').insert(rec).select('id').single(); error=r.error; projetCree=r.data?.id; }
+    const lignesMat=(window._pjMat||[]).filter(m=>m.designation.trim()&&m.quantite>0);
+    if(!error&&projetCree&&lignesMat.length){
+      ({error}=await sb.from('chantier_materiel').insert(lignesMat.map((m,i)=>({projet_id:projetCree,ordre:i+1,quantite:m.quantite,designation:m.designation.trim(),prix_unitaire:m.prix_unitaire,montant:Math.round(m.quantite*m.prix_unitaire)}))));
+      if(error){ await sb.from('projets').delete().eq('id',projetCree); }   // annule le chantier si le matériel échoue
+    }
     if(error){
       if(clientCree) await sb.from('clients').delete().eq('id',clientCree);   // annule le client si le chantier échoue
       toast(error.message,'error'); return;
