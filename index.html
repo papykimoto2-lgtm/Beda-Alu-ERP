@@ -3526,6 +3526,8 @@ function matChantierHtml(rows,erreur){
 /* Suivi du chantier : matériel de la fiche, bons de caisse et mouvements de stock rattachés au chantier */
 async function renderSuiviChantier(projetId){
   const host=document.getElementById('suiviChantier'); if(!host) return;
+  const {data:dvs}=await sb.from('devis').select('id,code,libelle,statut,total,date_creation,version_number').eq('projet_id',projetId).eq('is_current',true).order('created_at');
+  const {data:fcs}=(dvs||[]).length?await sb.from('factures').select('id,code,devis_id,date_facture,total,statut').in('devis_id',dvs.map(d=>d.id)).order('date_facture'):{data:[]};
   const [{data:caisse,error:e1},{data:stock,error:e2},{data:mat,error:e3}]=await Promise.all([
     sb.from('caisse_mouvements').select('*, caisses(nom)').eq('projet_id',projetId).order('date_mouvement',{ascending:false}),
     sb.from('mouvements_stock').select('*, composants(nom,unite)').eq('projet_id',projetId).order('created_at',{ascending:false}),
@@ -3542,6 +3544,14 @@ async function renderSuiviChantier(projetId){
       <h2>📊 Suivi du chantier — matériel, caisse & stock</h2>
       <button class="btn btn-outline" onclick="openMouvementModal('sortie',null,null,'${projetId}')">📦 Sortie de stock pour ce chantier</button>
     </div>
+    <div class="flex flex-wrap justify-between items-center gap-2 mb-1"><h3 class="font-semibold text-sm">📄 Devis & 🧾 factures du chantier</h3>
+      <button class="btn btn-outline text-xs" onclick="window._editId=null;window._devisDepuisProjet='${projetId}';showPage('devis-add')">+ Créer un devis pour ce chantier</button></div>
+    <div class="overflow-x-auto mb-4"><table><thead><tr><th>Devis</th><th>Statut</th><th class="text-right">Total</th><th>Facture(s)</th></tr></thead><tbody>
+      ${(dvs||[]).map(d=>{ const st=STATUT_DEVIS[d.statut]||{label:d.statut,color:''}; const fl=(fcs||[]).filter(f=>f.devis_id===d.id);
+        return `<tr><td><a href="#" class="hover:underline" style="color:#4f46e5" onclick="window._editId='${d.id}';showPage('devis-view');return false;">${escapeHtml(d.code)}</a> <span class="text-xs text-gray-400">${escapeHtml(d.libelle||'')}</span></td>
+        <td><span class="pill ${st.color}">${st.label}</span></td><td class="text-right font-semibold">${money(d.total)}</td>
+        <td>${fl.map(f=>`<a href="#" class="text-xs hover:underline" style="color:#4f46e5" onclick="window._editId='${f.id}';showPage('facture-view');return false;">${escapeHtml(f.code)}</a> <span class="text-xs text-gray-400">${money(f.total)} · ${(STATUT_FACTURE[f.statut]||{}).label||f.statut}</span>`).join('<br>')||'<span class="text-xs text-gray-400">aucune</span>'}</td></tr>`; }).join('')||'<tr><td colspan="4" class="text-gray-400 text-center p-3">Aucun devis lié. Créez-en un ou rattachez un devis existant (champ « Chantier » du devis).</td></tr>'}
+    </tbody></table></div>
     ${matChantierHtml(mat,e3)}
     <div class="grid sm:grid-cols-4 gap-3 mb-4">
       <div class="card p-3"><div class="text-xs text-gray-400">Dépenses de caisse</div><div class="text-lg font-black text-red-600">${money(depenses)}</div></div>
@@ -9043,6 +9053,10 @@ async function renderDevisEditorPage(el){
     const {data:d}=await sb.from('devis').select('*').eq('id',devisId).single();
     const {data:l}=await sb.from('devis_lignes').select('*').eq('devis_id',devisId).order('ordre');
     devis=d; lignes=l||[];
+  } else if(window._devisDepuisProjet){
+    const pj=window._projetsCache.find(x=>x.id===window._devisDepuisProjet);
+    if(pj){ devis.projet_id=pj.id; devis.client_id=pj.client_id; devis.libelle=pj.libelle; }
+    window._devisDepuisProjet=null;
   }
   devisEditorState={devis,lignes,el};
   renderDevisEditorBody();
