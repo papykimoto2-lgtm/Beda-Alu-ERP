@@ -3553,6 +3553,28 @@ function matChantierHtml(rows,erreur){
     </tbody>${L.length?`<tfoot><tr><th colspan="5" class="text-right">Total matériel</th><th class="text-right">${money(total)}</th><th colspan="3"></th></tr></tfoot>`:''}</table></div>`;
 }
 
+/* Impression du calcul du matériel d'un chantier (moteur d'impression sécurisé : en-tête, pied, QR) */
+async function matImprimer(projetId){
+  const win=window.open('','_blank','width=1000,height=900'); if(!win){ toast('Autorisez les fenêtres pop-up pour imprimer.','error'); return; }
+  const [{data:pj},{data:mat,error}]=await Promise.all([sb.from('projets').select('code,libelle,commune,quartier,clients(nom,prenoms,telephone)').eq('id',projetId).single(),sb.from('chantier_materiel').select('*').eq('projet_id',projetId).order('ordre')]);
+  if(error){ win.close(); toast(error.message,'error'); return; }
+  const L=mat||[], m=x=>+x.montant||(+x.quantite||0)*(+x.prix_unitaire||0);
+  const total=L.reduce((t,x)=>t+m(x),0), paye=L.filter(matEstPaye).reduce((t,x)=>t+m(x),0);
+  const cl=pj?.clients?[pj.clients.nom,pj.clients.prenoms].filter(Boolean).join(' '):'';
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Calcul du matériel</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;padding:22px;color:#0f172a;font-size:11px}
+    table{width:100%;border-collapse:collapse;margin-top:10px}th,td{border:1px solid #cbd5e1;padding:4px 6px;text-align:left}th{background:#f1f5f9;font-size:10px;text-transform:uppercase}.r{text-align:right;white-space:nowrap}
+    .k{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.k div{border:1px solid #cbd5e1;border-radius:6px;padding:6px}.k b{display:block;font-size:14px}
+    thead{display:table-header-group}tr{break-inside:avoid}@page{size:A4;margin:10mm}@media print{body{padding:0}}</style></head><body>${achBouton}
+    <h1 style="font-size:16px;margin:0">CALCUL DU MATÉRIEL — CHANTIER</h1>
+    <div style="color:#475569;margin-top:2px">${escapeHtml((pj?.code?pj.code+' — ':'')+(pj?.libelle||''))}${cl?' · Client : '+escapeHtml(cl):''}${pj?.commune?' · '+escapeHtml(pj.commune):''} · édité le ${new Date().toLocaleString('fr-FR')}</div>
+    <div class="k"><div>Total matériel<b>${money(total)}</b></div><div>Déjà payé<b>${money(paye)}</b></div><div>Reste<b>${money(total-paye)}</b></div></div>
+    <table><thead><tr><th>#</th><th>Désignation</th><th>Fournisseur</th><th class="r">Qté</th><th class="r">P.U</th><th class="r">Montant</th><th>Paiement</th></tr></thead><tbody>
+    ${L.map((x,i)=>`<tr><td>${x.ordre||i+1}</td><td>${escapeHtml(x.designation||'')}</td><td>${escapeHtml(x.fournisseur||'')}</td><td class="r">${x.quantite==null?'':fmtQte(+x.quantite)}</td><td class="r">${x.prix_unitaire==null?'':money(x.prix_unitaire)}</td><td class="r"><b>${money(m(x))}</b></td><td>${matEstPaye(x)?'Payé':'À payer'}</td></tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:#94a3b8">Aucun matériel.</td></tr>'}
+    </tbody><tfoot><tr><th colspan="5" class="r">TOTAL</th><th class="r">${money(total)}</th><th></th></tr></tfoot></table>
+    <script>window.onload=()=>setTimeout(()=>window.print(),500)<\/script></body></html>`;
+  await impEcrire(win,{type:'MATERIEL_CHANTIER',titre:'Calcul du matériel',periode:pj?.code||'',montant:total,niveau:pj?.libelle||'',contenu:true},html);
+}
+
 /* Ajout de matériel (calcul qté × P.U) directement depuis le suivi du chantier */
 async function matAjoutModal(projetId){
   const {data:comps}=await sb.from('composants').select('id,nom,unite,prix_unitaire').order('nom');
@@ -3597,6 +3619,7 @@ async function renderSuiviChantier(projetId){
     <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
       <h2>📊 Suivi du chantier — matériel, caisse & stock</h2>
       <div class="flex gap-2"><button class="btn btn-outline" onclick="matAjoutModal('${projetId}')">🧱 Ajouter du matériel</button>
+      <button class="btn btn-outline" onclick="matImprimer('${projetId}')">🖨 Imprimer le matériel</button>
       <button class="btn btn-outline" onclick="openMouvementModal('sortie',null,null,'${projetId}')">📦 Sortie de stock pour ce chantier</button></div>
     </div>
     <div class="flex flex-wrap justify-between items-center gap-2 mb-1"><h3 class="font-semibold text-sm">📄 Devis & 🧾 factures du chantier</h3>
@@ -9532,7 +9555,7 @@ async function imprimerPageCourante(){
     <script>window.onload=()=>setTimeout(()=>window.print(),600)<\/script></body></html>`);
 }
 /* ---------- Vérification d'un document (scan du QR de sécurité, sans compte) ---------- */
-const IMP_TYPES={FACTURE_CHANTIER:'Facture de chantier — suivi et modifications',ETAT_VALIDATIONS:'État périodique des validations',DEVIS:'Devis',FACTURE:'Facture',FACTURE_FNE:'Facture normalisée (FNE)',RECU:'Reçu de caisse',BON_CAISSE:'Bon de caisse',BON_TRANSFERT:'Bon de transfert',FICHE_CLIENT:'Fiche client',FICHE_FOURNISSEUR:'Fiche fournisseur',FICHE_EXECUTION:"Fiche d'exécution",ESTIMATION:'Estimation financière',ETAT_PDV:'État périodique point de vente',BROUILLARD:'Brouillard de caisse',TICKET_Z:'Ticket Z',LECTURE_X:'Lecture X',ETAT_COMPTABLE:'État comptable SYSCOHADA',BULLETIN:'Bulletin de pilotage',PAGE:'Page imprimée',ETAT_INVENTAIRE:"État d'inventaire",FEUILLE_COMPTAGE:'Feuille de comptage',VALORISATION_STOCK:'Valorisation du stock',BON_COMMANDE:'Bon de commande fournisseur',BON_RECEPTION:'Bon de réception',COMMANDE_INTERNE:'Commande interne',JOURNAL_STOCK:'Journal des mouvements de stock',ETAT_CHANTIERS:'État de suivi chantier',PLAN_COMPTABLE:'Plan comptable',EXTRAIT_TIERS:'Extrait de compte tiers',BALANCE_TIERS:'Balance auxiliaire'};
+const IMP_TYPES={MATERIEL_CHANTIER:'Calcul du matériel de chantier',FACTURE_CHANTIER:'Facture de chantier — suivi et modifications',ETAT_VALIDATIONS:'État périodique des validations',DEVIS:'Devis',FACTURE:'Facture',FACTURE_FNE:'Facture normalisée (FNE)',RECU:'Reçu de caisse',BON_CAISSE:'Bon de caisse',BON_TRANSFERT:'Bon de transfert',FICHE_CLIENT:'Fiche client',FICHE_FOURNISSEUR:'Fiche fournisseur',FICHE_EXECUTION:"Fiche d'exécution",ESTIMATION:'Estimation financière',ETAT_PDV:'État périodique point de vente',BROUILLARD:'Brouillard de caisse',TICKET_Z:'Ticket Z',LECTURE_X:'Lecture X',ETAT_COMPTABLE:'État comptable SYSCOHADA',BULLETIN:'Bulletin de pilotage',PAGE:'Page imprimée',ETAT_INVENTAIRE:"État d'inventaire",FEUILLE_COMPTAGE:'Feuille de comptage',VALORISATION_STOCK:'Valorisation du stock',BON_COMMANDE:'Bon de commande fournisseur',BON_RECEPTION:'Bon de réception',COMMANDE_INTERNE:'Commande interne',JOURNAL_STOCK:'Journal des mouvements de stock',ETAT_CHANTIERS:'État de suivi chantier',PLAN_COMPTABLE:'Plan comptable',EXTRAIT_TIERS:'Extrait de compte tiers',BALANCE_TIERS:'Balance auxiliaire'};
 function impVerificationResultatHtml(r){
   if(!r) return `<div style="color:#b91c1c;font-weight:700">⚠ Vérification impossible (serveur injoignable). Réessayez avec une connexion Internet.</div>`;
   if(!r.trouve) return `<div style="text-align:center"><div style="font-size:44px">❌</div><div style="font-size:18px;font-weight:800;color:#b91c1c">Code inconnu</div><p style="color:#475569">Aucun document n'a été émis par le logiciel avec ce code. Le document présenté n'est pas authentique ou le code a été mal saisi.</p></div>`;
