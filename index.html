@@ -321,6 +321,7 @@ if(!window.SB_CFG||!window.SB_CFG.SUPABASE_URL||/VOTRE-PROJET/.test(window.SB_CF
       <div class="sidebar-children" data-children="caisse-g">
         <button class="nav-child" data-page="caisse">→ Tableau de bord</button>
         <button class="nav-child" data-page="caisse-brouillard">→ Brouillard de caisse</button>
+        <button class="nav-child" data-page="caisse-previsions">→ 📅 Prévisions de dépenses</button>
         <button class="nav-child" data-page="caisse-validations">→ Validations (DG) <span class="badge-validations dash-tab-badge hidden">0</span></button>
         <button class="nav-child" data-page="caisse-affectations">→ Affectations & codes PIN</button>
       </div>
@@ -1019,9 +1020,9 @@ async function enterApp(){
 })();
 
 /* ============================== ROUTING ============================== */
-const PAGE_TITLES={dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers','etat-chantiers':'État de suivi chantier — matériel et dépenses','factures-chantier':'Factures des chantiers — liste, filtres et recherche',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Chantiers — Tout afficher','projets-add':'Ajouter un chantier','projets-attente':'Chantier en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Chantier terminé','projets-retard':'Chantier en retard','projets-annule':'Chantier annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant',referentiels:"Familles d'articles & unités",'stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Journal des mouvements','achats-commandes':'Commandes fournisseurs','commandes-chantier':'Commandes chantier — suivi des achats','achats-commande-edit':'Commande fournisseur','achats-commande-view':'Commande fournisseur','achats-reception':'Réception fournisseur','achats-receptions':'Réceptions fournisseurs','commandes-internes':'Commandes internes','commande-interne-edit':'Commande interne','commande-interne-view':'Commande interne','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-valorisation':'Stock — Valorisation, CA prévisionnel et marge','stock-inventaires':"Stock — États d'inventaire",'stock-inventaire-view':"État d'inventaire",'stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',validations:'Validations — Direction générale & hiérarchie autorisée',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'État périodique — Point de vente & caisse','comptoir-z':'Ticket Z — Clôture du point de vente','caisse-brouillard':'Brouillard de caisse',parametres:'Paramètres'};
-const PAGE_RENDERERS={dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,'etat-chantiers':renderEtatChantiers,'factures-chantier':renderFacturesChantier,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,referentiels:renderReferentiels,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'achats-commandes':renderAchatsCommandes,'commandes-chantier':renderCommandesChantier,'achats-commande-edit':renderAchatsCommandeEdit,'achats-commande-view':renderAchatsCommandeView,'achats-reception':renderAchatsReception,'achats-receptions':renderAchatsReceptions,'commandes-internes':renderCommandesInternes,'commande-interne-edit':renderCommandeInterneEdit,'commande-interne-view':renderCommandeInterneView,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-valorisation':renderStockValorisation,'stock-inventaires':renderStockInventaires,'stock-inventaire-view':renderInventaireDetail,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,'caisse-validations':renderCaisseValidations,validations:renderValidations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,'comptoir-z':renderComptoirZ,'caisse-brouillard':renderCaisseBrouillard,parametres:renderParametres};
-const PAGE_TO_GROUP={'clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g','factures-chantier':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','etat-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',referentiels:'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','achats-commandes':'achats-g','commandes-chantier':'achats-g','achats-commande-edit':'achats-g','achats-commande-view':'achats-g','achats-reception':'achats-g','achats-receptions':'achats-g','commandes-internes':'achats-g','commande-interne-edit':'achats-g','commande-interne-view':'achats-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-valorisation':'stock-g','stock-inventaires':'stock-g','stock-inventaire-view':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g','caisse-validations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g','comptoir-z':'comptoir-g','caisse-brouillard':'caisse-g'};
+const PAGE_TITLES={'caisse-previsions':'Caisse — Prévisions de dépenses',dashboard:'Accueil',carte:'Carte — Clients, Chantiers, Prospects & Commerciaux','carte-chantiers':'Carte des chantiers','etat-chantiers':'État de suivi chantier — matériel et dépenses','factures-chantier':'Factures des chantiers — liste, filtres et recherche',clients:'Clients','clients-add':'Ajouter un client','clients-categories':'Catégorie clients',prospects:'Prospects','prospects-add':'Ajouter un prospect',fournisseurs:'Fournisseurs','fournisseurs-add':'Ajouter un fournisseur',projets:'Chantiers — Tout afficher','projets-add':'Ajouter un chantier','projets-attente':'Chantier en attente','projets-mesure':'Mesure disponible','projets-pret':'Prêt pour fabrication','projets-fabrication':'Fabrication en cours','projets-installation':'Installation en cours','projets-termine':'Chantier terminé','projets-retard':'Chantier en retard','projets-annule':'Chantier annulé',devis:'Devis — Tout afficher','devis-add':'Ajouter un Devis','devis-pipeline':'Pipeline commercial','devis-view':'Devis','devis-attente':'Devis en attente','devis-cours':'Devis en cours','devis-annules':'Devis annulés','devis-categories':'Catégorie de devis',factures:'Factures','facture-view':'Facture',fiches:"Fiches d'exécution",produits:'Produits','produits-add':'Ajouter un produit','produits-config':"Configurateur d'ouvrage",composants:'Composants & consommables','composants-add':'Ajouter un composant',referentiels:"Familles d'articles & unités",'stock-dashboard':'Stock — Tableau de bord','stock-mouvements':'Stock — Journal des mouvements','achats-commandes':'Commandes fournisseurs','commandes-chantier':'Commandes chantier — suivi des achats','achats-commande-edit':'Commande fournisseur','achats-commande-view':'Commande fournisseur','achats-reception':'Réception fournisseur','achats-receptions':'Réceptions fournisseurs','commandes-internes':'Commandes internes','commande-interne-edit':'Commande interne','commande-interne-view':'Commande interne','stock-alertes':'Stock — Alertes','stock-inventaire':'Stock — Inventaire','stock-valorisation':'Stock — Valorisation, CA prévisionnel et marge','stock-inventaires':"Stock — États d'inventaire",'stock-inventaire-view':"État d'inventaire",'stock-par-depot':'Stock par dépôt','stock-transferts':'Transferts de stock','stock-transfert-edit':'Transfert de stock','stock-depots':'Dépôts & points de vente','stock-simulateur':'Simulateur multi-chantiers','realisations-add':'Ajouter une réalisation',realisations:'Réalisations',comptabilite:'Comptabilité SYSCOHADA',caisse:'Caisse','caisse-detail':'Caisse — Détail','caisse-affectations':'Caisse — Affectations & codes PIN','caisse-validations':'Caisse — Validations (circuit DG)',validations:'Validations — Direction générale & hiérarchie autorisée',comptoir:'Vente au comptoir','comptoir-ventes':'Vente au comptoir — Historique','comptoir-rapport':'État périodique — Point de vente & caisse','comptoir-z':'Ticket Z — Clôture du point de vente','caisse-brouillard':'Brouillard de caisse',parametres:'Paramètres'};
+const PAGE_RENDERERS={'caisse-previsions':renderCaissePrevisions,dashboard:renderDashboard,carte:renderCarte,'carte-chantiers':renderCarteChantiers,'etat-chantiers':renderEtatChantiers,'factures-chantier':renderFacturesChantier,clients:renderClients,'clients-add':renderClientForm,'clients-categories':renderClientCategories,prospects:renderProspects,'prospects-add':renderProspectForm,fournisseurs:renderFournisseurs,'fournisseurs-add':renderFournisseurForm,projets:(el)=>renderProjets(el,null),'projets-add':renderProjetForm,'projets-attente':(el)=>renderProjets(el,'en_attente'),'projets-mesure':(el)=>renderProjets(el,'mesure_disponible'),'projets-pret':(el)=>renderProjets(el,'pret_fabrication'),'projets-fabrication':(el)=>renderProjets(el,'fabrication_en_cours'),'projets-installation':(el)=>renderProjets(el,'installation_en_cours'),'projets-termine':(el)=>renderProjets(el,'termine'),'projets-retard':(el)=>renderProjets(el,'retard'),'projets-annule':(el)=>renderProjets(el,'annule'),devis:(el)=>renderDevis(el,null),'devis-add':renderDevisEditorPage,'devis-pipeline':renderDevisPipeline,'devis-view':renderDevisDetail,'devis-attente':(el)=>renderDevis(el,'en_attente'),'devis-cours':(el)=>renderDevis(el,'en_cours'),'devis-annules':(el)=>renderDevis(el,'annule'),'devis-categories':renderDevisCategories,factures:renderFactures,'facture-view':renderFactureDetail,fiches:renderFiches,produits:renderProduits,'produits-add':renderProduitForm,'produits-config':renderConfigurateur,composants:renderComposants,'composants-add':renderComposantForm,referentiels:renderReferentiels,'stock-dashboard':renderStockDashboard,'stock-mouvements':renderStockMouvements,'achats-commandes':renderAchatsCommandes,'commandes-chantier':renderCommandesChantier,'achats-commande-edit':renderAchatsCommandeEdit,'achats-commande-view':renderAchatsCommandeView,'achats-reception':renderAchatsReception,'achats-receptions':renderAchatsReceptions,'commandes-internes':renderCommandesInternes,'commande-interne-edit':renderCommandeInterneEdit,'commande-interne-view':renderCommandeInterneView,'stock-alertes':renderStockAlertes,'stock-inventaire':renderStockInventaire,'stock-valorisation':renderStockValorisation,'stock-inventaires':renderStockInventaires,'stock-inventaire-view':renderInventaireDetail,'stock-par-depot':renderStockParDepot,'stock-transferts':renderStockTransferts,'stock-transfert-edit':renderTransfertEdit,'stock-depots':renderStockDepots,'stock-simulateur':renderStockSimulateur,'realisations-add':renderRealisationForm,realisations:renderRealisations,comptabilite:renderComptabilite,caisse:renderCaisse,'caisse-detail':renderCaisseDetail,'caisse-affectations':renderCaisseAffectations,'caisse-validations':renderCaisseValidations,validations:renderValidations,comptoir:renderComptoir,'comptoir-ventes':renderComptoirVentes,'comptoir-rapport':renderComptoirRapport,'comptoir-z':renderComptoirZ,'caisse-brouillard':renderCaisseBrouillard,parametres:renderParametres};
+const PAGE_TO_GROUP={'caisse-previsions':'caisse-g','clients-add':'clients-g',clients:'clients-g','clients-categories':'clients-g','prospects-add':'prospects-g',prospects:'prospects-g','fournisseurs-add':'fournisseurs-g',fournisseurs:'fournisseurs-g','projets-add':'projets-g','factures-chantier':'projets-g',projets:'projets-g','projets-attente':'projets-g','projets-mesure':'projets-g','projets-pret':'projets-g','projets-fabrication':'projets-g','projets-installation':'projets-g','projets-termine':'projets-g','projets-retard':'projets-g','projets-annule':'projets-g','carte-chantiers':'projets-g','etat-chantiers':'projets-g','devis-add':'devis-g','devis-pipeline':'devis-g',devis:'devis-g','devis-view':'devis-g','devis-attente':'devis-g','devis-cours':'devis-g','devis-annules':'devis-g','devis-categories':'devis-g',factures:'factures-g','facture-view':'factures-g',fiches:'fiches-g','produits-add':'produits-g','produits-config':'produits-g',produits:'produits-g','composants-add':'composants-g',referentiels:'composants-g',composants:'composants-g','stock-dashboard':'stock-g','stock-mouvements':'stock-g','achats-commandes':'achats-g','commandes-chantier':'achats-g','achats-commande-edit':'achats-g','achats-commande-view':'achats-g','achats-reception':'achats-g','achats-receptions':'achats-g','commandes-internes':'achats-g','commande-interne-edit':'achats-g','commande-interne-view':'achats-g','stock-alertes':'stock-g','stock-inventaire':'stock-g','stock-valorisation':'stock-g','stock-inventaires':'stock-g','stock-inventaire-view':'stock-g','stock-par-depot':'stock-g','stock-transferts':'stock-g','stock-transfert-edit':'stock-g','stock-depots':'stock-g','stock-simulateur':'simulateur-g','realisations-add':'realisations-g',realisations:'realisations-g',comptabilite:'comptabilite-g',caisse:'caisse-g','caisse-detail':'caisse-g','caisse-affectations':'caisse-g','caisse-validations':'caisse-g',comptoir:'comptoir-g','comptoir-ventes':'comptoir-g','comptoir-rapport':'comptoir-g','comptoir-z':'comptoir-g','caisse-brouillard':'caisse-g'};
 /* ============================== UTILISATEURS, RÔLES & ACCÈS ============================== */
 const ALL_MODULES=[
   {code:'Clients',label:'Clients',groupe:'Clients'},
@@ -3620,6 +3621,123 @@ async function matHistoriqueModal(projetId){
     <div class="overflow-x-auto"><table class="text-sm"><thead><tr><th>Date</th><th>Auteur</th><th>Action</th><th>Ligne</th><th>Détail</th><th>Motif</th></tr></thead><tbody>
     ${(data||[]).map(h=>`<tr><td class="text-xs whitespace-nowrap">${new Date(h.created_at).toLocaleString('fr-FR')}</td><td class="text-xs">${escapeHtml(h.profiles?.nom_complet||'—')}</td><td><span class="pill">${h.action}</span></td><td>${des(h)}</td><td class="text-xs">${det(h)}</td><td class="text-xs">${escapeHtml(h.motif||'')}</td></tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 text-center p-3">Aucune modification enregistrée.</td></tr>'}
     </tbody></table></div></div>`);
+}
+
+/* ============================== CAISSE — PRÉVISIONS DE DÉPENSES (validées par la hiérarchie) ==============================
+   Dépenses planifiées soumises à la hiérarchie (droit « valider » Caisse + plafond + paliers N+1 / N+2 / DG, contrôlés
+   aussi en base : sql/caisse_previsions.sql). Validée → « 💵 Décaisser » ouvre un bon de sortie pré-rempli (circuit
+   normal de la caisse) ; l'enregistrement du bon passe la prévision à « réalisée ». */
+const PREV_STATUTS={en_attente:{lib:'⏳ En attente',cls:'bg-amber-50 text-amber-700'},validee:{lib:'✅ Validée',cls:'bg-emerald-50 text-emerald-700'},rejetee:{lib:'✖ Rejetée',cls:'bg-red-50 text-red-700'},annulee:{lib:'Annulée',cls:'bg-gray-100 text-gray-500'},realisee:{lib:'💵 Réalisée',cls:'bg-indigo-50 text-indigo-700'}};
+const PREV_CATS=['Matériel / Fournisseur','Main d\'œuvre / Salaires','Transport / Carburant','Frais généraux','Loyer / Charges','Autre'];
+window._prevHub=window._prevHub||{onglet:'attente'};
+function prevPeutDecider(x){
+  if(x.statut!=='en_attente'||!jePeuxValiderMontant(x.montant)) return false;
+  return !(x.demande_par===CURRENT_USER?.id&&monRole()?.code!=='admin');   // séparation des tâches (DG exempté)
+}
+function prevTableHtml(L,caisses){
+  if(!L.length) return '<div class="text-sm text-gray-400 text-center p-6">Aucune prévision.</div>';
+  const cn=id=>(caisses||[]).find(c=>c.id===id)?.nom||'—';
+  return `<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th>N°</th><th>Date prévue</th><th>Motif</th><th>Chantier</th><th>Caisse</th><th class="text-right">Montant</th><th>Validation requise</th><th>Statut</th><th>Demandé par</th><th></th></tr></thead><tbody>
+    ${L.map(x=>{ const st=PREV_STATUTS[x.statut]||{lib:x.statut,cls:''}; const pal=valPalier(x.montant);
+      return `<tr><td class="text-xs whitespace-nowrap">${escapeHtml(x.numero||'')}</td><td class="whitespace-nowrap">${fmtDate(x.date_prevue)}</td>
+      <td>${escapeHtml(x.motif)}${x.beneficiaire?` <span class="text-xs text-gray-400">— ${escapeHtml(x.beneficiaire)}</span>`:''}${x.categorie?`<div class="text-[11px] text-gray-400">${escapeHtml(x.categorie)}</div>`:''}${x.motif_rejet?`<div class="text-xs text-red-600">Rejet : ${escapeHtml(x.motif_rejet)}</div>`:''}${x.bon_numero?`<div class="text-[11px] text-indigo-600">Bon ${escapeHtml(x.bon_numero)}</div>`:''}</td>
+      <td class="text-xs">${x.projet_id?escapeHtml(chantierLabel(x.projet_id)):'—'}</td><td class="text-xs">${escapeHtml(cn(x.caisse_id))}</td>
+      <td class="text-right font-semibold whitespace-nowrap">${money(x.montant)}</td><td class="text-xs">${pal?escapeHtml(pal.libelle):'Responsable habilité'}</td>
+      <td><span class="pill ${st.cls}">${st.lib}</span>${x.decide_nom?`<div class="text-[11px] text-gray-400">${escapeHtml(x.decide_nom)}${x.decide_le?' · '+fmtDate(String(x.decide_le).slice(0,10)):''}</div>`:''}</td>
+      <td class="text-xs">${escapeHtml(x.demande_nom||'—')}</td>
+      <td class="whitespace-nowrap">${prevPeutDecider(x)?`<button class="btn btn-primary text-xs" onclick="prevDecider('${x.id}','valider')">✅ Valider</button> <button class="btn btn-outline text-xs" onclick="prevDecider('${x.id}','rejeter')">✖ Rejeter</button>`:''}
+        ${x.statut==='en_attente'&&x.demande_par===CURRENT_USER?.id?`<button class="btn btn-outline text-xs" onclick="prevAnnuler('${x.id}')">Annuler</button>`:''}
+        ${x.statut==='validee'?`<button class="btn btn-primary text-xs" onclick="prevDecaisserModal('${x.id}')">💵 Décaisser</button>`:''}</td></tr>`; }).join('')}
+  </tbody></table></div>`;
+}
+async function renderCaissePrevisions(el){
+  const [{data,error},{data:caisses}]=await Promise.all([sb.from('caisse_previsions').select('*').order('date_prevue',{ascending:true}).limit(500),sb.from('caisses').select('id,nom')]);
+  if(error){ el.innerHTML=`<div class="card p-6 text-sm text-gray-500">Prévisions indisponibles : ${escapeHtml(error.message)}<br>Exécutez la migration <code>sql/caisse_previsions.sql</code>.</div>`; return; }
+  await chargerChantiersRef(); if(!window.APP_PARAMS) await loadAppParams();
+  window._prevCache={rows:data||[],caisses:caisses||[]};
+  const L=data||[], T=s=>L.filter(x=>x.statut===s), somme=A=>A.reduce((t,x)=>t+(+x.montant||0),0);
+  const attente=T('en_attente'), validees=T('validee'), mois=new Date().toISOString().slice(0,7);
+  const habilite=attente.filter(prevPeutDecider);
+  const H=window._prevHub, miennes=L.filter(x=>x.demande_par===CURRENT_USER?.id);
+  const liste=H.onglet==='attente'?attente:H.onglet==='validees'?validees:H.onglet==='miennes'?miennes:L.filter(x=>['rejetee','annulee','realisee'].includes(x.statut)).slice().reverse();
+  const onglets=[['attente',`⏳ À valider (${attente.length})`],['validees',`✅ Validées à décaisser (${validees.length})`],['miennes',`📋 Mes prévisions (${miennes.length})`],['historique','🗂️ Historique']];
+  el.innerHTML=`
+    <div class="flex flex-wrap justify-between items-start gap-3 mb-4">
+      <div><h2 class="text-lg font-bold">📅 Prévisions de dépenses</h2>
+        <p class="text-sm text-gray-500 max-w-2xl">Planifiez les dépenses à venir : elles sont soumises à la hiérarchie (plafond et palier selon le montant). Une fois validées, décaissez-les par un bon de sortie. Votre plafond : <b>${monPlafondValidation()===null?'illimité':money(monPlafondValidation())}</b>.</p></div>
+      <button class="btn btn-primary" onclick="prevNouvelle()">+ Nouvelle prévision</button>
+    </div>
+    ${dashCartes([{lib:'À valider',val:attente.length,icone:'⏳',coul:attente.length?'#d97706':'',sous:money(somme(attente))},{lib:'Que vous pouvez valider',val:habilite.length,icone:'✅',coul:habilite.length?'#059669':''},{lib:'Validées à décaisser',val:validees.length,icone:'💵',sous:money(somme(validees))},{lib:'Réalisées ce mois',val:T('realisee').filter(x=>String(x.realise_le||'').startsWith(mois)).length,icone:'📊',sous:money(somme(T('realisee').filter(x=>String(x.realise_le||'').startsWith(mois))))}])}
+    <div class="flex gap-1.5 p-1.5 mb-3 rounded-xl" style="background:#eef0f5">${onglets.map(([k,l])=>`<button class="dash-tab ${H.onglet===k?'active':''}" onclick="window._prevHub.onglet='${k}';showPage('caisse-previsions')">${l}</button>`).join('')}</div>
+    <div class="card p-4">${prevTableHtml(liste,caisses)}</div>`;
+}
+async function prevNouvelle(){
+  await chargerChantiersRef(true);
+  const {data:caisses}=await sb.from('caisses').select('id,nom').eq('actif',true).order('nom');
+  openModal(`<form id="pvForm" class="p-5 grid gap-3" style="min-width:300px;max-width:640px">
+    <h3 class="font-bold text-lg">📅 Nouvelle prévision de dépense</h3>
+    <div class="grid sm:grid-cols-2 gap-3">
+      <div class="field"><label>Date prévue</label>${fieldWrap('📅',`<input id="pvDate" type="date" required value="${new Date().toISOString().slice(0,10)}">`)}</div>
+      <div class="field"><label>Montant (FCFA)</label>${fieldWrap('💵','<input id="pvMontant" type="number" min="1" step="any" required oninput="prevPalierInfo()">')}</div>
+    </div>
+    <div id="pvPalier" class="text-xs text-gray-500"></div>
+    <div class="field"><label>Motif</label>${fieldWrap('📝','<input id="pvMotif" required placeholder="Ex. : achat profilés chantier CH-xxx">')}</div>
+    <div class="grid sm:grid-cols-2 gap-3">
+      <div class="field"><label>Bénéficiaire / Fournisseur</label>${fieldWrap('👤','<input id="pvBenef">')}</div>
+      <div class="field"><label>Catégorie</label>${fieldWrap('🏷️',`<select id="pvCat">${PREV_CATS.map(c=>`<option>${escapeHtml(c)}</option>`).join('')}</select>`)}</div>
+    </div>
+    <div class="field"><label>Caisse prévue (facultatif)</label>${fieldWrap('💵',`<select id="pvCaisse"><option value="">— Au décaissement —</option>${(caisses||[]).map(c=>`<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('')}</select>`)}</div>
+    <div class="grid sm:grid-cols-2 gap-3">${chantierPickerHtml('prv','',{tousClients:true})}</div>
+    <div class="flex justify-end gap-2"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary">Soumettre à validation</button></div></form>`);
+  window.prevPalierInfo=()=>{ const m=+val('pvMontant')||0, pal=valPalier(m); document.getElementById('pvPalier').textContent=m?('Validation requise : '+(pal?pal.libelle:'responsable habilité (selon plafond)')):''; };
+  document.getElementById('pvForm').onsubmit=async e=>{
+    e.preventDefault();
+    const rec={date_prevue:val('pvDate'),montant:+val('pvMontant')||0,motif:val('pvMotif'),beneficiaire:val('pvBenef')||null,categorie:val('pvCat'),caisse_id:val('pvCaisse')||null,projet_id:chantierValeur('prv')};
+    if(rec.montant<=0){ toast('Montant invalide.','error'); return; }
+    const {error}=await sb.from('caisse_previsions').insert(rec);
+    if(error){ toast(error.message,'error'); return; }
+    closeModal(); toast('Prévision soumise à la hiérarchie.'); window._prevHub.onglet='miennes'; showPage('caisse-previsions');
+  };
+}
+async function prevDecider(id,decision){
+  let motif=null;
+  if(decision==='rejeter'){ motif=(prompt('Motif du rejet (obligatoire) :')||'').trim(); if(!motif) return; }
+  else if(!confirm('Valider cette prévision de dépense ?')) return;
+  const {data,error}=await sb.rpc('caisse_prevision_decider',{p_id:id,p_decision:decision,p_motif:motif});
+  if(error){ toast(error.message,'error'); return; }
+  if(!data?.ok){ toast(data?.message||'Décision refusée.','error'); return; }
+  toast(decision==='valider'?'Prévision validée.':'Prévision rejetée.'); showPage('caisse-previsions');
+}
+async function prevAnnuler(id){
+  if(!confirm('Annuler cette prévision ?')) return;
+  const {data,error}=await sb.rpc('caisse_prevision_annuler',{p_id:id});
+  if(error||!data?.ok){ toast(error?.message||data?.message||'Annulation refusée.','error'); return; }
+  toast('Prévision annulée.'); showPage('caisse-previsions');
+}
+async function prevDecaisserModal(id){
+  const x=(window._prevCache?.rows||[]).find(r=>r.id===id); if(!x) return;
+  let q=sb.from('caisse_sessions').select('id,caisse_id,caisses(nom)').eq('statut','ouverte'); if(x.caisse_id) q=q.eq('caisse_id',x.caisse_id);
+  const {data:ss,error}=await q;
+  if(error){ toast(error.message,'error'); return; }
+  if(!(ss||[]).length){ toast("Aucune caisse ouverte"+(x.caisse_id?" pour la caisse prévue":"")+" : ouvrez une séance (PIN) avant de décaisser.",'error'); return; }
+  window._prevDec=x;
+  openModal(`<div class="p-5 grid gap-3" style="min-width:300px;max-width:480px"><h3 class="font-bold">💵 Décaisser ${escapeHtml(x.numero)} — ${money(x.montant)}</h3>
+    <div class="text-sm">${escapeHtml(x.motif)}${x.beneficiaire?' — '+escapeHtml(x.beneficiaire):''}</div>
+    <div class="field"><label>Caisse (séance ouverte)</label>${fieldWrap('💵',`<select id="pdCaisse">${ss.map(s=>`<option value="${s.caisse_id}">${escapeHtml(s.caisses?.nom||'Caisse')}</option>`).join('')}</select>`)}</div>
+    <div class="text-xs text-gray-500">Un bon de sortie pré-rempli s'ouvre ; son enregistrement passe la prévision à « réalisée ». Le bon suit le circuit habituel de la caisse.</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="prevDecaisserGo()">Établir le bon de sortie</button></div></div>`);
+}
+async function prevDecaisserGo(){
+  const x=window._prevDec, caisseId=val('pdCaisse'); if(!x||!caisseId) return;
+  closeModal();
+  window._bonPrefillProjet=x.projet_id||null;
+  window._editId=caisseId; await showPage('caisse-detail');
+  await caisseOuvrirBonModal('sortie');
+  const set=(id,v)=>{ const e=document.getElementById(id); if(e) e.value=v; };
+  set('bonMontant',x.montant); set('bonMotif',`${x.motif} (prévision ${x.numero})`); set('bonBeneficiaire',x.beneficiaire||'');
+  if(x.date_prevue) set('bonDate',new Date().toISOString().slice(0,10));
+  const h=document.createElement('input'); h.type='hidden'; h.id='bonPrevId'; h.value=x.id;
+  document.getElementById('bonMontant').closest('.grid').appendChild(h);   // lie le bon à la prévision ; disparaît avec la fenêtre
 }
 
 /* RÈGLEMENT D'UN FOURNISSEUR À LA CAISSE — depuis le matériel du chantier.
@@ -12263,6 +12381,7 @@ async function renderCaisse(el){
       <div><h2>💰 Caisse</h2><p class="text-xs text-gray-500">Ouverture/clôture · Bons d'entrée & de sortie · Transferts · Brouillard de caisse · Ventilation comptable.</p></div>
       <div class="flex gap-2">
         <button class="btn btn-outline" onclick="showPage('caisse-brouillard')">📖 Brouillard de caisse</button>
+        <button class="btn btn-outline" onclick="showPage('caisse-previsions')">📅 Prévisions de dépenses</button>
         <button class="btn btn-outline" onclick="caisseOuvrirVentilation()">📒 Ventilation${aVentiler.length?` (${aVentiler.length})`:''}</button>
         <button class="btn btn-outline" onclick="openMonPinModal()" title="Changer mon code PIN de caisse">🔑 Mon code PIN</button>
         ${estGestionnaireCaisse()?`<button class="btn btn-outline" onclick="showPage('caisse-affectations')">👥 Affectations</button>
@@ -12453,6 +12572,7 @@ async function caisseSauverBon(type,sessionId){
     if(!d) return;
     const matIds=(document.getElementById('bonMatIds')?.value||'').split(',').filter(Boolean);
     if(matIds.length) await matMarquerRegle(matIds,'Demande '+d.numero,null);   // lignes « en validation » jusqu'à la décision
+    const prevId=document.getElementById('bonPrevId')?.value; if(prevId) await sb.rpc('caisse_prevision_realiser',{p_id:prevId,p_bon_numero:d.numero});
     closeModal(); await showPage('caisse-detail'); majBadgeValidations(); demandeEnvoyeeModal(d,caisse.nom); return;
   }
   const {count}=await sb.from('caisse_mouvements').select('id',{count:'exact',head:true}).eq('caisse_id',caisse.id);
@@ -12463,7 +12583,8 @@ async function caisseSauverBon(type,sessionId){
   const projet_id=chantierValeur('bon');
   const {data:mvt,error}=await sb.from('caisse_mouvements').insert({session_id:sessionId,caisse_id:caisse.id,numero,date_mouvement,type,montant,motif,beneficiaire:beneficiaire||null,statut:'a_ventiler',created_by:CURRENT_USER.id,...(projet_id?{projet_id}:{})}).select().single();
   if(error){ toast(error.message,'error'); return; }
-  { const matIds=(document.getElementById('bonMatIds')?.value||'').split(',').filter(Boolean); if(matIds.length) await matMarquerRegle(matIds,'Payé',date_mouvement); }   // règlement fournisseur direct
+  { const matIds=(document.getElementById('bonMatIds')?.value||'').split(',').filter(Boolean); if(matIds.length) await matMarquerRegle(matIds,'Payé',date_mouvement); }
+  { const prevId=document.getElementById('bonPrevId')?.value; if(prevId) await sb.rpc('caisse_prevision_realiser',{p_id:prevId,p_bon_numero:numero}); }   // prévision validée décaissée   // règlement fournisseur direct
   if(compteImputation && mvt){
     const r=await caisseExecuterVentilation({...mvt,caisses:{compte_code:caisse.compte_code,nom:caisse.nom}},compteImputation,false);
     toast(r.ok?`Bon ${numero} enregistré et comptabilisé (${compteImputation}).`:`Bon enregistré — écriture non générée : ${r.message}`,r.ok?'success':'error');
