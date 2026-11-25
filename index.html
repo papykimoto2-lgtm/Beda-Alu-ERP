@@ -3732,6 +3732,11 @@ async function renderSuiviChantier(projetId){
   const host=document.getElementById('suiviChantier'); if(!host) return;
   const {data:dvs}=await sb.from('devis').select('id,code,libelle,statut,total,date_creation,version_number').eq('projet_id',projetId).eq('is_current',true).order('created_at');
   const {data:fcs}=(dvs||[]).length?await sb.from('factures').select('id,code,devis_id,date_facture,total,statut').in('devis_id',dvs.map(d=>d.id)).order('date_facture'):{data:[]};
+  const {data:pays}=(fcs||[]).length?await sb.from('paiements').select('facture_id,montant').in('facture_id',fcs.map(f=>f.id)):{data:[]};
+  const payeF={}; (pays||[]).forEach(x=>{ payeF[x.facture_id]=(payeF[x.facture_id]||0)+(+x.montant||0); });
+  const fAct=(fcs||[]).filter(f=>f.statut!=='annulee');
+  const dAct=(dvs||[]).filter(d=>!['annule','refuse'].includes(d.statut));
+  const sDevis=dAct.reduce((t,d)=>t+(+d.total||0),0), sFact=fAct.reduce((t,f)=>t+(+f.total||0),0), sEnc=fAct.reduce((t,f)=>t+(payeF[f.id]||0),0);
   const [{data:caisse,error:e1},{data:stock,error:e2},{data:mat,error:e3}]=await Promise.all([
     sb.from('caisse_mouvements').select('*, caisses(nom)').eq('projet_id',projetId).order('date_mouvement',{ascending:false}),
     sb.from('mouvements_stock').select('*, composants(nom,unite)').eq('projet_id',projetId).order('created_at',{ascending:false}),
@@ -3780,11 +3785,17 @@ async function renderSuiviChantier(projetId){
     </div>
     <div class="flex flex-wrap justify-between items-center gap-2 mb-1"><h3 class="font-semibold text-sm">📄 Devis & 🧾 factures du chantier</h3>
       <button class="btn btn-outline text-xs" onclick="window._editId=null;window._devisDepuisProjet='${projetId}';showPage('devis-add')">+ Créer un devis pour ce chantier</button></div>
-    <div class="overflow-x-auto mb-4"><table><thead><tr><th>Devis</th><th>Statut</th><th class="text-right">Total</th><th>Facture(s)</th></tr></thead><tbody>
+    <div class="grid sm:grid-cols-4 gap-3 mb-3">
+      <div class="card p-3"><div class="text-xs text-gray-400">Devis (hors annulés)</div><div class="text-lg font-black">${money(sDevis)}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Facturé</div><div class="text-lg font-black">${money(sFact)}</div><div class="text-xs text-gray-400">reste à facturer : ${money(Math.max(0,sDevis-sFact))}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Encaissé du client</div><div class="text-lg font-black text-emerald-600">${money(sEnc)}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Reste à encaisser</div><div class="text-lg font-black ${sFact-sEnc>0?'text-red-600':''}">${money(Math.max(0,sFact-sEnc))}</div></div>
+    </div>
+    <div class="overflow-x-auto mb-4"><table><thead><tr><th>Devis</th><th>Statut</th><th class="text-right">Total</th><th>Facture(s) · règlement client</th></tr></thead><tbody>
       ${(dvs||[]).map(d=>{ const st=STATUT_DEVIS[d.statut]||{label:d.statut,color:''}; const fl=(fcs||[]).filter(f=>f.devis_id===d.id);
         return `<tr><td><a href="#" class="hover:underline" style="color:#4f46e5" onclick="window._editId='${d.id}';showPage('devis-view');return false;">${escapeHtml(d.code)}</a> <span class="text-xs text-gray-400">${escapeHtml(d.libelle||'')}</span></td>
         <td><span class="pill ${st.color}">${st.label}</span></td><td class="text-right font-semibold">${money(d.total)}</td>
-        <td>${fl.map(f=>`<a href="#" class="text-xs hover:underline" style="color:#4f46e5" onclick="window._editId='${f.id}';showPage('facture-view');return false;">${escapeHtml(f.code)}</a> <span class="text-xs text-gray-400">${money(f.total)} · ${(STATUT_FACTURE[f.statut]||{}).label||f.statut}</span>`).join('<br>')||'<span class="text-xs text-gray-400">aucune</span>'}</td></tr>`; }).join('')||'<tr><td colspan="4" class="text-gray-400 text-center p-3">Aucun devis lié. Créez-en un ou rattachez un devis existant (champ « Chantier » du devis).</td></tr>'}
+        <td>${fl.map(f=>`<a href="#" class="text-xs hover:underline" style="color:#4f46e5" onclick="window._editId='${f.id}';showPage('facture-view');return false;">${escapeHtml(f.code)}</a> <span class="text-xs text-gray-400">${money(f.total)} · encaissé ${money(payeF[f.id]||0)} · ${(STATUT_FACTURE[f.statut]||{}).label||f.statut}</span>${f.statut!=='annulee'&&(+f.total||0)-(payeF[f.id]||0)>0?` <button type="button" class="btn btn-outline text-xs" onclick="ouvrirEncaissementModal('${f.id}',${(+f.total||0)-(payeF[f.id]||0)},'${projetId}')">💰 Encaisser</button>`:''}`).join('<br>')||'<span class="text-xs text-gray-400">aucune</span>'}</td></tr>`; }).join('')||'<tr><td colspan="4" class="text-gray-400 text-center p-3">Aucun devis lié. Créez-en un ou rattachez un devis existant (champ « Chantier » du devis).</td></tr>'}
     </tbody></table></div>
     ${matChantierHtml(matL,e3,projetId)}
     <div class="grid sm:grid-cols-4 gap-3 mb-4">
@@ -12962,10 +12973,11 @@ async function comptabiliserVenteFacture(factureId,opts){
   try{ return await comptaEcritureAuto({date_ecriture:dateFacture,journal_code:'VE',piece:f.code,libelle:`Vente — ${f.code}${client?' — '+client:''}`,source_type:'facture',source_id:factureId,projet_id:f.devis?.projet_id||null},lignes); }
   catch(e){ if(opts.silencieux) throw e; toast('Facture non comptabilisée : '+(e.message||e),'error'); return null; }
 }
-function ouvrirEncaissementModal(factureId,montantRestant){
+function ouvrirEncaissementModal(factureId,montantRestant,retourProjet){
   sb.from('caisses').select('id,nom').eq('actif',true).then(({data:caisses})=>{
     openModal(`
       <h3 class="font-bold text-lg mb-4">Enregistrer un encaissement</h3>
+      <input type="hidden" id="encRetour" value="${retourProjet||''}">
       <p class="text-sm text-gray-500 mb-3">Reste à payer : <b>${money(montantRestant)}</b></p>
       <div class="grid sm:grid-cols-2 gap-3 mb-3">
         <div class="field"><label>Date</label>${fieldWrap('📅',`<input id="encDate" type="date" value="${new Date().toISOString().slice(0,10)}">`)}</div>
@@ -12989,6 +13001,8 @@ async function enregistrerEncaissement(factureId){
   if(exerciceEstClos(date_paiement)){ toast('Exercice clôturé pour cette date.','error'); return; }
   const {data:f}=await sb.from('factures').select('*').eq('id',factureId).single();
   if(!f) return;
+  const retourProjet=document.getElementById('encRetour')?.value||'';
+  let projetEnc=null; if(f.devis_id){ const {data:dv}=await sb.from('devis').select('projet_id').eq('id',f.devis_id).maybeSingle(); projetEnc=dv?.projet_id||null; }   // chantier du devis : l'encaissement lui est rattaché
   await comptabiliserVenteFacture(factureId);
   let sessionOuverte=null, caisseCompte=null;
   if(mode==='espece'){
@@ -13004,19 +13018,20 @@ async function enregistrerEncaissement(factureId){
     {compte_code:requireCompteDefaut('clients'),sens:'C',montant,libelle:'Encaissement '+f.code,tiers_type:'client',tiers_id:f.client_id||null}
   ];
   let ecr;
-  try{ ecr=await comptaEcritureAuto({date_ecriture:date_paiement,journal_code:journalTresorerie(mode),piece:reference||f.code,libelle:`Encaissement facture ${f.code}`,source_type:'paiement'},lignes); }
+  try{ ecr=await comptaEcritureAuto({date_ecriture:date_paiement,journal_code:journalTresorerie(mode),piece:reference||f.code,libelle:`Encaissement facture ${f.code}`,source_type:'paiement',projet_id:projetEnc},lignes); }
   catch(e){ toast('Encaissement non comptabilisé : '+(e.message||e),'error'); return; }
   const {data:paiement,error:errP}=await sb.from('paiements').insert({facture_id:factureId,date_paiement,montant,mode,caisse_id:caisseId,reference,ecriture_id:ecr.id,created_by:CURRENT_USER.id}).select().single();
   if(errP){ toast(errP.message,'error'); return; }
   await sb.from('compta_ecritures').update({source_id:paiement.id}).eq('id',ecr.id);
   if(mode==='espece' && sessionOuverte){
-    await sb.from('caisse_mouvements').insert({session_id:sessionOuverte.id,caisse_id:caisseId,numero:'ENC-'+f.code,date_mouvement:date_paiement,type:'entree',montant,motif:'Encaissement facture '+f.code,statut:'ventile',compte_ventile:requireCompteDefaut('clients'),ecriture_id:ecr.id,created_by:CURRENT_USER.id});
+    await sb.from('caisse_mouvements').insert({session_id:sessionOuverte.id,caisse_id:caisseId,numero:'ENC-'+f.code,date_mouvement:date_paiement,type:'entree',montant,motif:'Encaissement facture '+f.code,statut:'ventile',compte_ventile:requireCompteDefaut('clients'),ecriture_id:ecr.id,created_by:CURRENT_USER.id,...(projetEnc?{projet_id:projetEnc}:{})});
   }
   const {data:paiements}=await sb.from('paiements').select('montant').eq('facture_id',factureId);
   const totalPaye=(paiements||[]).reduce((s,pp)=>s+(+pp.montant||0),0);
   const nouveauStatut=totalPaye>=(+f.total||0)-1?'payee':(totalPaye>0?'payee_partielle':'en_attente');
   await sb.from('factures').update({statut:nouveauStatut}).eq('id',factureId);
   toast('Encaissement enregistré.'); closeModal();
+  if(retourProjet){ window._editId=retourProjet; showPage('projets-add'); return; }   // lancé depuis le suivi du chantier
   showPage('facture-view');
 }
 
