@@ -3907,6 +3907,78 @@ async function matFournisseursDatalist(){
   if(!window._frsNoms){ const {data}=await sb.from('fournisseurs').select('nom').order('nom'); window._frsNoms=(data||[]).map(x=>x.nom).filter(Boolean); }
   return `<datalist id="dlFrs">${window._frsNoms.map(n=>`<option value="${escapeHtml(n)}">`).join('')}</datalist>`;
 }
+/* VALORISATION du stock affecté au chantier : par article, quantité nette sortie × coût réel (CMUP au moment du mouvement)
+   et × CMUP actuel ; valeur de vente et marge quand le composant a un prix de vente. */
+function stockValorisationHtml(ms){
+  const A={};
+  (ms||[]).forEach(m=>{
+    const k=m.composant_id, a=A[k]||(A[k]={nom:m.composants?.nom||'—',unite:m.composants?.unite||'',cmup:+m.composants?.cmup||0,pv:m.composants?.prix_vente!=null?+m.composants.prix_vente:null,net:0,cout:0});
+    const q=-(+m.quantite||0); a.net+=q; a.cout+=q*(+m.cmup_apres||0);   // sortie = consommation positive, retour / entrée = négatif
+  });
+  const L=Object.values(A).filter(a=>Math.abs(a.net)>1e-9||Math.abs(a.cout)>1e-9).sort((x,y)=>y.cout-x.cout);
+  if(!L.length) return '';
+  const tot=(f)=>L.reduce((t,a)=>t+f(a),0), avecPv=L.some(a=>a.pv!=null);
+  return `<h3 class="font-semibold text-sm mb-1">📊 Valorisation du stock affecté au chantier</h3>
+    <div class="grid sm:grid-cols-${avecPv?4:2} gap-3 mb-2">
+      <div class="card p-3"><div class="text-xs text-gray-400">Coût réel (CMUP des sorties)</div><div class="text-lg font-black">${money(tot(a=>a.cout))}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Valeur au CMUP actuel</div><div class="text-lg font-black">${money(tot(a=>a.net*a.cmup))}</div></div>
+      ${avecPv?`<div class="card p-3"><div class="text-xs text-gray-400">Valeur de vente</div><div class="text-lg font-black">${money(tot(a=>a.net*(a.pv||0)))}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Marge brute</div><div class="text-lg font-black text-emerald-600">${money(tot(a=>a.net*(a.pv||0)-a.cout))}</div></div>`:''}
+    </div>
+    <div class="overflow-x-auto mb-4"><table class="text-sm"><thead><tr><th>Article</th><th class="text-right">Qté nette affectée</th><th class="text-right">CMUP actuel</th><th class="text-right">Coût réel</th>${avecPv?'<th class="text-right">Prix de vente</th><th class="text-right">Valeur de vente</th>':''}</tr></thead><tbody>
+    ${L.map(a=>`<tr><td>${escapeHtml(a.nom)}</td><td class="text-right">${fmtQte(a.net)} ${escapeHtml(a.unite)}</td><td class="text-right">${money(a.cmup)}</td><td class="text-right font-semibold">${money(a.cout)}</td>${avecPv?`<td class="text-right">${a.pv!=null?money(a.pv):'—'}</td><td class="text-right">${a.pv!=null?money(a.net*a.pv):'—'}</td>`:''}</tr>`).join('')}
+    </tbody><tfoot><tr><th>Total</th><th></th><th></th><th class="text-right">${money(tot(a=>a.cout))}</th>${avecPv?`<th></th><th class="text-right">${money(tot(a=>a.net*(a.pv||0)))}</th>`:''}</tr></tfoot></table></div>`;
+}
+/* MODIFICATION d'un mouvement de stock du chantier : informations (date, motif, référence, chantier) avec historique ;
+   quantité d'une SORTIE corrigée par un mouvement d'ajustement compensateur (le registre de stock reste intact). */
+async function stockModifModal(id){
+  const m=(window._stockLignes||[]).find(x=>x.id===id); if(!m) return;
+  await chargerChantiersRef(true);
+  const sortie=m.type==='sortie', qAbs=Math.abs(+m.quantite||0);
+  openModal(`<form id="smForm" class="p-5 grid gap-3" style="min-width:300px;max-width:600px">
+    <h3 class="font-bold text-lg">✏️ Modifier le mouvement de stock</h3>
+    <div class="text-sm text-gray-500">${escapeHtml(m.composants?.nom||'')} — ${(STOCK_TYPE_LABELS[m.type]||{}).label||m.type} de ${fmtQte(qAbs)} ${escapeHtml(m.composants?.unite||'')}</div>
+    <div class="grid sm:grid-cols-2 gap-3">
+      <div class="field"><label>Date du mouvement</label>${fieldWrap('📅',`<input id="smDate" type="date" value="${m.date_mouvement||String(m.created_at).slice(0,10)}">`)}</div>
+      <div class="field"><label>Quantité ${sortie?'':'(non modifiable)'}</label>${fieldWrap('#️⃣',`<input id="smQte" type="number" min="0" step="0.01" value="${qAbs}" ${sortie?'':'disabled'}>`)}</div>
+    </div>
+    <div class="field"><label>Motif</label>${fieldWrap('📝',`<input id="smMotif" value="${escapeHtml(m.motif||'')}">`)}</div>
+    <div class="field"><label>Référence</label>${fieldWrap('🔗',`<input id="smRef" value="${escapeHtml(m.reference||'')}">`)}</div>
+    <div class="grid sm:grid-cols-2 gap-3">${chantierPickerHtml('sm',m.projet_id||'',{tousClients:true})}</div>
+    <div class="text-xs text-gray-400">${sortie?'Une quantité modifiée est corrigée par un mouvement d\'ajustement (visible dans le journal) : le stock et le CMUP restent cohérents.':'La quantité d\'une entrée ne se modifie pas ici (écriture d\'achat associée) : passez un mouvement d\'ajustement.'} Le chantier peut être changé : le mouvement quitte alors ce suivi.</div>
+    <div class="field"><label>Motif de la modification (obligatoire)</label>${fieldWrap('📋','<input id="smRaison" required placeholder="Ex. : erreur de saisie, retour partiel">')}</div>
+    <div class="flex justify-end gap-2"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary">Enregistrer</button></div></form>`);
+  document.getElementById('smForm').onsubmit=async e=>{
+    e.preventDefault();
+    const raison=val('smRaison'), nouveauProjet=chantierValeur('sm'), nq=sortie?(+val('smQte')||0):qAbs;
+    const infoChange=val('smDate')!==(m.date_mouvement||String(m.created_at).slice(0,10))||val('smMotif')!==(m.motif||'')||val('smRef')!==(m.reference||'')||(nouveauProjet||null)!==(m.projet_id||null);
+    const delta=sortie?-(nq-qAbs):0;   // sortie stockée négative : delta de stock = ancienne sortie − nouvelle
+    if(!infoChange&&Math.abs(delta)<1e-9){ toast('Aucun changement.','error'); return; }
+    if(infoChange){
+      const {error}=await sb.rpc('modifier_mouvement_stock',{p_id:id,p_date:val('smDate')||null,p_motif:val('smMotif'),p_reference:val('smRef'),p_projet_id:nouveauProjet||null,p_raison:raison});
+      if(error){ toast(error.message+(/function|schema cache/i.test(error.message)?' — exécuter sql/mouvements_stock_modification.sql':''),'error'); return; }
+    }
+    if(Math.abs(delta)>1e-9){
+      const {error}=await sb.rpc('stock_mouvement',{p_composant_id:m.composant_id,p_type:'ajustement',p_quantite:delta,p_motif:`Correction de sortie (${fmtQte(qAbs)} → ${fmtQte(nq)}) — ${raison}`,p_reference:'COR · '+(m.reference||String(m.id).slice(0,8)),p_prix_unitaire:null,p_depot_id:m.depot_id||null,p_date_mouvement:new Date().toLocaleDateString('sv-SE'),...(nouveauProjet?{p_projet_id:nouveauProjet}:{})});
+      if(error){ toast('Correction de quantité refusée : '+error.message,'error'); return; }
+    }
+    closeModal(); toast('Mouvement modifié (historique enregistré).'); refreshStockAlertesBadge(); renderSuiviChantier(window._matProjet);
+  };
+}
+async function stockHistoriqueModal(projetId){
+  const {data,error}=await sb.from('mouvements_stock_modifs').select('*, profiles(nom_complet)').or(`projet_id.eq.${projetId},projet_avant.eq.${projetId}`).order('created_at',{ascending:false});
+  if(error){ toast('Historique indisponible : '+error.message+' (exécuter sql/mouvements_stock_modification.sql)','error'); return; }
+  const lib=(c,v)=>c==='projet_id'?(v?chantierLabel(v):'— aucun —'):c==='date_mouvement'?fmtDate(v):escapeHtml(v||'—');
+  const noms={date_mouvement:'Date',motif:'Motif',reference:'Référence',projet_id:'Chantier'};
+  const det=h=>Object.keys(noms).filter(c=>String(h.avant?.[c]??'')!==String(h.apres?.[c]??'')).map(c=>`<div>${noms[c]} : ${lib(c,h.avant?.[c])} → <b>${lib(c,h.apres?.[c])}</b></div>`).join('');
+  await chargerChantiersRef();
+  openModal(`<div class="p-5" style="min-width:320px;max-width:760px"><div class="flex justify-between items-center mb-3"><h3 class="font-bold">🕘 Modifications des mouvements de stock (${(data||[]).length})</h3><button class="btn btn-outline text-xs" onclick="closeModal()">Fermer</button></div>
+    <div class="text-xs text-gray-500 mb-2">Les corrections de quantité apparaissent dans le tableau sous forme de mouvements « Ajustement » (référence COR).</div>
+    <div class="overflow-x-auto"><table class="text-sm"><thead><tr><th>Date</th><th>Auteur</th><th>Modification</th><th>Motif</th></tr></thead><tbody>
+    ${(data||[]).map(h=>`<tr><td class="text-xs whitespace-nowrap">${new Date(h.created_at).toLocaleString('fr-FR')}</td><td class="text-xs">${escapeHtml(h.profiles?.nom_complet||'—')}</td><td class="text-xs">${det(h)}</td><td class="text-xs">${escapeHtml(h.motif||'')}</td></tr>`).join('')||'<tr><td colspan="4" class="text-gray-400 text-center p-3">Aucune modification enregistrée.</td></tr>'}
+    </tbody></table></div></div>`);
+}
+
 /* Ajout de matériel (calcul qté × P.U) directement depuis le suivi du chantier */
 async function matAjoutModal(projetId){
   const {data:comps}=await sb.from('composants').select('id,nom,unite,prix_unitaire').order('nom');
@@ -3944,7 +4016,7 @@ async function renderSuiviChantier(projetId){
   const sDevis=dAct.reduce((t,d)=>t+(+d.total||0),0), sFact=fAct.reduce((t,f)=>t+(+f.total||0),0), sEnc=fAct.reduce((t,f)=>t+(payeF[f.id]||0),0);
   const [{data:caisse,error:e1},{data:stock,error:e2},{data:mat,error:e3}]=await Promise.all([
     sb.from('caisse_mouvements').select('*, caisses(nom)').eq('projet_id',projetId).order('date_mouvement',{ascending:false}),
-    sb.from('mouvements_stock').select('*, composants(nom,unite)').eq('projet_id',projetId).order('created_at',{ascending:false}),
+    sb.from('mouvements_stock').select('*, composants(nom,unite,cmup,prix_vente)').eq('projet_id',projetId).order('created_at',{ascending:false}),
     sb.from('chantier_materiel').select('*').eq('projet_id',projetId).order('ordre',{ascending:true})
   ]);
   const {data:pjS}=await sb.from('projets').select('*').eq('id',projetId).single();
@@ -3971,7 +4043,7 @@ async function renderSuiviChantier(projetId){
     }
     if(maj){ const r=await sb.from('chantier_materiel').select('*').eq('projet_id',projetId).order('ordre',{ascending:true}); matL=r.data||matL; }
   }
-  window._matLignes=matL; window._matProjet=projetId;
+  window._matLignes=matL; window._matProjet=projetId; window._stockLignes=stock||[];
   const cm=[...(caisse||[]),...caisseN], ms=[...(stock||[]),...stockN];
   const depenses=cm.filter(m=>m.type==='sortie').reduce((t,m)=>t+(+m.montant||0),0);
   const recettes=cm.filter(m=>m.type==='entree').reduce((t,m)=>t+(+m.montant||0),0);
@@ -4009,17 +4081,19 @@ async function renderSuiviChantier(projetId){
       <div class="card p-3"><div class="text-xs text-gray-400">Matériaux sortis (au CMUP)</div><div class="text-lg font-black">${money(materiaux)}</div></div>
       <div class="card p-3"><div class="text-xs text-gray-400">Coût direct suivi</div><div class="text-lg font-black">${money(depenses+materiaux)}</div></div>
     </div>
+    ${stockValorisationHtml(ms)}
     <h3 class="font-semibold text-sm mb-1">💵 Mouvements de caisse (${cm.length})</h3>
     <div class="overflow-x-auto mb-4"><table><thead><tr><th>Date</th><th>Caisse</th><th>N°</th><th>Motif</th><th class="text-right">Montant</th></tr></thead><tbody>
       ${cm.map(m=>`<tr><td>${fmtDate(m.date_mouvement)}</td><td>${escapeHtml(m.caisses?.nom||'—')}</td><td>${escapeHtml(m.numero||'—')}</td><td>${escapeHtml(m.motif||'')}${m.beneficiaire?' — '+escapeHtml(m.beneficiaire):''}</td>
         <td class="text-right font-semibold ${m.type==='entree'?'text-emerald-600':'text-red-600'}">${m.type==='entree'?'+':'−'} ${money(m.montant)}</td></tr>`).join('')||'<tr><td colspan="5" class="text-gray-400 text-center p-3">Aucun bon de caisse rattaché. Rattachez-les depuis la caisse (bon d\'entrée / de sortie → « Chantier rattaché »).</td></tr>'}
     </tbody></table></div>
-    <h3 class="font-semibold text-sm mb-1">📦 Mouvements de stock (${ms.length})</h3>
-    <div class="overflow-x-auto"><table><thead><tr><th>Date</th><th>Composant</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Coût</th><th>Motif / réf.</th></tr></thead><tbody>
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-1"><h3 class="font-semibold text-sm">📦 Mouvements de stock (${ms.length})</h3><button class="btn btn-outline text-xs" onclick="stockHistoriqueModal('${projetId}')">🕘 Historique des modifications</button></div>
+    <div class="overflow-x-auto"><table><thead><tr><th>Date</th><th>Composant</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Coût</th><th>Motif / réf.</th><th></th></tr></thead><tbody>
       ${ms.map(m=>{ const t=STOCK_TYPE_LABELS[m.type]||{icon:'',label:m.type,color:'#6b7280'}; return `<tr><td class="text-xs">${new Date(m.created_at).toLocaleDateString('fr-FR')}</td><td>${escapeHtml(m.composants?.nom||'—')}</td>
         <td><span class="pill" style="color:${t.color};border-color:${t.color}">${t.icon} ${t.label}</span></td>
         <td class="text-right">${(+m.quantite).toFixed(2)} ${escapeHtml(m.composants?.unite||'')}</td><td class="text-right">${money(coutLigne(m))}</td>
-        <td class="text-xs">${escapeHtml(m.motif||'')}${m.reference?' · '+escapeHtml(m.reference):''}</td></tr>`; }).join('')||'<tr><td colspan="6" class="text-gray-400 text-center p-3">Aucun mouvement de stock rattaché.</td></tr>'}
+        <td class="text-xs">${escapeHtml(m.motif||'')}${m.reference?' · '+escapeHtml(m.reference):''}</td>
+        <td class="whitespace-nowrap">${m.projet_id===projetId&&!m.transfert_id?`<button type="button" title="Modifier ce mouvement" onclick="stockModifModal('${m.id}')">✏️</button>`:'<span class="text-[10px] text-gray-400" title="Rattaché via le n° de facture : rattachez-le définitivement pour le modifier">—</span>'}</td></tr>`; }).join('')||'<tr><td colspan="7" class="text-gray-400 text-center p-3">Aucun mouvement de stock rattaché.</td></tr>'}
     </tbody></table></div>`;
 }
 
