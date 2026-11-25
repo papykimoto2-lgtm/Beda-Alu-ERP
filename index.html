@@ -3460,8 +3460,8 @@ async function renderProjetForm(el,opts={}){
         ${p.id?'':`<div class="sm:col-span-3 border rounded-lg p-3">
           <div class="text-xs font-bold text-gray-500 uppercase mb-2">🧱 Calcul du matériel (estimation)</div>
           <div class="field">${fieldWrap('🔎',smartSelect('pjMatPick',window._pjComps.map(c=>({id:c.id,label:c.nom+' ('+(c.unite||'')+')'})),'',{placeholder:'Ajouter un composant / matériau…',onChange:"pjMatAdd(this.value)"}))}</div>
-          <div class="overflow-x-auto mt-2"><table class="w-full text-sm"><thead><tr><th>Désignation</th><th class="text-right">Qté</th><th class="text-right">P.U (FCFA)</th><th class="text-right">Montant</th><th></th></tr></thead><tbody id="pjMatBody"></tbody>
-          <tfoot><tr><th colspan="3" class="text-right">Total matériel</th><th class="text-right" id="pjMatTotal">0 FCFA</th><th></th></tr></tfoot></table></div>
+          <div class="overflow-x-auto mt-2"><table class="w-full text-sm"><thead><tr><th>Désignation</th><th>Fournisseur</th><th class="text-right">Qté</th><th class="text-right">P.U (FCFA)</th><th class="text-right">Montant</th><th></th></tr></thead><tbody id="pjMatBody"></tbody>
+          <tfoot><tr><th colspan="4" class="text-right">Total matériel</th><th class="text-right" id="pjMatTotal">0 FCFA</th><th></th></tr></tfoot></table></div>${await matFournisseursDatalist()}
           <button type="button" class="btn btn-outline text-xs mt-2" onclick="pjMatAdd('')">+ Ligne libre</button>
         </div>`}
         <div class="field sm:col-span-3"><label>Description</label>${fieldWrap('📝',`<textarea id="pjDescription" rows="3">${escapeHtml(p.description||'')}</textarea>`)}</div>
@@ -3473,6 +3473,7 @@ async function renderProjetForm(el,opts={}){
   window.pjMatRender=()=>{
     const B=document.getElementById('pjMatBody'); if(!B) return;
     B.innerHTML=window._pjMat.map((m,i)=>`<tr><td><input class="w-full" value="${escapeHtml(m.designation)}" oninput="window._pjMat[${i}].designation=this.value" placeholder="Désignation"></td>
+      <td><input list="dlFrs" style="width:130px" value="${escapeHtml(m.fournisseur||'')}" oninput="window._pjMat[${i}].fournisseur=this.value" placeholder="Fournisseur"></td>
       <td class="text-right"><input type="number" min="0" step="any" style="width:80px" value="${m.quantite}" oninput="window._pjMat[${i}].quantite=+this.value||0;pjMatTot()"></td>
       <td class="text-right"><input type="number" min="0" step="any" style="width:110px" value="${m.prix_unitaire}" oninput="window._pjMat[${i}].prix_unitaire=+this.value||0;pjMatTot()"></td>
       <td class="text-right font-semibold" id="pjMatM${i}">${money(m.quantite*m.prix_unitaire)}</td>
@@ -3482,7 +3483,7 @@ async function renderProjetForm(el,opts={}){
   window.pjMatTot=()=>{ window._pjMat.forEach((m,i)=>{ const e=document.getElementById('pjMatM'+i); if(e) e.textContent=money(m.quantite*m.prix_unitaire); }); const t=document.getElementById('pjMatTotal'); if(t) t.textContent=money(window._pjMat.reduce((a,m)=>a+m.quantite*m.prix_unitaire,0)); };
   window.pjMatAdd=(id)=>{
     const c=id?window._pjComps.find(x=>x.id===id):null;
-    window._pjMat.push({composant_id:c?.id||null,designation:c?c.nom:'',quantite:1,prix_unitaire:+c?.prix_unitaire||0});
+    window._pjMat.push({composant_id:c?.id||null,designation:c?c.nom:'',fournisseur:'',quantite:1,prix_unitaire:+c?.prix_unitaire||0});
     if(id){ document.getElementById('pjMatPick').value=''; document.getElementById('pjMatPick_q').value=''; }
     pjMatRender();
   };
@@ -3522,7 +3523,7 @@ async function renderProjetForm(el,opts={}){
     if(error&&/n_facture/.test(error.message||'')){ delete rec.n_facture; toast("N° de facture non enregistré : exécuter sql/projets_n_facture.sql",'error'); error=await ecrire(); }
     const lignesMat=(window._pjMat||[]).filter(m=>m.designation.trim()&&m.quantite>0);
     if(!error&&projetCree&&lignesMat.length){
-      ({error}=await sb.from('chantier_materiel').insert(lignesMat.map((m,i)=>({projet_id:projetCree,ordre:i+1,quantite:m.quantite,designation:m.designation.trim(),prix_unitaire:m.prix_unitaire}))));
+      ({error}=await sb.from('chantier_materiel').insert(lignesMat.map((m,i)=>({projet_id:projetCree,ordre:i+1,quantite:m.quantite,designation:m.designation.trim(),fournisseur:(m.fournisseur||'').trim()||null,prix_unitaire:m.prix_unitaire}))));
       if(error){ await sb.from('projets').delete().eq('id',projetCree); }   // annule le chantier si le matériel échoue
     }
     if(error){
@@ -3548,7 +3549,7 @@ function matChantierHtml(rows,erreur,editable){
   L.forEach(m=>{ const k=(m.fournisseur||'').trim()||'Non renseigné'; const f=frs[k]||(frs[k]={nom:k,n:0,total:0,paye:0}); f.n++; f.total+=montant(m); if(matEstPaye(m)) f.paye+=montant(m); });
   const parFrs=Object.values(frs).sort((a,b)=>b.total-a.total);
   const kpi=(t,v,c,s)=>`<div class="card p-3"><div class="text-xs text-gray-400">${t}</div><div class="text-lg font-black ${c||''}">${v}</div>${s?`<div class="text-xs text-gray-400">${s}</div>`:''}</div>`;
-  const badge=m=>matEstPaye(m)?'<span class="pill" style="color:#059669;border-color:#059669">Payé</span>':'<span class="pill" style="color:#d97706;border-color:#d97706">À payer</span>';
+  const badge=m=>/^Demande\s/i.test(m.statut_paiement||'')?`<span class="pill" style="color:#6d28d9;border-color:#6d28d9" title="${escapeHtml(m.statut_paiement)}">⏳ En validation</span>`:matEstPaye(m)?'<span class="pill" style="color:#059669;border-color:#059669">Payé</span>':'<span class="pill" style="color:#d97706;border-color:#d97706">À payer</span>';
   return `
     <h3 class="font-semibold text-sm mb-2">🧱 Matériel affecté au chantier (${L.length} ligne${L.length>1?'s':''})</h3>
     <div class="grid sm:grid-cols-4 gap-3 mb-3">
@@ -3557,23 +3558,25 @@ function matChantierHtml(rows,erreur,editable){
       ${kpi('Reste à payer / non renseigné',money(reste),reste>0?'text-red-600':'',(L.length-nbPaye)+' ligne(s)')}
       ${kpi('Fournisseurs',String(parFrs.filter(f=>f.nom!=='Non renseigné').length),'',total?Math.round(paye/total*100)+' % payé':'')}
     </div>
-    ${parFrs.length>1?`<div class="overflow-x-auto mb-3"><table><thead><tr><th>Fournisseur</th><th class="text-right">Lignes</th><th class="text-right">Montant</th><th class="text-right">Payé</th><th class="text-right">Reste</th></tr></thead><tbody>
-      ${parFrs.map(f=>`<tr><td>${escapeHtml(f.nom)}</td><td class="text-right">${f.n}</td><td class="text-right font-semibold">${money(f.total)}</td><td class="text-right">${money(f.paye)}</td><td class="text-right ${f.total-f.paye>0?'text-red-600':''}">${money(f.total-f.paye)}</td></tr>`).join('')}
+    ${parFrs.length>1||(editable&&parFrs.length)?`<div class="overflow-x-auto mb-3"><table><thead><tr><th>Fournisseur</th><th class="text-right">Lignes</th><th class="text-right">Montant</th><th class="text-right">Payé</th><th class="text-right">Reste</th>${editable?'<th></th>':''}</tr></thead><tbody>
+      ${parFrs.map(f=>`<tr><td>${escapeHtml(f.nom)}</td><td class="text-right">${f.n}</td><td class="text-right font-semibold">${money(f.total)}</td><td class="text-right">${money(f.paye)}</td><td class="text-right ${f.total-f.paye>0?'text-red-600':''}">${money(f.total-f.paye)}</td>${editable?`<td>${f.nom!=='Non renseigné'&&f.total-f.paye>0?`<button type="button" class="btn btn-outline text-xs" onclick="matReglerModal('${editable}',decodeURIComponent('${encodeURIComponent(f.nom)}'))">💵 Régler à la caisse</button>`:''}</td>`:''}</tr>`).join('')}
     </tbody></table></div>`:''}
     <div class="overflow-x-auto mb-4"><table><thead><tr><th>#</th><th class="text-right">Qté</th><th>Désignation</th><th>Fournisseur</th><th class="text-right">P.U</th><th class="text-right">Montant</th><th>Paiement</th><th>Date paiement</th><th>Livraison</th>${editable?'<th></th>':''}</tr></thead><tbody>
       ${L.map((m,i)=>`<tr><td class="text-xs text-gray-400">${m.ordre||i+1}</td><td class="text-right">${m.quantite==null?'—':fmtQte(+m.quantite)}</td>
         <td>${escapeHtml(m.designation||'')}${m.code_article?` <span class="text-xs text-gray-400">(${escapeHtml(m.code_article)})</span>`:''}</td><td class="text-xs">${escapeHtml(m.fournisseur||'—')}</td>
         <td class="text-right">${m.prix_unitaire==null?'—':money(m.prix_unitaire)}</td><td class="text-right font-semibold">${money(montant(m))}</td>
-        <td>${badge(m)}${m.statut_paiement&&/chq|cheq/i.test(m.statut_paiement)?' <span class="text-xs text-gray-400">chèque</span>':''}</td><td class="text-xs">${m.date_paiement?fmtDate(m.date_paiement):'—'}</td><td class="text-xs">${escapeHtml(m.livraison||'—')}</td>${editable?`<td class="whitespace-nowrap"><button type="button" title="Modifier" onclick="matEditModal('${m.id}')">✏️</button> <button type="button" title="Supprimer" class="text-red-600" onclick="matSupprModal('${m.id}')">✕</button></td>`:''}</tr>`).join('')||'<tr><td colspan="10" class="text-gray-400 text-center p-3">Aucun matériel enregistré pour ce chantier.</td></tr>'}
+        <td>${badge(m)}${m.statut_paiement&&/chq|cheq/i.test(m.statut_paiement)?' <span class="text-xs text-gray-400">chèque</span>':''}</td><td class="text-xs">${m.date_paiement?fmtDate(m.date_paiement):'—'}</td><td class="text-xs">${escapeHtml(m.livraison||'—')}</td>${editable?`<td class="whitespace-nowrap">${!matEstPaye(m)&&!/^Demande\s/i.test(m.statut_paiement||'')&&m.fournisseur?`<button type="button" title="Régler ce fournisseur à la caisse" onclick="matReglerModal('${editable}',decodeURIComponent('${encodeURIComponent(m.fournisseur)}'),'${m.id}')">💵</button> `:''}<button type="button" title="Modifier" onclick="matEditModal('${m.id}')">✏️</button> <button type="button" title="Supprimer" class="text-red-600" onclick="matSupprModal('${m.id}')">✕</button></td>`:''}</tr>`).join('')||'<tr><td colspan="10" class="text-gray-400 text-center p-3">Aucun matériel enregistré pour ce chantier.</td></tr>'}
     </tbody>${L.length?`<tfoot><tr><th colspan="5" class="text-right">Total matériel</th><th class="text-right">${money(total)}</th><th colspan="${editable?4:3}"></th></tr></tfoot>`:''}</table></div>`;
 }
 
 /* Modification / suppression d'une ligne de matériel avec motif obligatoire ; journal tenu par trigger SQL (sql/chantier_materiel_historique.sql) */
 function matEditModal(id){
+  matFournisseursDatalist();
   const m=(window._matLignes||[]).find(x=>x.id===id); if(!m) return;
   openModal(`<form id="meForm" class="p-5 grid gap-3" style="min-width:300px">
     <h3 class="font-bold">✏️ Modifier la ligne de matériel</h3>
     <div class="field"><label>Désignation</label>${fieldWrap('📝',`<input id="meDes" required value="${escapeHtml(m.designation||'')}">`)}</div>
+    <div class="field"><label>Fournisseur</label>${fieldWrap('🏭',`<input id="meFrs" list="dlFrs" value="${escapeHtml(m.fournisseur||'')}">`)}${window._frsNoms?`<datalist id="dlFrs">${window._frsNoms.map(n=>`<option value="${escapeHtml(n)}">`).join('')}</datalist>`:''}</div>
     <div class="grid grid-cols-2 gap-3"><div class="field"><label>Quantité</label>${fieldWrap('🔢',`<input id="meQte" type="number" min="0" step="any" value="${m.quantite??0}" oninput="meTot()">`)}</div>
     <div class="field"><label>P.U (FCFA)</label>${fieldWrap('💰',`<input id="mePu" type="number" min="0" step="any" value="${m.prix_unitaire??0}" oninput="meTot()">`)}</div></div>
     <div class="text-right font-bold" id="meTotal"></div>
@@ -3582,7 +3585,11 @@ function matEditModal(id){
   window.meTot=()=>{ document.getElementById('meTotal').textContent=money((+val('meQte')||0)*(+val('mePu')||0)); }; meTot();
   document.getElementById('meForm').onsubmit=async e=>{
     e.preventDefault();
-    const {error}=await sb.rpc('modifier_materiel',{p_id:id,p_designation:val('meDes'),p_quantite:+val('meQte')||0,p_prix_unitaire:+val('mePu')||0,p_motif:val('meMotif')});
+    const arg={p_id:id,p_designation:val('meDes'),p_quantite:+val('meQte')||0,p_prix_unitaire:+val('mePu')||0,p_motif:val('meMotif')};
+    let {error}=await sb.rpc('modifier_materiel',{...arg,p_fournisseur:val('meFrs')||null});
+    if(error&&/modifier_materiel|schema cache|function/i.test(error.message||'')){   // base non migrée (sql/materiel_fournisseur.sql) : sans fournisseur
+      ({error}=await sb.rpc('modifier_materiel',arg)); if(!error) toast('Fournisseur non enregistré : exécuter sql/materiel_fournisseur.sql','error');
+    }
     if(error){ toast(error.message,'error'); return; }
     closeModal(); toast('Ligne modifiée (historique enregistré).'); renderSuiviChantier(window._matProjet);
   };
@@ -3613,6 +3620,47 @@ async function matHistoriqueModal(projetId){
     <div class="overflow-x-auto"><table class="text-sm"><thead><tr><th>Date</th><th>Auteur</th><th>Action</th><th>Ligne</th><th>Détail</th><th>Motif</th></tr></thead><tbody>
     ${(data||[]).map(h=>`<tr><td class="text-xs whitespace-nowrap">${new Date(h.created_at).toLocaleString('fr-FR')}</td><td class="text-xs">${escapeHtml(h.profiles?.nom_complet||'—')}</td><td><span class="pill">${h.action}</span></td><td>${des(h)}</td><td class="text-xs">${det(h)}</td><td class="text-xs">${escapeHtml(h.motif||'')}</td></tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 text-center p-3">Aucune modification enregistrée.</td></tr>'}
     </tbody></table></div></div>`);
+}
+
+/* RÈGLEMENT D'UN FOURNISSEUR À LA CAISSE — depuis le matériel du chantier.
+   Le règlement passe par un BON DE SORTIE de la caisse (circuit habituel : demande → validation DG selon la règle, plafond, séance ouverte,
+   écriture comptable 4011 → caisse). Le bon est pré-rempli (bénéficiaire = fournisseur, chantier, montant, motif). Les lignes passent à
+   « Payé » (bon direct) ou « Demande BS-… » (en validation) puis « Payé » automatiquement dès que la demande est validée. */
+async function matReglerModal(projetId,fournisseur,ligneId){
+  const L=(window._matLignes||[]).filter(m=>(m.fournisseur||'').trim()===fournisseur&&!matEstPaye(m)&&!/^Demande\s/i.test(m.statut_paiement||'')&&(!ligneId||m.id===ligneId));
+  if(!L.length){ toast('Aucune ligne à régler pour ce fournisseur.','error'); return; }
+  const total=L.reduce((t,m)=>t+(+m.montant||0),0);
+  const {data:ss,error}=await sb.from('caisse_sessions').select('id,caisse_id,caisses(nom)').eq('statut','ouverte');
+  if(error){ toast(error.message,'error'); return; }
+  if(!(ss||[]).length){ toast("Aucune caisse ouverte : ouvrez une séance de caisse (avec votre PIN) avant de régler.",'error'); return; }
+  window._matRegl={projetId,fournisseur,ids:L.map(m=>m.id),total};
+  openModal(`<div class="p-5 grid gap-3" style="min-width:320px;max-width:520px">
+    <h3 class="font-bold">💵 Régler ${escapeHtml(fournisseur)} à la caisse</h3>
+    <table class="text-sm"><tbody>${L.map(m=>`<tr><td>${escapeHtml(m.designation||'')}</td><td class="text-right">${money(m.montant)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><th>Total à régler</th><th class="text-right">${money(total)}</th></tr></tfoot></table>
+    <div class="field"><label>Caisse (séance ouverte)</label>${fieldWrap('💵',`<select id="mrCaisse">${ss.map(x=>`<option value="${x.caisse_id}">${escapeHtml(x.caisses?.nom||'Caisse')}</option>`).join('')}</select>`)}</div>
+    <div class="text-xs text-gray-500">Un bon de sortie pré-rempli s'ouvre : vérifiez-le puis enregistrez. Selon la règle de validation, il part chez le DG ; les lignes passent à « Payé » dès la validation.</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="matReglerGo()">Établir le bon de sortie</button></div></div>`);
+}
+async function matReglerGo(){
+  const R=window._matRegl; const caisseId=val('mrCaisse'); if(!R||!caisseId) return;
+  closeModal();
+  const {data:pj}=await sb.from('projets').select('code,libelle,n_facture').eq('id',R.projetId).single();
+  window._bonPrefillProjet=R.projetId;                 // lu (et vidé) par caisseOuvrirBonModal
+  window._editId=caisseId; await showPage('caisse-detail');
+  await caisseOuvrirBonModal('sortie');
+  const set=(id,v)=>{ const e=document.getElementById(id); if(e) e.value=v; };
+  set('bonMontant',R.total);
+  set('bonMotif',`Règlement fournisseur ${R.fournisseur} — chantier ${pj?.code||''} ${pj?.libelle||''}${pj?.n_facture?' — facture '+pj.n_facture:''}`.trim());
+  set('bonBeneficiaire',R.fournisseur);
+  const cpt=document.getElementById('bonCompte'); if(cpt&&[...cpt.options].some(o=>o.value==='4011')) cpt.value='4011';   // 4011 Fournisseurs (SYSCOHADA)
+  const h=document.createElement('input'); h.type='hidden'; h.id='bonMatIds'; h.value=R.ids.join(',');
+  document.getElementById('bonMontant').closest('.grid').appendChild(h);   // lie le bon aux lignes de matériel ; disparaît avec la fenêtre
+}
+async function matMarquerRegle(ids,statut,date){
+  if(!ids.length) return;
+  const {error}=await sb.from('chantier_materiel').update({statut_paiement:statut,date_paiement:date||null}).in('id',ids);
+  if(error) toast('Matériel non mis à jour : '+error.message,'error');
 }
 
 /* Rattache définitivement (projet_id) les mouvements de caisse / stock retrouvés via le n° de facture du chantier */
@@ -3649,6 +3697,11 @@ async function matImprimer(projetId){
   await impEcrire(win,{type:'MATERIEL_CHANTIER',titre:'Calcul du matériel',periode:pj?.code||'',montant:total,niveau:pj?.libelle||'',contenu:true},html);
 }
 
+/* Fournisseurs (liste de suggestions pour les champs « fournisseur ») */
+async function matFournisseursDatalist(){
+  if(!window._frsNoms){ const {data}=await sb.from('fournisseurs').select('nom').order('nom'); window._frsNoms=(data||[]).map(x=>x.nom).filter(Boolean); }
+  return `<datalist id="dlFrs">${window._frsNoms.map(n=>`<option value="${escapeHtml(n)}">`).join('')}</datalist>`;
+}
 /* Ajout de matériel (calcul qté × P.U) directement depuis le suivi du chantier */
 async function matAjoutModal(projetId){
   const {data:comps}=await sb.from('composants').select('id,nom,unite,prix_unitaire').order('nom');
@@ -3657,6 +3710,7 @@ async function matAjoutModal(projetId){
     <h3 class="font-bold">🧱 Ajouter du matériel</h3>
     <div class="field"><label>Composant (facultatif)</label>${fieldWrap('🔎',smartSelect('maComp',window._maComps.map(c=>({id:c.id,label:c.nom+' ('+(c.unite||'')+')'})),'',{placeholder:'Rechercher…',onChange:'maPick(this.value)'}))}</div>
     <div class="field"><label>Désignation</label>${fieldWrap('📝','<input id="maDes" required>')}</div>
+    <div class="field"><label>Fournisseur</label>${fieldWrap('🏭','<input id="maFrs" list="dlFrs" placeholder="Nom du fournisseur (liste ou saisie libre)">')}${await matFournisseursDatalist()}</div>
     <div class="grid grid-cols-2 gap-3"><div class="field"><label>Quantité</label>${fieldWrap('🔢','<input id="maQte" type="number" min="0" step="any" value="1" oninput="maTot()">')}</div>
     <div class="field"><label>P.U (FCFA)</label>${fieldWrap('💰','<input id="maPu" type="number" min="0" step="any" value="0" oninput="maTot()">')}</div></div>
     <div class="text-right font-bold" id="maTotal">0 FCFA</div>
@@ -3667,7 +3721,7 @@ async function matAjoutModal(projetId){
     e.preventDefault();
     const q=+val('maQte')||0, pu=+val('maPu')||0;
     const {data:last}=await sb.from('chantier_materiel').select('ordre').eq('projet_id',projetId).order('ordre',{ascending:false}).limit(1);
-    const {error}=await sb.from('chantier_materiel').insert({projet_id:projetId,ordre:(last?.[0]?.ordre||0)+1,quantite:q,designation:val('maDes'),prix_unitaire:pu});
+    const {error}=await sb.from('chantier_materiel').insert({projet_id:projetId,ordre:(last?.[0]?.ordre||0)+1,quantite:q,designation:val('maDes'),fournisseur:val('maFrs')||null,prix_unitaire:pu});
     if(error){ toast(error.message,'error'); return; }
     closeModal(); toast('Matériel ajouté.'); renderSuiviChantier(projetId);
   };
@@ -3694,7 +3748,20 @@ async function renderSuiviChantier(projetId){
   }
   window._matNonRatt={caisse:caisseN,stock:stockN};
   if(e1||e2){ host.innerHTML=`<div class="text-sm text-gray-400">Suivi indisponible : ${escapeHtml((e1||e2).message)}</div>`; return; }
-  window._matLignes=mat||[]; window._matProjet=projetId;
+  let matL=mat||[];
+  const enDem=matL.filter(m=>/^Demande\s/i.test(m.statut_paiement||''));
+  if(enDem.length){   // demandes de règlement : validée → « Payé » ; rejetée / annulée → à nouveau « À payer »
+    const nums=[...new Set(enDem.map(m=>m.statut_paiement.replace(/^Demande\s+/i,'').trim()))];
+    const {data:ds}=await sb.from('caisse_demandes').select('numero,statut,decide_le,decaisse_le').in('numero',nums);
+    let maj=false;
+    for(const m of enDem){
+      const d=(ds||[]).find(x=>x.numero===m.statut_paiement.replace(/^Demande\s+/i,'').trim()); if(!d) continue;
+      if(d.statut==='validee'){ await sb.from('chantier_materiel').update({statut_paiement:'Payé',date_paiement:String(d.decaisse_le||d.decide_le||new Date().toISOString()).slice(0,10)}).eq('id',m.id); maj=true; }
+      else if(d.statut==='rejetee'||d.statut==='annulee'){ await sb.from('chantier_materiel').update({statut_paiement:null,date_paiement:null}).eq('id',m.id); maj=true; }
+    }
+    if(maj){ const r=await sb.from('chantier_materiel').select('*').eq('projet_id',projetId).order('ordre',{ascending:true}); matL=r.data||matL; }
+  }
+  window._matLignes=matL; window._matProjet=projetId;
   const cm=[...(caisse||[]),...caisseN], ms=[...(stock||[]),...stockN];
   const depenses=cm.filter(m=>m.type==='sortie').reduce((t,m)=>t+(+m.montant||0),0);
   const recettes=cm.filter(m=>m.type==='entree').reduce((t,m)=>t+(+m.montant||0),0);
@@ -3719,7 +3786,7 @@ async function renderSuiviChantier(projetId){
         <td><span class="pill ${st.color}">${st.label}</span></td><td class="text-right font-semibold">${money(d.total)}</td>
         <td>${fl.map(f=>`<a href="#" class="text-xs hover:underline" style="color:#4f46e5" onclick="window._editId='${f.id}';showPage('facture-view');return false;">${escapeHtml(f.code)}</a> <span class="text-xs text-gray-400">${money(f.total)} · ${(STATUT_FACTURE[f.statut]||{}).label||f.statut}</span>`).join('<br>')||'<span class="text-xs text-gray-400">aucune</span>'}</td></tr>`; }).join('')||'<tr><td colspan="4" class="text-gray-400 text-center p-3">Aucun devis lié. Créez-en un ou rattachez un devis existant (champ « Chantier » du devis).</td></tr>'}
     </tbody></table></div>
-    ${matChantierHtml(mat,e3,projetId)}
+    ${matChantierHtml(matL,e3,projetId)}
     <div class="grid sm:grid-cols-4 gap-3 mb-4">
       <div class="card p-3"><div class="text-xs text-gray-400">Dépenses de caisse</div><div class="text-lg font-black text-red-600">${money(depenses)}</div></div>
       <div class="card p-3"><div class="text-xs text-gray-400">Encaissements (caisse)</div><div class="text-lg font-black text-emerald-600">${money(recettes)}</div></div>
@@ -12341,6 +12408,7 @@ async function caisseConfirmerOuverture(caisseId){
 }
 async function caisseOuvrirBonModal(type){
   const {session,caisse}=window._caisseDetailCache;
+  const projetPre=window._bonPrefillProjet||''; window._bonPrefillProjet=null;
   await chargerChantiersRef(true); await comptaChargerReferentiel();
   openModal(`
     <h3 class="font-bold text-lg mb-4">${type==='entree'?"+ Bon d'entrée":'− Bon de sortie'}</h3>
@@ -12350,7 +12418,7 @@ async function caisseOuvrirBonModal(type){
     </div>
     <div class="field mb-3"><label>Motif</label>${fieldWrap('📝',`<input id="bonMotif" placeholder="ex: Achat quincaillerie chantier X">`)}</div>
     <div class="field mb-3"><label>${type==='entree'?'Provenance':'Bénéficiaire'}</label>${fieldWrap('👤',`<input id="bonBeneficiaire">`)}</div>
-    <div class="grid sm:grid-cols-2 gap-3 mb-1">${chantierPickerHtml('bon',caisse?.projet_id||'',{tousClients:true})}</div>
+    <div class="grid sm:grid-cols-2 gap-3 mb-1">${chantierPickerHtml('bon',projetPre||caisse?.projet_id||'',{tousClients:true})}</div>
     <div class="text-xs text-gray-400 mb-3">Rattachez le bon au chantier d'un client pour suivre ses dépenses (fiche du chantier) ; l'écriture de ventilation portera ce chantier.</div>
     <div class="field mb-1"><label>Compte d'imputation SYSCOHADA (comptabilité automatique)</label>${fieldWrap('📗',`<select id="bonCompte"><option value="">— Déterminé par les règles, sinon à ventiler —</option>${compteOptionsHtml('')}</select>`)}</div>
     <div class="text-xs text-gray-400 mb-4">${type==='entree'?'Ex. 4111 client, 4191 avance reçue, 758 produits divers':'Ex. 6042 carburant, 6181 déplacements, 604 fournitures, 622 locations, 4011 règlement fournisseur, 421 avance au personnel'} — l'écriture est générée dès que le bon est enregistré (ou validé par le DG).</div>
@@ -12372,6 +12440,8 @@ async function caisseSauverBon(type,sessionId){
     // Circuit DG : demande soumise à validation — le bon n'entre dans le solde qu'une fois approuvé
     const d=await creerDemandeCaisse({caisse_id:caisse.id,session_id:sessionId,type,montant,date_mouvement,motif,beneficiaire:beneficiaire||null,projet_id:chantierValeur('bon'),...(compteImputation?{compte_imputation:compteImputation}:{})});
     if(!d) return;
+    const matIds=(document.getElementById('bonMatIds')?.value||'').split(',').filter(Boolean);
+    if(matIds.length) await matMarquerRegle(matIds,'Demande '+d.numero,null);   // lignes « en validation » jusqu'à la décision
     closeModal(); await showPage('caisse-detail'); majBadgeValidations(); demandeEnvoyeeModal(d,caisse.nom); return;
   }
   const {count}=await sb.from('caisse_mouvements').select('id',{count:'exact',head:true}).eq('caisse_id',caisse.id);
@@ -12382,6 +12452,7 @@ async function caisseSauverBon(type,sessionId){
   const projet_id=chantierValeur('bon');
   const {data:mvt,error}=await sb.from('caisse_mouvements').insert({session_id:sessionId,caisse_id:caisse.id,numero,date_mouvement,type,montant,motif,beneficiaire:beneficiaire||null,statut:'a_ventiler',created_by:CURRENT_USER.id,...(projet_id?{projet_id}:{})}).select().single();
   if(error){ toast(error.message,'error'); return; }
+  { const matIds=(document.getElementById('bonMatIds')?.value||'').split(',').filter(Boolean); if(matIds.length) await matMarquerRegle(matIds,'Payé',date_mouvement); }   // règlement fournisseur direct
   if(compteImputation && mvt){
     const r=await caisseExecuterVentilation({...mvt,caisses:{compte_code:caisse.compte_code,nom:caisse.nom}},compteImputation,false);
     toast(r.ok?`Bon ${numero} enregistré et comptabilisé (${compteImputation}).`:`Bon enregistré — écriture non générée : ${r.message}`,r.ok?'success':'error');
