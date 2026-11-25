@@ -12343,6 +12343,11 @@ async function comptaRenderCycleView(){
   await fn(host);
 }
 
+/* Lecture complète d'une requête par pages de 1000 lignes (limite PostgREST), plafonnée pour protéger le navigateur */
+async function lireToutParPages(construire,max=20000){
+  const out=[]; for(let d=0;d<max;d+=1000){ const {data,error}=await construire().range(d,d+999); if(error) throw error; out.push(...(data||[])); if((data||[]).length<1000) break; }
+  return out;
+}
 /* ---------- Ventilation des mouvements de caisse (imputation comptable ; le brouillard de caisse est dans le module Caisse) ---------- */
 async function comptaRenderVentilationCaisse(host){
   window._compta.brouillard=window._compta.brouillard||{caisseId:'',debut:new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10),fin:new Date().toISOString().slice(0,10),statut:'',memoriser:true};
@@ -12352,13 +12357,18 @@ async function comptaRenderVentilationCaisse(host){
     sb.from('caisses').select('*').order('nom'),
     sb.from('caisse_regles_ventilation').select('*')
   ]);
-  let q=sb.from('caisse_mouvements').select('*, caisses(nom,compte_code), caisse_sessions(statut)').gte('date_mouvement',f.debut).lte('date_mouvement',f.fin).order('date_mouvement',{ascending:false}).order('created_at',{ascending:false});
-  if(f.caisseId) q=q.eq('caisse_id',f.caisseId);
-  if(f.statut) q=q.eq('statut',f.statut);
-  const {data:mvtsBrut,error}=await q;
-  if(error){ toast(error.message,'error'); return; }
-  const mvts=(mvtsBrut||[]).filter(m=>m.caisse_sessions?.statut==='cloturee');
-  await chargerChantiersRef(true);
+  let mvts;
+  try{   // séances clôturées filtrées côté serveur ; lecture par pages (au-delà de 1000 lignes)
+    mvts=await lireToutParPages(()=>{
+      let q=sb.from('caisse_mouvements').select('*, caisses(nom,compte_code), caisse_sessions!inner(statut)').eq('caisse_sessions.statut','cloturee').gte('date_mouvement',f.debut).lte('date_mouvement',f.fin).order('date_mouvement',{ascending:false}).order('created_at',{ascending:false}).order('id');
+      if(f.caisseId) q=q.eq('caisse_id',f.caisseId);
+      if(f.statut) q=q.eq('statut',f.statut);
+      return q;
+    });
+  }catch(error){ toast(error.message||String(error),'error'); return; }
+  await chargerChantiersRef();
+  const PAGE=100, nbPages=Math.max(1,Math.ceil(mvts.length/PAGE)); f.page=Math.min(Math.max(0,f.page||0),nbPages-1);
+  const affiches=mvts.slice(f.page*PAGE,(f.page+1)*PAGE);   // seules 100 lignes sont dessinées : le navigateur ne plante plus sur une grande période
   const totalEntrees=mvts.filter(m=>m.type==='entree').reduce((s,m)=>s+(+m.montant||0),0);
   const totalSorties=mvts.filter(m=>m.type==='sortie').reduce((s,m)=>s+(+m.montant||0),0);
   const aVentilerListe=mvts.filter(m=>m.statut==='a_ventiler');
@@ -12367,13 +12377,13 @@ async function comptaRenderVentilationCaisse(host){
       <div><h3 class="font-bold">📒 Ventilation des mouvements de caisse</h3>
       <p class="text-xs text-gray-500">Imputation comptable : chaque mouvement reçoit son compte de contrepartie et génère son écriture. Seuls les mouvements des séances <b>clôturées</b> apparaissent ici (les séances ouvertes se ventilent depuis « Détail caisse »). Le journal chronologique de la caisse est le <a class="text-indigo-600 underline cursor-pointer" onclick="window._brouillard.caisseId=window._compta.brouillard.caisseId||'';showPage('caisse-brouillard')">brouillard de caisse</a>.</p></div>
       <div class="flex flex-wrap gap-2 items-center">
-        <select onchange="window._compta.brouillard.caisseId=this.value;comptaRenderCycleView()">
+        <select onchange="window._compta.brouillard.caisseId=this.value;window._compta.brouillard.page=0;comptaRenderCycleView()">
           <option value="">Toutes les caisses</option>
           ${(caisses||[]).map(c=>`<option value="${c.id}" ${c.id===f.caisseId?'selected':''}>${escapeHtml(c.nom)}</option>`).join('')}
         </select>
-        <input type="date" value="${f.debut}" onchange="window._compta.brouillard.debut=this.value;comptaRenderCycleView()">
-        <input type="date" value="${f.fin}" onchange="window._compta.brouillard.fin=this.value;comptaRenderCycleView()">
-        <select onchange="window._compta.brouillard.statut=this.value;comptaRenderCycleView()">
+        <input type="date" value="${f.debut}" onchange="window._compta.brouillard.debut=this.value;window._compta.brouillard.page=0;comptaRenderCycleView()">
+        <input type="date" value="${f.fin}" onchange="window._compta.brouillard.fin=this.value;window._compta.brouillard.page=0;comptaRenderCycleView()">
+        <select onchange="window._compta.brouillard.statut=this.value;window._compta.brouillard.page=0;comptaRenderCycleView()">
           <option value="">Tous statuts</option>
           <option value="a_ventiler" ${f.statut==='a_ventiler'?'selected':''}>À ventiler</option>
           <option value="ventile" ${f.statut==='ventile'?'selected':''}>Ventilé</option>
@@ -12395,7 +12405,7 @@ async function comptaRenderVentilationCaisse(host){
     </div>
     <div class="card overflow-x-auto">
       <table><thead><tr><th>Date</th><th>Caisse</th><th>N°</th><th>Type</th><th>Motif</th><th class="text-right">Montant</th><th>Compte de contrepartie</th><th></th></tr></thead>
-      <tbody>${mvts.map(m=>{
+      <tbody>${affiches.map(m=>{
         const suggestion=(regles||[]).find(r=>m.motif.toLowerCase().includes(String(r.mot_cle).toLowerCase()));
         return `<tr>
         <td>${fmtDate(m.date_mouvement)}</td>
@@ -12406,11 +12416,21 @@ async function comptaRenderVentilationCaisse(host){
         <td class="text-right font-semibold">${money(m.montant)}</td>
         <td>${m.statut==='ventile'?compteLabel(m.compte_ventile):`
           ${suggestion?`<div class="text-xs text-indigo-500 mb-1">💡 Suggestion : ${compteLabel(suggestion.compte_code)}</div>`:''}
-          <select id="cvCompte_${m.id}" class="text-xs w-full"><option value="">Choisir…</option>${compteOptionsHtml(suggestion?.compte_code||'')}</select>`}</td>
+          <select id="cvCompte_${m.id}" class="text-xs w-full" onfocus="cvOptions(this)" onmousedown="cvOptions(this)"><option value="${escapeHtml(suggestion?.compte_code||'')}">${suggestion?escapeHtml(compteLabel(suggestion.compte_code)):'Choisir…'}</option></select>`}</td>
         <td class="text-right">${m.statut==='a_ventiler'?`<button class="text-xs text-indigo-600" onclick="caisseVentilerLigne('${m.id}')">✔ Ventiler</button>`:''}</td>
       </tr>`;
       }).join('')||'<tr><td colspan="8" class="text-gray-400 p-4 text-center">Aucun mouvement de séance clôturée sur cette période.</td></tr>'}</tbody></table>
-    </div>`;
+    </div>
+    ${mvts.length>PAGE?`<div class="flex items-center justify-center gap-3 mt-3 text-sm"><button class="btn btn-outline text-xs" ${f.page?'':'disabled'} onclick="window._compta.brouillard.page--;comptaRenderCycleView()">◀ Précédent</button>
+      <span>Page ${f.page+1} / ${nbPages} · ${mvts.length} mouvements (lignes ${f.page*PAGE+1}–${Math.min(mvts.length,(f.page+1)*PAGE)})</span>
+      <button class="btn btn-outline text-xs" ${f.page<nbPages-1?'':'disabled'} onclick="window._compta.brouillard.page++;comptaRenderCycleView()">Suivant ▶</button></div>`:''}${mvts.length>=20000?'<div class="text-xs text-amber-600 text-center mt-2">Limite de 20 000 mouvements atteinte : réduisez la période.</div>':''}`;
+}
+/* Liste des comptes chargée à la demande (au premier clic) : évite des milliers de <option> dans la page */
+function cvOptions(sel){
+  if(sel.dataset.pret) return; sel.dataset.pret='1';
+  const cur=sel.value; window._cvOptsHtml=window._cvOptsHtml||compteOptionsHtml('');
+  sel.innerHTML='<option value="">Choisir…</option>'+window._cvOptsHtml; sel.value=cur;
+  if(sel.value!==cur) sel.insertAdjacentHTML('afterbegin',`<option value="${escapeHtml(cur)}" selected>${escapeHtml(compteLabel(cur))}</option>`);
 }
 
 /* ============================== CAISSE (multi-caisses) ============================== */
@@ -12957,16 +12977,19 @@ async function caisseVentilationAutomatique(){
   const f=window._compta.brouillard||{};
   const {data:regles}=await sb.from('caisse_regles_ventilation').select('*');
   if(!regles||!regles.length){ toast('Aucune règle de ventilation enregistrée pour le moment.','error'); return; }
-  let q=sb.from('caisse_mouvements').select('*, caisses(compte_code,nom), caisse_sessions(statut)').eq('statut','a_ventiler').gte('date_mouvement',f.debut||'1900-01-01').lte('date_mouvement',f.fin||'2999-12-31');
-  if(f.caisseId) q=q.eq('caisse_id',f.caisseId);
-  const {data:mvtsBrut}=await q;
-  const eligibles=(mvtsBrut||[]).filter(m=>m.caisse_sessions?.statut==='cloturee');
+  let eligibles;
+  try{ eligibles=await lireToutParPages(()=>{
+    let q=sb.from('caisse_mouvements').select('*, caisses(compte_code,nom), caisse_sessions!inner(statut)').eq('caisse_sessions.statut','cloturee').eq('statut','a_ventiler').gte('date_mouvement',f.debut||'1900-01-01').lte('date_mouvement',f.fin||'2999-12-31').order('date_mouvement').order('id');
+    if(f.caisseId) q=q.eq('caisse_id',f.caisseId); return q; }); }
+  catch(e){ toast(e.message||String(e),'error'); return; }
+  const aTraiter=eligibles.filter(m=>regles.some(r=>m.motif.toLowerCase().includes(String(r.mot_cle).toLowerCase())));
+  if(aTraiter.length>200 && !confirm(`${aTraiter.length} mouvements vont être ventilés un par un : cela peut prendre plusieurs minutes. Continuer ?`)) return;
   let nbOk=0,nbEchec=0;
-  for(const m of eligibles){
+  for(const [i,m] of aTraiter.entries()){
     const regle=regles.find(r=>m.motif.toLowerCase().includes(String(r.mot_cle).toLowerCase()));
-    if(!regle) continue;
     const res=await caisseExecuterVentilation(m,regle.compte_code,false);
     if(res.ok) nbOk++; else nbEchec++;
+    if(aTraiter.length>50 && (i+1)%25===0) toast(`Ventilation… ${i+1} / ${aTraiter.length}`);
   }
   if(!nbOk && !nbEchec){ toast('Aucun mouvement à ventiler ne correspond à une règle existante.','error'); return; }
   toast(`⚡ ${nbOk} mouvement(s) ventilé(s) automatiquement.`+(nbEchec?` ${nbEchec} échec(s) — voir le détail.`:''));
