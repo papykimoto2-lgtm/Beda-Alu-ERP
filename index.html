@@ -3660,7 +3660,7 @@ async function renderCaissePrevisions(el){
   const habilite=attente.filter(prevPeutDecider);
   const H=window._prevHub, miennes=L.filter(x=>x.demande_par===CURRENT_USER?.id);
   const liste=H.onglet==='attente'?attente:H.onglet==='validees'?validees:H.onglet==='miennes'?miennes:L.filter(x=>['rejetee','annulee','realisee'].includes(x.statut)).slice().reverse();
-  const onglets=[['attente',`⏳ À valider (${attente.length})`],['validees',`✅ Validées à décaisser (${validees.length})`],['miennes',`📋 Mes prévisions (${miennes.length})`],['historique','🗂️ Historique']];
+  const onglets=[['attente',`⏳ À valider (${attente.length})`],['validees',`✅ Validées à décaisser (${validees.length})`],['miennes',`📋 Mes prévisions (${miennes.length})`],['historique','🗂️ Historique'],['budget','📈 Budget mensuel prévisionnel']];
   el.innerHTML=`
     <div class="flex flex-wrap justify-between items-start gap-3 mb-4">
       <div><h2 class="text-lg font-bold">📅 Prévisions de dépenses</h2>
@@ -3669,7 +3669,94 @@ async function renderCaissePrevisions(el){
     </div>
     ${dashCartes([{lib:'À valider',val:attente.length,icone:'⏳',coul:attente.length?'#d97706':'',sous:money(somme(attente))},{lib:'Que vous pouvez valider',val:habilite.length,icone:'✅',coul:habilite.length?'#059669':''},{lib:'Validées à décaisser',val:validees.length,icone:'💵',sous:money(somme(validees))},{lib:'Réalisées ce mois',val:T('realisee').filter(x=>String(x.realise_le||'').startsWith(mois)).length,icone:'📊',sous:money(somme(T('realisee').filter(x=>String(x.realise_le||'').startsWith(mois))))}])}
     <div class="flex gap-1.5 p-1.5 mb-3 rounded-xl" style="background:#eef0f5">${onglets.map(([k,l])=>`<button class="dash-tab ${H.onglet===k?'active':''}" onclick="window._prevHub.onglet='${k}';showPage('caisse-previsions')">${l}</button>`).join('')}</div>
-    <div class="card p-4">${prevTableHtml(liste,caisses)}</div>`;
+    <div class="card p-4" id="pbHost">${H.onglet==='budget'?'<div class="text-sm text-gray-400">Calcul du budget à partir des mouvements de caisse…</div>':prevTableHtml(liste,caisses)}</div>`;
+  if(H.onglet==='budget') prevBudgetRender();
+}
+
+/* BUDGET MENSUEL PRÉVISIONNEL PAR TYPE DE DÉPENSE — tiré de l'antériorité des sorties de caisse.
+   Type = compte d'imputation à 3 chiffres (SYSCOHADA : 604 achats, 622 locations, 661 rémunérations…) ; sortie non ventilée :
+   déduite des règles de ventilation (mot-clé du motif), sinon « Non classé ». Transferts entre caisses exclus.
+   Budget proposé = moyenne mensuelle des N derniers mois complets (+ ajustement %), modifiable ligne par ligne ;
+   « Créer les prévisions » génère une prévision par type, soumise à la validation hiérarchique. */
+window._prevBudget=window._prevBudget||{n:6,ajust:0,edits:{},off:{}};
+const PB_MOIS=d=>d.toISOString().slice(0,7);
+function pbMoisAvant(n){ const r=[]; const d=new Date(); d.setDate(1); for(let i=n;i>=1;i--){ const x=new Date(d.getFullYear(),d.getMonth()-i,1); r.push(`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}`); } return r; }
+const pbMoisLib=k=>new Date(k+'-01T12:00:00').toLocaleDateString('fr-FR',{month:'short',year:'2-digit'});
+function pbCategorie(cle){ return /^66/.test(cle)?"Main d'œuvre / Salaires":/^(40|60)/.test(cle)?'Matériel / Fournisseur':/^(61|624)/.test(cle)?'Transport / Carburant':/^(62|63|64)/.test(cle)?'Frais généraux':'Autre'; }
+async function prevBudgetCharger(){
+  const B=window._prevBudget, mois=pbMoisAvant(B.n), courant=PB_MOIS(new Date()), debut=mois[0]+'-01';
+  await comptaChargerReferentiel();
+  const [{data:mv,error},{data:regles}]=await Promise.all([
+    sb.from('caisse_mouvements').select('date_mouvement,montant,motif,compte_ventile,numero,transfert_id').eq('type','sortie').gte('date_mouvement',debut).is('transfert_id',null).limit(10000),
+    sb.from('caisse_regles_ventilation').select('mot_cle,compte_code')]);
+  if(error) throw error;
+  const M={}, tous=[...mois,courant];
+  (mv||[]).forEach(m=>{
+    if(/^TRF/i.test(m.numero||'')) return;
+    const mk=String(m.date_mouvement).slice(0,7); if(!tous.includes(mk)) return;
+    const code=m.compte_ventile||(regles||[]).find(r=>(m.motif||'').toLowerCase().includes(String(r.mot_cle).toLowerCase()))?.compte_code||'';
+    const cle=code?code.slice(0,3):'—';
+    const lib=cle==='—'?'Non classé (à ventiler)':((compteByCode(cle)||{}).libelle?`${cle} — ${compteByCode(cle).libelle}`:compteLabel(code));
+    const L=M[cle]||(M[cle]={cle,lib,mois:{}}); L.mois[mk]=(L.mois[mk]||0)+(+m.montant||0);
+  });
+  return {mois,courant,lignes:Object.values(M).map(L=>{
+    const vals=mois.map(k=>L.mois[k]||0), total=vals.reduce((a,b)=>a+b,0), moy=total/mois.length;
+    const r3=vals.slice(-3).reduce((a,b)=>a+b,0)/3, a3=vals.slice(0,-3).length?vals.slice(0,-3).reduce((a,b)=>a+b,0)/vals.slice(0,-3).length:null;
+    return {...L,vals,total,moy,max:Math.max(...vals),dernier:vals[vals.length-1],tendance:a3?((r3-a3)/a3*100):null,realise:L.mois[courant]||0};
+  }).filter(L=>L.total>0||L.realise>0).sort((a,b)=>b.total-a.total)};
+}
+async function prevBudgetRender(){
+  const host=document.getElementById('pbHost'); if(!host) return;
+  const B=window._prevBudget;
+  let D; try{ D=await prevBudgetCharger(); }catch(e){ host.innerHTML=`<div class="text-sm text-gray-500">Budget indisponible : ${escapeHtml(e.message||String(e))}</div>`; return; }
+  window._prevBudgetData=D;
+  const budget=L=>B.edits[L.cle]!=null?+B.edits[L.cle]:Math.round(L.moy*(1+(+B.ajust||0)/100)/100)*100;
+  const inclus=L=>!B.off[L.cle]&&budget(L)>0;
+  const totB=D.lignes.filter(inclus).reduce((t,L)=>t+budget(L),0), totR=D.lignes.reduce((t,L)=>t+L.realise,0), totMoy=D.lignes.reduce((t,L)=>t+L.moy,0);
+  host.innerHTML=`
+    <div class="flex flex-wrap items-end justify-between gap-3 mb-3">
+      <div class="text-sm text-gray-500 max-w-xl">Moyenne mensuelle des <b>sorties de caisse</b> par type de dépense sur les derniers mois complets, avec l'ajustement choisi. Modifiez un budget à la main si besoin, puis créez les prévisions : elles partent à la validation de la hiérarchie.</div>
+      <div class="flex flex-wrap items-end gap-2">
+        <div class="field"><label>Historique</label>${fieldWrap('🗓️',`<select onchange="window._prevBudget.n=+this.value;prevBudgetRender()">${[3,6,12].map(n=>`<option value="${n}" ${B.n===n?'selected':''}>${n} derniers mois</option>`).join('')}</select>`)}</div>
+        <div class="field"><label>Ajustement (%)</label>${fieldWrap('📈',`<input type="number" step="1" style="width:90px" value="${B.ajust}" onchange="window._prevBudget.ajust=+this.value||0;window._prevBudget.edits={};prevBudgetRender()">`)}</div>
+        <button class="btn btn-primary" onclick="prevBudgetCreerModal()">📅 Créer les prévisions</button>
+      </div>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-3 mb-3">
+      <div class="card p-3"><div class="text-xs text-gray-400">Moyenne mensuelle observée</div><div class="text-lg font-black">${money(totMoy)}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Budget prévisionnel retenu / mois</div><div class="text-lg font-black text-indigo-600">${money(totB)}</div></div>
+      <div class="card p-3"><div class="text-xs text-gray-400">Réalisé ce mois (${pbMoisLib(D.courant)})</div><div class="text-lg font-black ${totR>totB&&totB?'text-red-600':''}">${money(totR)}</div></div>
+    </div>
+    <div class="overflow-x-auto"><table class="text-sm"><thead><tr><th></th><th>Type de dépense</th>${D.mois.map(k=>`<th class="text-right">${pbMoisLib(k)}</th>`).join('')}<th class="text-right">Moyenne</th><th class="text-right">Tendance</th><th class="text-right">Budget / mois</th><th class="text-right">Réalisé ${pbMoisLib(D.courant)}</th><th>Consommé</th></tr></thead><tbody>
+    ${D.lignes.map(L=>{ const b=budget(L), pct=b?Math.round(L.realise/b*100):0;
+      return `<tr><td><input type="checkbox" ${B.off[L.cle]?'':'checked'} onchange="window._prevBudget.off['${L.cle}']=!this.checked;prevBudgetRender()"></td><td>${escapeHtml(L.lib)}</td>
+      ${L.vals.map(v=>`<td class="text-right text-xs ${v===L.max&&v>0?'font-bold':'text-gray-500'}">${v?money(v).replace(' FCFA',''):'—'}</td>`).join('')}
+      <td class="text-right">${money(L.moy).replace(' FCFA','')}</td>
+      <td class="text-right text-xs ${L.tendance==null?'text-gray-300':L.tendance>5?'text-red-600':L.tendance<-5?'text-emerald-600':'text-gray-500'}">${L.tendance==null?'—':(L.tendance>0?'▲ +':'▼ ')+Math.round(L.tendance)+' %'}</td>
+      <td class="text-right"><input type="number" min="0" step="100" style="width:110px;text-align:right" value="${b}" onchange="window._prevBudget.edits['${L.cle}']=+this.value||0;prevBudgetRender()"></td>
+      <td class="text-right">${money(L.realise).replace(' FCFA','')}</td>
+      <td style="min-width:110px"><div style="background:#e5e7eb;border-radius:6px;height:8px"><div style="width:${Math.min(100,pct)}%;height:8px;border-radius:6px;background:${pct>100?'#dc2626':pct>80?'#d97706':'#059669'}"></div></div><div class="text-[11px] text-gray-400">${b?pct+' %':'—'}</div></td></tr>`; }).join('')||`<tr><td colspan="${D.mois.length+7}" class="text-gray-400 text-center p-4">Aucune sortie de caisse sur la période.</td></tr>`}
+    </tbody><tfoot><tr><th></th><th>Total</th>${D.mois.map((k,i)=>`<th class="text-right">${money(D.lignes.reduce((t,L)=>t+L.vals[i],0)).replace(' FCFA','')}</th>`).join('')}<th class="text-right">${money(totMoy).replace(' FCFA','')}</th><th></th><th class="text-right">${money(totB).replace(' FCFA','')}</th><th class="text-right">${money(totR).replace(' FCFA','')}</th><th></th></tr></tfoot></table></div>
+    <div class="text-xs text-gray-400 mt-2">Les sorties non ventilées sont classées d'après les règles de ventilation (mot-clé du motif). Transferts entre caisses exclus.</div>`;
+}
+function prevBudgetCreerModal(){
+  const D=window._prevBudgetData, B=window._prevBudget; if(!D) return;
+  const sel=D.lignes.filter(L=>!B.off[L.cle]&&(B.edits[L.cle]!=null?+B.edits[L.cle]:Math.round(L.moy*(1+(+B.ajust||0)/100)/100)*100)>0);
+  if(!sel.length){ toast('Aucun type avec un budget > 0.','error'); return; }
+  const d=new Date(); const suivant=`${new Date(d.getFullYear(),d.getMonth()+1,1).getFullYear()}-${String(new Date(d.getFullYear(),d.getMonth()+1,1).getMonth()+1).padStart(2,'0')}`;
+  openModal(`<div class="p-5 grid gap-3" style="min-width:300px;max-width:480px"><h3 class="font-bold text-lg">📅 Créer ${sel.length} prévision(s) de dépenses</h3>
+    <div class="field"><label>Mois concerné</label>${fieldWrap('🗓️',`<select id="pbMois"><option value="${suivant}">Mois prochain (${pbMoisLib(suivant)})</option><option value="${D.courant}">Mois en cours (${pbMoisLib(D.courant)})</option></select>`)}</div>
+    <div class="text-sm text-gray-500">Une prévision par type de dépense (montant = budget mensuel retenu), soumise à la validation de la hiérarchie selon son montant.</div>
+    <div class="flex justify-end gap-2"><button class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="prevBudgetCreer()">Soumettre à validation</button></div></div>`);
+}
+async function prevBudgetCreer(){
+  const D=window._prevBudgetData, B=window._prevBudget, mois=val('pbMois'); if(!D||!mois) return;
+  const aujourd=new Date().toISOString().slice(0,10), date=mois===D.courant?aujourd:mois+'-01';
+  const rows=D.lignes.filter(L=>!B.off[L.cle]).map(L=>({L,b:B.edits[L.cle]!=null?+B.edits[L.cle]:Math.round(L.moy*(1+(+B.ajust||0)/100)/100)*100})).filter(x=>x.b>0)
+    .map(({L,b})=>({date_prevue:date,montant:b,motif:`Budget prévisionnel ${L.lib} — ${pbMoisLib(mois)}`,categorie:pbCategorie(L.cle)}));
+  const {error}=await sb.from('caisse_previsions').insert(rows);
+  if(error){ toast(error.message,'error'); return; }
+  closeModal(); toast(rows.length+' prévision(s) soumise(s) à la hiérarchie.'); window._prevHub.onglet='miennes'; showPage('caisse-previsions');
 }
 async function prevNouvelle(){
   await chargerChantiersRef(true);
