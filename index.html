@@ -3521,7 +3521,7 @@ async function renderProjetForm(el,opts={}){
 /* Matériel affecté à un chantier (fiche de suivi importée : table chantier_materiel) :
    cartes de synthèse, récapitulatif par fournisseur et tableau détaillé des lignes avec leurs montants. */
 const matEstPaye=m=>/^p[a-z]*ye/i.test(String(m.statut_paiement||''));
-function matChantierHtml(rows,erreur){
+function matChantierHtml(rows,erreur,editable){
   if(erreur) return `<div class="text-sm text-gray-400 mb-4">Matériel du chantier indisponible : ${escapeHtml(erreur.message||String(erreur))}</div>`;
   const L=rows||[];
   const montant=m=>+m.montant||0;
@@ -3545,12 +3545,59 @@ function matChantierHtml(rows,erreur){
     ${parFrs.length>1?`<div class="overflow-x-auto mb-3"><table><thead><tr><th>Fournisseur</th><th class="text-right">Lignes</th><th class="text-right">Montant</th><th class="text-right">Payé</th><th class="text-right">Reste</th></tr></thead><tbody>
       ${parFrs.map(f=>`<tr><td>${escapeHtml(f.nom)}</td><td class="text-right">${f.n}</td><td class="text-right font-semibold">${money(f.total)}</td><td class="text-right">${money(f.paye)}</td><td class="text-right ${f.total-f.paye>0?'text-red-600':''}">${money(f.total-f.paye)}</td></tr>`).join('')}
     </tbody></table></div>`:''}
-    <div class="overflow-x-auto mb-4"><table><thead><tr><th>#</th><th class="text-right">Qté</th><th>Désignation</th><th>Fournisseur</th><th class="text-right">P.U</th><th class="text-right">Montant</th><th>Paiement</th><th>Date paiement</th><th>Livraison</th></tr></thead><tbody>
+    <div class="overflow-x-auto mb-4"><table><thead><tr><th>#</th><th class="text-right">Qté</th><th>Désignation</th><th>Fournisseur</th><th class="text-right">P.U</th><th class="text-right">Montant</th><th>Paiement</th><th>Date paiement</th><th>Livraison</th>${editable?'<th></th>':''}</tr></thead><tbody>
       ${L.map((m,i)=>`<tr><td class="text-xs text-gray-400">${m.ordre||i+1}</td><td class="text-right">${m.quantite==null?'—':fmtQte(+m.quantite)}</td>
         <td>${escapeHtml(m.designation||'')}${m.code_article?` <span class="text-xs text-gray-400">(${escapeHtml(m.code_article)})</span>`:''}</td><td class="text-xs">${escapeHtml(m.fournisseur||'—')}</td>
         <td class="text-right">${m.prix_unitaire==null?'—':money(m.prix_unitaire)}</td><td class="text-right font-semibold">${money(montant(m))}</td>
-        <td>${badge(m)}${m.statut_paiement&&/chq|cheq/i.test(m.statut_paiement)?' <span class="text-xs text-gray-400">chèque</span>':''}</td><td class="text-xs">${m.date_paiement?fmtDate(m.date_paiement):'—'}</td><td class="text-xs">${escapeHtml(m.livraison||'—')}</td></tr>`).join('')||'<tr><td colspan="9" class="text-gray-400 text-center p-3">Aucun matériel enregistré pour ce chantier.</td></tr>'}
-    </tbody>${L.length?`<tfoot><tr><th colspan="5" class="text-right">Total matériel</th><th class="text-right">${money(total)}</th><th colspan="3"></th></tr></tfoot>`:''}</table></div>`;
+        <td>${badge(m)}${m.statut_paiement&&/chq|cheq/i.test(m.statut_paiement)?' <span class="text-xs text-gray-400">chèque</span>':''}</td><td class="text-xs">${m.date_paiement?fmtDate(m.date_paiement):'—'}</td><td class="text-xs">${escapeHtml(m.livraison||'—')}</td>${editable?`<td class="whitespace-nowrap"><button type="button" title="Modifier" onclick="matEditModal('${m.id}')">✏️</button> <button type="button" title="Supprimer" class="text-red-600" onclick="matSupprModal('${m.id}')">✕</button></td>`:''}</tr>`).join('')||'<tr><td colspan="10" class="text-gray-400 text-center p-3">Aucun matériel enregistré pour ce chantier.</td></tr>'}
+    </tbody>${L.length?`<tfoot><tr><th colspan="5" class="text-right">Total matériel</th><th class="text-right">${money(total)}</th><th colspan="${editable?4:3}"></th></tr></tfoot>`:''}</table></div>`;
+}
+
+/* Modification / suppression d'une ligne de matériel avec motif obligatoire ; journal tenu par trigger SQL (sql/chantier_materiel_historique.sql) */
+function matEditModal(id){
+  const m=(window._matLignes||[]).find(x=>x.id===id); if(!m) return;
+  openModal(`<form id="meForm" class="p-5 grid gap-3" style="min-width:300px">
+    <h3 class="font-bold">✏️ Modifier la ligne de matériel</h3>
+    <div class="field"><label>Désignation</label>${fieldWrap('📝',`<input id="meDes" required value="${escapeHtml(m.designation||'')}">`)}</div>
+    <div class="grid grid-cols-2 gap-3"><div class="field"><label>Quantité</label>${fieldWrap('🔢',`<input id="meQte" type="number" min="0" step="any" value="${m.quantite??0}" oninput="meTot()">`)}</div>
+    <div class="field"><label>P.U (FCFA)</label>${fieldWrap('💰',`<input id="mePu" type="number" min="0" step="any" value="${m.prix_unitaire??0}" oninput="meTot()">`)}</div></div>
+    <div class="text-right font-bold" id="meTotal"></div>
+    <div class="field"><label>Motif de la modification (obligatoire)</label>${fieldWrap('📋','<input id="meMotif" required placeholder="Ex. : client a changé de gamme">')}</div>
+    <div class="flex justify-end gap-2"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary">Enregistrer</button></div></form>`);
+  window.meTot=()=>{ document.getElementById('meTotal').textContent=money((+val('meQte')||0)*(+val('mePu')||0)); }; meTot();
+  document.getElementById('meForm').onsubmit=async e=>{
+    e.preventDefault();
+    const {error}=await sb.rpc('modifier_materiel',{p_id:id,p_designation:val('meDes'),p_quantite:+val('meQte')||0,p_prix_unitaire:+val('mePu')||0,p_motif:val('meMotif')});
+    if(error){ toast(error.message,'error'); return; }
+    closeModal(); toast('Ligne modifiée (historique enregistré).'); renderSuiviChantier(window._matProjet);
+  };
+}
+function matSupprModal(id){
+  const m=(window._matLignes||[]).find(x=>x.id===id); if(!m) return;
+  openModal(`<form id="msForm" class="p-5 grid gap-3" style="min-width:300px">
+    <h3 class="font-bold">Supprimer cette ligne ?</h3><div class="text-sm">${escapeHtml(m.designation||'')} — ${money(m.montant)}</div>
+    <div class="field"><label>Motif de la suppression (obligatoire)</label>${fieldWrap('📋','<input id="msMotif" required>')}</div>
+    <div class="flex justify-end gap-2"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button class="btn btn-primary" style="background:#dc2626">Supprimer</button></div></form>`);
+  document.getElementById('msForm').onsubmit=async e=>{
+    e.preventDefault();
+    const {error}=await sb.rpc('supprimer_materiel',{p_id:id,p_motif:val('msMotif')});
+    if(error){ toast(error.message,'error'); return; }
+    closeModal(); toast('Ligne supprimée (historique enregistré).'); renderSuiviChantier(window._matProjet);
+  };
+}
+async function matHistoriqueModal(projetId){
+  const {data,error}=await sb.from('chantier_materiel_historique').select('*, profiles(nom_complet)').eq('projet_id',projetId).order('created_at',{ascending:false});
+  if(error){ toast("Historique indisponible : "+error.message+" (exécuter sql/chantier_materiel_historique.sql)",'error'); return; }
+  const des=h=>escapeHtml((h.apres||h.avant||{}).designation||'');
+  const det=h=>{ const a=h.avant||{}, b=h.apres||{};
+    if(h.action==='AJOUT') return `${fmtQte(+b.quantite||0)} × ${money(b.prix_unitaire)} = <b>${money(b.montant)}</b>`;
+    if(h.action==='SUPPRESSION') return `<span class="text-red-600">${fmtQte(+a.quantite||0)} × ${money(a.prix_unitaire)} = ${money(a.montant)}</span>`;
+    const ch=(l,x,y,f)=>String(x??'')!==String(y??'')?`<div>${l} : ${f(x)} → <b>${f(y)}</b></div>`:'';
+    return ch('Désignation',a.designation,b.designation,v=>escapeHtml(v||'—'))+ch('Qté',a.quantite,b.quantite,v=>fmtQte(+v||0))+ch('P.U',a.prix_unitaire,b.prix_unitaire,money)+ch('Montant',a.montant,b.montant,money); };
+  openModal(`<div class="p-5" style="min-width:320px;max-width:760px"><div class="flex justify-between items-center mb-3"><h3 class="font-bold">🕘 Historique du matériel (${(data||[]).length})</h3><button class="btn btn-outline text-xs" onclick="closeModal()">Fermer</button></div>
+    <div class="overflow-x-auto"><table class="text-sm"><thead><tr><th>Date</th><th>Auteur</th><th>Action</th><th>Ligne</th><th>Détail</th><th>Motif</th></tr></thead><tbody>
+    ${(data||[]).map(h=>`<tr><td class="text-xs whitespace-nowrap">${new Date(h.created_at).toLocaleString('fr-FR')}</td><td class="text-xs">${escapeHtml(h.profiles?.nom_complet||'—')}</td><td><span class="pill">${h.action}</span></td><td>${des(h)}</td><td class="text-xs">${det(h)}</td><td class="text-xs">${escapeHtml(h.motif||'')}</td></tr>`).join('')||'<tr><td colspan="6" class="text-gray-400 text-center p-3">Aucune modification enregistrée.</td></tr>'}
+    </tbody></table></div></div>`);
 }
 
 /* Impression du calcul du matériel d'un chantier (moteur d'impression sécurisé : en-tête, pied, QR) */
@@ -3610,6 +3657,7 @@ async function renderSuiviChantier(projetId){
     sb.from('chantier_materiel').select('*').eq('projet_id',projetId).order('ordre',{ascending:true})
   ]);
   if(e1||e2){ host.innerHTML=`<div class="text-sm text-gray-400">Suivi indisponible : ${escapeHtml((e1||e2).message)}</div>`; return; }
+  window._matLignes=mat||[]; window._matProjet=projetId;
   const cm=caisse||[], ms=stock||[];
   const depenses=cm.filter(m=>m.type==='sortie').reduce((t,m)=>t+(+m.montant||0),0);
   const recettes=cm.filter(m=>m.type==='entree').reduce((t,m)=>t+(+m.montant||0),0);
@@ -3620,6 +3668,7 @@ async function renderSuiviChantier(projetId){
       <h2>📊 Suivi du chantier — matériel, caisse & stock</h2>
       <div class="flex gap-2"><button class="btn btn-outline" onclick="matAjoutModal('${projetId}')">🧱 Ajouter du matériel</button>
       <button class="btn btn-outline" onclick="matImprimer('${projetId}')">🖨 Imprimer le matériel</button>
+      <button class="btn btn-outline" onclick="matHistoriqueModal('${projetId}')">🕘 Historique</button>
       <button class="btn btn-outline" onclick="openMouvementModal('sortie',null,null,'${projetId}')">📦 Sortie de stock pour ce chantier</button></div>
     </div>
     <div class="flex flex-wrap justify-between items-center gap-2 mb-1"><h3 class="font-semibold text-sm">📄 Devis & 🧾 factures du chantier</h3>
@@ -3630,7 +3679,7 @@ async function renderSuiviChantier(projetId){
         <td><span class="pill ${st.color}">${st.label}</span></td><td class="text-right font-semibold">${money(d.total)}</td>
         <td>${fl.map(f=>`<a href="#" class="text-xs hover:underline" style="color:#4f46e5" onclick="window._editId='${f.id}';showPage('facture-view');return false;">${escapeHtml(f.code)}</a> <span class="text-xs text-gray-400">${money(f.total)} · ${(STATUT_FACTURE[f.statut]||{}).label||f.statut}</span>`).join('<br>')||'<span class="text-xs text-gray-400">aucune</span>'}</td></tr>`; }).join('')||'<tr><td colspan="4" class="text-gray-400 text-center p-3">Aucun devis lié. Créez-en un ou rattachez un devis existant (champ « Chantier » du devis).</td></tr>'}
     </tbody></table></div>
-    ${matChantierHtml(mat,e3)}
+    ${matChantierHtml(mat,e3,projetId)}
     <div class="grid sm:grid-cols-4 gap-3 mb-4">
       <div class="card p-3"><div class="text-xs text-gray-400">Dépenses de caisse</div><div class="text-lg font-black text-red-600">${money(depenses)}</div></div>
       <div class="card p-3"><div class="text-xs text-gray-400">Encaissements (caisse)</div><div class="text-lg font-black text-emerald-600">${money(recettes)}</div></div>
